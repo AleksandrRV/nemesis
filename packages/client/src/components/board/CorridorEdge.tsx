@@ -8,6 +8,8 @@ interface CorridorEdgeProps {
   y1: number;
   x2: number;
   y2: number;
+  /** Отладочные переключатели: показываются только в dev-сборке (аудит №22). */
+  showDebugControls: boolean;
   onToggleDoor: (id: string) => void;
   onToggleNoise: (id: string) => void;
 }
@@ -18,6 +20,7 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
   y1,
   x2,
   y2,
+  showDebugControls,
   onToggleDoor,
   onToggleNoise,
 }) => {
@@ -106,9 +109,16 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         transform={`translate(${doorX}, ${doorY})`}
         onClick={(e) => {
           e.stopPropagation();
-          onToggleDoor(corridor.id);
+          if (showDebugControls) onToggleDoor(corridor.id);
         }}
-        className="cursor-pointer group"
+        className={showDebugControls ? 'cursor-pointer group' : 'group'}
+        aria-label={
+          corridor.doorState === 'OPEN'
+            ? 'Дверь открыта'
+            : corridor.doorState === 'CLOSED'
+              ? 'Дверь закрыта'
+              : 'Дверь разрушена'
+        }
       >
         <rect x={-16} y={-16} width={32} height={32} fill="transparent" />
         <rect
@@ -135,9 +145,9 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         transform={`translate(${noiseX}, ${noiseY})`}
         onClick={(e) => {
           e.stopPropagation();
-          onToggleNoise(corridor.id);
+          if (showDebugControls) onToggleNoise(corridor.id);
         }}
-        className="cursor-pointer group"
+        className={showDebugControls ? 'cursor-pointer group' : 'group'}
       >
         <circle cx={0} cy={0} r={16} fill="transparent" />
         <circle

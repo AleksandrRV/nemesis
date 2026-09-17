@@ -4,10 +4,14 @@ import { SHIP_ROOM_NODES } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { RoomHex } from './RoomHex';
 import { CorridorEdge } from './CorridorEdge';
+import { IS_DEV } from '../../utils/env';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export const ShipMapSVG: React.FC = () => {
-  const { gameState, selectedRoomId, selectRoom, toggleDoor, toggleNoise } = useGameStore();
+  const view = useGameStore((state) => state.view);
+  const selectedRoomId = useGameStore((state) => state.selectedRoomId);
+  const selectRoom = useGameStore((state) => state.selectRoom);
+  const dispatch = useGameStore((state) => state.dispatch);
 
   const coordsMap = React.useMemo(() => {
     const map = new Map<number, { x: number; y: number }>();
@@ -16,6 +20,19 @@ export const ShipMapSVG: React.FC = () => {
     }
     return map;
   }, []);
+
+  // Отладочные переключатели дверей и шума: движок примет их только в dev-режиме.
+  const handleToggleDoor = React.useCallback(
+    (corridorId: string) => dispatch({ type: 'DEV_TOGGLE_DOOR', payload: { corridorId } }),
+    [dispatch],
+  );
+
+  const handleToggleNoise = React.useCallback(
+    (corridorId: string) => dispatch({ type: 'DEV_TOGGLE_NOISE', payload: { corridorId } }),
+    [dispatch],
+  );
+
+  if (!view) return null;
 
   return (
     <div className="relative w-full h-full bg-nemesis-bg overflow-hidden">
@@ -72,7 +89,7 @@ export const ShipMapSVG: React.FC = () => {
 
                 {/* 1. Слой коридоров */}
                 <g id="corridors-layer">
-                  {Object.values(gameState.ship.corridors).map((corridor) => {
+                  {Object.values(view.ship.corridors).map((corridor) => {
                     const c1 = coordsMap.get(corridor.fromRoomId);
                     const c2 = coordsMap.get(corridor.toRoomId);
                     if (!c1 || !c2) return null;
@@ -85,8 +102,9 @@ export const ShipMapSVG: React.FC = () => {
                         y1={c1.y}
                         x2={c2.x}
                         y2={c2.y}
-                        onToggleDoor={toggleDoor}
-                        onToggleNoise={toggleNoise}
+                        showDebugControls={IS_DEV}
+                        onToggleDoor={handleToggleDoor}
+                        onToggleNoise={handleToggleNoise}
                       />
                     );
                   })}
@@ -94,7 +112,7 @@ export const ShipMapSVG: React.FC = () => {
 
                 {/* 2. Слой комнат */}
                 <g id="rooms-layer">
-                  {Object.values(gameState.ship.rooms).map((room) => {
+                  {Object.values(view.ship.rooms).map((room) => {
                     const coord = coordsMap.get(room.id);
                     if (!coord) return null;
 

@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, RoomId, RoomState } from '@nemesis/shared';
-import {
-  ADDITIONAL_ROOMS_2,
-  BASIC_ROOMS_1,
-  COORDINATE_DESTINATIONS,
-  ESCAPE_POD_NUMBERS,
-  GAME_STATE_SCHEMA_VERSION,
-  SHIP_CORRIDORS,
-  SHIP_ROOM_NODES,
-} from '@nemesis/shared';
-import { createInitialGameState } from './initialState';
+import type { RoomId, RoomState } from '../types/rooms.js';
+import type { GameState } from '../types/state.js';
+import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
+import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
+import { COORDINATE_DESTINATIONS, ESCAPE_POD_NUMBERS } from '../data/setup.js';
+import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
+import { createInitialGameState } from './setup.js';
 
 const SEEDS = ['nemesis-alpha', 'nemesis-beta', 'nemesis-gamma', 'nemesis-delta', 'nemesis-epsilon'];
 

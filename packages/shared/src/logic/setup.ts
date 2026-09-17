@@ -1,31 +1,22 @@
-import type {
-  CharacterPreset,
-  EscapePodState,
-  ExplorationToken,
-  GameDecksState,
-  GameMode,
-  GameState,
-  IntruderToken,
-  PlayerState,
-  RoomId,
-  RoomState,
-} from '@nemesis/shared';
+import type { CharacterPreset } from '../data/setup.js';
+import type { GameDecksState } from '../types/cards.js';
+import type { EscapePodState, IntruderToken, PlayerState } from '../types/entities.js';
+import type { ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
+import type { GameMode, GameState } from '../types/state.js';
+import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
+import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import {
-  ADDITIONAL_ROOMS_2,
   BASE_ADULT_COUNT,
-  BASIC_ROOMS_1,
   CHARACTERS,
   COORDINATE_DESTINATIONS,
   ESCAPE_PODS_BY_PLAYER_COUNT,
   ESCAPE_POD_NUMBERS,
-  GAME_STATE_SCHEMA_VERSION,
   MAX_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
   QUEST_ITEM_COUNT,
-  SHIP_CORRIDORS,
-  SHIP_ROOM_NODES,
   WEAKNESS_SLOT_OBJECT_KINDS,
-} from '@nemesis/shared';
+} from '../data/setup.js';
+import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import seedrandom from 'seedrandom';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';

@@ -1,9 +1,10 @@
 import React from 'react';
-import { SHIP_ROOM_NODES, type RoomState } from '@nemesis/shared';
+import { SHIP_ROOM_NODES, type SanitizedRoomState } from '@nemesis/shared';
 import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
 
 interface RoomHexProps {
-  room: RoomState;
+  /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
+  room: SanitizedRoomState;
   x: number;
   y: number;
   isSelected: boolean;

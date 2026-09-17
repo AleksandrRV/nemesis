@@ -73,7 +73,8 @@ export interface GameMeta {
   phase: GamePhase;
   activePlayerId: string;
   firstPlayerId: string;
-  timeTrackPosition: number; // 0..15 (0 = 15 раунд, 15 = 0 красный прыжок)
+  /** Позиция маркера Времени: 0..TIME_TRACK_LENGTH, где 15 — красный прыжок (стр. 11). */
+  timeTrackPosition: number;
   selfDestructTrackPosition: number | null; // 0..8 (8 = череп)
 }
 
@@ -87,5 +88,3 @@ export interface GameState {
   /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (AGENTS.md §3.3). */
   interruptQueue: InterruptEvent[];
 }
-
-export type SanitizedGameState = GameState;

@@ -22,6 +22,12 @@ export const COORDINATE_DESTINATIONS: Destination[] = ['EARTH', 'MARS', 'DEEP_SP
 /** Мест в одной Спасательной Капсуле (стр. 26). */
 export const ESCAPE_POD_CAPACITY = 2;
 
+/**
+ * Длина трека Времени: 15 делений (стр. 11). Позиция 0 — 15-й раунд,
+ * позиция 15 — красный прыжок, партия проиграна.
+ */
+export const TIME_TRACK_LENGTH = 15;
+
 /** Слотов рук у персонажа под Тяжёлые предметы и Объекты (GDD §2.2, стр. 22). */
 export const HAND_SLOT_COUNT = 2;
 

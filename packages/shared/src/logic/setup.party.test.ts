@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { CHARACTERS, MAX_PLAYER_COUNT, WEAKNESS_SLOT_OBJECT_KINDS } from '@nemesis/shared';
-import { createInitialGameState, explorationTokenAt } from './initialState';
+import { CHARACTERS, MAX_PLAYER_COUNT, WEAKNESS_SLOT_OBJECT_KINDS } from '../data/setup.js';
+import { createInitialGameState, explorationTokenAt } from './setup.js';
 
 describe('createInitialGameState: состав партии по числу игроков', () => {
   it.each([1, 2, 3, 4, 5])('создаёт по персонажу на каждого игрока (партия на %i)', (playerCount) => {

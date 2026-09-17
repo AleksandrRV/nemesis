@@ -1,11 +1,31 @@
 import React from 'react';
+import type { GamePhase } from '@nemesis/shared';
+import { TIME_TRACK_LENGTH } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { RotateCcw, Clock, Shield } from 'lucide-react';
 
+/** Фазы партии из контракта (стр. 11) — вместо зашитой строки «ФАЗА ИГРОКОВ». */
+const PHASE_LABELS: Record<GamePhase, string> = {
+  PLAYER_PHASE: 'ФАЗА ИГРОКОВ',
+  EVENT_PHASE: 'ФАЗА СОБЫТИЙ',
+  GAME_OVER: 'ПАРТИЯ ЗАВЕРШЕНА',
+};
+
 export const App: React.FC = () => {
-  const { gameState, initNewGame } = useGameStore();
+  const view = useGameStore((state) => state.view);
+  const startNewGame = useGameStore((state) => state.startNewGame);
+
+  if (!view) {
+    return (
+      <div className="relative w-screen h-screen bg-nemesis-bg flex items-center justify-center">
+        <span className="font-mono text-sm text-slate-400">СИСТЕМЫ КОРАБЛЯ ЗАГРУЖАЮТСЯ…</span>
+      </div>
+    );
+  }
+
+  const activePlayerName = view.players[view.meta.activePlayerId]?.name ?? 'Экипаж';
 
   return (
     <div className="relative w-screen h-screen bg-nemesis-bg flex flex-col overflow-hidden">
@@ -20,7 +40,7 @@ export const App: React.FC = () => {
               NEMESIS <span className="text-cyan-400 text-sm">DIGITAL v0.1.4</span>
             </h1>
             <span className="text-[10px] font-mono text-slate-400">
-              РАУНД {gameState.meta.currentRound} • ФАЗА ИГРОКОВ
+              РАУНД {view.meta.currentRound} • {PHASE_LABELS[view.meta.phase]} • {activePlayerName.toUpperCase()}
             </span>
           </div>
         </div>
@@ -30,14 +50,14 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded border border-slate-800">
             <Clock size={14} className="text-cyan-400" />
             <span className="text-xs font-mono text-slate-300">
-              ВРЕМЯ: <b className="text-white">{15 - gameState.meta.timeTrackPosition}</b>
+              ВРЕМЯ: <b className="text-white">{TIME_TRACK_LENGTH - view.meta.timeTrackPosition}</b>
             </span>
           </div>
 
           <button
             onClick={() => {
               if (confirm('Начать новую игру со случайным сидом?')) {
-                initNewGame();
+                startNewGame();
               }
             }}
             className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition"

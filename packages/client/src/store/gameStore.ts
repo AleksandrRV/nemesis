@@ -1,114 +1,99 @@
+import type { EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { immer } from 'zustand/middleware/immer';
-import type { GameState, RoomId } from '@nemesis/shared';
-import { createInitialGameState } from '../utils/initialState';
-import {
-  DEFAULT_SELECTED_ROOM_ID,
-  mergeSession,
-  migrateSession,
-  partializeSession,
-  SESSION_STORAGE_KEY,
-  SESSION_STORAGE_VERSION,
-  type PersistedSession,
-} from './session';
 
-interface GameStoreState {
-  gameState: GameState;
+import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
+import type { IGameTransport } from '../services/transport/ITransport';
+import { IS_DEV } from '../utils/env';
+
+/**
+ * Стор интерфейса — тонкий клиент транспорта.
+ *
+ * Правила игры здесь не живут: стор хранит только то, что пришло по подписке
+ * (`SanitizedGameState`), выбранный отсек и причину последнего отказа движка.
+ * Любое изменение партии — это `dispatch(action)` (аудит №6, №10).
+ */
+export interface GameStoreState {
+  /** Состояние глазами играющего персонажа; null — транспорт ещё не отдал первый снимок. */
+  view: SanitizedGameState | null;
+  /** Выбор в интерфейсе: не часть партии и не сохраняется. */
   selectedRoomId: RoomId | null;
+  /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
+  rejection: string | null;
 
-  // Экшены
-  initNewGame: (seed?: string) => void;
+  dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
-  toggleDoor: (corridorId: string) => void;
-  toggleNoise: (corridorId: string) => void;
-  exploreRoom: (roomId: RoomId) => void;
-  movePlayer: (targetRoomId: RoomId) => void;
+  startNewGame: (seed?: string) => void;
 }
 
-/** Сид новой партии: уникален, чтобы у игроков не было одинаковых раскладов. */
-function createSeed(): string {
-  return crypto.randomUUID();
+/** Транспорт локальной партии умеет начинать новый стол; сетевой — нет (это дело сервера). */
+export type TransportFactory = () => IGameTransport & { startNewGame?: (seed?: string) => void };
+
+/** Отсек, который открыт по умолчанию: там, где стоит играющий персонаж. */
+function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
+  return view?.players[view.meta.activePlayerId]?.roomId ?? null;
 }
 
-export const useGameStore = create<GameStoreState>()(
-  persist(
-    immer<GameStoreState>((set) => ({
-      gameState: createInitialGameState(createSeed()),
-      selectedRoomId: DEFAULT_SELECTED_ROOM_ID,
+export function createGameStore(createTransport: TransportFactory) {
+  let transport = createTransport();
+  let detach = (): void => undefined;
 
-      initNewGame: (seed) => {
-        const nextSeed = seed || createSeed();
+  const store = create<GameStoreState>()((set) => ({
+    view: null,
+    selectedRoomId: null,
+    rejection: null,
 
-        set((state) => {
-          state.gameState = createInitialGameState(nextSeed);
-          state.selectedRoomId = DEFAULT_SELECTED_ROOM_ID;
-        });
-      },
-
-      selectRoom: (roomId) => {
-        set((state) => {
-          state.selectedRoomId = roomId;
-        });
-      },
-
-      toggleDoor: (corridorId) => {
-        set((state) => {
-          const corridor = state.gameState.ship.corridors[corridorId];
-          if (!corridor) return;
-          if (corridor.doorState === 'OPEN') corridor.doorState = 'CLOSED';
-          else if (corridor.doorState === 'CLOSED') corridor.doorState = 'DESTROYED';
-          else corridor.doorState = 'OPEN';
-        });
-      },
-
-      toggleNoise: (corridorId) => {
-        set((state) => {
-          const corridor = state.gameState.ship.corridors[corridorId];
-          if (corridor) {
-            corridor.hasNoise = !corridor.hasNoise;
-          }
-        });
-      },
-
-      exploreRoom: (roomId) => {
-        set((state) => {
-          const room = state.gameState.ship.rooms[roomId];
-          if (room) {
-            room.isExplored = true;
-          }
-        });
-      },
-
-      movePlayer: (targetRoomId) => {
-        set((state) => {
-          const player = state.gameState.players['player-1'];
-          if (!player) return;
-
-          const oldRoom = state.gameState.ship.rooms[player.roomId];
-          const newRoom = state.gameState.ship.rooms[targetRoomId];
-          if (!newRoom) return;
-
-          if (oldRoom) {
-            oldRoom.occupantPlayerIds = oldRoom.occupantPlayerIds.filter((id) => id !== player.id);
-          }
-          newRoom.occupantPlayerIds.push(player.id);
-          newRoom.isExplored = true; // Автооткрытие при входе для первого этапа
-          player.roomId = targetRoomId;
-          state.selectedRoomId = targetRoomId;
-        });
-      },
-    })),
-    {
-      name: SESSION_STORAGE_KEY,
-      version: SESSION_STORAGE_VERSION,
-      storage: createJSONStorage(() => localStorage),
-      partialize: partializeSession,
-      migrate: (persistedState, version): PersistedSession => migrateSession(persistedState, version),
-      // Проверяем сохранение и при совпадении версии: zustand зовёт migrate
-      // только при её несовпадении, поэтому повреждённые данные той же версии
-      // нужно отсеивать здесь — иначе стор получит мусор и приложение упадёт.
-      merge: mergeSession,
+    dispatch: (action) => {
+      transport.sendAction(action);
     },
-  ),
-);
+
+    selectRoom: (roomId) => {
+      set({ selectedRoomId: roomId });
+    },
+
+    startNewGame: (seed) => {
+      if (transport.startNewGame) {
+        // Локальная партия продолжается тем же транспортом: он уже держит
+        // движок и сохранение, достаточно бросить новый стол.
+        transport.startNewGame(seed);
+        set({ selectedRoomId: defaultRoomId(store.getState().view), rejection: null });
+        return;
+      }
+
+      // Сетевой транспорт новой партии не начинает — её открывает сервер,
+      // поэтому клиент отключается от прежнего стола и подключается к новому.
+      detach();
+      transport = createTransport();
+      attach(transport);
+      void transport.init();
+      set({ view: null, selectedRoomId: null, rejection: null });
+    },
+  }));
+
+  function attach(instance: IGameTransport): void {
+    const unsubscribeState = instance.subscribeToState((view) => {
+      // Выбор отсека — состояние интерфейса: когда приходит новый снимок,
+      // уже открытый отсек остаётся открытым.
+      store.setState((state) => ({ view, selectedRoomId: state.selectedRoomId ?? defaultRoomId(view) }));
+    });
+
+    const unsubscribeEvents = instance.subscribeToEvents((event) => {
+      store.setState(event.type === 'ACTION_REJECTED' ? { rejection: event.reason } : { rejection: null });
+    });
+
+    detach = () => {
+      unsubscribeState();
+      unsubscribeEvents();
+    };
+  }
+
+  attach(transport);
+  void transport.init();
+
+  return store;
+}
+
+/**
+ * Стор приложения: офлайн-партия в браузере. Отладочные действия разрешены
+ * только в dev-сборке (аудит №22).
+ */
+export const useGameStore = createGameStore(() => createLocalTransport({ allowDevActions: IS_DEV }));

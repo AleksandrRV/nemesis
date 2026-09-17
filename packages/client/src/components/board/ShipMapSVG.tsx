@@ -1,0 +1,125 @@
+import React from 'react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { SHIP_ROOM_NODES } from '@nemesis/shared';
+import { useGameStore } from '../../store/gameStore';
+import { RoomHex } from './RoomHex';
+import { CorridorEdge } from './CorridorEdge';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+export const ShipMapSVG: React.FC = () => {
+  const { gameState, selectedRoomId, selectRoom, toggleDoor, toggleNoise } = useGameStore();
+
+  const coordsMap = React.useMemo(() => {
+    const map = new Map<number, { x: number; y: number }>();
+    for (const node of SHIP_ROOM_NODES) {
+      map.set(node.id, { x: node.x, y: node.y });
+    }
+    return map;
+  }, []);
+
+  return (
+    <div className="relative w-full h-full bg-nemesis-bg overflow-hidden">
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.7}
+        maxScale={2.8}
+        centerOnInit
+        limitToBounds={true} // Карта больше никогда не улетит за пределы экрана
+        doubleClick={{ disabled: true }} // Отключаем даблклик, ломавший позиционирование при частых кликах
+        panning={{ velocityDisabled: true }} // Отключаем инерционный улёт
+      >
+        {({ zoomIn, zoomOut, resetTransform }) => (
+          <>
+            {/* Кнопки управления зумом */}
+            <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 bg-nemesis-hull/90 backdrop-blur border border-nemesis-border p-1.5 rounded-lg shadow-lg">
+              <button
+                onClick={() => zoomIn(0.3)}
+                className="p-2 hover:bg-slate-800 text-slate-300 rounded active:scale-95 transition"
+                title="Приблизить"
+              >
+                <ZoomIn size={18} />
+              </button>
+              <button
+                onClick={() => zoomOut(0.3)}
+                className="p-2 hover:bg-slate-800 text-slate-300 rounded active:scale-95 transition"
+                title="Отдалить"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <button
+                onClick={() => resetTransform()}
+                className="p-2 hover:bg-slate-800 text-slate-300 rounded active:scale-95 transition"
+                title="Сбросить масштаб"
+              >
+                <RotateCcw size={18} />
+              </button>
+            </div>
+
+            {/* Зона масштабирования */}
+            <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full">
+              <svg
+                viewBox="0 0 1020 980"
+                className="w-full h-full min-w-[800px] min-h-[600px] select-none"
+                onClick={() => selectRoom(null)}
+              >
+                <defs>
+                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path
+                      d="M 40 0 L 0 0 0 40"
+                      fill="none"
+                      stroke="rgba(42, 59, 84, 0.12)"
+                      strokeWidth="1"
+                    />
+                  </pattern>
+                </defs>
+
+                <rect width="1020" height="980" fill="url(#grid)" />
+
+                {/* 1. Слой коридоров */}
+                <g id="corridors-layer">
+                  {Object.values(gameState.ship.corridors).map((corridor) => {
+                    const c1 = coordsMap.get(corridor.fromRoomId);
+                    const c2 = coordsMap.get(corridor.toRoomId);
+                    if (!c1 || !c2) return null;
+
+                    return (
+                      <CorridorEdge
+                        key={corridor.id}
+                        corridor={corridor}
+                        x1={c1.x}
+                        y1={c1.y}
+                        x2={c2.x}
+                        y2={c2.y}
+                        onToggleDoor={toggleDoor}
+                        onToggleNoise={toggleNoise}
+                      />
+                    );
+                  })}
+                </g>
+
+                {/* 2. Слой комнат */}
+                <g id="rooms-layer">
+                  {Object.values(gameState.ship.rooms).map((room) => {
+                    const coord = coordsMap.get(room.id);
+                    if (!coord) return null;
+
+                    return (
+                      <RoomHex
+                        key={room.id}
+                        room={room}
+                        x={coord.x}
+                        y={coord.y}
+                        isSelected={selectedRoomId === room.id}
+                        onSelect={selectRoom}
+                      />
+                    );
+                  })}
+                </g>
+              </svg>
+            </TransformComponent>
+          </>
+        )}
+      </TransformWrapper>
+    </div>
+  );
+};

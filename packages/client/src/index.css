@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Share Tech Mono', monospace;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: 'Teko', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+/* Блокировка стандартных мобильных свайпов обновления страницы */
+body {
+  overscroll-behavior-y: none;
+  touch-action: none;
+}

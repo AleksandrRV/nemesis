@@ -399,7 +399,7 @@ nemesis-digital/
 ├── AGENTS.md                      # Инструкция для AI-агентов
 ├── doc/
 │   ├── design_document.md         # Геймдизайн и правила
-│   ├── rules.md                   # Книга правил со стр. 1 по 31
+│   ├── rules.md                   # Книга правил: только локально, в git не входит
 │   └── tech_stack.md              # Данный документ
 │
 ├── packages/

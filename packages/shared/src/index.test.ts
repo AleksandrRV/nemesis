@@ -19,6 +19,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'COORDINATE_DESTINATIONS',
   'CRAFTING_RECIPES',
   'DEFAULT_SEED',
+  'DOOR_STATES',
   'ESCAPE_POD_CAPACITY',
   'ESCAPE_POD_NUMBERS',
   'ESCAPE_PODS_BY_PLAYER_COUNT',
@@ -40,6 +41,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'explorationTokenAt',
   'filterStateForPlayer',
   'findAdjacentOpenRoomIds',
+  'nextDoorState',
   'resolveInterrupt',
 ];
 

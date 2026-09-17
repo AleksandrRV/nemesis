@@ -3,6 +3,7 @@ import { produce } from 'immer';
 import type { EngineAction } from '../types/actions.js';
 import type { InterruptEvent } from '../types/interrupts.js';
 import type { CorridorConnection, RoomId } from '../types/rooms.js';
+import { nextDoorState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 
 /**
@@ -158,8 +159,7 @@ export class GameEngine {
       case 'DEV_TOGGLE_DOOR': {
         const corridor = requireCorridor(state, action.payload.corridorId);
 
-        corridor.doorState =
-          corridor.doorState === 'OPEN' ? 'CLOSED' : corridor.doorState === 'CLOSED' ? 'DESTROYED' : 'OPEN';
+        corridor.doorState = nextDoorState(corridor.doorState);
         return;
       }
 

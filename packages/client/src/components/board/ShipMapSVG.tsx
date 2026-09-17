@@ -4,14 +4,12 @@ import { SHIP_ROOM_NODES } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { RoomHex } from './RoomHex';
 import { CorridorEdge } from './CorridorEdge';
-import { IS_DEV } from '../../utils/env';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export const ShipMapSVG: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
   const selectRoom = useGameStore((state) => state.selectRoom);
-  const dispatch = useGameStore((state) => state.dispatch);
 
   const coordsMap = React.useMemo(() => {
     const map = new Map<number, { x: number; y: number }>();
@@ -20,17 +18,6 @@ export const ShipMapSVG: React.FC = () => {
     }
     return map;
   }, []);
-
-  // Отладочные переключатели дверей и шума: движок примет их только в dev-режиме.
-  const handleToggleDoor = React.useCallback(
-    (corridorId: string) => dispatch({ type: 'DEV_TOGGLE_DOOR', payload: { corridorId } }),
-    [dispatch],
-  );
-
-  const handleToggleNoise = React.useCallback(
-    (corridorId: string) => dispatch({ type: 'DEV_TOGGLE_NOISE', payload: { corridorId } }),
-    [dispatch],
-  );
 
   if (!view) return null;
 
@@ -95,17 +82,7 @@ export const ShipMapSVG: React.FC = () => {
                     if (!c1 || !c2) return null;
 
                     return (
-                      <CorridorEdge
-                        key={corridor.id}
-                        corridor={corridor}
-                        x1={c1.x}
-                        y1={c1.y}
-                        x2={c2.x}
-                        y2={c2.y}
-                        showDebugControls={IS_DEV}
-                        onToggleDoor={handleToggleDoor}
-                        onToggleNoise={handleToggleNoise}
-                      />
+                      <CorridorEdge key={corridor.id} corridor={corridor} x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} />
                     );
                   })}
                 </g>

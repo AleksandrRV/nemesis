@@ -1,21 +1,17 @@
 import React from 'react';
-import type { GamePhase } from '@nemesis/shared';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
-import { RotateCcw, Clock, Shield } from 'lucide-react';
-
-/** Фазы партии из контракта (стр. 11) — вместо зашитой строки «ФАЗА ИГРОКОВ». */
-const PHASE_LABELS: Record<GamePhase, string> = {
-  PLAYER_PHASE: 'ФАЗА ИГРОКОВ',
-  EVENT_PHASE: 'ФАЗА СОБЫТИЙ',
-  GAME_OVER: 'ПАРТИЯ ЗАВЕРШЕНА',
-};
+import { DevPanel } from './components/dev/DevPanel';
+import { PHASE_LABELS } from './utils/labels';
+import { IS_DEV } from './utils/env';
+import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
 
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
+  const [devPanelOpen, setDevPanelOpen] = React.useState(false);
 
   if (!view) {
     return (
@@ -54,6 +50,20 @@ export const App: React.FC = () => {
             </span>
           </div>
 
+          {/* Кнопка отладочных инструментов: её нет в продакшн-сборке (аудит №22) */}
+          {IS_DEV && (
+            <button
+              onClick={() => setDevPanelOpen((open) => !open)}
+              className={`p-2 rounded-lg transition ${
+                devPanelOpen ? 'bg-cyan-900/60 text-cyan-300' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+              }`}
+              title="Dev-панель"
+              aria-pressed={devPanelOpen}
+            >
+              <Bug size={16} />
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (confirm('Начать новую игру со случайным сидом?')) {
@@ -72,6 +82,7 @@ export const App: React.FC = () => {
       <main className="relative flex-1 w-full h-full overflow-hidden">
         <ShipMapSVG />
         <RoomInspector />
+        {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
     </div>
   );

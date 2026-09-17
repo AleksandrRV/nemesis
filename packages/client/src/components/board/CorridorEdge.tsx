@@ -8,22 +8,14 @@ interface CorridorEdgeProps {
   y1: number;
   x2: number;
   y2: number;
-  /** Отладочные переключатели: показываются только в dev-сборке (аудит №22). */
-  showDebugControls: boolean;
-  onToggleDoor: (id: string) => void;
-  onToggleNoise: (id: string) => void;
 }
 
-export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
-  corridor,
-  x1,
-  y1,
-  x2,
-  y2,
-  showDebugControls,
-  onToggleDoor,
-  onToggleNoise,
-}) => {
+/**
+ * Коридор на карте: линия связи, номера выходов, жетон Двери и маркер Шума.
+ * Только отображение: переключать Дверь и Шум можно в dev-панели, поэтому
+ * игровой интерфейс не содержит читерских кликов (аудит №22, пункт P1-4).
+ */
+export const CorridorEdge: React.FC<CorridorEdgeProps> = ({ corridor, x1, y1, x2, y2 }) => {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -107,11 +99,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
       {/* Дверь */}
       <g
         transform={`translate(${doorX}, ${doorY})`}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (showDebugControls) onToggleDoor(corridor.id);
-        }}
-        className={showDebugControls ? 'cursor-pointer group' : 'group'}
         aria-label={
           corridor.doorState === 'OPEN'
             ? 'Дверь открыта'
@@ -141,14 +128,7 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
       </g>
 
       {/* Шум */}
-      <g
-        transform={`translate(${noiseX}, ${noiseY})`}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (showDebugControls) onToggleNoise(corridor.id);
-        }}
-        className={showDebugControls ? 'cursor-pointer group' : 'group'}
-      >
+      <g transform={`translate(${noiseX}, ${noiseY})`} aria-label={corridor.hasNoise ? 'Маркер шума' : 'Шума нет'}>
         <circle cx={0} cy={0} r={16} fill="transparent" />
         <circle
           cx={0}

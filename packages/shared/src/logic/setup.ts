@@ -17,7 +17,7 @@ import {
   WEAKNESS_SLOT_OBJECT_KINDS,
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
-import seedrandom from 'seedrandom';
+import { createRng, shuffle } from '../utils/rng.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
 
@@ -216,27 +216,16 @@ function validatePlayerCount(playerCount: number): number {
  */
 export function createInitialGameState(seed: string = DEFAULT_SEED, options: InitialGameOptions = {}): GameState {
   const playerCount = validatePlayerCount(options.playerCount ?? MIN_PLAYER_COUNT);
-  const rng = seedrandom(seed);
+  // Поток `layout`: тайлы, жетоны Исследования, номера капсул и пункты
+  // назначения тасуются одной последовательностью, отдельной от броском Шума и
+  // колод (utils/rng.ts). Перемешивание — общее для проекта.
+  const rng = createRng(seed, 'layout');
 
-  // Перемешивание Фишера — Йетса на сидированном генераторе.
-  function shuffle<T>(array: T[]): T[] {
-    const arr = [...array];
-
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      const temp = arr[i]!;
-      arr[i] = arr[j]!;
-      arr[j] = temp;
-    }
-
-    return arr;
-  }
-
-  const shuffledRooms1 = shuffle(BASIC_ROOMS_1);
-  const shuffledRooms2 = shuffle(ADDITIONAL_ROOMS_2).slice(0, 5);
-  const explorationPool = shuffle(EXPLORATION_TOKENS);
-  const podNumbers = shuffle(ESCAPE_POD_NUMBERS);
-  const destinations = shuffle(COORDINATE_DESTINATIONS);
+  const shuffledRooms1 = shuffle(rng, BASIC_ROOMS_1);
+  const shuffledRooms2 = shuffle(rng, ADDITIONAL_ROOMS_2).slice(0, 5);
+  const explorationPool = shuffle(rng, EXPLORATION_TOKENS);
+  const podNumbers = shuffle(rng, ESCAPE_POD_NUMBERS);
+  const destinations = shuffle(rng, COORDINATE_DESTINATIONS);
 
   const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index + 1}`);
   const players = playerIds.reduce<Record<string, PlayerState>>((acc, playerId, index) => {

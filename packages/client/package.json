@@ -19,14 +19,12 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-zoom-pan-pinch": "^3.4.3",
-    "seedrandom": "^3.0.5",
     "tailwind-merge": "^2.2.1",
     "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
-    "@types/seedrandom": "^3.0.8",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",

@@ -3,6 +3,7 @@ import { TIME_TRACK_LENGTH } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
+import { SeedChip } from './components/hud/SeedChip';
 import { DevPanel } from './components/dev/DevPanel';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
@@ -49,6 +50,9 @@ export const App: React.FC = () => {
               ВРЕМЯ: <b className="text-white">{TIME_TRACK_LENGTH - view.meta.timeTrackPosition}</b>
             </span>
           </div>
+
+          {/* Сид партии: виден игрокам, копируется по нажатию (аудит §4, P1-1) */}
+          <SeedChip seed={view.meta.seed} />
 
           {/* Кнопка отладочных инструментов: её нет в продакшн-сборке (аудит №22) */}
           {IS_DEV && (

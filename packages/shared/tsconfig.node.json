@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "declaration": false,
+    "sourceMap": false,
+    "noEmit": true
+  },
+  // Конфиг тестового раннера исполняется в Node.js, а не в браузере.
+  "include": ["vitest.config.ts"]
+}

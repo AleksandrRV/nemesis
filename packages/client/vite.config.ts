@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'path';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -20,5 +20,12 @@ export default defineConfig({
     host: true,
     port: 4173,
     allowedHosts: true,
+  },
+  // Конфигурация тестов живёт здесь же, чтобы алиас @nemesis/shared
+  // оставался в одном месте и тесты видели ту же карту модулей, что и сборка.
+  test: {
+    name: 'client',
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 });

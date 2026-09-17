@@ -11,7 +11,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": false
+    // При ошибке типов dist не обновляется, чтобы потребители
+    // не получили частично собранный пакет.
+    "noEmit": false,
+    "noEmitOnError": true
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]

@@ -1,5 +1,5 @@
 import type { ItemDeckColor } from './cards.js';
-import type { RoomId } from './rooms.js';
+import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
 
 /**
  * Действия игрока — единственный способ изменить состояние партии:
@@ -12,9 +12,15 @@ import type { RoomId } from './rooms.js';
  */
 export type GameAction =
   | { type: 'ACTION_MOVE'; payload: { targetRoomId: RoomId; discardCardIds: string[] } }
+  /**
+   * «Осторожное движение» [1] (стр. 13): обычное Движение, но вместо броска
+   * кубика Шума маркер кладётся в выбранный игроком Коридор, ведущий в отсек
+   * назначения. Нельзя выполнять в Бою и когда во всех ведущих Коридорах уже
+   * стоят маркеры.
+   */
   | {
       type: 'ACTION_CAREFUL_MOVE';
-      payload: { targetRoomId: RoomId; chosenCorridorIndex: number; discardCardIds: string[] };
+      payload: { targetRoomId: RoomId; chosenCorridor: CarefulMoveChosenCorridor; discardCardIds: string[] };
     }
   | { type: 'ACTION_SEARCH'; payload: { chosenDeckColor?: ItemDeckColor; discardCardIds: string[] } }
   | { type: 'ACTION_ROOM_ABILITY'; payload: { discardCardIds: string[] } }

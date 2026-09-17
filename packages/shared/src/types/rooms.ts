@@ -15,16 +15,25 @@ export const EXPLORATION_EFFECTS = ['SILENCE', 'DANGER', 'SLIME', 'FIRE', 'MALFU
 export type ExplorationEffect = (typeof EXPLORATION_EFFECTS)[number];
 
 /**
- * Следующее состояние Двери при переключении: OPEN → CLOSED → DESTROYED → OPEN
- * (стр. 14, жетон Двери двусторонний). Одно место для перехода: им пользуются
- * и движок, и dev-панель, поэтому подпись «станет закрыта» в интерфейсе
- * не разойдётся с поведением правил.
+ * Следующее состояние Двери при переключении: OPEN → CLOSED → DESTROYED.
+ *
+ * Разрушенная Дверь — терминальное состояние: снова закрыть её нельзя
+ * (стр. 17), поэтому DESTROYED остаётся собой, а не возвращается к OPEN.
+ * Одно место для перехода: им пользуются и движок, и dev-панель, поэтому
+ * подпись «станет разрушена» в интерфейсе не разойдётся с правилами.
  */
 export function nextDoorState(state: DoorState): DoorState {
-  const index = DOOR_STATES.indexOf(state);
+  if (state === 'DESTROYED') return 'DESTROYED';
 
-  return DOOR_STATES[(index + 1) % DOOR_STATES.length]!;
+  return state === 'OPEN' ? 'CLOSED' : 'DESTROYED';
 }
+
+/**
+ * Коридор, выбранный для маркера Шума при «Осторожном движении» (стр. 13):
+ * конкретный Коридор, ведущий в отсек, либо поле Технических Коридоров, если
+ * в отсеке есть Вход (стр. 15–16).
+ */
+export type CarefulMoveChosenCorridor = { kind: 'CORRIDOR'; corridorId: string } | { kind: 'TECHNICAL_CORRIDOR' };
 
 export type RoomColor = 'WHITE' | 'RED' | 'YELLOW' | 'GREEN';
 

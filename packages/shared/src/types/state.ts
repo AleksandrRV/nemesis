@@ -15,8 +15,13 @@ import type { RngStream } from '../utils/rng.js';
  * v2 (0.1.10): отсек помнит эффект жетона Исследования, в состоянии появились
  * счётчики потоков случайности (`meta.rngDraws`), а прерывание вскрытия несёт
  * Коридор входа — старая сессия без этих полей не восстанавливается.
+ *
+ * v3 (0.1.11): Пул Чужих — это полный набор из 27 жетонов: `bag` (мешок)
+ * плюс `supply` (жетоны рядом с полем, стр. 6, шаг 10); у партии появилась
+ * причина окончания (`meta.gameOverReason`) для правил запасов маркеров
+ * (стр. 17); «Осторожное движение» приносит режим шума в прерывание.
  */
-export const GAME_STATE_SCHEMA_VERSION = 2;
+export const GAME_STATE_SCHEMA_VERSION = 3;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -24,6 +29,9 @@ export const GAME_STATE_SCHEMA_VERSION = 2;
  * в неё не входят (стр. 7, шаг 11).
  */
 export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
+
+/** Почему партия окончена: корабль взорвался или обшивка не выдержала (стр. 17). */
+export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
 export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';
@@ -46,8 +54,10 @@ export interface CoordinatesState {
 }
 
 export interface IntrudersPoolState {
-  /** Мешок (Пул Чужих) с ещё не вытянутыми жетонами. */
+  /** Мешок (Пул Чужих) с ещё не вытянутыми жетонами: рубашкой вверх (стр. 6, шаг 10). */
   bag: IntruderToken[];
+  /** Жетоны Чужих рядом с полем: входят в игру по ходу партии (стр. 6, шаг 10). */
+  supply: IntruderToken[];
   /** Чужие на поле: жетон + накопленные раны и позиция. */
   boardTokens: IntruderEntity[];
   /** Убитые Чужие: их жетоны выкладываются рядом с полем (стр. 6, шаг 10). */
@@ -89,6 +99,13 @@ export interface GameMeta {
    * старта партии его счётчик не растёт.
    */
   rngDraws: Record<RngStream, number>;
+  /**
+   * Причина окончания партии; null — партия идёт. Нужна правилам запасов:
+   * последний маркер Пожара взрывает корабль, последний маркер Неисправности
+   * разрывает обшивку (стр. 17), и оба случая обязаны быть видимыми, а не
+   * молчаливым пропуском розыгрыша.
+   */
+  gameOverReason: GameOverReason | null;
 }
 
 export interface GameState {

@@ -15,6 +15,8 @@ import {
   findNoiseTarget,
   resolveInterrupt,
 } from './fsm.js';
+import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
+import { DOOR_TOKEN_SUPPLY, FIRE_MARKER_SUPPLY, MALFUNCTION_MARKER_SUPPLY } from './markers.js';
 import { createInitialGameState } from './setup.js';
 
 const SEED = 'engine-test';
@@ -204,10 +206,6 @@ describe('GameEngine: перемещение', () => {
 describe('GameEngine: объявленные, но не реализованные действия', () => {
   it.each([
     ['ACTION_SEARCH', { type: 'ACTION_SEARCH', payload: { discardCardIds: [] } }],
-    [
-      'ACTION_CAREFUL_MOVE',
-      { type: 'ACTION_CAREFUL_MOVE', payload: { targetRoomId: 2, chosenCorridorIndex: 0, discardCardIds: [] } },
-    ],
     ['ACTION_ROOM_ABILITY', { type: 'ACTION_ROOM_ABILITY', payload: { discardCardIds: [] } }],
     ['ACTION_PASS', { type: 'ACTION_PASS', payload: {} }],
     ['ACTION_CLAIM', { type: 'ACTION_CLAIM', payload: { target: 'COORDINATES', declaredStatus: 'DESTINATION_EARTH' } }],
@@ -252,6 +250,63 @@ describe('GameEngine: отладочные действия', () => {
     );
 
     expect(withDoor.ship.corridors[corridorId]?.doorState).toBe('CLOSED');
+  });
+
+  it('не могут «починить» Разрушенную Дверь: состояние терминально (стр. 17)', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const corridorId = Object.keys(state.ship.corridors)[0]!;
+
+    state.ship.corridors[corridorId]!.doorState = 'DESTROYED';
+
+    const next = engine.processAction(
+      state,
+      { type: 'DEV_TOGGLE_DOOR', payload: { corridorId } },
+      { allowDevActions: true },
+    );
+
+    expect(next.ship.corridors[corridorId]?.doorState).toBe('DESTROYED');
+  });
+
+  it('ведут Дверь по тому же переходу, что и правила: OPEN → CLOSED → DESTROYED', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const corridorId = Object.keys(state.ship.corridors)[0]!;
+
+    const closed = engine.processAction(
+      state,
+      { type: 'DEV_TOGGLE_DOOR', payload: { corridorId } },
+      { allowDevActions: true },
+    );
+
+    expect(closed.ship.corridors[corridorId]?.doorState).toBe('CLOSED');
+
+    const destroyed = engine.processAction(
+      closed,
+      { type: 'DEV_TOGGLE_DOOR', payload: { corridorId } },
+      { allowDevActions: true },
+    );
+
+    expect(destroyed.ship.corridors[corridorId]?.doorState).toBe('DESTROYED');
+  });
+
+  it('берут жетон Двери из запаса и не выдумывают его, когда запаса нет (стр. 17)', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const corridorIds = Object.keys(state.ship.corridors);
+    const corridorId = corridorIds[0]!;
+
+    // Запас исчерпан, доноров для перестановки нет: все жетоны на поле
+    // лежат в Разрушенных Дверях, а их разбирать нельзя (стр. 17).
+    for (let index = 1; index <= DOOR_TOKEN_SUPPLY; index++) {
+      state.ship.corridors[corridorIds[index]!]!.doorState = 'DESTROYED';
+    }
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, { type: 'DEV_TOGGLE_DOOR', payload: { corridorId } }, { allowDevActions: true }),
+      'DOOR_TOKEN_SUPPLY_EXHAUSTED',
+    );
   });
 
   it('отклоняют неизвестный коридор', () => {
@@ -588,11 +643,11 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 6);
     placePlayer(state, 6);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6, noise: { kind: 'ROLL' } });
 
     // Второй бросок в тот же отсек: маркер встаёт в Коридор с другим номером,
     // поэтому Контакт не наступает и видно оба результата потока.
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6, noise: { kind: 'ROLL' } });
 
     const marked = corridorsWithNoise(state);
     const markedNumbers = marked.map((corridor) => numbersOn(corridor, 6));
@@ -609,7 +664,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
       prepareRoll(state, 6);
       placePlayer(state, 6);
-      resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+      resolveInterrupt(state, {
+        type: 'NOISE_ROLL_INTERRUPT',
+        playerId: 'player-1',
+        roomId: 6,
+        noise: { kind: 'ROLL' },
+      });
 
       return corridorsWithNoise(state).flatMap((corridor) => numbersOn(corridor, 6));
     }
@@ -623,7 +683,7 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 6, 'SILENCE');
     placePlayer(state, 6);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6, noise: { kind: 'ROLL' } });
 
     expect(corridorsWithNoise(state)).toEqual([]);
     expect(state.meta.rngDraws.noise).toBe(0);
@@ -636,7 +696,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 14);
     placePlayer(state, 14);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
 
     const exits = Object.values(state.ship.corridors).filter(
       (corridor) => corridor.fromRoomId === 14 || corridor.toRoomId === 14,
@@ -652,7 +717,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 14, 'DANGER');
     placePlayer(state, 14);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
 
     const exits = Object.values(state.ship.corridors).filter(
       (corridor) => corridor.fromRoomId === 14 || corridor.toRoomId === 14,
@@ -668,7 +738,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 14, 'DANGER');
     placePlayer(state, 14);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
 
     expect(state.ship.technicalCorridorNoise).toBe(true);
   });
@@ -680,7 +755,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     placePlayer(state, 14);
     state.players['player-1']!.hasSlime = true;
 
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
 
     expect(corridorsWithNoise(state).length).toBeGreaterThan(0);
     expect(state.meta.rngDraws.noise).toBe(0);
@@ -694,7 +774,7 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     state.players['player-2'] = { ...state.players['player-1']!, id: 'player-2', roomId: 6 };
     state.ship.rooms[6]!.occupantPlayerIds.push('player-2');
 
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6, noise: { kind: 'ROLL' } });
 
     expect(corridorsWithNoise(state)).toEqual([]);
     expect(state.meta.rngDraws.noise).toBe(0);
@@ -707,7 +787,7 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     placePlayer(state, 6);
     state.ship.rooms[6]!.occupantIntruderIds.push('adult-1');
 
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6, noise: { kind: 'ROLL' } });
 
     expect(corridorsWithNoise(state)).toEqual([]);
     expect(state.meta.rngDraws.noise).toBe(0);
@@ -726,7 +806,7 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     prepareRoll(state, 7);
     placePlayer(state, 7);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 7 });
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 7, noise: { kind: 'ROLL' } });
 
     expect(corridorsWithNoise(state)).toEqual([]);
     // Бросок состоялся — поток сдвинулся, просто результат ничего не сделал.
@@ -761,7 +841,12 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     // У отсека 14 есть Вход в Технические Коридоры с номером 3 — это и есть грань сида.
     prepareRoll(state, 14);
     placePlayer(state, 14);
-    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
 
     expect(state.ship.technicalCorridorNoise).toBe(true);
     // Маркер ушёл на общее поле вентиляции, а не в Коридор отсека.
@@ -778,7 +863,13 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     state.ship.rooms[13]!.occupantIntruderIds.push('adult-1');
 
     expectEngineError(
-      () => resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 }),
+      () =>
+        resolveInterrupt(state, {
+          type: 'NOISE_ROLL_INTERRUPT',
+          playerId: 'player-1',
+          roomId: 14,
+          noise: { kind: 'ROLL' },
+        }),
       'INTRUDER_MOVEMENT_NOT_IMPLEMENTED',
       /соседнего отсека/,
     );
@@ -793,7 +884,13 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     state.ship.technicalCorridorNoise = true;
 
     expectEngineError(
-      () => resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 }),
+      () =>
+        resolveInterrupt(state, {
+          type: 'NOISE_ROLL_INTERRUPT',
+          playerId: 'player-1',
+          roomId: 14,
+          noise: { kind: 'ROLL' },
+        }),
       'CONTACT_NOT_IMPLEMENTED',
       /Технические Коридоры/,
     );
@@ -801,14 +898,26 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
   it('бросок для несуществующего отсека — ошибка контракта', () => {
     expectEngineError(
-      () => resolveInterrupt(freshState(), { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 999 }),
+      () =>
+        resolveInterrupt(freshState(), {
+          type: 'NOISE_ROLL_INTERRUPT',
+          playerId: 'player-1',
+          roomId: 999,
+          noise: { kind: 'ROLL' },
+        }),
       'UNKNOWN_ROOM',
     );
   });
 
   it('бросок для неизвестного персонажа — ошибка контракта', () => {
     expectEngineError(
-      () => resolveInterrupt(freshState(), { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-42', roomId: 6 }),
+      () =>
+        resolveInterrupt(freshState(), {
+          type: 'NOISE_ROLL_INTERRUPT',
+          playerId: 'player-42',
+          roomId: 6,
+          noise: { kind: 'ROLL' },
+        }),
       'UNKNOWN_PLAYER',
     );
   });
@@ -856,5 +965,279 @@ describe('Доступные для перехода отсеки', () => {
     }
 
     expect(findAdjacentOpenRoomIds(state, 11)).toEqual([]);
+  });
+});
+
+describe('Осторожное движение: маркер вместо броска (стр. 13)', () => {
+  /** Коридоры, ведущие в отсек, и точки входа в него: из них игрок и выбирает (стр. 13). */
+  function corridorsInto(state: GameState, roomId: RoomId): CorridorConnection[] {
+    return Object.values(state.ship.corridors).filter(
+      (corridor) => corridor.doorState === 'OPEN' && (corridor.fromRoomId === roomId || corridor.toRoomId === roomId),
+    );
+  }
+
+  function neighbourOfStart(state: GameState): RoomId {
+    const neighbour = findAdjacentOpenRoomIds(state, 11)[0];
+
+    if (neighbour === undefined) throw new Error('У стартового отсека нет соседей');
+
+    return neighbour;
+  }
+
+  it('кладёт маркер Шума в выбранный Коридор и не трогает кубик', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = neighbourOfStart(state);
+    const corridor = corridorsInto(state, target)[0]!;
+
+    const next = engine.processAction(state, {
+      type: 'ACTION_CAREFUL_MOVE',
+      payload: {
+        targetRoomId: target,
+        chosenCorridor: { kind: 'CORRIDOR', corridorId: corridor.id },
+        discardCardIds: [],
+      },
+    });
+
+    expect(next.players['player-1']?.roomId).toBe(target);
+    expect(next.ship.corridors[corridor.id]?.hasNoise).toBe(true);
+    // Бросок не делается: счётчик потока `noise` остаётся на месте (стр. 13).
+    expect(next.meta.rngDraws.noise).toBe(state.meta.rngDraws.noise);
+    expect(next.ship.technicalCorridorNoise).toBe(false);
+  });
+
+  it('разрешает положить маркер на поле Технических Коридоров, если в отсеке есть Вход (стр. 16)', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = Object.values(state.ship.rooms).find(
+      (room) =>
+        findAdjacentOpenRoomIds(state, 11).includes(room.id) &&
+        (SHIP_ROOM_NODES.find((node) => node.id === room.id)?.techNumbers.length ?? 0) > 0,
+    );
+
+    expect(target, 'среди соседей стартового отсека нет отсека с вентиляцией').toBeDefined();
+
+    const next = engine.processAction(state, {
+      type: 'ACTION_CAREFUL_MOVE',
+      payload: { targetRoomId: target!.id, chosenCorridor: { kind: 'TECHNICAL_CORRIDOR' }, discardCardIds: [] },
+    });
+
+    expect(next.ship.technicalCorridorNoise).toBe(true);
+    expect(next.meta.rngDraws.noise).toBe(state.meta.rngDraws.noise);
+  });
+
+  it('отклоняет Коридор, который не ведёт в отсек назначения', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = neighbourOfStart(state);
+    const foreignCorridor = Object.values(state.ship.corridors).find(
+      (corridor) => !corridorsInto(state, target).some((candidate) => candidate.id === corridor.id),
+    );
+
+    expect(foreignCorridor).toBeDefined();
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_CAREFUL_MOVE',
+          payload: {
+            targetRoomId: target,
+            chosenCorridor: { kind: 'CORRIDOR', corridorId: foreignCorridor!.id },
+            discardCardIds: [],
+          },
+        }),
+      'CAREFUL_MOVE_BAD_CHOICE',
+    );
+  });
+
+  it('запрещено, когда во всех ведущих Коридорах уже стоят маркеры (стр. 13)', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = neighbourOfStart(state);
+
+    for (const corridor of corridorsInto(state, target)) {
+      corridor.hasNoise = true;
+    }
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_CAREFUL_MOVE',
+          payload: {
+            targetRoomId: target,
+            chosenCorridor: { kind: 'CORRIDOR', corridorId: corridorsInto(state, target)[0]!.id },
+            discardCardIds: [],
+          },
+        }),
+      'CAREFUL_MOVE_NO_FREE_CORRIDOR',
+    );
+  });
+
+  it('запрещено в Бою: в отсеке персонажа стоит Чужой (стр. 13)', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = neighbourOfStart(state);
+
+    state.ship.rooms[11]!.occupantIntruderIds = ['intruder-1'];
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_CAREFUL_MOVE',
+          payload: {
+            targetRoomId: target,
+            chosenCorridor: { kind: 'CORRIDOR', corridorId: corridorsInto(state, target)[0]!.id },
+            discardCardIds: [],
+          },
+        }),
+      'CAREFUL_MOVE_IN_COMBAT',
+    );
+  });
+});
+
+describe('Запасы маркеров заканчивают партию по правилам (стр. 17)', () => {
+  /** Кладёт все маркеры коробки, выбирая отсеки, куда маркер класть разрешено. */
+  function exhaustSupply(state: GameState, kind: 'FIRE' | 'MALFUNCTION', supply: number): void {
+    const rooms = Object.values(state.ship.rooms).filter(
+      (room) =>
+        room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM' && !room.hasFire && !room.hasMalfunction,
+    );
+
+    for (let index = 0; index < supply; index++) {
+      const room = rooms[index];
+
+      if (!room) throw new Error('В партии не хватает отсеков для исчерпания запаса');
+
+      if (kind === 'FIRE') room.hasFire = true;
+      else room.hasMalfunction = true;
+    }
+  }
+
+  it('взрыв корабля: эффект «ПОЖАР» при пустом запасе переводит партию в GAME_OVER', () => {
+    const state = freshState();
+
+    exhaustSupply(state, 'FIRE', FIRE_MARKER_SUPPLY);
+
+    const room = state.ship.rooms[9]!;
+
+    room.isExplored = false;
+    room.explorationEffect = 'FIRE';
+    room.hasFire = false;
+
+    resolveInterrupt(state, { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 9, corridorId: '4-9' });
+
+    expect(state.meta.phase).toBe('GAME_OVER');
+    expect(state.meta.gameOverReason).toBe('SHIP_EXPLODED');
+    expect(room.hasFire).toBe(false);
+    expect(state.interruptQueue).toEqual([]);
+  });
+
+  it('разрыв обшивки: эффект «НЕИСПРАВНОСТЬ» при пустом запасе тоже закрывает партию', () => {
+    const state = freshState();
+
+    exhaustSupply(state, 'MALFUNCTION', MALFUNCTION_MARKER_SUPPLY);
+
+    const room = state.ship.rooms[9]!;
+
+    room.isExplored = false;
+    room.explorationEffect = 'MALFUNCTION';
+    room.hasMalfunction = false;
+    state.interruptQueue = [
+      { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 9, corridorId: '4-9' },
+      { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 9, noise: { kind: 'ROLL' } },
+    ];
+
+    drainInterrupts(state);
+
+    expect(state.meta.phase).toBe('GAME_OVER');
+    expect(state.meta.gameOverReason).toBe('HULL_BREACH');
+    // Шаги после конца партии не разыгрываются: очередь очищена.
+    expect(state.interruptQueue).toEqual([]);
+  });
+
+  it('оконченная партия не принимает действий: явная ошибка вместо продолжения', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+
+    state.meta.phase = 'GAME_OVER';
+    state.meta.gameOverReason = 'SHIP_EXPLODED';
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_MOVE',
+          payload: { targetRoomId: findAdjacentOpenRoomIds(state, 11)[0]!, discardCardIds: [] },
+        }),
+      'GAME_IS_OVER',
+    );
+  });
+});
+
+describe('Сохранение и восстановление не сдвигает случайность (Э2-4)', () => {
+  /**
+   * Отсек без особого эффекта: бросок Шума гарантированно делается, поэтому
+   * тест проверяет поток случайности, а не расклад конкретного сида.
+   */
+  function preparePlainRoom(state: GameState, roomId: RoomId): void {
+    const room = state.ship.rooms[roomId];
+
+    if (!room) throw new Error(`В партии нет отсека ${roomId}`);
+
+    room.isExplored = true;
+    room.explorationEffect = null;
+    room.occupantIntruderIds = [];
+  }
+
+  it('после round-trip через JSON бросок Шума продолжает поток, а не начинает его заново', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = findAdjacentOpenRoomIds(state, 11)[0]!;
+
+    preparePlainRoom(state, target);
+
+    const afterDirect = engine.processAction(state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: target, discardCardIds: [] },
+    });
+
+    const reloaded = JSON.parse(JSON.stringify(state)) as GameState;
+    const afterReload = engine.processAction(reloaded, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: target, discardCardIds: [] },
+    });
+
+    expect(afterReload).toEqual(afterDirect);
+    expect(afterReload.meta.rngDraws.noise).toBe(state.meta.rngDraws.noise + 1);
+  });
+
+  it('второй бросок после перезагрузки берёт следующее значение потока, а не первое', () => {
+    const engine = new GameEngine();
+    const state = freshState();
+    const target = findAdjacentOpenRoomIds(state, 11)[0]!;
+
+    preparePlainRoom(state, target);
+
+    const once = engine.processAction(state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: target, discardCardIds: [] },
+    });
+
+    const twice = engine.processAction(JSON.parse(JSON.stringify(once)) as GameState, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: 11, discardCardIds: [] },
+    });
+
+    expect(once.meta.rngDraws.noise).toBe(1);
+    expect(twice.meta.rngDraws.noise).toBe(2);
+    expect(twice.meta.rngDraws).toEqual({ ...state.meta.rngDraws, noise: 2 });
+  });
+
+  it('счётчик вытягивания из мешка готов к работе: мешок тасуется при подготовке и в состоянии сохраняется целиком', () => {
+    const state = freshState();
+    const reloaded = JSON.parse(JSON.stringify(state)) as GameState;
+
+    expect(reloaded.intrudersPool.bag).toEqual(state.intrudersPool.bag);
+    expect(reloaded.intrudersPool.supply).toEqual(state.intrudersPool.supply);
+    expect(reloaded.meta.rngDraws.bag).toBe(0);
   });
 });

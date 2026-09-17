@@ -50,6 +50,49 @@ describe('Сохранение партии: формат', () => {
   it('принимает партию, созданную генератором', () => {
     expect(isGameState(createInitialGameState(SEED))).toBe(true);
   });
+
+  it('отвергает сохранение старого контракта (v2) и не пытается его доигрывать', () => {
+    const state = createInitialGameState(SEED);
+    const merged = { ...state } as Record<string, unknown>;
+    const meta = { ...(state.meta as unknown as Record<string, unknown>) };
+
+    // v2: у Пула Чужих ещё нет запаса, у партии — причины окончания.
+    delete (merged as { intrudersPool?: unknown }).intrudersPool;
+    merged.intrudersPool = { ...state.intrudersPool } as unknown as Record<string, unknown>;
+    delete (merged.intrudersPool as Record<string, unknown>).supply;
+    delete meta.gameOverReason;
+
+    const oldSave = JSON.stringify({ version: SESSION_STORAGE_VERSION - 1, state: { ...merged, meta } });
+
+    expect(isGameState({ ...merged, meta })).toBe(false);
+    expect(parseSession(oldSave)).toBeNull();
+  });
+
+  it('отвергает запись без счётчиков случайности: воспроизводимость партии дороже «доиграть хоть как-то»', () => {
+    const state = createInitialGameState(SEED);
+    const meta = { ...state.meta } as Record<string, unknown>;
+
+    delete meta.rngDraws;
+
+    expect(isGameState({ ...state, meta })).toBe(false);
+  });
+
+  it('на старой записи начинает новую партию через хранилище, а не падает', () => {
+    const storage = createMemoryStorage();
+    const session = createSessionStorage(storage);
+    const state = createInitialGameState(SEED);
+
+    storage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ version: SESSION_STORAGE_VERSION - 1, state }));
+
+    expect(session.load()).toBeNull();
+
+    // Новая партия того же сида воспроизводима: сохранение не «портит» генератор.
+    const fresh = createInitialGameState(SEED);
+
+    session.save(fresh);
+
+    expect(session.load()).toEqual(fresh);
+  });
 });
 
 describe('Сохранение партии: хранилище', () => {

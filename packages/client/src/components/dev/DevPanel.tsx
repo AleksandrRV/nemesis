@@ -5,7 +5,7 @@ import { Bug, Copy, Dices, Volume2, VolumeX, X } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { GAME_MODE_LABELS, PHASE_LABELS } from '../../utils/labels';
 import { IS_DEV } from '../../utils/env';
-import { DOOR_CYCLE_HINT, buildCorridorRows, buildDiagnostics } from './devPanelModel';
+import { DOOR_CYCLE_HINT, GAME_OVER_REASON_LABELS, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
 interface DevPanelProps {
   onClose: () => void;
@@ -82,6 +82,9 @@ export const DevPanel: React.FC<DevPanelProps> = ({ onClose }) => {
             <DiagnosticRow label="схема">v{diagnostics.schemaVersion}</DiagnosticRow>
             <DiagnosticRow label="режим">{GAME_MODE_LABELS[diagnostics.gameMode]}</DiagnosticRow>
             <DiagnosticRow label="фаза">{PHASE_LABELS[diagnostics.phase]}</DiagnosticRow>
+            {diagnostics.gameOverReason ? (
+              <DiagnosticRow label="причина">{GAME_OVER_REASON_LABELS[diagnostics.gameOverReason]}</DiagnosticRow>
+            ) : null}
             <DiagnosticRow label="раунд">{diagnostics.round}</DiagnosticRow>
             <DiagnosticRow label="активный">
               {diagnostics.activePlayerName} ({diagnostics.activePlayerId})

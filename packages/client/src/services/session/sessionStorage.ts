@@ -7,7 +7,10 @@ import { GAME_STATE_SCHEMA_VERSION } from '@nemesis/shared';
  * Партию хранит движок (транспорт), а не стор: клиент видит только
  * отфильтрованное состояние, а истина лежит отдельно и версионируется.
  * При несовместимой (старой) или повреждённой записи партия начинается заново —
- * обещание «устойчивость мобильной сессии» важнее, чем чужие данные.
+ * обещание «устойчивость мобильной сессии» важнее, чем чужие данные. Правило
+ * одно и то же для чужой версии, обрезанного JSON и записи, у которой нет
+ * полей текущего контракта: попытка «догадаться» исказила бы партию молча
+ * (план исправлений, Э2-6).
  *
  * Осознанное ограничение v0: сохранение лежит в localStorage браузера, то есть
  * в соло-режиме истина физически доступна владельцу устройства (и только ему).
@@ -48,6 +51,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * Проверка намеренно неглубокая: она отсекает чужие и повреждённые данные,
  * а полноту игры проверяет движок, когда действие попадает в стек прерываний.
+ * Но поля, без которых партия заведомо не продолжится, обязаны проверяться
+ * здесь: сохранение без `intrudersPool.supply` (контракт v3) или без счётчиков
+ * случайности — это не «почти партия», а запись другого формата, и молча
+ * доигрывать её нельзя (план исправлений, Э2-6).
  */
 export function isGameState(value: unknown): value is GameState {
   if (!isRecord(value)) return false;
@@ -57,6 +64,8 @@ export function isGameState(value: unknown): value is GameState {
   return (
     isRecord(meta) &&
     meta.schemaVersion === SESSION_STORAGE_VERSION &&
+    isRecord(meta.rngDraws) &&
+    'gameOverReason' in meta &&
     isRecord(ship) &&
     isRecord(ship.rooms) &&
     Object.keys(ship.rooms).length > 0 &&
@@ -66,6 +75,7 @@ export function isGameState(value: unknown): value is GameState {
     Object.keys(players).length > 0 &&
     isRecord(intrudersPool) &&
     Array.isArray(intrudersPool.bag) &&
+    Array.isArray(intrudersPool.supply) &&
     isRecord(decks) &&
     Array.isArray(claimsLog) &&
     Array.isArray(interruptQueue)

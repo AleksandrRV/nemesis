@@ -12,20 +12,23 @@ describe('Жетон Двери (стр. 14)', () => {
   it.each([
     ['OPEN', 'CLOSED'],
     ['CLOSED', 'DESTROYED'],
-    ['DESTROYED', 'OPEN'],
   ] as const)('переключает %s в %s', (from, to) => {
     expect(nextDoorState(from)).toBe(to);
   });
 
-  it('возвращается в исходное состояние за три переключения', () => {
-    for (const state of DOOR_STATES) {
-      let current: DoorState = state;
+  it('Разрушенная Дверь — терминальное состояние: снова её не закрыть (стр. 17)', () => {
+    expect(nextDoorState('DESTROYED')).toBe('DESTROYED');
 
-      for (let step = 0; step < DOOR_STATES.length; step++) {
-        current = nextDoorState(current);
-      }
+    let current: DoorState = 'DESTROYED';
 
-      expect(current).toBe(state);
+    for (let step = 0; step < DOOR_STATES.length * 2; step++) {
+      current = nextDoorState(current);
     }
+
+    expect(current).toBe('DESTROYED');
+  });
+
+  it('проходит путь OPEN → CLOSED → DESTROYED за два переключения', () => {
+    expect(nextDoorState(nextDoorState('OPEN'))).toBe('DESTROYED');
   });
 });

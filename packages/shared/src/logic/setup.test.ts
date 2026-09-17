@@ -4,6 +4,7 @@ import type { RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
+import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { COORDINATE_DESTINATIONS, ESCAPE_POD_NUMBERS } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
@@ -27,9 +28,9 @@ function hiddenRooms(state: GameState): RoomState[] {
   return Object.values(state.ship.rooms).filter((room) => !room.isExplored);
 }
 
-/** Число маркеров каждого эффекта жетонов Исследования — инвариант генератора. */
-const EXPECTED_ITEM_COUNTS = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4];
-const TOTAL_ITEMS = 34;
+/** Пул жетонов Исследования из коробки: 20 жетонов, 44 предмета (стр. 3; стр. 6, шаг 4). */
+const POOL_TOKEN_COUNT = 20;
+const POOL_ITEM_COUNT = 44;
 
 describe('createInitialGameState: детерминизм и сохранение', () => {
   it('воспроизводит одну и ту же партию при одинаковом сиде', () => {
@@ -149,22 +150,37 @@ describe('createInitialGameState: поле и отсеки', () => {
 });
 
 describe('createInitialGameState: жетоны Исследования', () => {
-  it('раскрывает жетоны в 16 неисследованных отсеках и сохраняет 34 предмета', () => {
+  it('объявляет пул из 20 жетонов с 44 предметами: четыре остаются в коробке (стр. 3; стр. 6, шаг 4)', () => {
+    expect(EXPLORATION_TOKENS).toHaveLength(POOL_TOKEN_COUNT);
+    expect(EXPLORATION_TOKENS.reduce((total, token) => total + token.itemsCount, 0)).toBe(POOL_ITEM_COUNT);
+  });
+
+  it('раскладывает по одному жетону в каждый из 16 неисследованных отсеков', () => {
     for (const seed of SEEDS) {
       const hidden = hiddenRooms(createInitialGameState(seed));
 
       expect(hidden).toHaveLength(16);
-      expect(hidden.reduce((total, room) => total + room.itemsCount, 0)).toBe(TOTAL_ITEMS);
+      expect(hidden.every((room) => room.explorationEffect !== null)).toBe(true);
+      expect(hidden.every((room) => room.itemsCount >= 1 && room.itemsCount <= 4)).toBe(true);
     }
   });
 
-  it('сохраняет неизменный набор чисел предметов на жетонах', () => {
+  it('набранные жетоны — выборка из пула: раскладка не выдумывает числа предметов', () => {
     for (const seed of SEEDS) {
-      const counts = hiddenRooms(createInitialGameState(seed))
-        .map((room) => room.itemsCount)
-        .sort((a, b) => a - b);
+      const pool = new Map<string, number>();
 
-      expect(counts).toEqual([...EXPECTED_ITEM_COUNTS]);
+      for (const token of EXPLORATION_TOKENS) {
+        const key = `${token.effect}:${token.itemsCount}`;
+        pool.set(key, (pool.get(key) ?? 0) + 1);
+      }
+
+      for (const room of hiddenRooms(createInitialGameState(seed))) {
+        const key = `${room.explorationEffect}:${room.itemsCount}`;
+        const left = pool.get(key) ?? 0;
+
+        expect(left, `жетон ${key} не из пула или использован дважды`).toBeGreaterThan(0);
+        pool.set(key, left - 1);
+      }
     }
   });
 

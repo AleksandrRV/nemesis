@@ -1,0 +1,511 @@
+{
+  "meta": {
+    "version": 1,
+    "updated": "2026-09-17",
+    "updatedFor": "0.1.11",
+    "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
+    "statuses": {
+      "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
+      "USER_CONFIRMED": "Считано владельцем проекта с физического компонента 17.09.2026; подтверждение получено в ходе работы, фото в репозитории нет.",
+      "EXTERNAL_UNVERIFIED": "Взято из внешнего открытого источника; требуется сверка с физическим компонентом.",
+      "UNVERIFIED_BOARD": "Читается только с физического поля; сверки не было — расхождения фиксируются тестом-снимком, а не молчаливой правкой."
+    },
+    "sources": {
+      "rules-md": {
+        "kind": "RULES_LOCAL",
+        "title": "doc/rules.md — русский текст книги правил базовой игры Nemesis",
+        "location": "doc/rules.md"
+      },
+      "user-confirmation-2026-09-17": {
+        "kind": "USER_CONFIRMED",
+        "title": "Ответы владельца проекта на вопросы о физических компонентах (ход работы над 0.1.10–0.1.11)",
+        "location": "сессия разработки, 17.09.2026"
+      },
+      "reddit-exploration-tokens": {
+        "kind": "EXTERNAL_UNVERIFIED",
+        "title": "Reddit r/NemesisCrew: «Need a list or picture of the exploration tokens!» (WasabiSubaru, 17.02.2020)",
+        "location": "https://www.reddit.com/r/NemesisCrew/comments/f5d0gf/"
+      },
+      "ultraboardgames": {
+        "kind": "EXTERNAL_UNVERIFIED",
+        "title": "UltraBoardGames: Nemesis — Movement and Exploration",
+        "location": "https://www.ultraboardgames.com/nemesis/movement-and-exploration.php"
+      }
+    }
+  },
+  "tables": {
+    "exploration-tokens": {
+      "file": "packages/shared/src/data/explorationTokens.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "Жетонов Исследования в коробке 20, по одному на неособый отсек, остаток — в коробку",
+          "source": "rules-md",
+          "lines": "93-102, 265-266"
+        },
+        {
+          "claim": "Состав 20 жетонов: 8 неисправностей, 2 пожара, 2 тишины, 2 слизи, 2 опасности, 4 двери",
+          "source": "reddit-exploration-tokens",
+          "note": "Числа напечатаны на картоне; в книге правил их нет"
+        },
+        {
+          "claim": "Неособых отсеков 16 (21 отсек поля минус 5 напечатанных особых), поэтому 4 жетона в партии не участвуют",
+          "source": "rules-md",
+          "lines": "265-266, 1517"
+        }
+      ],
+      "expectation": {
+        "tokenCount": 20,
+        "itemCount": 44,
+        "byEffect": {
+          "MALFUNCTION": 8,
+          "FIRE": 2,
+          "SILENCE": 2,
+          "SLIME": 2,
+          "DANGER": 2,
+          "DOORS": 4
+        },
+        "itemsByEffect": {
+          "MALFUNCTION": [
+            4,
+            3,
+            2,
+            2,
+            2,
+            2,
+            1,
+            1
+          ],
+          "FIRE": [
+            2,
+            1
+          ],
+          "SILENCE": [
+            1,
+            1
+          ],
+          "SLIME": [
+            4,
+            3
+          ],
+          "DANGER": [
+            3,
+            2
+          ],
+          "DOORS": [
+            4,
+            3,
+            2,
+            1
+          ]
+        }
+      },
+      "unverified": [
+        "Числа предметов по жетонам прочитаны с внешней переписи компонентов; при сверке с картоном уточнить и поправить ожидания golden-теста."
+      ]
+    },
+    "intruder-supply": {
+      "file": "packages/shared/src/data/intruderPool.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Жетонов Чужих 27: 8 Личинок, 12 Взрослых Особей, 3 Крипера, 2 Трутня, 1 Королева, 1 Пустой",
+          "source": "rules-md",
+          "lines": "93-117"
+        },
+        {
+          "claim": "При подготовке в мешок уходят 1 Пустой, 4 Личинки, 1 Крипер, 1 Королева, 3 Взрослых Особи плюс 1 Взрослая за каждого игрока; остальные жетоны лежат рядом с полем",
+          "source": "rules-md",
+          "lines": "291"
+        }
+      ],
+      "expectation": {
+        "supplyCount": 27,
+        "composition": {
+          "BLANK": 1,
+          "LARVA": 8,
+          "CREEPER": 3,
+          "ADULT": 12,
+          "BREEDER": 2,
+          "QUEEN": 1
+        }
+      }
+    },
+    "intruder-bag": {
+      "file": "packages/shared/src/data/intruderPool.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Состав мешка зависит только от числа игроков: 3 Взрослых + 1 за игрока (1→4, 5→8)",
+          "source": "rules-md",
+          "lines": "291"
+        }
+      ],
+      "expectation": {
+        "baseAdults": 3,
+        "adultsPerPlayer": 1,
+        "bagByPlayerCount": {
+          "1": {
+            "BLANK": 1,
+            "LARVA": 4,
+            "CREEPER": 1,
+            "QUEEN": 1,
+            "ADULT": 4,
+            "BREEDER": 0
+          },
+          "2": {
+            "BLANK": 1,
+            "LARVA": 4,
+            "CREEPER": 1,
+            "QUEEN": 1,
+            "ADULT": 5,
+            "BREEDER": 0
+          },
+          "3": {
+            "BLANK": 1,
+            "LARVA": 4,
+            "CREEPER": 1,
+            "QUEEN": 1,
+            "ADULT": 6,
+            "BREEDER": 0
+          },
+          "4": {
+            "BLANK": 1,
+            "LARVA": 4,
+            "CREEPER": 1,
+            "QUEEN": 1,
+            "ADULT": 7,
+            "BREEDER": 0
+          },
+          "5": {
+            "BLANK": 1,
+            "LARVA": 4,
+            "CREEPER": 1,
+            "QUEEN": 1,
+            "ADULT": 8,
+            "BREEDER": 0
+          }
+        }
+      }
+    },
+    "escape-numbers": {
+      "file": "packages/shared/src/data/intruderPool.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "Число на обороте жетона Чужого сравнивается с числом карт на руке персонажа при Внезапной атаке",
+          "source": "rules-md",
+          "lines": "1053-1090"
+        },
+        {
+          "claim": "Числа Взрослых Особей лежат в диапазоне 1–4",
+          "source": "ultraboardgames"
+        }
+      ],
+      "expectation": {
+        "adultEscapeNumbers": [
+          2,
+          3,
+          4,
+          4,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          4,
+          1
+        ],
+        "otherEscapeNumbers": {
+          "BLANK": 0,
+          "LARVA": 1,
+          "CREEPER": 1,
+          "BREEDER": 3,
+          "QUEEN": 4
+        }
+      },
+      "unverified": [
+        "Книга правил не печатает числа на обороте жетонов: точные значения видны только на картоне и требуют физической сверки.",
+        "У Пустого жетона числа нет вовсе (0 = «числа нет»), это подтверждено правилами Контакта."
+      ]
+    },
+    "marker-supply": {
+      "file": "packages/shared/src/logic/markers.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "В коробке 30 маркеров Шума, 8 маркеров Пожара, 8 маркеров Неисправности и 12 жетонов Дверей",
+          "source": "rules-md",
+          "lines": "93-117"
+        },
+        {
+          "claim": "В одном Коридоре — не больше одного маркера Шума; в отсеке — не больше одного маркера Пожара и Неисправности",
+          "source": "rules-md",
+          "lines": "881-922, 992-1024"
+        },
+        {
+          "claim": "Пустой запас Пожара взрывает корабль, пустой запас Неисправности разрывает обшивку",
+          "source": "rules-md",
+          "lines": "992-1024"
+        }
+      ],
+      "expectation": {
+        "noise": 30,
+        "fire": 8,
+        "malfunction": 8,
+        "doors": 12,
+        "maxNoisePerCorridor": 1,
+        "maxFirePerRoom": 1,
+        "maxMalfunctionPerRoom": 1,
+        "maxDoorsPerCorridor": 1,
+        "malfunctionForbiddenRoomDefinitions": [
+          "NEST",
+          "SLIME_ROOM"
+        ]
+      }
+    },
+    "door-rules": {
+      "file": "packages/shared/src/types/rooms.ts, packages/shared/src/logic/markers.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Дверь бывает Открытой, Закрытой и Разрушенной; Разрушенную нельзя снова закрыть",
+          "source": "rules-md",
+          "lines": "1032-1051"
+        },
+        {
+          "claim": "Если запас жетонов Дверей пуст, жетон переставляется с поля: Коридор-донор снова становится Открытым",
+          "source": "rules-md",
+          "lines": "1047"
+        },
+        {
+          "claim": "В Технических Коридорах жетоны Дверей не выкладываются",
+          "source": "rules-md",
+          "lines": "952"
+        }
+      ],
+      "expectation": {
+        "states": [
+          "OPEN",
+          "CLOSED",
+          "DESTROYED"
+        ],
+        "terminal": [
+          "DESTROYED"
+        ],
+        "shortageMovesTokenFromBoard": true
+      }
+    },
+    "noise-die": {
+      "file": "packages/shared/src/data/noiseDie.ts",
+      "status": "USER_CONFIRMED",
+      "facts": [
+        {
+          "claim": "Кубик Шума: 1–4, Тишина и Опасность; при выпадении номера маркер ставится в Коридор с этим номером, дубль означает Контакт",
+          "source": "rules-md",
+          "lines": "881-922"
+        },
+        {
+          "claim": "Состав граней: 1, 1, 2, 2, 3, 3, 4, 4, Тишина, Опасность",
+          "source": "user-confirmation-2026-09-17",
+          "note": "Книга правил печатает только список эффектов, состав граней виден на иллюстрации кубика"
+        }
+      ],
+      "expectation": {
+        "faceCount": 10,
+        "corridorFaces": [
+          1,
+          1,
+          2,
+          2,
+          3,
+          3,
+          4,
+          4
+        ],
+        "specialFaces": [
+          "SILENCE",
+          "DANGER"
+        ]
+      }
+    },
+    "ship-graph-rooms": {
+      "file": "packages/shared/src/data/shipGraph.ts",
+      "status": "UNVERIFIED_BOARD",
+      "facts": [
+        {
+          "claim": "Все 11 отсеков типа ROOM_1 входят в партию каждый раз; всего на поле 16 неособых отсеков и 5 напечатанных особых",
+          "source": "rules-md",
+          "lines": "1517"
+        },
+        {
+          "claim": "Номера выходов в Технические Коридоры напечатаны у красных маячков рядом с отсеком",
+          "source": "rules-md",
+          "lines": "952, 881-922"
+        }
+      ],
+      "expectation": {
+        "roomCount": 21,
+        "byCategory": {
+          "SPECIAL": 5,
+          "ROOM_1": 11,
+          "ROOM_2": 5
+        },
+        "techNumbers": {
+          "2": [
+            1,
+            2
+          ],
+          "4": [
+            2,
+            3
+          ],
+          "5": [
+            4
+          ],
+          "9": [
+            3
+          ],
+          "14": [
+            3
+          ],
+          "15": [
+            4
+          ],
+          "19": [
+            3,
+            4
+          ],
+          "21": [
+            2,
+            3
+          ]
+        }
+      },
+      "unverified": [
+        "Координаты и номера выходов читаются только с физического поля; сверки не было.",
+        "Число неособых отсеков 16 подтверждено книгой правил (11 ROOM_1 + 9 ROOM_2 = 20 тайлов, 16 мест на поле), конкретные места — снимок, а не сверенный факт."
+      ]
+    },
+    "ship-graph-corridors": {
+      "file": "packages/shared/src/data/shipGraph.ts",
+      "status": "UNVERIFIED_BOARD",
+      "facts": [
+        {
+          "claim": "Переход между отсеками возможен только по Коридору с открытой Дверью; номер выпавшей грани Шума указывает, в какой Коридор класть маркер",
+          "source": "rules-md",
+          "lines": "769-922, 1032-1051"
+        },
+        {
+          "claim": "Номера Коридоров со стороны отсека соответствуют значениям броска кубика (1–4)",
+          "source": "rules-md",
+          "lines": "881-922"
+        }
+      ],
+      "expectation": {
+        "corridorCount": 29,
+        "allNumbersInRange": [
+          1,
+          4
+        ],
+        "singleRecordPerRoomPair": true
+      },
+      "unverified": [
+        "Парные Коридоры (два независимых Коридора между одной парой отсеков) и точные номера выходов на поле не сверены: нужны фото поля или коробки.",
+        "Пока сверки нет, бросок на номер, которого нет среди выходов отсека, разыгрывается как Тишина (решение владельца проекта, 17.09.2026), а расхождения зафиксированы снимком в shipGraph.test.ts."
+      ]
+    },
+    "room-definitions": {
+      "file": "packages/shared/src/data/roomDefinitions.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "11 базовых отсеков типа ROOM_1, 9 дополнительных ROOM_2 и 5 напечатанных особых отсеков",
+          "source": "rules-md",
+          "lines": "1517"
+        },
+        {
+          "claim": "Действия отсеков (Компьютер, Поиск, Комната) описаны на стр. 20–26",
+          "source": "rules-md",
+          "lines": "1509-1560"
+        }
+      ],
+      "expectation": {
+        "rooms1": 11,
+        "rooms2": 9,
+        "special": 5,
+        "forbiddenMalfunctionRooms": [
+          "NEST",
+          "SLIME_ROOM"
+        ]
+      }
+    },
+    "setup-plan": {
+      "file": "packages/shared/src/data/setup.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Спасательные Капсулы: 2 при 1–2 игроках, 3 при 3–4, 4 при 5",
+          "source": "rules-md",
+          "lines": "273-279"
+        },
+        {
+          "claim": "В каждой Капсуле 2 места; в партии 4 жетона Капсул",
+          "source": "rules-md",
+          "lines": "99, 1541"
+        },
+        {
+          "claim": "Слабостей на планшете Чужих 3: по одному Объекту каждого вида",
+          "source": "rules-md",
+          "lines": "288"
+        },
+        {
+          "claim": "Трек Времени — 15 делений",
+          "source": "rules-md",
+          "lines": "11"
+        }
+      ],
+      "expectation": {
+        "escapePodsByPlayerCount": {
+          "1": 2,
+          "2": 2,
+          "3": 3,
+          "4": 3,
+          "5": 4
+        },
+        "escapePodNumbers": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "escapePodCapacity": 2,
+        "weaknessSlotCount": 3,
+        "weaknessSlotObjectKinds": [
+          "CORPSE",
+          "EGG",
+          "INTRUDER_REMAINS"
+        ],
+        "timeTrackLength": 15,
+        "handSlotCount": 2,
+        "questItemCount": 2,
+        "characterCount": 6
+      }
+    },
+    "crafting-recipes": {
+      "file": "packages/shared/src/data/crafting.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Изготовление предметов: рецепты требуют предметов определённого цвета и символа Компьютера",
+          "source": "rules-md",
+          "lines": "1509-1510"
+        }
+      ],
+      "expectation": {
+        "recipeCount": 4
+      }
+    }
+  }
+}

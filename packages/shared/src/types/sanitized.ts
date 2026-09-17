@@ -1,4 +1,15 @@
-import type { ActionCard, ContaminationCard, ItemCard, ObjectiveCard, WeaknessCard } from './cards.js';
+import type {
+  ActionCard,
+  ContaminationCard,
+  CraftedItemCard,
+  EventCard,
+  IntruderAttackCard,
+  ItemCard,
+  ItemDeckColor,
+  ObjectiveCard,
+  SeriousWoundCard,
+  WeaknessCard,
+} from './cards.js';
 import type { BoardObject, IntruderToken, PlayerState, QuestItemState } from './entities.js';
 import type { RoomId, RoomState } from './rooms.js';
 import type { CoordinatesState, EngineNumber, EngineState, GameState, IntrudersPoolState, ShipState } from './state.js';
@@ -56,14 +67,64 @@ export type SanitizedActionDeckCard = ActionCard | SanitizedContaminationCard;
 /**
  * Личная колода персонажа: карты Заражения раскрываются только сканером (стр. 20).
  *
- * `drawPile` всегда пуст: порядок добора — скрытая информация, её не видит даже
- * владелец колоды (стр. 7). `hand` пуст для чужой руки. Числа скрытых стопок
- * появятся вместе с данными колод и правилом Внезапной атаки (план, Э2-5).
+ * Порядок добора не видит никто, включая владельца колоды (стр. 7): наружу
+ * уходят только размеры стопок. Число карт на руке — открытая информация:
+ * именно с ней сравнивается число на жетоне Чужого при Внезапной атаке
+ * (стр. 18, шаг 4 Контакта), поэтому `handCount` виден всем игрокам.
  */
 export interface SanitizedActionDeckState {
-  drawPile: SanitizedActionDeckCard[];
+  /** Число карт в закрытой колоде добора: порядок не раскрывается (стр. 7). */
+  drawPileCount: number;
+  /** Число карт на руке: нужно проверке Внезапной атаки (стр. 18). */
+  handCount: number;
+  /** Число карт в сбросе; сами карты видит только владелец колоды. */
+  discardCount: number;
+  /** Карты руки — только владельцу: чужая рука скрыта (стр. 22). */
   hand: SanitizedActionDeckCard[];
+  /** Карты сброса — только владельцу: у чужой колоды наружу уходит лишь число (план, Э2-5). */
   discard: SanitizedActionDeckCard[];
+}
+
+/**
+ * Общая закрытая стопка: порядок и состав карт скрыты, наружу — только число.
+ * Так выглядят колоды, у которых сброс тоже не раскрывается.
+ */
+export interface SanitizedHiddenCardPile {
+  drawPileCount: number;
+  discardCount: number;
+}
+
+/**
+ * Стопка общей колоды: колода добора закрыта (стр. 7, шаг 11), а сброс лежит
+ * лицом вверх у поля (стр. 9, шаг 11) — его карты открыты всем.
+ */
+export interface SanitizedCardPile<TCard> {
+  drawPileCount: number;
+  discard: TCard[];
+}
+
+/**
+ * Колоды корабля в срезе игрока.
+ *
+ * Состав и порядок закрытых колод — чужая для игрока информация (AGENTS.md
+ * §3.4): наружу уходят только размеры стопок. Карты сброса остаются видимыми
+ * там, где физический сброс лежит лицом вверх (Предметы, События, Атаки
+ * Чужих, Тяжёлые Травмы — стр. 9, шаг 11). У колоды Заражения, Слабостей и
+ * Целей закрыты и сбросы: их содержимое не раскрывается ни размером, ни
+ * картами (план исправлений, Э2-5).
+ */
+export interface SanitizedDecksState {
+  items: Record<ItemDeckColor, SanitizedCardPile<ItemCard>>;
+  craftedItems: SanitizedCardPile<CraftedItemCard>;
+  contamination: SanitizedHiddenCardPile;
+  seriousWounds: SanitizedCardPile<SeriousWoundCard>;
+  events: SanitizedCardPile<EventCard>;
+  intruderAttacks: SanitizedCardPile<IntruderAttackCard>;
+  objectives: {
+    personal: SanitizedHiddenCardPile;
+    corporate: SanitizedHiddenCardPile;
+  };
+  weaknesses: SanitizedHiddenCardPile;
 }
 
 export interface SanitizedPlayerState extends Omit<
@@ -95,12 +156,16 @@ export type SanitizedWeaknessSlotState =
  */
 export type SanitizedIntruderBag = Record<IntruderToken['type'], number>;
 
-export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'bag' | 'weaknessSlots'> {
+export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'bag' | 'supply' | 'weaknessSlots'> {
+  /** Состав мешка без порядка жетонов (стр. 6, шаг 10). */
   bag: SanitizedIntruderBag;
+  /** Состав запаса рядом с полем без порядка жетонов (стр. 6, шаг 10). */
+  supply: SanitizedIntruderBag;
   weaknessSlots: SanitizedWeaknessSlotState[];
 }
 
-export interface SanitizedGameState extends Omit<GameState, 'ship' | 'intrudersPool' | 'players'> {
+export interface SanitizedGameState extends Omit<GameState, 'ship' | 'intrudersPool' | 'players' | 'decks'> {
+  decks: SanitizedDecksState;
   ship: Omit<ShipState, 'rooms' | 'engines' | 'coordinates'> & {
     rooms: Record<RoomId, SanitizedRoomState>;
     engines: Record<EngineNumber, SanitizedEngineState>;

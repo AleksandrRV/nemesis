@@ -277,7 +277,7 @@ describe('filterStateForPlayer: границы', () => {
     }
   });
 
-  it('не отдаёт порядок добора личной колоды и содержимое чужой руки (стр. 7, 18)', () => {
+  it('не отдаёт порядок добора личной колоды, чужую руку и чужой сброс, но открывает их размеры (стр. 7, 18)', () => {
     const state = createInitialGameState(SEED, { playerCount: 2 });
     const actionCard = (id: string, characterClass: 'CAPTAIN' | 'PILOT') => ({
       id,
@@ -302,17 +302,23 @@ describe('filterStateForPlayer: границы', () => {
     const serialized = JSON.stringify(view);
 
     // Порядок добора не видит никто, включая владельца колоды: посмотреть колоду
-    // правилами нельзя, видно только толщину стопки (стр. 7).
-    expect(view.players[VIEWER]?.actionDeck.drawPile).toEqual([]);
-    expect(view.players['player-2']?.actionDeck.drawPile).toEqual([]);
+    // правилами нельзя, видно только толщину стопки (стр. 7). Наружу уходят
+    // размеры, а не карты: число карт на руке нужно Внезапной атаке (стр. 18).
+    expect(view.players[VIEWER]?.actionDeck.drawPileCount).toBe(1);
+    expect(view.players['player-2']?.actionDeck.drawPileCount).toBe(1);
+    expect(view.players[VIEWER]?.actionDeck.hand).toHaveLength(1);
+    expect(view.players['player-2']?.actionDeck.handCount).toBe(1);
+    expect(view.players['player-2']?.actionDeck.discardCount).toBe(1);
     expect(serialized).not.toContain('own-deck-1');
     expect(serialized).not.toContain('enemy-deck-1');
 
-    // Чужая рука скрыта, своя — видна, сброс открыт всем: он лежит лицом вверх.
+    // Чужая рука и чужой сброс скрыты, свои — видны: чужая колода — чужая тайна.
     expect(view.players['player-2']?.actionDeck.hand).toEqual([]);
+    expect(view.players['player-2']?.actionDeck.discard).toEqual([]);
     expect(serialized).not.toContain('enemy-hand-1');
+    expect(serialized).not.toContain('enemy-discard-1');
     expect(serialized).toContain('own-hand-1');
-    expect(serialized).toContain('enemy-discard-1');
+    expect(serialized).toContain('own-discard-1');
   });
 
   it('не отдаёт скрытых данных при сериализации: ни пункта назначения, ни состояния двигателей', () => {
@@ -328,5 +334,122 @@ describe('filterStateForPlayer: границы', () => {
     expect(['EARTH', 'MARS', 'DEEP_SPACE_1', 'DEEP_SPACE_2']).not.toContain(parsed.ship.coordinates.destination);
     expect(Object.values(parsed.ship.engines).map((engine) => engine.isWorking)).toEqual([null, null, null]);
     expect(json).toContain('"coordinates"');
+  });
+});
+
+describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
+  const itemCard = (id: string, color: 'RED' | 'GREEN' = 'RED') => ({
+    id,
+    name: 'Предмет',
+    color,
+    origin: 'ROOM_DECK' as const,
+    isHeavy: false,
+    isSingleUse: false,
+    componentSymbols: [],
+    actionCost: 0,
+    description: '',
+    isWeapon: false,
+    ammo: null,
+    maxAmmo: null,
+  });
+
+  const weaknessCard = (id: string) => ({ id, name: 'Слабость', description: '', isRevealed: false });
+
+  it('закрытую колоду отдаёт числом, а сброс Предметов оставляет открытым: он лежит лицом вверх', () => {
+    const state = freshState();
+
+    state.decks.items.RED = {
+      drawPile: [itemCard('red-draw-1'), itemCard('red-draw-2')],
+      discard: [itemCard('red-discard-1')],
+    };
+    state.decks.events = {
+      drawPile: [{ id: 'event-draw-1', name: 'Событие', description: '' }],
+      discard: [{ id: 'event-discard-1', name: 'Событие', description: '' }],
+    } as never;
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const serialized = JSON.stringify(view);
+
+    expect(view.decks.items.RED.drawPileCount).toBe(2);
+    expect(view.decks.items.RED.discard.map((card) => card.id)).toEqual(['red-discard-1']);
+    expect(view.decks.events.drawPileCount).toBe(1);
+    expect(view.decks.events.discard.map((card) => card.id)).toEqual(['event-discard-1']);
+
+    expect(serialized).not.toContain('red-draw-1');
+    expect(serialized).not.toContain('red-draw-2');
+    expect(serialized).not.toContain('event-draw-1');
+    expect(serialized).toContain('red-discard-1');
+  });
+
+  it('у колоды Заражения, Целей и Слабостей скрыт и сброс: наружу уходят только числа', () => {
+    const state = freshState();
+
+    state.decks.contamination = {
+      drawPile: [{ id: 'contamination-draw-1', isInfected: true, isScanned: false }],
+      discard: [{ id: 'contamination-discard-1', isInfected: false, isScanned: true }],
+    };
+    state.decks.objectives.personal = {
+      drawPile: [{ id: 'personal-draw-1', characterClass: 'CAPTAIN', name: 'Цель', description: '' }],
+      discard: [{ id: 'personal-discard-1', characterClass: 'CAPTAIN', name: 'Цель', description: '' }],
+    } as never;
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const serialized = JSON.stringify(view);
+
+    expect(view.decks.contamination.drawPileCount).toBe(1);
+    expect(view.decks.contamination.discardCount).toBe(1);
+    expect(view.decks.objectives.personal.drawPileCount).toBe(1);
+    expect(view.decks.objectives.personal.discardCount).toBe(1);
+
+    for (const hiddenId of [
+      'contamination-draw-1',
+      'contamination-discard-1',
+      'personal-draw-1',
+      'personal-discard-1',
+    ]) {
+      expect(serialized, `${hiddenId} утёк в срез`).not.toContain(hiddenId);
+    }
+
+    // Ключей с массивами карт у таких колод в срезе нет вовсе: даже форма
+    // ответа не подсказывает, что за карты там лежат.
+    expect(Object.keys(view.decks.contamination).sort()).toEqual(['discardCount', 'drawPileCount']);
+    expect(Object.keys(view.decks.weaknesses).sort()).toEqual(['discardCount', 'drawPileCount']);
+  });
+
+  it('скрывает лицевую сторону невскрытой Слабости, но показывает её вид и число карт', () => {
+    const state = freshState();
+    const slot = state.intrudersPool.weaknessSlots[0]!;
+
+    slot.card = weaknessCard('weakness-1');
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const viewedSlot = view.intrudersPool.weaknessSlots[0]!;
+
+    expect(viewedSlot.visibility).toBe('FACE_DOWN');
+    expect(JSON.stringify(view)).not.toContain('weakness-1');
+
+    (state.intrudersPool.weaknessSlots[0]!.card as { isRevealed: boolean }).isRevealed = true;
+
+    const revealed = filterStateForPlayer(state, VIEWER).intrudersPool.weaknessSlots[0]!;
+
+    expect(revealed.visibility).toBe('REVEALED');
+  });
+
+  it('отдаёт состав мешка и запаса числами, не раскрывая порядок жетонов (стр. 6, шаг 10)', () => {
+    const state = freshState();
+    const view = filterStateForPlayer(state, VIEWER);
+    const serialized = JSON.stringify(view);
+
+    expect(Object.keys(view.intrudersPool.bag).sort()).toEqual(
+      ['ADULT', 'BLANK', 'BREEDER', 'CREEPER', 'LARVA', 'QUEEN'].sort(),
+    );
+    expect(view.intrudersPool.bag.ADULT).toBe(state.intrudersPool.bag.filter((t) => t.type === 'ADULT').length);
+    expect(view.intrudersPool.supply.BREEDER).toBe(
+      state.intrudersPool.supply.filter((t) => t.type === 'BREEDER').length,
+    );
+
+    for (const token of [...state.intrudersPool.bag, ...state.intrudersPool.supply]) {
+      expect(serialized, `жетон ${token.id} утёк в срез`).not.toContain(token.id);
+    }
   });
 });

@@ -1,11 +1,14 @@
 import { EngineError } from './fsm.js';
 
-import type { ActionDeckCard, ActionDeckState, ContaminationCard } from '../types/cards.js';
+import type { ActionDeckCard, ActionDeckState, CardPile, ContaminationCard, GameDecksState } from '../types/cards.js';
 import type { IntruderToken, PlayerState, WeaknessSlotState } from '../types/entities.js';
 import type {
   SanitizedActionDeckCard,
   SanitizedActionDeckState,
+  SanitizedCardPile,
+  SanitizedDecksState,
   SanitizedGameState,
+  SanitizedHiddenCardPile,
   SanitizedIntruderBag,
   SanitizedRoomState,
   SanitizedWeaknessSlotState,
@@ -20,14 +23,11 @@ import type { EngineNumber, GameState } from '../types/state.js';
  * в UI — так «нулевое читерство» становится свойством данных, а не обещанием.
  *
  * Порядок нигде наружу не уходит: вместо списка жетонов мешка клиент получает
- * состав по типам, порядок добора личных колод не раскрывается даже владельцу,
- * а рука другого персонажа не видна вовсе (план исправлений, Э1-1 и Э1-4).
- *
- * Осознанное ограничение v0: числа скрытых стопок (`размер колоды`, `размер
- * чужой руки`) срез пока не сообщает — их место определено правилом Внезапной
- * атаки (стр. 18) и появится вместе с данными колод (план исправлений, Э2-5).
- * Пока данных карт в колодах нет, скрывать нечего, и «не показать лишнего»
- * безопаснее, чем показать состав.
+ * состав по типам, состав и порядок колод заменяются числом карт, порядок
+ * добора личных колод не раскрывается даже владельцу, рука и сброс другого
+ * персонажа скрыты, а наружу уходит только их размер. Число карт на руке —
+ * исключение не по недосмотру: именно с ним сравнивается число на жетоне
+ * Чужого при Внезапной атаке (стр. 18, шаг 4 Контакта).
  */
 export function filterStateForPlayer(state: GameState, viewingPlayerId: string): SanitizedGameState {
   const viewer = state.players[viewingPlayerId];
@@ -39,32 +39,42 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
     );
   }
 
-  // Копия состояния, в которой скрытые поля заменяются на null/FACE_DOWN.
+  // Копия состояния, в которой скрытые поля заменяются на null/счётчики/FACE_DOWN.
   const sanitized = structuredClone(state) as unknown as SanitizedGameState;
 
-  sanitizeIntruderBag(sanitized);
+  sanitizeIntruderPool(sanitized);
   sanitizeShip(sanitized, viewer);
   sanitizePlayers(sanitized, viewingPlayerId);
+  sanitizeDecks(sanitized);
   sanitizeWeaknessSlots(sanitized);
 
   return sanitized;
 }
 
 /**
- * Двигатели и Координаты персонаж узнаёт только лично: проверив двигатель
- * в Машинном отсеке (стр. 26) или открыв карту Координат на Мостике (стр. 6, шаг 5).
+ * Мешок и запас жетонов Чужих: игроки знают состав (он выкладывается при
+ * подготовке, стр. 6, шаг 10), но не порядок вытягивания — иначе Контакт
+ * перестаёт быть случайным событием (AGENTS.md §3.4).
  */
-function sanitizeIntruderBag(state: SanitizedGameState): void {
-  const tokens = state.intrudersPool.bag as unknown as IntruderToken[];
+function sanitizeIntruderPool(state: SanitizedGameState): void {
+  state.intrudersPool.bag = countIntruderTokens(state.intrudersPool.bag as unknown as IntruderToken[]);
+  state.intrudersPool.supply = countIntruderTokens(state.intrudersPool.supply as unknown as IntruderToken[]);
+}
+
+function countIntruderTokens(tokens: IntruderToken[]): SanitizedIntruderBag {
   const counts: SanitizedIntruderBag = { BLANK: 0, LARVA: 0, CREEPER: 0, ADULT: 0, BREEDER: 0, QUEEN: 0 };
 
   for (const token of tokens) {
     counts[token.type] += 1;
   }
 
-  state.intrudersPool.bag = counts;
+  return counts;
 }
 
+/**
+ * Двигатели и Координаты персонаж узнаёт только лично: проверив двигатель
+ * в Машинном отсеке (стр. 26) или открыв карту Координат на Мостике (стр. 6, шаг 5).
+ */
 function sanitizeShip(state: SanitizedGameState, viewer: PlayerState): void {
   const inspectedEngines = new Set<EngineNumber>(viewer.inspectedEngines);
   const engineNumbers: EngineNumber[] = [1, 2, 3];
@@ -136,15 +146,17 @@ function sanitizePlayers(state: SanitizedGameState, viewingPlayerId: string): vo
  * Личная колода и рука (стр. 7, 18).
  *
  * Порядок добора не видит никто, включая владельца колоды: в физической игре
- * посмотреть колоду нельзя, видно только толщину стопки. Рука видна только
- * владельцу, сброс — всем: он лежит лицом вверх. Так «нулевое читерство»
- * остаётся свойством данных даже когда колоды наполнятся картами (Э3-1).
+ * посмотреть колоду нельзя, видно только толщину стопки. Рука и сброс видны
+ * только владельцу; наружу уходят их размеры. Размер руки — не секрет:
+ * с ним сравнивается число на жетоне Чужого при Внезапной атаке (стр. 18).
  */
 function sanitizeActionDeck(deck: ActionDeckState, isViewer: boolean): SanitizedActionDeckState {
   return {
-    drawPile: [],
+    drawPileCount: deck.drawPile.length,
+    handCount: deck.hand.length,
+    discardCount: deck.discard.length,
     hand: isViewer ? deck.hand.map(sanitizeActionDeckCard) : [],
-    discard: deck.discard.map(sanitizeActionDeckCard),
+    discard: isViewer ? deck.discard.map(sanitizeActionDeckCard) : [],
   };
 }
 
@@ -156,6 +168,46 @@ function sanitizeActionDeckCard(card: ActionDeckCard): SanitizedActionDeckCard {
   const contamination = card as ContaminationCard;
 
   return { ...contamination, isInfected: contamination.isScanned ? contamination.isInfected : null };
+}
+
+/**
+ * Общие колоды корабля (стр. 7, шаг 11).
+ *
+ * Порядок закрытых колод и их состав — скрытая информация: наружу уходит
+ * только число карт. Сбросы Предметов, Событий, Атак Чужих и Тяжёлых Травм
+ * лежат лицом вверх (стр. 9, шаг 11), поэтому их карты остаются видимыми;
+ * у колоды Заражения, Слабостей и Целей скрыт и сброс (план исправлений, Э2-5).
+ */
+function sanitizeDecks(state: SanitizedGameState): void {
+  const decks = state.decks as unknown as GameDecksState;
+
+  const sanitized: SanitizedDecksState = {
+    items: {
+      RED: sanitizeCardPile(decks.items.RED),
+      YELLOW: sanitizeCardPile(decks.items.YELLOW),
+      GREEN: sanitizeCardPile(decks.items.GREEN),
+    },
+    craftedItems: sanitizeCardPile(decks.craftedItems),
+    contamination: sanitizeHiddenCardPile(decks.contamination),
+    seriousWounds: sanitizeCardPile(decks.seriousWounds),
+    events: sanitizeCardPile(decks.events),
+    intruderAttacks: sanitizeCardPile(decks.intruderAttacks),
+    objectives: {
+      personal: sanitizeHiddenCardPile(decks.objectives.personal),
+      corporate: sanitizeHiddenCardPile(decks.objectives.corporate),
+    },
+    weaknesses: sanitizeHiddenCardPile(decks.weaknesses),
+  };
+
+  state.decks = sanitized;
+}
+
+function sanitizeCardPile<TCard>(pile: CardPile<TCard>): SanitizedCardPile<TCard> {
+  return { drawPileCount: pile.drawPile.length, discard: [...pile.discard] };
+}
+
+function sanitizeHiddenCardPile<TCard>(pile: CardPile<TCard>): SanitizedHiddenCardPile {
+  return { drawPileCount: pile.drawPile.length, discardCount: pile.discard.length };
 }
 
 /** Слабость, лежащая рубашкой вверх, остаётся неизвестной до Изучения в Лаборатории (стр. 21). */

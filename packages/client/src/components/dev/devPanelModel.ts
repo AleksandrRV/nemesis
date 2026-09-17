@@ -17,8 +17,17 @@ export const DOOR_LABELS: Record<DoorState, string> = {
   DESTROYED: 'разрушена',
 };
 
-/** Легенда для заголовка панели: порядок переключения Двери. */
-export const DOOR_CYCLE_HINT = DOOR_STATES.map((state) => DOOR_LABELS[state]).join(' → ');
+/** Причины окончания партии для панели: правила запасов закрывают игру (стр. 17). */
+export const GAME_OVER_REASON_LABELS: Record<NonNullable<SanitizedGameState['meta']['gameOverReason']>, string> = {
+  SHIP_EXPLODED: 'корабль взорвался',
+  HULL_BREACH: 'разрыв обшивки',
+};
+
+/** Разрушенную Дверь снова не закрыть: переключать её некуда (стр. 17). */
+export const DOOR_TERMINAL_HINT = 'нельзя переключить';
+
+/** Легенда для заголовка панели: путь Двери до терминального состояния (стр. 17). */
+export const DOOR_CYCLE_HINT = `${DOOR_STATES.map((state) => DOOR_LABELS[state]).join(' → ')} (${DOOR_TERMINAL_HINT})`;
 
 export interface CorridorRow {
   id: string;
@@ -41,7 +50,10 @@ export function buildCorridorRows(view: SanitizedGameState): CorridorRow[] {
       toRoomId: corridor.toRoomId,
       doorState: corridor.doorState,
       doorLabel: DOOR_LABELS[corridor.doorState],
-      nextDoorLabel: DOOR_LABELS[nextDoorState(corridor.doorState)],
+      // Подпись «что будет при нажатии» берётся из того же перехода, что и в
+      // движке: Разрушенная Дверь терминальна, и панель не обещает обратного.
+      nextDoorLabel:
+        corridor.doorState === 'DESTROYED' ? DOOR_TERMINAL_HINT : DOOR_LABELS[nextDoorState(corridor.doorState)],
       hasNoise: corridor.hasNoise,
     }))
     .sort((left, right) => left.fromRoomId - right.fromRoomId || left.toRoomId - right.toRoomId);
@@ -70,6 +82,8 @@ export interface DevDiagnostics {
   doors: DoorCounts;
   /** Сколько двигателей этому персонажу всё ещё неизвестно (стр. 26). */
   unknownEngines: number;
+  /** Причина окончания партии по правилам запасов; null — партия идёт (стр. 17). */
+  gameOverReason: SanitizedGameState['meta']['gameOverReason'];
   /** Открывал ли персонаж карту Координат (стр. 6, шаг 5). */
   coordinatesHidden: boolean;
   /** Сколько чужих наборов тайн скрыто фильтром (инвентарь, цели, квестовые предметы). */
@@ -97,6 +111,7 @@ export function buildDiagnostics(view: SanitizedGameState): DevDiagnostics {
     activePlayerId: view.meta.activePlayerId,
     activePlayerName: activePlayer?.name ?? view.meta.activePlayerId,
     timeTrackPosition: view.meta.timeTrackPosition,
+    gameOverReason: view.meta.gameOverReason,
     rooms: rooms.length,
     unexploredRooms: rooms.filter((room) => !room.isExplored).length,
     corridors: corridors.length,

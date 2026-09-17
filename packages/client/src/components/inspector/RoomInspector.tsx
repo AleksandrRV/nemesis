@@ -1,7 +1,15 @@
 import React from 'react';
+import type { BoardObject } from '@nemesis/shared';
+import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { SPECIAL_ROOMS, BASIC_ROOMS_1, ADDITIONAL_ROOMS_2 } from '@nemesis/shared';
 import { X, Flame, Wrench, Laptop, Package, User, Footprints, Eye, AlertCircle } from 'lucide-react';
+
+/** Подписи Тяжёлых объектов на полу отсека (стр. 22). */
+const BOARD_OBJECT_LABELS: Record<BoardObject['kind'], string> = {
+  CORPSE: 'Труп члена экипажа',
+  EGG: 'Яйцо Чужих',
+  INTRUDER_REMAINS: 'Останки Чужого',
+};
 
 export const RoomInspector: React.FC = () => {
   const { gameState, selectedRoomId, selectRoom, exploreRoom, movePlayer } = useGameStore();
@@ -94,14 +102,17 @@ export const RoomInspector: React.FC = () => {
           </div>
         )}
 
-        {room.droppedObjectIds.includes('CORPSE_BLUE') && (
-          <div className="text-xs bg-red-950/30 border border-red-900/50 p-2 rounded flex items-center gap-2 text-rose-300">
+        {room.objects.map((object) => (
+          <div
+            key={object.id}
+            className="text-xs bg-red-950/30 border border-red-900/50 p-2 rounded flex items-center gap-2 text-rose-300"
+          >
             <AlertCircle size={14} />
             <span>
-              На полу: <b>Труп члена экипажа</b>
+              На полу: <b>{BOARD_OBJECT_LABELS[object.kind]}</b>
             </span>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Кнопки действий для тестирования билда v0.1.0 */}

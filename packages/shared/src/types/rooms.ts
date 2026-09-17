@@ -1,3 +1,5 @@
+import type { BoardObject } from './entities.js';
+
 export type RoomSlotCategory = 'SPECIAL' | 'ROOM_1' | 'ROOM_2';
 export type RoomId = number; // 1..21
 export type DoorState = 'OPEN' | 'CLOSED' | 'DESTROYED';
@@ -37,10 +39,10 @@ export interface RoomState {
   hasComputer: boolean;
   hasFire: boolean;
   hasMalfunction: boolean;
-  hasSlime: boolean;
   hasDecompressionToken: boolean;
   hasTechnicalCorridorEntrance: boolean;
   occupantPlayerIds: string[];
   occupantIntruderIds: string[];
-  droppedObjectIds: string[];
+  /** Тяжёлые объекты на полу: Труп, Яйцо, Останки (стр. 22). */
+  objects: BoardObject[];
 }

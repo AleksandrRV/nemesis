@@ -1,8 +1,17 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { GameState, RoomId } from '@nemesis/shared';
 import { createInitialGameState } from '../utils/initialState';
+import {
+  DEFAULT_SELECTED_ROOM_ID,
+  mergeSession,
+  migrateSession,
+  partializeSession,
+  SESSION_STORAGE_KEY,
+  SESSION_STORAGE_VERSION,
+  type PersistedSession,
+} from './session';
 
 interface GameStoreState {
   gameState: GameState;
@@ -17,16 +26,23 @@ interface GameStoreState {
   movePlayer: (targetRoomId: RoomId) => void;
 }
 
+/** Сид новой партии: уникален, чтобы у игроков не было одинаковых раскладов. */
+function createSeed(): string {
+  return crypto.randomUUID();
+}
+
 export const useGameStore = create<GameStoreState>()(
   persist(
-    immer((set) => ({
-      gameState: createInitialGameState(),
-      selectedRoomId: 11, // По умолчанию выбран Криоотсек, где стоит игрок
+    immer<GameStoreState>((set) => ({
+      gameState: createInitialGameState(createSeed()),
+      selectedRoomId: DEFAULT_SELECTED_ROOM_ID,
 
       initNewGame: (seed) => {
+        const nextSeed = seed || createSeed();
+
         set((state) => {
-          state.gameState = createInitialGameState(seed || String(Date.now()));
-          state.selectedRoomId = 11;
+          state.gameState = createInitialGameState(nextSeed);
+          state.selectedRoomId = DEFAULT_SELECTED_ROOM_ID;
         });
       },
 
@@ -84,8 +100,15 @@ export const useGameStore = create<GameStoreState>()(
       },
     })),
     {
-      name: 'nemesis-v010-session',
+      name: SESSION_STORAGE_KEY,
+      version: SESSION_STORAGE_VERSION,
       storage: createJSONStorage(() => localStorage),
+      partialize: partializeSession,
+      migrate: (persistedState, version): PersistedSession => migrateSession(persistedState, version),
+      // Проверяем сохранение и при совпадении версии: zustand зовёт migrate
+      // только при её несовпадении, поэтому повреждённые данные той же версии
+      // нужно отсеивать здесь — иначе стор получит мусор и приложение упадёт.
+      merge: mergeSession,
     },
   ),
 );

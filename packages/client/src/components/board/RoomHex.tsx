@@ -1,6 +1,6 @@
 import React from 'react';
 import { SHIP_ROOM_NODES, type RoomState } from '@nemesis/shared';
-import { Flame, Wrench, User, Skull, Laptop } from 'lucide-react';
+import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
 
 interface RoomHexProps {
   room: RoomState;
@@ -187,14 +187,27 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSele
         </g>
       )}
 
-      {/* Труп */}
-      {room.droppedObjectIds.includes('CORPSE_BLUE') && (
-        <g transform={`translate(${x + 10}, ${y - 34})`} className="pointer-events-none">
-          <circle cx={8} cy={8} r={8} fill="#ff003c" stroke="#05070c" strokeWidth={1.5} />
+      {/* Объекты на полу: Труп, Яйцо, Останки (стр. 22) */}
+      {room.objects.map((object, index) => {
+        const offset = 10 + index * 20;
 
-          <Skull size={10} className="text-white" x={3} y={3} />
-        </g>
-      )}
+        return (
+          <g key={object.id} transform={`translate(${x + offset}, ${y - 34})`} className="pointer-events-none">
+            <circle
+              cx={8}
+              cy={8}
+              r={8}
+              fill={object.kind === 'CORPSE' ? '#ff003c' : object.kind === 'EGG' ? '#00ff66' : '#334155'}
+              stroke="#05070c"
+              strokeWidth={1.5}
+            />
+
+            {object.kind === 'CORPSE' && <Skull size={10} className="text-white" x={3} y={3} />}
+            {object.kind === 'EGG' && <Egg size={10} className="text-slate-950" x={3} y={3} />}
+            {object.kind === 'INTRUDER_REMAINS' && <Bone size={10} className="text-white" x={3} y={3} />}
+          </g>
+        );
+      })}
     </g>
   );
 };

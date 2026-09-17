@@ -1,5 +1,5 @@
 import React from 'react';
-import { CorridorConnection } from '@nemesis/shared';
+import type { CorridorConnection } from '@nemesis/shared';
 import { Volume2, ShieldAlert, X } from 'lucide-react';
 
 interface CorridorEdgeProps {

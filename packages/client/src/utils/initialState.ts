@@ -1,8 +1,5 @@
+import type { GameState, RoomState, RoomId, ExplorationToken } from '@nemesis/shared';
 import {
-  GameState,
-  RoomState,
-  RoomId,
-  ExplorationToken,
   BASIC_ROOMS_1,
   ADDITIONAL_ROOMS_2,
   SHIP_ROOM_NODES,

@@ -56,6 +56,7 @@ npm run dev   # dev-сервер Vite: http://localhost:5173
 
 ## Документация
 
+- [doc/rules.md](doc/rules.md) — книга правил: источник истины по механике (на неё ссылаются «стр. N»);
 - [doc/audit-0.1.0.md](doc/audit-0.1.0.md) — независимый аудит ревизии 0.1.0 и актуальный статус работ;
 - [doc/design_document.md](doc/design_document.md) — GDD: FSM, пул Чужих, создание предметов;
 - [doc/tech_stack.md](doc/tech_stack.md) — контракты данных, транспорт, структура кода;

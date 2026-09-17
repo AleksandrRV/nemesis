@@ -34,7 +34,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <h1 className="text-lg font-heading tracking-widest text-white leading-none">
-              NEMESIS <span className="text-cyan-400 text-sm">DIGITAL v0.1.7</span>
+              NEMESIS <span className="text-cyan-400 text-sm">DIGITAL v0.1.8</span>
             </h1>
             <span className="text-[10px] font-mono text-slate-400">
               РАУНД {view.meta.currentRound} • {PHASE_LABELS[view.meta.phase]} • {activePlayerName.toUpperCase()}

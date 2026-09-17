@@ -86,6 +86,6 @@ export const useGameStore = create<GameStoreState>()(
     {
       name: 'nemesis-v010-session',
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );

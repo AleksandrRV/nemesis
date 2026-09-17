@@ -8,7 +8,7 @@ export interface CorridorConnection {
   fromRoomId: RoomId;
   toRoomId: RoomId;
   fromNumbers: number[]; // Номера выхода из первой комнаты (напр. [1] или [3, 4])
-  toNumbers: number[];   // Номера входа во вторую комнату
+  toNumbers: number[]; // Номера входа во вторую комнату
   doorState: DoorState;
   hasNoise: boolean;
 }

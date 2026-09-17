@@ -1,17 +1,6 @@
-export type CharacterClass = 
-  | 'CAPTAIN' 
-  | 'PILOT' 
-  | 'SCIENTIST' 
-  | 'SCOUT' 
-  | 'SOLDIER' 
-  | 'MECHANIC';
+export type CharacterClass = 'CAPTAIN' | 'PILOT' | 'SCIENTIST' | 'SCOUT' | 'SOLDIER' | 'MECHANIC';
 
-export type IntruderType = 
-  | 'LARVA' 
-  | 'CREEPER' 
-  | 'ADULT' 
-  | 'BREEDER' 
-  | 'QUEEN';
+export type IntruderType = 'LARVA' | 'CREEPER' | 'ADULT' | 'BREEDER' | 'QUEEN';
 
 export interface IntruderToken {
   id: string;

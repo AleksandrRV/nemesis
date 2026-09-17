@@ -1,17 +1,7 @@
 import React from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { SPECIAL_ROOMS, BASIC_ROOMS_1, ADDITIONAL_ROOMS_2 } from '@nemesis/shared';
-import { 
-  X, 
-  Flame, 
-  Wrench, 
-  Laptop, 
-  Package, 
-  User, 
-  Footprints, 
-  Eye, 
-  AlertCircle 
-} from 'lucide-react';
+import { X, Flame, Wrench, Laptop, Package, User, Footprints, Eye, AlertCircle } from 'lucide-react';
 
 export const RoomInspector: React.FC = () => {
   const { gameState, selectedRoomId, selectRoom, exploreRoom, movePlayer } = useGameStore();
@@ -60,19 +50,27 @@ export const RoomInspector: React.FC = () => {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
             <Package size={14} className="text-cyan-400" />
-            <span className="text-slate-300">Предметов: <b className="text-white">{room.itemsCount}</b></span>
+            <span className="text-slate-300">
+              Предметов: <b className="text-white">{room.itemsCount}</b>
+            </span>
           </div>
           <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
             <Laptop size={14} className={room.hasComputer ? 'text-cyan-400' : 'text-slate-600'} />
-            <span className="text-slate-300">Компьютер: <b className="text-white">{room.hasComputer ? 'ДА' : 'НЕТ'}</b></span>
+            <span className="text-slate-300">
+              Компьютер: <b className="text-white">{room.hasComputer ? 'ДА' : 'НЕТ'}</b>
+            </span>
           </div>
           <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
             <Flame size={14} className={room.hasFire ? 'text-orange-500' : 'text-slate-600'} />
-            <span className="text-slate-300">Пожар: <b className="text-white">{room.hasFire ? 'ДА' : 'НЕТ'}</b></span>
+            <span className="text-slate-300">
+              Пожар: <b className="text-white">{room.hasFire ? 'ДА' : 'НЕТ'}</b>
+            </span>
           </div>
           <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
             <Wrench size={14} className={room.hasMalfunction ? 'text-amber-400' : 'text-slate-600'} />
-            <span className="text-slate-300">Поломка: <b className="text-white">{room.hasMalfunction ? 'ДА' : 'НЕТ'}</b></span>
+            <span className="text-slate-300">
+              Поломка: <b className="text-white">{room.hasMalfunction ? 'ДА' : 'НЕТ'}</b>
+            </span>
           </div>
         </div>
 
@@ -82,9 +80,7 @@ export const RoomInspector: React.FC = () => {
             <div className="text-[11px] text-cyan-400 uppercase font-bold tracking-wider mb-1">
               Действие комнаты [{roomDef.actionCost}]:
             </div>
-            <div className="text-xs text-slate-300 leading-relaxed">
-              {roomDef.actionDescription}
-            </div>
+            <div className="text-xs text-slate-300 leading-relaxed">{roomDef.actionDescription}</div>
           </div>
         )}
 
@@ -92,14 +88,18 @@ export const RoomInspector: React.FC = () => {
         {room.occupantPlayerIds.length > 0 && (
           <div className="text-xs bg-slate-900/40 p-2 rounded flex items-center gap-2">
             <User size={14} className="text-cyan-400" />
-            <span>В отсеке: <b className="text-cyan-300">Капитан</b></span>
+            <span>
+              В отсеке: <b className="text-cyan-300">Капитан</b>
+            </span>
           </div>
         )}
 
         {room.droppedObjectIds.includes('CORPSE_BLUE') && (
           <div className="text-xs bg-red-950/30 border border-red-900/50 p-2 rounded flex items-center gap-2 text-rose-300">
             <AlertCircle size={14} />
-            <span>На полу: <b>Труп члена экипажа</b></span>
+            <span>
+              На полу: <b>Труп члена экипажа</b>
+            </span>
           </div>
         )}
       </div>

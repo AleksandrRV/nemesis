@@ -64,12 +64,7 @@ export const ShipMapSVG: React.FC = () => {
               >
                 <defs>
                   <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path
-                      d="M 40 0 L 0 0 0 40"
-                      fill="none"
-                      stroke="rgba(42, 59, 84, 0.12)"
-                      strokeWidth="1"
-                    />
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(42, 59, 84, 0.12)" strokeWidth="1" />
                   </pattern>
                 </defs>
 

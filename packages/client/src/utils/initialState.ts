@@ -1,10 +1,5 @@
 import type { GameState, RoomState, RoomId, ExplorationToken } from '@nemesis/shared';
-import {
-  BASIC_ROOMS_1,
-  ADDITIONAL_ROOMS_2,
-  SHIP_ROOM_NODES,
-  SHIP_CORRIDORS,
-} from '@nemesis/shared';
+import { BASIC_ROOMS_1, ADDITIONAL_ROOMS_2, SHIP_ROOM_NODES, SHIP_CORRIDORS } from '@nemesis/shared';
 import seedrandom from 'seedrandom';
 
 export function createInitialGameState(seed = 'nemesis-default-seed'): GameState {
@@ -105,10 +100,13 @@ export function createInitialGameState(seed = 'nemesis-default-seed'): GameState
   }
 
   // 3. Подготовка коридоров
-  const corridors = SHIP_CORRIDORS.reduce((acc, corridor) => {
-    acc[corridor.id] = { ...corridor };
-    return acc;
-  }, {} as GameState['ship']['corridors']);
+  const corridors = SHIP_CORRIDORS.reduce(
+    (acc, corridor) => {
+      acc[corridor.id] = { ...corridor };
+      return acc;
+    },
+    {} as GameState['ship']['corridors'],
+  );
 
   return {
     meta: {

@@ -47,12 +47,6 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
-# Материалы правообладателя: книга правил остаётся только локально
-# (в репозитории её текста быть не должно — см. NOTICE)
-doc/rules.md
-doc/rules*.pdf
-doc/*rulebook*
-
 # Safety net: скомпилированный вывод не должен появляться рядом с исходниками
 # (сборка идёт в packages/*/dist, проверка типов — с --noEmit)
 packages/*/src/**/*.js

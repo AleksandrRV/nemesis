@@ -3,15 +3,20 @@ import type { GameDecksState } from './cards.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
 import type { InterruptEvent } from './interrupts.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
+import type { RngStream } from '../utils/rng.js';
 
 /**
  * Версия контракта игрового состояния.
  *
  * Используется и как версия сохранённой сессии (zustand persist): при
- * несовпадении сохранение не восстанавливается, а партия начинается заново.
+ * несовместимости сохранение не восстанавливается, а партия начинается заново.
  * Значение увеличивается при любом несовместимом изменении GameState.
+ *
+ * v2 (0.1.10): отсек помнит эффект жетона Исследования, в состоянии появились
+ * счётчики потоков случайности (`meta.rngDraws`), а прерывание вскрытия несёт
+ * Коридор входа — старая сессия без этих полей не восстанавливается.
  */
-export const GAME_STATE_SCHEMA_VERSION = 1;
+export const GAME_STATE_SCHEMA_VERSION = 2;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -76,6 +81,14 @@ export interface GameMeta {
   /** Позиция маркера Времени: 0..TIME_TRACK_LENGTH, где 15 — красный прыжок (стр. 11). */
   timeTrackPosition: number;
   selfDestructTrackPosition: number | null; // 0..8 (8 = череп)
+  /**
+   * Сколько раз партия уже обратилась к каждому потоку случайности.
+   * Сам генератор в состоянии не хранится (состояние остаётся JSON-сериализуемым),
+   * поэтому позиция восстанавливается реплеем от мастер-сида (utils/rng.ts).
+   * Расклад (`layout`) читается только при подготовке стола, поэтому после
+   * старта партии его счётчик не растёт.
+   */
+  rngDraws: Record<RngStream, number>;
 }
 
 export interface GameState {

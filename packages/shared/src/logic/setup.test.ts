@@ -204,6 +204,19 @@ describe('createInitialGameState: Пул Чужих', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('тасует мешок: порядок жетонов зависит от сида, а не от кода', () => {
+    // Жетоны лежат рубашкой вверх, поэтому порядок вытягивания — случайный
+    // (план исправлений, Э1-1). Один и тот же сид обязан повторить порядок,
+    // разные сиды — дать разные мешки.
+    const first = createInitialGameState('nemesis-alpha').intrudersPool.bag.map((token) => token.id);
+    const repeat = createInitialGameState('nemesis-alpha').intrudersPool.bag.map((token) => token.id);
+    const other = createInitialGameState('nemesis-beta').intrudersPool.bag.map((token) => token.id);
+
+    expect(repeat).toEqual(first);
+    expect(other).not.toEqual(first);
+    expect([...other].sort()).toEqual([...first].sort());
+  });
+
   it('начинает партию без Чужих на поле и с 5 жетонами Яиц (стр. 6, шаг 9)', () => {
     const state = createInitialGameState('nemesis-alpha');
 
@@ -312,7 +325,7 @@ describe('createInitialGameState: пусковой стол', () => {
   });
 });
 
-describe('createInitialGameState: двигатели и Координаты (исправленные дефекты аудита)', () => {
+describe('createInitialGameState: двигатели и Координаты', () => {
   it.each([1, 2, 3] as const)(
     'хранит для двигателя №%i одну булеву истину вместо двух независимых бросков',
     (engineNumber) => {

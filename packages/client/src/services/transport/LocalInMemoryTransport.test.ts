@@ -122,7 +122,7 @@ describe('LocalInMemoryTransport: действия', () => {
     expect(transport.getLocalState().players[PLAYER]?.roomId).toBe(11);
   });
 
-  it('принимает отладочные действия только с явным разрешением (аудит №22)', async () => {
+  it('принимает отладочные действия только с явным разрешением', async () => {
     const strict = createTransport();
     const permissive = createTransport({ allowDevActions: true });
 

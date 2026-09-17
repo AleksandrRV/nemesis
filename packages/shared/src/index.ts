@@ -11,5 +11,6 @@ export * from './logic/sanitizer.js';
 export * from './data/shipGraph.js';
 export * from './data/roomDefinitions.js';
 export * from './data/crafting.js';
+export * from './data/noiseDie.js';
 export * from './data/setup.js';
 export * from './utils/rng.js';

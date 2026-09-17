@@ -1,11 +1,12 @@
 import { EngineError } from './fsm.js';
 
 import type { ActionDeckCard, ActionDeckState, ContaminationCard } from '../types/cards.js';
-import type { PlayerState, WeaknessSlotState } from '../types/entities.js';
+import type { IntruderToken, PlayerState, WeaknessSlotState } from '../types/entities.js';
 import type {
   SanitizedActionDeckCard,
   SanitizedActionDeckState,
   SanitizedGameState,
+  SanitizedIntruderBag,
   SanitizedRoomState,
   SanitizedWeaknessSlotState,
 } from '../types/sanitized.js';
@@ -16,13 +17,17 @@ import type { EngineNumber, GameState } from '../types/state.js';
  *
  * Это единственная точка, из которой клиент и боты получают состояние: всё,
  * что персонаж видеть не мог, заменяется на явное «неизвестно», а не прячется
- * в UI — так «Нулевое читерство» становится свойством данных (аудит №7, №10).
+ * в UI — так «нулевое читерство» становится свойством данных, а не обещанием.
  *
- * Осознанные ограничения v0 (см. аудит §4, P1):
- * - порядок мешка Чужих и колод не скрывается: для честной скрытой колоды нужен
- *   серверный генератор (этапы 3–4 и 10 дорожной карты);
- * - карты на руке другого персонажа не скрываются: их количество открыто влияет
- *   на проверку Внезапной атаки (стр. 18), а состав появится вместе с данными колод.
+ * Порядок нигде наружу не уходит: вместо списка жетонов мешка клиент получает
+ * состав по типам, порядок добора личных колод не раскрывается даже владельцу,
+ * а рука другого персонажа не видна вовсе (план исправлений, Э1-1 и Э1-4).
+ *
+ * Осознанное ограничение v0: числа скрытых стопок (`размер колоды`, `размер
+ * чужой руки`) срез пока не сообщает — их место определено правилом Внезапной
+ * атаки (стр. 18) и появится вместе с данными колод (план исправлений, Э2-5).
+ * Пока данных карт в колодах нет, скрывать нечего, и «не показать лишнего»
+ * безопаснее, чем показать состав.
  */
 export function filterStateForPlayer(state: GameState, viewingPlayerId: string): SanitizedGameState {
   const viewer = state.players[viewingPlayerId];
@@ -37,6 +42,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   // Копия состояния, в которой скрытые поля заменяются на null/FACE_DOWN.
   const sanitized = structuredClone(state) as unknown as SanitizedGameState;
 
+  sanitizeIntruderBag(sanitized);
   sanitizeShip(sanitized, viewer);
   sanitizePlayers(sanitized, viewingPlayerId);
   sanitizeWeaknessSlots(sanitized);
@@ -48,6 +54,17 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
  * Двигатели и Координаты персонаж узнаёт только лично: проверив двигатель
  * в Машинном отсеке (стр. 26) или открыв карту Координат на Мостике (стр. 6, шаг 5).
  */
+function sanitizeIntruderBag(state: SanitizedGameState): void {
+  const tokens = state.intrudersPool.bag as unknown as IntruderToken[];
+  const counts: SanitizedIntruderBag = { BLANK: 0, LARVA: 0, CREEPER: 0, ADULT: 0, BREEDER: 0, QUEEN: 0 };
+
+  for (const token of tokens) {
+    counts[token.type] += 1;
+  }
+
+  state.intrudersPool.bag = counts;
+}
+
 function sanitizeShip(state: SanitizedGameState, viewer: PlayerState): void {
   const inspectedEngines = new Set<EngineNumber>(viewer.inspectedEngines);
   const engineNumbers: EngineNumber[] = [1, 2, 3];
@@ -87,6 +104,9 @@ function sanitizeRoom(room: SanitizedRoomState): void {
   room.hasFire = null;
   room.hasMalfunction = null;
   room.hasDecompressionToken = null;
+  // Эффект жетона Исследования напечатан на его лицевой стороне: пока тайл
+  // и жетон лежат рубашкой вверх, игрок не знает ни числа предметов, ни эффекта.
+  room.explorationEffect = null;
   room.objects = [];
   room.occupantIntruderIds = [];
 }
@@ -105,14 +125,25 @@ function sanitizePlayers(state: SanitizedGameState, viewingPlayerId: string): vo
       player.objectives = null;
     }
 
-    player.actionDeck = sanitizeActionDeck(player.actionDeck as unknown as ActionDeckState);
+    player.actionDeck = sanitizeActionDeck(
+      player.actionDeck as unknown as ActionDeckState,
+      playerId === viewingPlayerId,
+    );
   }
 }
 
-function sanitizeActionDeck(deck: ActionDeckState): SanitizedActionDeckState {
+/**
+ * Личная колода и рука (стр. 7, 18).
+ *
+ * Порядок добора не видит никто, включая владельца колоды: в физической игре
+ * посмотреть колоду нельзя, видно только толщину стопки. Рука видна только
+ * владельцу, сброс — всем: он лежит лицом вверх. Так «нулевое читерство»
+ * остаётся свойством данных даже когда колоды наполнятся картами (Э3-1).
+ */
+function sanitizeActionDeck(deck: ActionDeckState, isViewer: boolean): SanitizedActionDeckState {
   return {
-    drawPile: deck.drawPile.map(sanitizeActionDeckCard),
-    hand: deck.hand.map(sanitizeActionDeckCard),
+    drawPile: [],
+    hand: isViewer ? deck.hand.map(sanitizeActionDeckCard) : [],
     discard: deck.discard.map(sanitizeActionDeckCard),
   };
 }

@@ -155,7 +155,7 @@ describe('Схема корабля: технические коридоры', (
 
   it('закрепляет входы в вентиляцию по отсекам (регрессионный слепок схемы поля)', () => {
     // Слепок защищает от случайной правки координат. Сами номера входов
-    // сняты со схемы поля и требуют сверки с физическим полем (см. аудит §3.3).
+    // сняты со схемы поля и требуют сверки с физическим полем (план исправлений, Э2-1).
     const expectedVentEntrances: Record<number, number[]> = {
       2: [1, 2],
       4: [2, 3],
@@ -175,5 +175,47 @@ describe('Схема корабля: технические коридоры', (
     }
 
     expect(actual).toEqual(expectedVentEntrances);
+  });
+});
+
+describe('Схема корабля: номера выходов и бросок Шума (стр. 15, Э2-1)', () => {
+  /** Номера, нанесённые у выходов отсека: только по ним встаёт маркер Шума. */
+  function exitNumbers(roomId: RoomId): number[] {
+    return SHIP_CORRIDORS.flatMap((corridor) => [
+      ...(corridor.fromRoomId === roomId ? corridor.fromNumbers : []),
+      ...(corridor.toRoomId === roomId ? corridor.toNumbers : []),
+    ]);
+  }
+
+  it('не выдумывает выходов: каждый номер отсека есть на схеме поля', () => {
+    for (const node of SHIP_ROOM_NODES) {
+      for (const number of exitNumbers(node.id)) {
+        expect(DOOR_NUMBERS).toContain(number);
+      }
+    }
+  });
+
+  it('фиксирует отсеки, чьи выходы ещё не сверены с полем (долг этапа 2)', () => {
+    // Это не «правильные данные», а список долга: у части отсеков номера
+    // выходов не покрывают 1..4 или повторяются. Каждое расхождение нужно
+    // сверить с физическим полем и либо исправить, либо подтвердить (Э2-1);
+    // до тех пор бросок Шума на отсутствующий номер разыгрывается как «Тишина»
+    // по решению владельца проекта (см. `resolveNoiseRoll` в logic/fsm.ts).
+    const deviations = SHIP_ROOM_NODES.flatMap((node) => {
+      const numbers = exitNumbers(node.id);
+      const all = [...numbers, ...node.techNumbers];
+      const missing = DOOR_NUMBERS.filter((number) => !all.includes(number));
+      const duplicated = DOOR_NUMBERS.filter((number) => numbers.filter((value) => value === number).length > 1);
+
+      return missing.length > 0 || duplicated.length > 0 ? [{ room: node.id, missing, duplicated }] : [];
+    });
+
+    expect(deviations).toEqual([
+      { room: 6, missing: [], duplicated: [1, 2] },
+      { room: 7, missing: [3], duplicated: [] },
+      { room: 9, missing: [1, 2], duplicated: [4] },
+      { room: 10, missing: [1, 2], duplicated: [3] },
+      { room: 12, missing: [2], duplicated: [] },
+    ]);
   });
 });

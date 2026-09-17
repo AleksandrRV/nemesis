@@ -10,7 +10,7 @@ import { IS_DEV } from '../utils/env';
  *
  * Правила игры здесь не живут: стор хранит только то, что пришло по подписке
  * (`SanitizedGameState`), выбранный отсек и причину последнего отказа движка.
- * Любое изменение партии — это `dispatch(action)` (аудит №6, №10).
+ * Любое изменение партии — это `dispatch(action)`: правил в сторе нет.
  */
 export interface GameStoreState {
   /** Состояние глазами играющего персонажа; null — транспорт ещё не отдал первый снимок. */
@@ -94,6 +94,6 @@ export function createGameStore(createTransport: TransportFactory) {
 
 /**
  * Стор приложения: офлайн-партия в браузере. Отладочные действия разрешены
- * только в dev-сборке (аудит №22).
+ * только в dev-сборке.
  */
 export const useGameStore = createGameStore(() => createLocalTransport({ allowDevActions: IS_DEV }));

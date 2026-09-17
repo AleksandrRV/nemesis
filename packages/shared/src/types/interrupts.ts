@@ -4,9 +4,13 @@ import type { RoomId } from './rooms.js';
 export type InterruptEvent =
   /** Попытка побега: каждый Чужой в отсеке атакует до шага в целевой отсек. */
   | { type: 'ESCAPE_ATTACK_INTERRUPT'; playerId: string; intruderIds: string[]; targetRoomId: RoomId }
-  /** Вскрытие неисследованного отсека и розыгрыш жетона Исследования. */
-  | { type: 'EXPLORE_ROOM_INTERRUPT'; playerId: string; roomId: RoomId }
-  /** Бросок кубика Шума после входа в отсек. */
+  /**
+   * Вскрытие неисследованного отсека и розыгрыш жетона Исследования.
+   * `corridorId` — Коридор, через который персонаж вошёл: эффект «Двери»
+   * ставит жетон Двери именно в него (стр. 15).
+   */
+  | { type: 'EXPLORE_ROOM_INTERRUPT'; playerId: string; roomId: RoomId; corridorId: string }
+  /** Бросок кубика Шума после входа в отсек (стр. 15). */
   | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId }
   /** Контакт: вытянутый из мешка жетон Чужого появляется на поле. */
   | { type: 'ENCOUNTER_INTERRUPT'; roomId: RoomId; intruderTokenId: string }

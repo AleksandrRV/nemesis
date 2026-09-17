@@ -1,5 +1,5 @@
 import type { ActionCard, ContaminationCard, ItemCard, ObjectiveCard, WeaknessCard } from './cards.js';
-import type { BoardObject, PlayerState, QuestItemState } from './entities.js';
+import type { BoardObject, IntruderToken, PlayerState, QuestItemState } from './entities.js';
 import type { RoomId, RoomState } from './rooms.js';
 import type { CoordinatesState, EngineNumber, EngineState, GameState, IntrudersPoolState, ShipState } from './state.js';
 
@@ -13,7 +13,8 @@ import type { CoordinatesState, EngineNumber, EngineState, GameState, IntrudersP
  * - пункт назначения — карта Координат не открывалась на Мостике (стр. 26);
  * - тайл, жетон Исследования, компьютер и аварии неисследованного отсека (стр. 14);
  * - инвентарь, квестовые предметы и цели другого персонажа (стр. 21–22);
- * - карта Заражения, не прошедшая проверку сканером (стр. 20).
+ * - карта Заражения, не прошедшая проверку сканером (стр. 20);
+ * - порядок добора личной колоды и содержимое чужой руки (стр. 7, 18).
  */
 
 /** Тип объекта на полу: Труп, Яйцо или Останки (стр. 22). */
@@ -52,7 +53,13 @@ export interface SanitizedContaminationCard extends Omit<ContaminationCard, 'isI
 
 export type SanitizedActionDeckCard = ActionCard | SanitizedContaminationCard;
 
-/** Личная колода персонажа: карты Заражения раскрываются только сканером (стр. 20). */
+/**
+ * Личная колода персонажа: карты Заражения раскрываются только сканером (стр. 20).
+ *
+ * `drawPile` всегда пуст: порядок добора — скрытая информация, её не видит даже
+ * владелец колоды (стр. 7). `hand` пуст для чужой руки. Числа скрытых стопок
+ * появятся вместе с данными колод и правилом Внезапной атаки (план, Э2-5).
+ */
 export interface SanitizedActionDeckState {
   drawPile: SanitizedActionDeckCard[];
   hand: SanitizedActionDeckCard[];
@@ -81,7 +88,15 @@ export type SanitizedWeaknessSlotState =
   | { objectKind: BoardObjectKind; visibility: 'FACE_DOWN' }
   | { objectKind: BoardObjectKind; visibility: 'REVEALED'; card: WeaknessCard };
 
-export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'weaknessSlots'> {
+/**
+ * Состав мешка (Пула Чужих) без порядка жетонов: игроки знают, какие жетоны
+ * ещё не вытянуты, но не знают порядок вытягивания — иначе Контакт перестаёт
+ * быть случайным событием, а «нулевое читерство» нарушается (AGENTS.md §3.4).
+ */
+export type SanitizedIntruderBag = Record<IntruderToken['type'], number>;
+
+export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'bag' | 'weaknessSlots'> {
+  bag: SanitizedIntruderBag;
   weaknessSlots: SanitizedWeaknessSlotState[];
 }
 

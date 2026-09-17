@@ -73,6 +73,8 @@ describe('filterStateForPlayer: неисследованные отсеки (с�
       expect(room.definitionId).toBeNull();
       expect(room.itemsCount).toBeNull();
       expect(room.hasComputer).toBeNull();
+      // Эффект жетона Исследования напечатан на его лицевой стороне (стр. 14).
+      expect(room.explorationEffect).toBeNull();
     }
   });
 
@@ -245,17 +247,72 @@ describe('filterStateForPlayer: границы', () => {
     expect(state.ship.rooms[11]?.hasFire).toBe(false);
   });
 
-  it('сохраняет публичные данные: отсеки, коридоры, мешок, лог заявлений, прерывания', () => {
+  it('сохраняет публичные данные: отсеки, коридоры, состав мешка, лог заявлений, прерывания', () => {
     const state = freshState();
     const view = filterStateForPlayer(state, VIEWER);
 
     expect(Object.keys(view.ship.rooms)).toHaveLength(21);
     expect(Object.keys(view.ship.corridors)).toHaveLength(Object.keys(state.ship.corridors).length);
-    expect(view.intrudersPool.bag).toEqual(state.intrudersPool.bag);
+    expect(view.intrudersPool.bag).toEqual({ BLANK: 1, LARVA: 4, CREEPER: 1, QUEEN: 1, ADULT: 4, BREEDER: 0 });
     expect(view.intrudersPool.eggsOnBoard).toBe(state.intrudersPool.eggsOnBoard);
     expect(view.claimsLog).toEqual(state.claimsLog);
     expect(view.interruptQueue).toEqual(state.interruptQueue);
     expect(view.meta).toEqual(state.meta);
+  });
+
+  it('не отдаёт порядок мешка Чужих: наружу уходит только состав по типам', () => {
+    const state = freshState();
+    const view = filterStateForPlayer(state, VIEWER);
+    const orderInEngine = state.intrudersPool.bag.map((token) => token.id);
+
+    // Мешок в срезе — не список жетонов: порядок вытягивания остаётся в движке,
+    // иначе Контакт был бы предсказуем для игрока и для бота (AGENTS.md §3.4).
+    expect(Array.isArray(view.intrudersPool.bag)).toBe(false);
+    expect(orderInEngine.length).toBeGreaterThan(0);
+
+    const serialized = JSON.stringify(view);
+
+    for (const tokenId of orderInEngine) {
+      expect(serialized).not.toContain(tokenId);
+    }
+  });
+
+  it('не отдаёт порядок добора личной колоды и содержимое чужой руки (стр. 7, 18)', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const actionCard = (id: string, characterClass: 'CAPTAIN' | 'PILOT') => ({
+      id,
+      characterClass,
+      name: 'Карта действий',
+      playCost: 0,
+      description: '',
+    });
+
+    state.players[VIEWER]!.actionDeck = {
+      drawPile: [actionCard('own-deck-1', 'CAPTAIN')],
+      hand: [actionCard('own-hand-1', 'CAPTAIN')],
+      discard: [actionCard('own-discard-1', 'CAPTAIN')],
+    };
+    state.players['player-2']!.actionDeck = {
+      drawPile: [actionCard('enemy-deck-1', 'PILOT')],
+      hand: [actionCard('enemy-hand-1', 'PILOT')],
+      discard: [actionCard('enemy-discard-1', 'PILOT')],
+    };
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const serialized = JSON.stringify(view);
+
+    // Порядок добора не видит никто, включая владельца колоды: посмотреть колоду
+    // правилами нельзя, видно только толщину стопки (стр. 7).
+    expect(view.players[VIEWER]?.actionDeck.drawPile).toEqual([]);
+    expect(view.players['player-2']?.actionDeck.drawPile).toEqual([]);
+    expect(serialized).not.toContain('own-deck-1');
+    expect(serialized).not.toContain('enemy-deck-1');
+
+    // Чужая рука скрыта, своя — видна, сброс открыт всем: он лежит лицом вверх.
+    expect(view.players['player-2']?.actionDeck.hand).toEqual([]);
+    expect(serialized).not.toContain('enemy-hand-1');
+    expect(serialized).toContain('own-hand-1');
+    expect(serialized).toContain('enemy-discard-1');
   });
 
   it('не отдаёт скрытых данных при сериализации: ни пункта назначения, ни состояния двигателей', () => {

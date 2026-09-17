@@ -30,7 +30,7 @@ export type GameAction =
 /**
  * Отладочные действия (переключатели дверей и шума): в продакшн-сборке движок
  * отклоняет их всегда, локальный транспорт включает их только при
- * `allowDevActions` в dev-режиме (аудит №22).
+ * `allowDevActions` в dev-режиме.
  */
 export type DevAction =
   | { type: 'DEV_TOGGLE_DOOR'; payload: { corridorId: string } }

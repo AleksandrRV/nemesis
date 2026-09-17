@@ -1,0 +1,46 @@
+name: CI
+
+# Минимум из плана 0.1.9 (Э1-5): до этого регрессию ловил только разработчик —
+# красный прогон `npm run verify` на push и на pull request.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Типы, формат, линтер, тесты, сборка
+    runs-on: ubuntu-latest
+    steps:
+      - name: Код
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Версия совпадает с README («проверено на 22.x»).
+          node-version: '22'
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      # `verify` = format:check + lint + typecheck + test (AGENTS.md §6).
+      - name: Проверки
+        run: npm run verify
+
+      - name: Продакшн-сборка
+        run: npm run build
+
+      # Замок на критерий «отладочных инструментов нет в игровом интерфейсе»
+      # (план 0.1.9, Э1-4): в бандле не должно остаться ни строки dev-панели.
+      - name: Отладочная панель не попадает в продакшн-сборку
+        run: |
+          if grep -rq 'DEV-ПАНЕЛЬ' packages/client/dist/assets; then
+            echo '::error::Отладочная панель попала в продакшн-сборку (проверьте ветку IS_DEV и tree-shaking Vite).'
+            exit 1
+          fi
+          echo 'Отладочной панели в бандле нет.'

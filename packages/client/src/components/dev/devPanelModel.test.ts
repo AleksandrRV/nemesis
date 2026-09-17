@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameState, SanitizedGameState } from '@nemesis/shared';
-import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
+import { GAME_STATE_SCHEMA_VERSION, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 
 import { DOOR_CYCLE_HINT, DOOR_LABELS, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
@@ -68,7 +68,9 @@ describe('Dev-панель: диагностика', () => {
 
     expect(diagnostics.seed).toBe('dev-panel-test');
     expect(diagnostics.gameId).toContain('dev-panel-test');
-    expect(diagnostics.schemaVersion).toBe(1);
+    // Версия берётся из контракта, а не из числа в тесте: иначе каждый подъём
+    // версии схемы (см. 0.1.10 → v2) ломает тест панели, а не проверяет её.
+    expect(diagnostics.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
     expect(diagnostics.gameMode).toBe('SEMI_COOP');
     expect(diagnostics.round).toBe(1);
     expect(diagnostics.phase).toBe('PLAYER_PHASE');

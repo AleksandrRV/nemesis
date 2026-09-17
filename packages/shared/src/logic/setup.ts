@@ -1,7 +1,7 @@
 import type { CharacterPreset } from '../data/setup.js';
 import type { GameDecksState } from '../types/cards.js';
 import type { EscapePodState, IntruderToken, PlayerState } from '../types/entities.js';
-import type { ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
+import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
 import type { GameMode, GameState } from '../types/state.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
@@ -17,7 +17,7 @@ import {
   WEAKNESS_SLOT_OBJECT_KINDS,
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
-import { createRng, shuffle } from '../utils/rng.js';
+import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
 
@@ -61,7 +61,7 @@ const ENGINE_NUMBERS = [1, 2, 3] as const;
 
 /**
  * Пустые колоды: структура контракта v0 фиксирована, состав карт появится
- * вместе с блоком данных о колодах (см. аудит §3.1 и §3.3).
+ * вместе с блоком данных о колодах (этап 3 дорожной карты).
  */
 function createEmptyDecks(): GameDecksState {
   const emptyPile = <TCard>(): { drawPile: TCard[]; discard: TCard[] } => ({ drawPile: [], discard: [] });
@@ -96,8 +96,13 @@ function createWeaknessSlots(): GameState['intrudersPool']['weaknessSlots'] {
  * 1 Крипер, 1 Королева и по 1 Взрослой Особи за игрока плюс 3 базовых
  * (книга правил, стр. 6, шаг 10).
  *
+ * Состав жетонов — данные, а порядок вытягивания задаёт перемешивание
+ * (см. `createInitialGameState`): жетоны лежат в мешке рубашкой вверх, поэтому
+ * порядок обязан быть случайным и разным для разных сидов, иначе Контакт
+ * разыгрывался бы по одному и тому же сценарию (план исправлений, Э1-1).
+ *
  * Числа для проверки Внезапной атаки взяты из текущих данных проекта
- * и требуют сверки с физическими жетонами.
+ * и требуют сверки с физическими жетонами (план исправлений, Э2-1).
  */
 function createIntruderBag(playerCount: number): IntruderToken[] {
   const adultEscapeNumbers = [2, 3, 4, 4, 1, 2, 3, 1];
@@ -227,6 +232,11 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   const podNumbers = shuffle(rng, ESCAPE_POD_NUMBERS);
   const destinations = shuffle(rng, COORDINATE_DESTINATIONS);
 
+  // Мешок Чужих тасуется своим потоком (`bag`): порядок вытягивания скрыт от
+  // игроков (санитайзер отдаёт наружу только состав), а посторонний бросок
+  // в другом потоке этот порядок не сдвигает (utils/rng.ts).
+  const intruderBag = shuffle(createRng(seed, 'bag'), createIntruderBag(playerCount));
+
   const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index + 1}`);
   const players = playerIds.reduce<Record<string, PlayerState>>((acc, playerId, index) => {
     acc[playerId] = createPlayer(playerId, CHARACTERS[index] ?? CHARACTERS[0]!, index + 1);
@@ -239,9 +249,13 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   let room2Idx = 0;
   let tokenIdx = 0;
 
-  /** Жетоны Исследования выкладываются на все неособые отсеки без остатка (стр. 6, шаг 4). */
-  function drawTokenItemsCount(): number {
-    return explorationTokenAt(explorationPool, tokenIdx++).itemsCount;
+  /**
+   * Жетоны Исследования выкладываются на все неособые отсеки без остатка
+   * (стр. 6, шаг 4). Число предметов и особый эффект едут вместе: эффект
+   * разыгрывается при вскрытии тайла (стр. 14–15), поэтому отсек хранит оба.
+   */
+  function drawExplorationToken(): ExplorationToken {
+    return explorationTokenAt(explorationPool, tokenIdx++);
   }
 
   for (const node of SHIP_ROOM_NODES) {
@@ -249,6 +263,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     let isExplored = false;
     let itemsCount = 0;
     let hasComputer = false;
+    let explorationEffect: ExplorationEffect | null = null;
 
     if (node.category === 'SPECIAL') {
       isExplored = true;
@@ -256,14 +271,20 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       hasComputer = node.id === 1;
     } else if (node.category === 'ROOM_1') {
       const def = shuffledRooms1[room1Idx++]!;
+      const token = drawExplorationToken();
+
       definitionId = def.id;
       hasComputer = def.hasComputer;
-      itemsCount = drawTokenItemsCount();
+      itemsCount = token.itemsCount;
+      explorationEffect = token.effect;
     } else if (node.category === 'ROOM_2') {
       const def = shuffledRooms2[room2Idx++]!;
+      const token = drawExplorationToken();
+
       definitionId = def.id;
       hasComputer = def.hasComputer;
-      itemsCount = drawTokenItemsCount();
+      itemsCount = token.itemsCount;
+      explorationEffect = token.effect;
     }
 
     rooms[node.id] = {
@@ -284,6 +305,10 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       occupantPlayerIds: node.id === START_ROOM_ID ? [...playerIds] : [],
       occupantIntruderIds: [],
       objects: node.id === START_ROOM_ID ? [{ id: START_CORPSE_ID, kind: 'CORPSE', characterClass: null }] : [],
+
+      // У особых отсеков жетона Исследования нет: они напечатаны на поле
+      // и считаются исследованными с начала партии (стр. 26).
+      explorationEffect: isExplored ? null : explorationEffect,
     };
   }
 
@@ -317,6 +342,11 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       firstPlayerId: playerIds[0]!,
       timeTrackPosition: 0,
       selfDestructTrackPosition: null,
+
+      // Счётчики потоков случайности начинают с нуля: расклад уже прочитал
+      // `layout`, но он читается только при подготовке стола, поэтому
+      // восстановление партии идёт от мастер-сида (utils/rng.ts).
+      rngDraws: createRngDraws(),
     },
 
     ship: {
@@ -333,7 +363,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     },
 
     intrudersPool: {
-      bag: createIntruderBag(playerCount),
+      bag: intruderBag,
       boardTokens: [],
       deadTokens: [],
       eggsOnBoard: 5,

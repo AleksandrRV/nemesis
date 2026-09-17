@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EngineAction } from '../types/actions.js';
+import type { CorridorConnection, CorridorNumber, ExplorationEffect, RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
+import type { NoiseDieFace } from '../data/noiseDie.js';
+import { NOISE_DIE_FACES } from '../data/noiseDie.js';
+import { drawFromStream } from '../utils/rng.js';
 import type { EngineErrorCode } from './fsm.js';
-import { EngineError, GameEngine, drainInterrupts, findAdjacentOpenRoomIds, resolveInterrupt } from './fsm.js';
+import {
+  EngineError,
+  GameEngine,
+  drainInterrupts,
+  findAdjacentOpenRoomIds,
+  findNoiseTarget,
+  resolveInterrupt,
+} from './fsm.js';
 import { createInitialGameState } from './setup.js';
 
 const SEED = 'engine-test';
@@ -208,7 +219,7 @@ describe('GameEngine: объявленные, но не реализованны
 });
 
 describe('GameEngine: отладочные действия', () => {
-  it('запрещены по умолчанию — в продакшн-сборке их быть не должно (аудит №22)', () => {
+  it('запрещены по умолчанию — в продакшн-сборке их быть не должно', () => {
     const engine = new GameEngine();
 
     expectEngineError(
@@ -265,27 +276,19 @@ describe('Прерывания', () => {
 
     if (room) room.isExplored = false;
 
-    resolveInterrupt(state, { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 2 });
+    resolveInterrupt(state, { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 2, corridorId: '1-2' });
 
     expect(state.ship.rooms[2]?.isExplored).toBe(true);
   });
 
-  it('вскрытие несуществующего отсека — ошибка контракта, а не тишина', () => {
-    expectEngineError(
-      () => resolveInterrupt(freshState(), { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 999 }),
-      'UNKNOWN_ROOM',
-    );
-  });
-
   it.each([
-    ['NOISE_ROLL_INTERRUPT', { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 11 }],
     ['ENCOUNTER_INTERRUPT', { type: 'ENCOUNTER_INTERRUPT', roomId: 11, intruderTokenId: 'blank' }],
     ['SURPRISE_ATTACK_INTERRUPT', { type: 'SURPRISE_ATTACK_INTERRUPT', playerId: 'player-1', intruderId: 'adult-1' }],
     [
       'ESCAPE_ATTACK_INTERRUPT',
       { type: 'ESCAPE_ATTACK_INTERRUPT', playerId: 'player-1', intruderIds: [], targetRoomId: 11 },
     ],
-  ])('отклоняет %s до реализации этапа «Движение и шум»', (_name, interrupt) => {
+  ])('отклоняет %s: прерывание ещё не разыгрывается движком', (_name, interrupt) => {
     expectEngineError(() => resolveInterrupt(freshState(), interrupt as never), 'INTERRUPT_NOT_IMPLEMENTED');
   });
 
@@ -294,8 +297,8 @@ describe('Прерывания', () => {
     const explored: boolean[] = [];
 
     state.interruptQueue = [
-      { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 2 },
-      { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 3 },
+      { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 2, corridorId: '1-2' },
+      { type: 'EXPLORE_ROOM_INTERRUPT', playerId: 'player-1', roomId: 3, corridorId: '1-3' },
     ];
 
     for (const room of [2, 3]) {
@@ -312,6 +315,513 @@ describe('Прерывания', () => {
 
     expect(state.interruptQueue).toEqual([]);
     expect(explored).toEqual([true, true]);
+  });
+});
+
+describe('Вскрытие отсека: особые эффекты жетона Исследования (стр. 14–15, 17)', () => {
+  /** Коридоры, ведущие в отсек: из них состоит набор номеров у выхода на тайле (стр. 15). */
+  function exitsOf(state: GameState, roomId: RoomId): CorridorConnection[] {
+    return Object.values(state.ship.corridors).filter(
+      (corridor) => corridor.fromRoomId === roomId || corridor.toRoomId === roomId,
+    );
+  }
+
+  /**
+   * Готовит отсек так, как он выглядит до вскрытия. Тест задаёт эффект сам,
+   * поэтому не зависит от расклада конкретного сида: расклад проверяется
+   * отдельно, а здесь проверяется розыгрыш.
+   */
+  function prepareUnexplored(state: GameState, roomId: RoomId, effect: ExplorationEffect | null): RoomState {
+    const room = state.ship.rooms[roomId];
+
+    if (!room) throw new Error(`В партии нет отсека ${roomId}`);
+
+    room.isExplored = false;
+    room.itemsCount = 2;
+    room.explorationEffect = effect;
+    room.hasFire = false;
+    room.hasMalfunction = false;
+
+    return room;
+  }
+
+  function corridorsWithNoise(state: GameState): CorridorConnection[] {
+    return Object.values(state.ship.corridors).filter((corridor) => corridor.hasNoise);
+  }
+
+  it('вскрытый отсек открывается, число предметов остаётся счётчиком на поле', () => {
+    const state = freshState();
+    const room = prepareUnexplored(state, 9, 'FIRE');
+
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: exitsOf(state, 9)[0]!.id,
+    });
+
+    expect(room.isExplored).toBe(true);
+    expect(room.itemsCount).toBe(2);
+    expect(room.hasFire).toBe(true);
+  });
+
+  it.each([
+    ['НЕИСПРАВНОСТЬ', 'MALFUNCTION'],
+    ['ПОЖАР', 'FIRE'],
+  ] as const)('эффект «%s» ставит маркер в отсек', (_name, effect) => {
+    const state = freshState();
+
+    prepareUnexplored(state, 9, effect);
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: exitsOf(state, 9)[0]!.id,
+    });
+
+    expect(state.ship.rooms[9]?.[effect === 'FIRE' ? 'hasFire' : 'hasMalfunction']).toBe(true);
+  });
+
+  it('эффект «Слизь» ставит маркер Слизи персонажу и не ставит второй (стр. 17)', () => {
+    const state = freshState();
+
+    prepareUnexplored(state, 9, 'SLIME');
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: exitsOf(state, 9)[0]!.id,
+    });
+
+    expect(state.players['player-1']?.hasSlime).toBe(true);
+  });
+
+  it('«Тишина» и «Опасность» не меняют поле при вскрытии: их разыгрывает бросок Шума (стр. 15)', () => {
+    const state = freshState();
+
+    prepareUnexplored(state, 9, 'DANGER');
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: exitsOf(state, 9)[0]!.id,
+    });
+
+    expect(corridorsWithNoise(state)).toEqual([]);
+    expect(state.ship.technicalCorridorNoise).toBe(false);
+    // Эффект жетона ещё не разыгран: он нужен броску Шума и удаляется после него.
+    expect(state.ship.rooms[9]?.explorationEffect).toBe('DANGER');
+  });
+
+  it('эффект «Двери» закрывает Коридор, через который персонаж вошёл (стр. 15)', () => {
+    const state = freshState();
+    const corridor = exitsOf(state, 9)[0]!;
+
+    prepareUnexplored(state, 9, 'DOORS');
+    corridor.doorState = 'OPEN';
+
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: corridor.id,
+    });
+
+    expect(corridor.doorState).toBe('CLOSED');
+  });
+
+  it('эффект «Двери» не восстанавливает Разрушенную Дверь (стр. 17)', () => {
+    const state = freshState();
+    const corridor = exitsOf(state, 9)[0]!;
+
+    prepareUnexplored(state, 9, 'DOORS');
+    corridor.doorState = 'DESTROYED';
+
+    resolveInterrupt(state, {
+      type: 'EXPLORE_ROOM_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 9,
+      corridorId: corridor.id,
+    });
+
+    expect(corridor.doorState).toBe('DESTROYED');
+  });
+
+  it('эффект «Двери» с неизвестным Коридором — явная ошибка, а не тишина', () => {
+    const state = freshState();
+
+    prepareUnexplored(state, 9, 'DOORS');
+
+    expectEngineError(
+      () =>
+        resolveInterrupt(state, {
+          type: 'EXPLORE_ROOM_INTERRUPT',
+          playerId: 'player-1',
+          roomId: 9,
+          corridorId: '999-998',
+        }),
+      'UNKNOWN_CORRIDOR',
+    );
+  });
+
+  it('вскрытие несуществующего отсека — ошибка контракта, а не тишина', () => {
+    expectEngineError(
+      () =>
+        resolveInterrupt(freshState(), {
+          type: 'EXPLORE_ROOM_INTERRUPT',
+          playerId: 'player-1',
+          roomId: 999,
+          corridorId: '1-2',
+        }),
+      'UNKNOWN_ROOM',
+    );
+  });
+
+  it('вскрытие от имени неизвестного персонажа — ошибка контракта', () => {
+    expectEngineError(
+      () =>
+        resolveInterrupt(freshState(), {
+          type: 'EXPLORE_ROOM_INTERRUPT',
+          playerId: 'player-42',
+          roomId: 9,
+          corridorId: '1-2',
+        }),
+      'UNKNOWN_PLAYER',
+    );
+  });
+});
+
+describe('Кубик Шума (стр. 15, 17)', () => {
+  const SEED = 'engine-test';
+  const OTHER_SEED = 'nemesis-beta';
+
+  /** Состав граней — свойство компонента: 1, 1, 2, 2, 3, 3, 4, 4, Тишина, Опасность. */
+  it('у кубика Шума десять граней: четыре номера по два раза, Тишина и Опасность', () => {
+    expect(NOISE_DIE_FACES).toHaveLength(10);
+    expect(NOISE_DIE_FACES.filter((face) => face.kind === 'CORRIDOR' && face.number === 1)).toHaveLength(2);
+    expect(NOISE_DIE_FACES.filter((face) => face.kind === 'CORRIDOR' && face.number === 4)).toHaveLength(2);
+    expect(NOISE_DIE_FACES.filter((face) => face.kind === 'SILENCE')).toHaveLength(1);
+    expect(NOISE_DIE_FACES.filter((face) => face.kind === 'DANGER')).toHaveLength(1);
+  });
+
+  /**
+   * Грань кубика в позиции потока `noise`. Тест читает тот же поток, что и движок,
+   * и тем самым проверяет не «примерный» результат, а конкретную позицию:
+   * лишний вызов потока сдвинул бы все последующие броски.
+   */
+  function faceAt(seed: string, drawIndex: number): NoiseDieFace {
+    const index = Math.floor(drawFromStream(seed, 'noise', drawIndex) * NOISE_DIE_FACES.length);
+
+    return NOISE_DIE_FACES[index]!;
+  }
+
+  /** Готовит отсек к броску: тайл вскрыт, эффект жетона задан тестом (или отсутствует). */
+  function prepareRoll(state: GameState, roomId: RoomId, effect: ExplorationEffect | null = null): void {
+    const room = state.ship.rooms[roomId];
+
+    if (!room) throw new Error(`В партии нет отсека ${roomId}`);
+
+    room.isExplored = true;
+    room.explorationEffect = effect;
+
+    for (const corridor of Object.values(state.ship.corridors)) {
+      corridor.hasNoise = false;
+    }
+
+    state.ship.technicalCorridorNoise = false;
+  }
+
+  function placePlayer(state: GameState, roomId: RoomId): void {
+    const player = state.players['player-1']!;
+
+    for (const room of Object.values(state.ship.rooms)) {
+      room.occupantPlayerIds = room.occupantPlayerIds.filter((id) => id !== player.id);
+    }
+
+    state.ship.rooms[roomId]!.occupantPlayerIds.push(player.id);
+    player.roomId = roomId;
+  }
+
+  function corridorsWithNoise(state: GameState): CorridorConnection[] {
+    return Object.values(state.ship.corridors).filter((corridor) => corridor.hasNoise);
+  }
+
+  function numbersOn(corridor: CorridorConnection, roomId: RoomId): CorridorNumber[] {
+    if (corridor.fromRoomId === roomId) return corridor.fromNumbers;
+    if (corridor.toRoomId === roomId) return corridor.toNumbers;
+
+    return [];
+  }
+
+  it('перемещение в отсек завершается броском Шума из потока noise', () => {
+    const engine = new GameEngine();
+    const state = createInitialGameState(SEED);
+    const room = state.ship.rooms[6]!;
+
+    // Отсек 6 — сосед стартового, и у него есть выходы со всеми четырьмя номерами.
+    room.isExplored = false;
+    room.explorationEffect = null;
+
+    const expectedFace = faceAt(SEED, 0);
+
+    expect(expectedFace).toEqual({ kind: 'CORRIDOR', number: 3 });
+
+    const next = engine.processAction(state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: 6, discardCardIds: [] },
+    });
+
+    const marked = corridorsWithNoise(next);
+
+    expect(next.ship.rooms[6]?.isExplored).toBe(true);
+    expect(next.meta.rngDraws.noise).toBe(1);
+    expect(next.ship.rooms[6]?.explorationEffect).toBeNull();
+    expect(marked).toHaveLength(1);
+    expect(numbersOn(marked[0]!, 6)).toContain(3);
+  });
+
+  it('второй бросок продолжает поток, а не начинает его заново (Э2-4)', () => {
+    const state = createInitialGameState(OTHER_SEED);
+
+    expect(faceAt(OTHER_SEED, 0)).toEqual({ kind: 'CORRIDOR', number: 2 });
+    expect(faceAt(OTHER_SEED, 1)).toEqual({ kind: 'CORRIDOR', number: 4 });
+
+    prepareRoll(state, 6);
+    placePlayer(state, 6);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+    // Второй бросок в тот же отсек: маркер встаёт в Коридор с другим номером,
+    // поэтому Контакт не наступает и видно оба результата потока.
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+    const marked = corridorsWithNoise(state);
+    const markedNumbers = marked.map((corridor) => numbersOn(corridor, 6));
+
+    expect(state.meta.rngDraws.noise).toBe(2);
+    expect(marked).toHaveLength(2);
+    expect(markedNumbers.some((numbers) => numbers.includes(2))).toBe(true);
+    expect(markedNumbers.some((numbers) => numbers.includes(4))).toBe(true);
+  });
+
+  it('тот же сид — тот же бросок, другой сид — другой (воспроизводимость партии)', () => {
+    function markFor(seed: string): number[] {
+      const state = createInitialGameState(seed);
+
+      prepareRoll(state, 6);
+      placePlayer(state, 6);
+      resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+      return corridorsWithNoise(state).flatMap((corridor) => numbersOn(corridor, 6));
+    }
+
+    expect(markFor(SEED)).toEqual(markFor(SEED));
+    expect(markFor(SEED)).not.toEqual(markFor(OTHER_SEED));
+  });
+
+  it('грань «Тишина» отменяет бросок: маркер не выкладывается и поток не читается', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 6, 'SILENCE');
+    placePlayer(state, 6);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+    expect(corridorsWithNoise(state)).toEqual([]);
+    expect(state.meta.rngDraws.noise).toBe(0);
+    expect(state.ship.rooms[6]?.explorationEffect).toBeNull();
+  });
+
+  it('грань «Опасность» разыгрывает перемещение Чужих, а без них — маркеры (стр. 15)', () => {
+    // Сид подобран так, что первым из потока `noise` выпадает «Опасность».
+    const state = createInitialGameState('nemesis-alpha');
+
+    prepareRoll(state, 14);
+    placePlayer(state, 14);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+
+    const exits = Object.values(state.ship.corridors).filter(
+      (corridor) => corridor.fromRoomId === 14 || corridor.toRoomId === 14,
+    );
+
+    expect(corridorsWithNoise(state)).toHaveLength(exits.length);
+    expect(state.ship.technicalCorridorNoise).toBe(true);
+    expect(state.meta.rngDraws.noise).toBe(1);
+  });
+
+  it('эффект «Опасность» на жетоне: бросок не делается, маркеры встают сразу (стр. 14–15)', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 14, 'DANGER');
+    placePlayer(state, 14);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+
+    const exits = Object.values(state.ship.corridors).filter(
+      (corridor) => corridor.fromRoomId === 14 || corridor.toRoomId === 14,
+    );
+
+    expect(exits.length).toBeGreaterThan(0);
+    expect(corridorsWithNoise(state)).toHaveLength(exits.length);
+    expect(state.meta.rngDraws.noise).toBe(0);
+  });
+
+  it('«Опасность» в отсеке с Входом ставит маркер и на Технические Коридоры (стр. 15)', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 14, 'DANGER');
+    placePlayer(state, 14);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+
+    expect(state.ship.technicalCorridorNoise).toBe(true);
+  });
+
+  it('Слизь превращает «Тишину» в «Опасность» (стр. 17)', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 14, 'SILENCE');
+    placePlayer(state, 14);
+    state.players['player-1']!.hasSlime = true;
+
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+
+    expect(corridorsWithNoise(state).length).toBeGreaterThan(0);
+    expect(state.meta.rngDraws.noise).toBe(0);
+  });
+
+  it('персонаж в отсеке отменяет бросок («ПОМНИТЕ», стр. 15)', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 6);
+    placePlayer(state, 6);
+    state.players['player-2'] = { ...state.players['player-1']!, id: 'player-2', roomId: 6 };
+    state.ship.rooms[6]!.occupantPlayerIds.push('player-2');
+
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+    expect(corridorsWithNoise(state)).toEqual([]);
+    expect(state.meta.rngDraws.noise).toBe(0);
+  });
+
+  it('Чужой в отсеке отменяет бросок («ПОМНИТЕ», стр. 15)', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 6);
+    placePlayer(state, 6);
+    state.ship.rooms[6]!.occupantIntruderIds.push('adult-1');
+
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 6 });
+
+    expect(corridorsWithNoise(state)).toEqual([]);
+    expect(state.meta.rngDraws.noise).toBe(0);
+  });
+
+  it('номер без выхода из отсека разыгрывается как «Тишина» (решение владельца проекта до Э2-1)', () => {
+    const state = createInitialGameState(SEED);
+
+    // У отсека 7 нет выхода с номером 3, а грань сида — «3».
+    expect(faceAt(SEED, 0)).toEqual({ kind: 'CORRIDOR', number: 3 });
+    expect(
+      Object.values(state.ship.corridors)
+        .filter((corridor) => corridor.fromRoomId === 7 || corridor.toRoomId === 7)
+        .flatMap((corridor) => numbersOn(corridor, 7)),
+    ).not.toContain(3);
+
+    prepareRoll(state, 7);
+    placePlayer(state, 7);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 7 });
+
+    expect(corridorsWithNoise(state)).toEqual([]);
+    // Бросок состоялся — поток сдвинулся, просто результат ничего не сделал.
+    expect(state.meta.rngDraws.noise).toBe(1);
+  });
+
+  it('повторный маркер в Коридоре — Контакт, и он пока не разыгрывается', () => {
+    const engine = new GameEngine();
+    const state = createInitialGameState(SEED);
+
+    // Отсек 6 — сосед стартового, грань сида — «3».
+    state.ship.rooms[6]!.isExplored = false;
+    state.ship.rooms[6]!.explorationEffect = null;
+    const numbered = Object.values(state.ship.corridors).find((corridor) => numbersOn(corridor, 6).includes(3))!;
+
+    numbered.hasNoise = true;
+    const before = structuredClone(state);
+
+    expectEngineError(
+      () => engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 6, discardCardIds: [] } }),
+      'CONTACT_NOT_IMPLEMENTED',
+      /жетона Чужого/,
+    );
+
+    // Действие отклонено целиком: иммер откатывает и перемещение, и бросок.
+    expect(state).toEqual(before);
+  });
+
+  it('выпавший номер Входа уводит маркер на общее поле Технических Коридоров (стр. 15)', () => {
+    const state = createInitialGameState(SEED);
+
+    // У отсека 14 есть Вход в Технические Коридоры с номером 3 — это и есть грань сида.
+    prepareRoll(state, 14);
+    placePlayer(state, 14);
+    resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 });
+
+    expect(state.ship.technicalCorridorNoise).toBe(true);
+    // Маркер ушёл на общее поле вентиляции, а не в Коридор отсека.
+    expect(corridorsWithNoise(state)).toEqual([]);
+    expect(state.meta.rngDraws.noise).toBe(1);
+  });
+
+  it('«Опасность» при Чужом в соседнем отсеке отклоняется явной ошибкой до этапа 4', () => {
+    const state = createInitialGameState(SEED);
+
+    prepareRoll(state, 14, 'DANGER');
+    placePlayer(state, 14);
+    // Чужих на поле ещё нет, но защита от «переместить наугад» проверяется заранее.
+    state.ship.rooms[13]!.occupantIntruderIds.push('adult-1');
+
+    expectEngineError(
+      () => resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 }),
+      'INTRUDER_MOVEMENT_NOT_IMPLEMENTED',
+      /соседнего отсека/,
+    );
+  });
+
+  it('повторный маркер на Технических Коридорах — тоже Контакт', () => {
+    const state = createInitialGameState(SEED);
+
+    // У отсека 14 есть Вход в Технические Коридоры с номером 3 — это и есть грань сида.
+    prepareRoll(state, 14);
+    placePlayer(state, 14);
+    state.ship.technicalCorridorNoise = true;
+
+    expectEngineError(
+      () => resolveInterrupt(state, { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 14 }),
+      'CONTACT_NOT_IMPLEMENTED',
+      /Технические Коридоры/,
+    );
+  });
+
+  it('бросок для несуществующего отсека — ошибка контракта', () => {
+    expectEngineError(
+      () => resolveInterrupt(freshState(), { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-1', roomId: 999 }),
+      'UNKNOWN_ROOM',
+    );
+  });
+
+  it('бросок для неизвестного персонажа — ошибка контракта', () => {
+    expectEngineError(
+      () => resolveInterrupt(freshState(), { type: 'NOISE_ROLL_INTERRUPT', playerId: 'player-42', roomId: 6 }),
+      'UNKNOWN_PLAYER',
+    );
+  });
+
+  it('находит Коридор по номеру, Вход в Технические Коридоры и номер без выхода', () => {
+    const state = createInitialGameState(SEED);
+
+    // У отсека 9 среди выходов есть 3 — это Вход в Технические Коридоры (стр. 15).
+    expect(findNoiseTarget(state, 9, 3)).toEqual({ kind: 'TECHNICAL_CORRIDOR' });
+    expect(findNoiseTarget(state, 9, 4).kind).toBe('CORRIDOR');
+    expect(findNoiseTarget(state, 6, 3).kind).toBe('CORRIDOR');
+    // У отсека 12 такого выхода нет: до сверки данных (Э2-1) это «Тишина».
+    expect(findNoiseTarget(state, 12, 2)).toEqual({ kind: 'UNMAPPED' });
   });
 });
 

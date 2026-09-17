@@ -5,7 +5,7 @@ import type { GameMode, GamePhase } from '@nemesis/shared';
  *
  * Ключи — значения контракта (`GamePhase`, `GameMode`), а не строки в разметке:
  * если контракт расширится, компилятор потребует подпись, а не покажет пустоту
- * (аудит №25).
+ * подписи берутся из подписей контракта, а не из литералов в разметке.
  */
 
 export const PHASE_LABELS: Record<GamePhase, string> = {

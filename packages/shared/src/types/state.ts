@@ -3,15 +3,25 @@ import type { GameDecksState } from './cards.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
 import type { InterruptEvent } from './interrupts.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
+import type { RngStream } from '../utils/rng.js';
 
 /**
  * Версия контракта игрового состояния.
  *
  * Используется и как версия сохранённой сессии (zustand persist): при
- * несовпадении сохранение не восстанавливается, а партия начинается заново.
+ * несовместимости сохранение не восстанавливается, а партия начинается заново.
  * Значение увеличивается при любом несовместимом изменении GameState.
+ *
+ * v2 (0.1.10): отсек помнит эффект жетона Исследования, в состоянии появились
+ * счётчики потоков случайности (`meta.rngDraws`), а прерывание вскрытия несёт
+ * Коридор входа — старая сессия без этих полей не восстанавливается.
+ *
+ * v3 (0.1.11): Пул Чужих — это полный набор из 27 жетонов: `bag` (мешок)
+ * плюс `supply` (жетоны рядом с полем, стр. 6, шаг 10); у партии появилась
+ * причина окончания (`meta.gameOverReason`) для правил запасов маркеров
+ * (стр. 17); «Осторожное движение» приносит режим шума в прерывание.
  */
-export const GAME_STATE_SCHEMA_VERSION = 1;
+export const GAME_STATE_SCHEMA_VERSION = 3;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -19,6 +29,9 @@ export const GAME_STATE_SCHEMA_VERSION = 1;
  * в неё не входят (стр. 7, шаг 11).
  */
 export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
+
+/** Почему партия окончена: корабль взорвался или обшивка не выдержала (стр. 17). */
+export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
 export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';
@@ -41,8 +54,10 @@ export interface CoordinatesState {
 }
 
 export interface IntrudersPoolState {
-  /** Мешок (Пул Чужих) с ещё не вытянутыми жетонами. */
+  /** Мешок (Пул Чужих) с ещё не вытянутыми жетонами: рубашкой вверх (стр. 6, шаг 10). */
   bag: IntruderToken[];
+  /** Жетоны Чужих рядом с полем: входят в игру по ходу партии (стр. 6, шаг 10). */
+  supply: IntruderToken[];
   /** Чужие на поле: жетон + накопленные раны и позиция. */
   boardTokens: IntruderEntity[];
   /** Убитые Чужие: их жетоны выкладываются рядом с полем (стр. 6, шаг 10). */
@@ -76,6 +91,21 @@ export interface GameMeta {
   /** Позиция маркера Времени: 0..TIME_TRACK_LENGTH, где 15 — красный прыжок (стр. 11). */
   timeTrackPosition: number;
   selfDestructTrackPosition: number | null; // 0..8 (8 = череп)
+  /**
+   * Сколько раз партия уже обратилась к каждому потоку случайности.
+   * Сам генератор в состоянии не хранится (состояние остаётся JSON-сериализуемым),
+   * поэтому позиция восстанавливается реплеем от мастер-сида (utils/rng.ts).
+   * Расклад (`layout`) читается только при подготовке стола, поэтому после
+   * старта партии его счётчик не растёт.
+   */
+  rngDraws: Record<RngStream, number>;
+  /**
+   * Причина окончания партии; null — партия идёт. Нужна правилам запасов:
+   * последний маркер Пожара взрывает корабль, последний маркер Неисправности
+   * разрывает обшивку (стр. 17), и оба случая обязаны быть видимыми, а не
+   * молчаливым пропуском розыгрыша.
+   */
+  gameOverReason: GameOverReason | null;
 }
 
 export interface GameState {

@@ -5,7 +5,7 @@ import { Bug, Copy, Dices, Volume2, VolumeX, X } from 'lucide-react';
 import { useGameStore } from '../../store/gameStore';
 import { GAME_MODE_LABELS, PHASE_LABELS } from '../../utils/labels';
 import { IS_DEV } from '../../utils/env';
-import { DOOR_CYCLE_HINT, buildCorridorRows, buildDiagnostics } from './devPanelModel';
+import { DOOR_CYCLE_HINT, GAME_OVER_REASON_LABELS, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
 interface DevPanelProps {
   onClose: () => void;
@@ -21,7 +21,7 @@ const DiagnosticRow: React.FC<{ label: string; children: React.ReactNode }> = ({
 
 /**
  * Dev-панель: инструменты разработки, которых не должно быть в игровом интерфейсе
- * (аудит §4, пункт P1-4 и дефект №22).
+ * Панель — инструмент разработки, а не часть игры: в продакшн-сборке её нет.
  *
  * Панель существует только в dev-сборке (`IS_DEV`): в продакшн-сборке
  * `import.meta.env.DEV` равен false, панель не отрисовывается, а движок к тому же
@@ -82,6 +82,9 @@ export const DevPanel: React.FC<DevPanelProps> = ({ onClose }) => {
             <DiagnosticRow label="схема">v{diagnostics.schemaVersion}</DiagnosticRow>
             <DiagnosticRow label="режим">{GAME_MODE_LABELS[diagnostics.gameMode]}</DiagnosticRow>
             <DiagnosticRow label="фаза">{PHASE_LABELS[diagnostics.phase]}</DiagnosticRow>
+            {diagnostics.gameOverReason ? (
+              <DiagnosticRow label="причина">{GAME_OVER_REASON_LABELS[diagnostics.gameOverReason]}</DiagnosticRow>
+            ) : null}
             <DiagnosticRow label="раунд">{diagnostics.round}</DiagnosticRow>
             <DiagnosticRow label="активный">
               {diagnostics.activePlayerName} ({diagnostics.activePlayerId})

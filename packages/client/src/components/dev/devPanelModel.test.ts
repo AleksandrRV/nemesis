@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameState, SanitizedGameState } from '@nemesis/shared';
-import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
+import { GAME_STATE_SCHEMA_VERSION, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 
-import { DOOR_CYCLE_HINT, DOOR_LABELS, buildCorridorRows, buildDiagnostics } from './devPanelModel';
+import { DOOR_CYCLE_HINT, DOOR_LABELS, DOOR_TERMINAL_HINT, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
 const VIEWER = 'player-1';
 
@@ -47,6 +47,20 @@ describe('Dev-панель: строки коридоров', () => {
     expect(row?.nextDoorLabel).toBe('разрушена');
   });
 
+  it('не обещает переключение Разрушенной Двери: состояние терминально (стр. 17)', () => {
+    const state = rawState();
+    const corridor = Object.values(state.ship.corridors)[0]!;
+
+    corridor.doorState = 'DESTROYED';
+
+    const row = buildCorridorRows(filterStateForPlayer(state, VIEWER)).find(
+      (candidate) => candidate.id === corridor.id,
+    );
+
+    expect(row?.doorLabel).toBe('разрушена');
+    expect(row?.nextDoorLabel).toBe(DOOR_TERMINAL_HINT);
+  });
+
   it('отдаёт маркер шума и легенду цикла Двери', () => {
     const state = rawState();
     const corridor = Object.values(state.ship.corridors)[0]!;
@@ -56,7 +70,9 @@ describe('Dev-панель: строки коридоров', () => {
     const rows = buildCorridorRows(filterStateForPlayer(state, VIEWER));
 
     expect(rows.filter((row) => row.hasNoise)).toHaveLength(1);
-    expect(DOOR_CYCLE_HINT).toBe(`${DOOR_LABELS.OPEN} → ${DOOR_LABELS.CLOSED} → ${DOOR_LABELS.DESTROYED}`);
+    expect(DOOR_CYCLE_HINT).toBe(
+      `${DOOR_LABELS.OPEN} → ${DOOR_LABELS.CLOSED} → ${DOOR_LABELS.DESTROYED} (${DOOR_TERMINAL_HINT})`,
+    );
   });
 });
 
@@ -68,7 +84,9 @@ describe('Dev-панель: диагностика', () => {
 
     expect(diagnostics.seed).toBe('dev-panel-test');
     expect(diagnostics.gameId).toContain('dev-panel-test');
-    expect(diagnostics.schemaVersion).toBe(1);
+    // Версия берётся из контракта, а не из числа в тесте: иначе каждый подъём
+    // версии схемы (см. 0.1.10 → v2) ломает тест панели, а не проверяет её.
+    expect(diagnostics.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
     expect(diagnostics.gameMode).toBe('SEMI_COOP');
     expect(diagnostics.round).toBe(1);
     expect(diagnostics.phase).toBe('PLAYER_PHASE');

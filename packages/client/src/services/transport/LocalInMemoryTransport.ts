@@ -13,7 +13,7 @@ export interface LocalTransportOptions {
   playerId: string;
   /** Сид новой партии, если совместимого сохранения нет. */
   seed?: string;
-  /** Отладочные действия: только dev-сборка (аудит №22). */
+  /** Отладочные действия: разрешены только в dev-сборке. */
   allowDevActions?: boolean;
   /** Движок можно подменить в тестах. */
   engine?: GameEngine;

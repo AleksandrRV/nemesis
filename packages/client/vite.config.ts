@@ -1,9 +1,20 @@
+import { readFileSync } from 'fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
+/**
+ * Версия приложения — из package.json, а не из строки в HUD: иначе интерфейс
+ * рано или поздно покажет версию, которой уже нет (план исправлений, Э1-6).
+ */
+const clientVersion = (JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version: string })
+  .version;
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(clientVersion),
+  },
   resolve: {
     alias: {
       '@nemesis/shared': path.resolve(__dirname, '../shared/src/index.ts'),

@@ -14,8 +14,15 @@ export interface RoomCoordinate {
   techNumbers: number[];
 }
 
-// 21 комната основного поля корабля Nemesis
-// Красная лампа = техкоридор. Симметрия: A:N ↔ B:N
+/**
+ * 21 отсек основного поля Nemesis: 16 неособых слотов и 5 напечатанных особых.
+ * Красный маячок рядом с отсеком — Вход в Технические Коридоры.
+ *
+ * Происхождение данных: `doc/sources/data-sources.json#ship-graph-rooms`
+ * (статус `UNVERIFIED_BOARD`): координаты и номера выходов видно только на
+ * физическом поле, сверки не было. Пока сверки нет, значения — снимок, и
+ * golden-тест удерживает их от молчаливой правки.
+ */
 export const SHIP_ROOM_NODES: RoomCoordinate[] = [
   { id: 1, name: 'Мостик', category: 'SPECIAL', x: 80, y: 485, techNumbers: [] },
   { id: 2, name: 'Слот 002', category: 'ROOM_1', x: 235, y: 206, techNumbers: [1, 2] },
@@ -41,9 +48,18 @@ export const SHIP_ROOM_NODES: RoomCoordinate[] = [
 ];
 
 /**
- * Реальные физические переходы между отсеками корабля.
- * Номера в fromNumbers / toNumbers соответствуют значениям броска кубика шума (1-4).
- * Исправлено по corridor_table.md — перепроверено по кропам 016/018/021 (изгибы прослежены).
+ * Переходы между отсеками корабля.
+ *
+ * Номера в `fromNumbers` / `toNumbers` — те, что напечатаны у выхода с каждой
+ * стороны, то есть значения броска кубика Шума (1–4), по которым маркер уходит
+ * в этот Коридор (стр. 15).
+ *
+ * Происхождение данных: `doc/sources/data-sources.json#ship-graph-corridors`
+ * (статус `UNVERIFIED_BOARD`). Известное расхождение модели с полем: парные
+ * Коридоры — два независимых Коридора между одной парой отсеков — здесь
+ * описаны одной записью, поэтому маркер Шума и Дверь у такой пары общие.
+ * Расхождение зафиксировано снимком в `shipGraph.test.ts` и ждёт сверки
+ * с физическим полем; выдумывать топологию вместо сверки нельзя (AGENTS §1.3).
  */
 export const SHIP_CORRIDORS: CorridorConnection[] = [
   // --- Мостик (001) ---
@@ -85,7 +101,7 @@ export const SHIP_CORRIDORS: CorridorConnection[] = [
   { id: '13-19', fromRoomId: 13, toRoomId: 19, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
   { id: '14-17', fromRoomId: 14, toRoomId: 17, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
 
-  // --- Юго-восток — ПОЛНОСТЬЮ ПЕРЕПРОВЕРЕНО по кропам ---
+  // --- Юго-восток ---
   {
     id: '12-16',
     fromRoomId: 12,

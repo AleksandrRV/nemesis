@@ -34,7 +34,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <h1 className="text-lg font-heading tracking-widest text-white leading-none">
-              NEMESIS <span className="text-cyan-400 text-sm">DIGITAL v0.1.9</span>
+              NEMESIS <span className="text-cyan-400 text-sm">DIGITAL v{__APP_VERSION__}</span>
             </h1>
             <span className="text-[10px] font-mono text-slate-400">
               РАУНД {view.meta.currentRound} • {PHASE_LABELS[view.meta.phase]} • {activePlayerName.toUpperCase()}
@@ -51,10 +51,10 @@ export const App: React.FC = () => {
             </span>
           </div>
 
-          {/* Сид партии: виден игрокам, копируется по нажатию (аудит §4, P1-1) */}
+          {/* Сид партии: виден игрокам, копируется по нажатию — по нему воспроизводится тот же стол */}
           <SeedChip seed={view.meta.seed} />
 
-          {/* Кнопка отладочных инструментов: её нет в продакшн-сборке (аудит №22) */}
+          {/* Кнопка отладочных инструментов: её нет в продакшн-сборке */}
           {IS_DEV && (
             <button
               onClick={() => setDevPanelOpen((open) => !open)}

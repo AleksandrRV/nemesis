@@ -2,6 +2,7 @@
 # Проект: Nemesis Digital
 
 **Версия документа:** 2.0 (Полная редакция с учетом офлайн-сохранений, FSM-прерываний, фильтрации скрытых данных и честного ИИ)  
+**Статус документа:** это **цель**, а не описание текущей ревизии: разделы про сервер, PWA, ботов и колоды-данные описывают архитектуру, к которой проект идёт. Что уже работает — в [README](../README.md), фактические контракты — в `packages/shared/src/types/`, план исправлений — в [fix-plan-0.1.9.md](fix-plan-0.1.9.md).  
 **Язык разработки:** TypeScript 5.x (Strict Mode)  
 **Среда выполнения:** Evergreen Web Browsers (Blink / Gecko / WebKit), Node.js LTS  
 **Архитектурный паттерн:** Isomorphic Shared Core + Event-Driven FSM + Transport Adapter

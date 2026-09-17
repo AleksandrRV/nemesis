@@ -1,4 +1,4 @@
-import { RoomId } from './rooms';
+import type { RoomId } from './rooms.js';
 
 export type GameAction =
   | { type: 'ACTION_MOVE'; payload: { targetRoomId: RoomId; discardCardIds: string[] } }

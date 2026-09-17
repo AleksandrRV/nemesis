@@ -1,4 +1,4 @@
-import { RoomId, CorridorConnection, RoomSlotCategory } from '../types/rooms';
+import type { CorridorConnection, RoomId, RoomSlotCategory } from '../types/rooms.js';
 
 export interface RoomCoordinate {
   id: RoomId;

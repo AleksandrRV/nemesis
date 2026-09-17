@@ -1,4 +1,4 @@
-import { RoomDefinition } from '../types/rooms';
+import type { RoomDefinition } from '../types/rooms.js';
 
 export const BASIC_ROOMS_1: RoomDefinition[] = [
   {

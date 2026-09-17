@@ -1,6 +1,6 @@
-import { RoomId, RoomState, CorridorConnection } from './rooms';
-import { IntruderToken, IntruderEntity, PlayerState } from './entities';
-import { ClaimEvent } from './actions';
+import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
+import type { IntruderEntity, IntruderToken, PlayerState } from './entities.js';
+import type { ClaimEvent } from './actions.js';
 
 export interface GameState {
   meta: {

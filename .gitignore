@@ -47,6 +47,13 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
+# Safety net: скомпилированный вывод не должен появляться рядом с исходниками
+# (сборка идёт в packages/*/dist, проверка типов — с --noEmit)
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+
 # Optional npm cache directory
 .npm
 

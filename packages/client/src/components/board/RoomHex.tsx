@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  RoomState,
-  SPECIAL_ROOMS,
-  BASIC_ROOMS_1,
-  ADDITIONAL_ROOMS_2,
-  SHIP_ROOM_NODES,
-} from '@nemesis/shared';
+import { SHIP_ROOM_NODES, type RoomState } from '@nemesis/shared';
 import {
   Flame,
   Wrench,

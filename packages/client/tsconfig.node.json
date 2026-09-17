@@ -1,18 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "baseUrl": ".",
-    "paths": {
-      "@nemesis/shared": ["../shared/src/index.ts"]
-    },
+    "lib": ["ES2022"],
+    "types": ["node"],
     "declaration": false,
     "sourceMap": false,
     "noEmit": true
   },
-  "include": ["src/**/*"]
+  "include": ["vite.config.ts"]
 }

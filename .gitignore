@@ -52,6 +52,9 @@ web_modules/
 packages/*/src/**/*.js
 packages/*/src/**/*.js.map
 packages/*/src/**/*.d.ts
+# ...кроме декларации окружения Vite: это исходник, а не вывод сборки.
+# Без неё `import.meta.env` не типизируется в чистой копии репозитория.
+!packages/client/src/vite-env.d.ts
 packages/*/src/**/*.d.ts.map
 
 # Optional npm cache directory

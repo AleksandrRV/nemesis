@@ -1,4 +1,4 @@
-import { RoomId, CorridorConnection, RoomSlotCategory } from '../types/rooms';
+import type { CorridorConnection, RoomId, RoomSlotCategory } from '../types/rooms.js';
 
 export interface RoomCoordinate {
   id: RoomId;
@@ -72,20 +72,52 @@ export const SHIP_CORRIDORS: CorridorConnection[] = [
   { id: '9-12', fromRoomId: 9, toRoomId: 12, fromNumbers: [4], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
 
   // --- Северо-восток ---
-  { id: '10-13', fromRoomId: 10, toRoomId: 13, fromNumbers: [3, 4], toNumbers: [3, 4], doorState: 'OPEN', hasNoise: false },
+  {
+    id: '10-13',
+    fromRoomId: 10,
+    toRoomId: 13,
+    fromNumbers: [3, 4],
+    toNumbers: [3, 4],
+    doorState: 'OPEN',
+    hasNoise: false,
+  },
   { id: '13-14', fromRoomId: 13, toRoomId: 14, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
   { id: '13-19', fromRoomId: 13, toRoomId: 19, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
   { id: '14-17', fromRoomId: 14, toRoomId: 17, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
 
   // --- Юго-восток — ПОЛНОСТЬЮ ПЕРЕПРОВЕРЕНО по кропам ---
-  { id: '12-16', fromRoomId: 12, toRoomId: 16, fromNumbers: [3, 4], toNumbers: [3, 4], doorState: 'OPEN', hasNoise: false },
+  {
+    id: '12-16',
+    fromRoomId: 12,
+    toRoomId: 16,
+    fromNumbers: [3, 4],
+    toNumbers: [3, 4],
+    doorState: 'OPEN',
+    hasNoise: false,
+  },
   { id: '15-16', fromRoomId: 15, toRoomId: 16, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
   { id: '15-18', fromRoomId: 15, toRoomId: 18, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
   { id: '16-21', fromRoomId: 16, toRoomId: 21, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
 
   // --- Двигатели ---
   { id: '17-19', fromRoomId: 17, toRoomId: 19, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
-  { id: '17-20', fromRoomId: 17, toRoomId: 20, fromNumbers: [3, 4], toNumbers: [3, 4], doorState: 'OPEN', hasNoise: false },
-  { id: '18-20', fromRoomId: 18, toRoomId: 20, fromNumbers: [1, 2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
+  {
+    id: '17-20',
+    fromRoomId: 17,
+    toRoomId: 20,
+    fromNumbers: [3, 4],
+    toNumbers: [3, 4],
+    doorState: 'OPEN',
+    hasNoise: false,
+  },
+  {
+    id: '18-20',
+    fromRoomId: 18,
+    toRoomId: 20,
+    fromNumbers: [1, 2],
+    toNumbers: [1, 2],
+    doorState: 'OPEN',
+    hasNoise: false,
+  },
   { id: '18-21', fromRoomId: 18, toRoomId: 21, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
 ];

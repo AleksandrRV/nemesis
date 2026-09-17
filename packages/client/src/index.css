@@ -7,7 +7,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-h1, h2, h3, .font-heading {
+h1,
+h2,
+h3,
+.font-heading {
   font-family: 'Teko', sans-serif;
   letter-spacing: 0.05em;
 }

@@ -1,4 +1,4 @@
-import { RoomDefinition } from '../types/rooms';
+import type { RoomDefinition } from '../types/rooms.js';
 
 export const BASIC_ROOMS_1: RoomDefinition[] = [
   {
@@ -8,7 +8,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'RED',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Перезарядите энергооружие (+2 заряда)'
+    actionDescription: 'Перезарядите энергооружие (+2 заряда)',
   },
   {
     id: 'COMM_ROOM',
@@ -17,7 +17,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Отправьте сигнал с корабля'
+    actionDescription: 'Отправьте сигнал с корабля',
   },
   {
     id: 'INFIRMARY',
@@ -26,7 +26,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'GREEN',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Обработайте тяжелые травмы или вылечите легкие'
+    actionDescription: 'Обработайте тяжелые травмы или вылечите легкие',
   },
   {
     id: 'LABORATORY',
@@ -35,7 +35,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'GREEN',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Изучите объект (Труп, Яйцо или Останки) для раскрытия слабости'
+    actionDescription: 'Изучите объект (Труп, Яйцо или Останки) для раскрытия слабости',
   },
   {
     id: 'GENERATOR',
@@ -44,7 +44,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Запустите или остановите процесс самоуничтожения'
+    actionDescription: 'Запустите или остановите процесс самоуничтожения',
   },
   {
     id: 'ESCAPE_POD_A',
@@ -53,7 +53,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Попытайтесь войти в спасательную капсулу'
+    actionDescription: 'Попытайтесь войти в спасательную капсулу',
   },
   {
     id: 'ESCAPE_POD_B',
@@ -62,7 +62,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Попытайтесь войти в спасательную капсулу'
+    actionDescription: 'Попытайтесь войти в спасательную капсулу',
   },
   {
     id: 'FIRE_CONTROL',
@@ -71,7 +71,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Запустите пожаротушение в любом отсеке'
+    actionDescription: 'Запустите пожаротушение в любом отсеке',
   },
   {
     id: 'NEST',
@@ -80,7 +80,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'RED',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Возьмите 1 яйцо Чужих (поиск невозможен)'
+    actionDescription: 'Возьмите 1 яйцо Чужих (поиск невозможен)',
   },
   {
     id: 'STORAGE',
@@ -89,7 +89,7 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'RED',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Поищите предмет в выбранной колоде'
+    actionDescription: 'Поищите предмет в выбранной колоде',
   },
   {
     id: 'SURGERY',
@@ -98,8 +98,8 @@ export const BASIC_ROOMS_1: RoomDefinition[] = [
     color: 'GREEN',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Просканируйте заражения, удалите инфекции и паразита'
-  }
+    actionDescription: 'Просканируйте заражения, удалите инфекции и паразита',
+  },
 ];
 
 export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
@@ -110,7 +110,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Запустите экстренную декомпрессию жилого отсека'
+    actionDescription: 'Запустите экстренную декомпрессию жилого отсека',
   },
   {
     id: 'CABINS',
@@ -119,7 +119,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 0,
-    actionDescription: 'Пассивный добор +1 карты в начале раунда'
+    actionDescription: 'Пассивный добор +1 карты в начале раунда',
   },
   {
     id: 'CANTEEN',
@@ -128,7 +128,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'GREEN',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Перекусите: вылечите 1 легкую травму и просканируйте карты'
+    actionDescription: 'Перекусите: вылечите 1 легкую травму и просканируйте карты',
   },
   {
     id: 'COMMAND_CENTER',
@@ -137,7 +137,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Откройте или закройте любые двери на корабле'
+    actionDescription: 'Откройте или закройте любые двери на корабле',
   },
   {
     id: 'ENGINE_CONTROL',
@@ -146,7 +146,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Проверьте состояние всех трех Двигателей'
+    actionDescription: 'Проверьте состояние всех трех Двигателей',
   },
   {
     id: 'HATCH_CONTROL',
@@ -155,7 +155,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'GREEN',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Заблокируйте или разблокируйте одну из капсул'
+    actionDescription: 'Заблокируйте или разблокируйте одну из капсул',
   },
   {
     id: 'OBSERVATION_ROOM',
@@ -164,7 +164,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'RED',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Посмотрите тайл любой закрытой комнаты и жетон на ней'
+    actionDescription: 'Посмотрите тайл любой закрытой комнаты и жетон на ней',
   },
   {
     id: 'SLIME_ROOM',
@@ -173,7 +173,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 0,
-    actionDescription: 'При входе дает маркер Слизи (поиск невозможен)'
+    actionDescription: 'При входе дает маркер Слизи (поиск невозможен)',
   },
   {
     id: 'SHOWER',
@@ -182,8 +182,8 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Смойте слизь и просканируйте карты заражения'
-  }
+    actionDescription: 'Смойте слизь и просканируйте карты заражения',
+  },
 ];
 
 export const SPECIAL_ROOMS: RoomDefinition[] = [
@@ -194,7 +194,7 @@ export const SPECIAL_ROOMS: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: true,
     actionCost: 2,
-    actionDescription: 'Проверьте координаты или измените курс'
+    actionDescription: 'Проверьте координаты или измените курс',
   },
   {
     id: 'HIBERNATORIUM',
@@ -203,7 +203,7 @@ export const SPECIAL_ROOMS: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Войдите в камеру анабиоза (доступно на синем поле таймера)'
+    actionDescription: 'Войдите в камеру анабиоза (доступно на синем поле таймера)',
   },
   {
     id: 'ENGINE_03',
@@ -212,7 +212,7 @@ export const SPECIAL_ROOMS: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Проверьте, почините или повредите Двигатель #03'
+    actionDescription: 'Проверьте, почините или повредите Двигатель #03',
   },
   {
     id: 'ENGINE_02',
@@ -221,7 +221,7 @@ export const SPECIAL_ROOMS: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Проверьте, почините или повредите Двигатель #02'
+    actionDescription: 'Проверьте, почините или повредите Двигатель #02',
   },
   {
     id: 'ENGINE_01',
@@ -230,6 +230,6 @@ export const SPECIAL_ROOMS: RoomDefinition[] = [
     color: 'WHITE',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Проверьте, почините или повредите Двигатель #01'
-  }
+    actionDescription: 'Проверьте, почините или повредите Двигатель #01',
+  },
 ];

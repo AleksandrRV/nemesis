@@ -9,7 +9,10 @@
     "baseUrl": ".",
     "paths": {
       "@nemesis/shared": ["../shared/src/index.ts"]
-    }
+    },
+    "declaration": false,
+    "sourceMap": false,
+    "noEmit": true
   },
   "include": ["src/**/*"]
 }

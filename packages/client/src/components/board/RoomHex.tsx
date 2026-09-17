@@ -1,21 +1,10 @@
 import React from 'react';
-import {
-  RoomState,
-  SPECIAL_ROOMS,
-  BASIC_ROOMS_1,
-  ADDITIONAL_ROOMS_2,
-  SHIP_ROOM_NODES,
-} from '@nemesis/shared';
-import {
-  Flame,
-  Wrench,
-  User,
-  Skull,
-  Laptop,
-} from 'lucide-react';
+import { SHIP_ROOM_NODES, type SanitizedRoomState } from '@nemesis/shared';
+import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
 
 interface RoomHexProps {
-  room: RoomState;
+  /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
+  room: SanitizedRoomState;
   x: number;
   y: number;
   isSelected: boolean;
@@ -50,13 +39,7 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({
-  room,
-  x,
-  y,
-  isSelected,
-  onSelect,
-}) => {
+export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSelect }) => {
   const radius = 45;
 
   const points = React.useMemo(() => {
@@ -65,21 +48,13 @@ export const RoomHex: React.FC<RoomHexProps> = ({
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI / 180) * (60 * i + 30);
 
-      pts.push(
-        `${(x + radius * Math.cos(angle)).toFixed(1)},${(
-          y +
-          radius * Math.sin(angle)
-        ).toFixed(1)}`,
-      );
+      pts.push(`${(x + radius * Math.cos(angle)).toFixed(1)},${(y + radius * Math.sin(angle)).toFixed(1)}`);
     }
 
     return pts.join(' ');
   }, [x, y, radius]);
 
-  const nodeData = React.useMemo(
-    () => SHIP_ROOM_NODES.find((node) => node.id === room.id),
-    [room.id],
-  );
+  const nodeData = React.useMemo(() => SHIP_ROOM_NODES.find((node) => node.id === room.id), [room.id]);
 
   const techNumbers = nodeData?.techNumbers ?? [];
   const hasTechEntrance = techNumbers.length > 0;
@@ -89,9 +64,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
       return ['НЕИЗВЕСТНЫЙ', 'ОТСЕК'];
     }
 
-    return (
-      CANONICAL_ROOM_NAMES[room.definitionId] || [room.definitionId, '']
-    );
+    return CANONICAL_ROOM_NAMES[room.definitionId] || [room.definitionId, ''];
   }, [room.definitionId]);
 
   const strokeColor = isSelected
@@ -129,31 +102,13 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      <polygon
-        points={points}
-        fill={fillColor}
-        stroke={strokeColor}
-        strokeWidth={isSelected ? 3 : 2}
-      />
+      <polygon points={points} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? 3 : 2} />
 
       {hasTechEntrance && (
-        <g
-          transform={`translate(${x}, ${y - radius + 3})`}
-          className="pointer-events-none"
-        >
-          <circle
-            cx={0}
-            cy={0}
-            r={6.5}
-            fill="#ff003c"
-            stroke="#05070c"
-            strokeWidth={1.5}
-          />
+        <g transform={`translate(${x}, ${y - radius + 3})`} className="pointer-events-none">
+          <circle cx={0} cy={0} r={6.5} fill="#ff003c" stroke="#05070c" strokeWidth={1.5} />
 
-          <polygon
-            points="-2.5,1.5 0,-2.5 2.5,1.5"
-            fill="white"
-          />
+          <polygon points="-2.5,1.5 0,-2.5 2.5,1.5" fill="white" />
 
           <g transform="translate(9, 3)">
             <rect
@@ -216,85 +171,44 @@ export const RoomHex: React.FC<RoomHexProps> = ({
       )}
 
       {/* Индикаторы аварий */}
-      <g
-        transform={`translate(${x - 18}, ${y + 19})`}
-        className="pointer-events-none"
-      >
-        {room.hasFire && (
-          <Flame
-            size={12}
-            className="text-orange-500 fill-orange-500"
-            x={0}
-            y={0}
-          />
-        )}
+      <g transform={`translate(${x - 18}, ${y + 19})`} className="pointer-events-none">
+        {room.hasFire && <Flame size={12} className="text-orange-500 fill-orange-500" x={0} y={0} />}
 
-        {room.hasMalfunction && (
-          <Wrench
-            size={12}
-            className="text-amber-400"
-            x={12}
-            y={0}
-          />
-        )}
+        {room.hasMalfunction && <Wrench size={12} className="text-amber-400" x={12} y={0} />}
 
-        {room.hasComputer && room.isExplored && (
-          <Laptop
-            size={12}
-            className="text-cyan-400"
-            x={24}
-            y={0}
-          />
-        )}
+        {room.hasComputer && room.isExplored && <Laptop size={12} className="text-cyan-400" x={24} y={0} />}
       </g>
 
       {/* Персонажи */}
       {room.occupantPlayerIds.length > 0 && (
-        <g
-          transform={`translate(${x - 10}, ${y - 34})`}
-          className="pointer-events-none"
-        >
-          <circle
-            cx={10}
-            cy={10}
-            r={10}
-            fill="#00f0ff"
-            stroke="#05070c"
-            strokeWidth={2}
-          />
+        <g transform={`translate(${x - 10}, ${y - 34})`} className="pointer-events-none">
+          <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
 
-          <User
-            size={12}
-            className="text-slate-950"
-            x={4}
-            y={4}
-          />
+          <User size={12} className="text-slate-950" x={4} y={4} />
         </g>
       )}
 
-      {/* Труп */}
-      {room.droppedObjectIds.includes('CORPSE_BLUE') && (
-        <g
-          transform={`translate(${x + 10}, ${y - 34})`}
-          className="pointer-events-none"
-        >
-          <circle
-            cx={8}
-            cy={8}
-            r={8}
-            fill="#ff003c"
-            stroke="#05070c"
-            strokeWidth={1.5}
-          />
+      {/* Объекты на полу: Труп, Яйцо, Останки (стр. 22) */}
+      {room.objects.map((object, index) => {
+        const offset = 10 + index * 20;
 
-          <Skull
-            size={10}
-            className="text-white"
-            x={3}
-            y={3}
-          />
-        </g>
-      )}
+        return (
+          <g key={object.id} transform={`translate(${x + offset}, ${y - 34})`} className="pointer-events-none">
+            <circle
+              cx={8}
+              cy={8}
+              r={8}
+              fill={object.kind === 'CORPSE' ? '#ff003c' : object.kind === 'EGG' ? '#00ff66' : '#334155'}
+              stroke="#05070c"
+              strokeWidth={1.5}
+            />
+
+            {object.kind === 'CORPSE' && <Skull size={10} className="text-white" x={3} y={3} />}
+            {object.kind === 'EGG' && <Egg size={10} className="text-slate-950" x={3} y={3} />}
+            {object.kind === 'INTRUDER_REMAINS' && <Bone size={10} className="text-white" x={3} y={3} />}
+          </g>
+        );
+      })}
     </g>
   );
 };

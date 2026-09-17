@@ -1,8 +1,22 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // Ядро правил должно запускаться и в браузере (Vite/esbuild), и в Node.js.
+    // NodeNext + явные расширения .js в относительных импортах дают ESM-вывод,
+    // который Node исполняет без бандлера.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    // При ошибке типов dist не обновляется, чтобы потребители
+    // не получили частично собранный пакет.
+    "noEmit": false,
+    "noEmitOnError": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  // Тесты проверяются отдельным конфигом (tsconfig.test.json) и не попадают в dist.
+  "exclude": ["dist", "node_modules", "src/**/*.test.ts", "src/**/*.spec.ts"]
 }

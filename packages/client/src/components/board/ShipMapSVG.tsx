@@ -7,7 +7,9 @@ import { CorridorEdge } from './CorridorEdge';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export const ShipMapSVG: React.FC = () => {
-  const { gameState, selectedRoomId, selectRoom, toggleDoor, toggleNoise } = useGameStore();
+  const view = useGameStore((state) => state.view);
+  const selectedRoomId = useGameStore((state) => state.selectedRoomId);
+  const selectRoom = useGameStore((state) => state.selectRoom);
 
   const coordsMap = React.useMemo(() => {
     const map = new Map<number, { x: number; y: number }>();
@@ -16,6 +18,8 @@ export const ShipMapSVG: React.FC = () => {
     }
     return map;
   }, []);
+
+  if (!view) return null;
 
   return (
     <div className="relative w-full h-full bg-nemesis-bg overflow-hidden">
@@ -64,12 +68,7 @@ export const ShipMapSVG: React.FC = () => {
               >
                 <defs>
                   <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path
-                      d="M 40 0 L 0 0 0 40"
-                      fill="none"
-                      stroke="rgba(42, 59, 84, 0.12)"
-                      strokeWidth="1"
-                    />
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(42, 59, 84, 0.12)" strokeWidth="1" />
                   </pattern>
                 </defs>
 
@@ -77,29 +76,20 @@ export const ShipMapSVG: React.FC = () => {
 
                 {/* 1. Слой коридоров */}
                 <g id="corridors-layer">
-                  {Object.values(gameState.ship.corridors).map((corridor) => {
+                  {Object.values(view.ship.corridors).map((corridor) => {
                     const c1 = coordsMap.get(corridor.fromRoomId);
                     const c2 = coordsMap.get(corridor.toRoomId);
                     if (!c1 || !c2) return null;
 
                     return (
-                      <CorridorEdge
-                        key={corridor.id}
-                        corridor={corridor}
-                        x1={c1.x}
-                        y1={c1.y}
-                        x2={c2.x}
-                        y2={c2.y}
-                        onToggleDoor={toggleDoor}
-                        onToggleNoise={toggleNoise}
-                      />
+                      <CorridorEdge key={corridor.id} corridor={corridor} x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} />
                     );
                   })}
                 </g>
 
                 {/* 2. Слой комнат */}
                 <g id="rooms-layer">
-                  {Object.values(gameState.ship.rooms).map((room) => {
+                  {Object.values(view.ship.rooms).map((room) => {
                     const coord = coordsMap.get(room.id);
                     if (!coord) return null;
 

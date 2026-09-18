@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ActionCard, SanitizedGameState } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { ChevronUp, ChevronDown, Hand, CheckCircle2, Briefcase } from 'lucide-react';
+import { ChevronUp, ChevronDown, Hand, CheckCircle2, Briefcase, Zap, RotateCcw, Play, AlertCircle } from 'lucide-react';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -9,18 +9,25 @@ interface PlayerHandPanelProps {
 
 export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const [isOpen, setIsOpen] = React.useState(true);
-  const [selectedCardIds, setSelectedCardIds] = React.useState<string[]>([]);
   const [showInventory, setShowInventory] = React.useState(false);
   const [prevTurnKey, setPrevTurnKey] = React.useState<string>('');
+  const [showPassConfirm, setShowPassConfirm] = React.useState(false);
 
+  const selectedCardIds = useGameStore((state) => state.selectedCardIds);
+  const convertedCardIds = useGameStore((state) => state.convertedCardIds);
+  const toggleSelectCard = useGameStore((state) => state.toggleSelectCard);
+  const clearSelection = useGameStore((state) => state.clearSelection);
+  const convertToEnergy = useGameStore((state) => state.convertToEnergy);
+  const refundConvertedCard = useGameStore((state) => state.refundConvertedCard);
   const dispatch = useGameStore((state) => state.dispatch);
+
   const activePlayerId = view.meta.activePlayerId;
   const player = view.players[activePlayerId];
 
   const currentTurnKey = `${activePlayerId}-${player?.actionsPerformedThisRound ?? 0}`;
   if (currentTurnKey !== prevTurnKey) {
     setPrevTurnKey(currentTurnKey);
-    setSelectedCardIds([]);
+    clearSelection();
   }
 
   if (!player) return null;
@@ -30,19 +37,31 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const isMyTurn = view.meta.activePlayerId === player.id;
   const canAct = isMyTurn && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE';
 
-  const toggleSelectCard = (id: string) => {
-    setSelectedCardIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  const handlePassClick = () => {
+    // Если на руке ещё есть карты или есть конвертированные очки действия — запрашиваем подтверждение
+    if (handCards.length > 0 || convertedCardIds.length > 0) {
+      setShowPassConfirm(true);
+      return;
+    }
+    executePass();
   };
 
-  const handlePass = () => {
-    // Пас со сбросом выбранных карт (включая Заражение)
+  const executePass = () => {
     dispatch({
       type: 'ACTION_PASS',
       payload: {
         discardCardIds: selectedCardIds,
       },
     });
-    setSelectedCardIds([]);
+    clearSelection();
+    setShowPassConfirm(false);
+  };
+
+  const handlePlayCard = (card: ActionCard) => {
+    // В текущей версии v0.3.0 базовые карты действий играются как действие.
+    // Если требуется сброс карт (playCost > 0), они спишутся из конвертированных очков
+    // Пока уникальные эффекты карт реализуются, выводим соответствующее уведомление или производим действие
+    alert(`Разыгрывание карты «${card.name}» (эффект: ${card.description})`);
   };
 
   return (
@@ -67,6 +86,11 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           <span className="text-xs font-bold text-amber-400">
             Действий в этом ходу: {player.actionsPerformedThisRound} / 2
           </span>
+          {convertedCardIds.length > 0 && (
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 flex items-center gap-1">
+              <Zap size={12} /> Очки действия: {convertedCardIds.length}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -196,67 +220,131 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             {handCards.map((card) => {
               const isContamination = !('characterClass' in card);
               const isSelected = selectedCardIds.includes(card.id);
+              const isConverted = convertedCardIds.includes(card.id);
 
               return (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => toggleSelectCard(card.id)}
-                  className={`w-32 h-28 shrink-0 rounded-lg p-2.5 text-left border flex flex-col justify-between transition-all select-none relative ${
-                    isSelected
-                      ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_15px_rgba(6,182,212,0.4)] -translate-y-1'
-                      : isContamination
-                        ? 'border-purple-800/60 bg-purple-950/40 hover:border-purple-600'
-                        : 'border-slate-800 bg-slate-900/80 hover:border-slate-700 hover:bg-slate-900'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                          isContamination ? 'bg-purple-900/80 text-purple-200' : 'bg-slate-800 text-cyan-300'
-                        }`}
-                      >
-                        {isContamination ? 'Заражение' : `Цена: ${(card as ActionCard).playCost}`}
-                      </span>
-                      {isSelected && <CheckCircle2 size={13} className="text-cyan-400" />}
+                <div key={card.id} className="relative group">
+                  {/* Всплывающая кнопка «Применить», если выбрана ровно эта одна карта */}
+                  {isSelected && selectedCardIds.length === 1 && !isConverted && !isContamination && (
+                    <button
+                      type="button"
+                      onClick={() => handlePlayCard(card as ActionCard)}
+                      className="absolute -top-7 left-1/2 -translate-x-1/2 z-50 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] px-2.5 py-0.5 rounded shadow-lg flex items-center gap-1 active:scale-95 transition"
+                    >
+                      <Play size={11} /> Применить
+                    </button>
+                  )}
+
+                  {/* Карточка */}
+                  <button
+                    type="button"
+                    disabled={isConverted}
+                    onClick={() => toggleSelectCard(card.id)}
+                    className={`w-32 h-28 shrink-0 rounded-lg p-2.5 text-left border flex flex-col justify-between transition-all select-none relative ${
+                      isConverted
+                        ? 'border-emerald-700/60 bg-emerald-950/40 opacity-70 cursor-not-allowed'
+                        : isSelected
+                          ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_15px_rgba(6,182,212,0.4)] -translate-y-1'
+                          : isContamination
+                            ? 'border-purple-800/60 bg-purple-950/40 hover:border-purple-600'
+                            : 'border-slate-800 bg-slate-900/80 hover:border-slate-700 hover:bg-slate-900'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                            isConverted
+                              ? 'bg-emerald-900 text-emerald-200'
+                              : isContamination
+                                ? 'bg-purple-900/80 text-purple-200'
+                                : 'bg-slate-800 text-cyan-300'
+                          }`}
+                        >
+                          {isConverted
+                            ? 'В резерве'
+                            : isContamination
+                              ? 'Заражение'
+                              : `Цена: ${(card as ActionCard).playCost}`}
+                        </span>
+                        {isSelected && !isConverted && <CheckCircle2 size={13} className="text-cyan-400" />}
+                        {isConverted && <Zap size={13} className="text-emerald-400" />}
+                      </div>
+
+                      <div className="text-xs font-bold text-white line-clamp-1 leading-snug">
+                        {isContamination ? 'Карта Заражения' : (card as ActionCard).name}
+                      </div>
                     </div>
 
-                    <div className="text-xs font-bold text-white line-clamp-1 leading-snug">
-                      {isContamination ? 'Карта Заражения' : (card as ActionCard).name}
+                    <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                      {isConverted ? (
+                        <div className="flex items-center justify-between text-emerald-300">
+                          <span>Очко действия</span>
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              refundConvertedCard(card.id);
+                            }}
+                            className="text-[9px] underline hover:text-white cursor-pointer"
+                          >
+                            Вернуть
+                          </span>
+                        </div>
+                      ) : isContamination ? (
+                        card.isScanned ? (
+                          card.isInfected ? (
+                            'ИНФЕКЦИЯ ОБНАРУЖЕНА'
+                          ) : (
+                            'Стерильно'
+                          )
+                        ) : (
+                          'Не просканировано'
+                        )
+                      ) : (
+                        (card as ActionCard).description
+                      )}
                     </div>
-                  </div>
-
-                  <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                    {isContamination
-                      ? card.isScanned
-                        ? card.isInfected
-                          ? 'ИНФЕКЦИЯ ОБНАРУЖЕНА'
-                          : 'Стерильно'
-                        : 'Не просканировано'
-                      : (card as ActionCard).description}
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
 
           {/* Панель управления ходом / оплатой */}
-          <div className="flex items-center gap-3 shrink-0 self-end md:self-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-            <div className="text-right">
-              <div className="text-[11px] text-slate-400">
-                Выбрано для сброса: <b className="text-cyan-300">{selectedCardIds.length}</b>
-              </div>
-              <div className="text-[10px] text-slate-500">
-                {selectedCardIds.length > 0 ? 'Карты пойдут на оплату действия' : 'Выберите карты при необходимости'}
-              </div>
-            </div>
+          <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+            {/* Кнопка конвертации в очки действия */}
+            {selectedCardIds.length > 0 && (
+              <button
+                type="button"
+                onClick={convertToEnergy}
+                className="min-h-[44px] px-3 rounded-lg font-bold text-xs uppercase tracking-wider transition border bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-600/70 text-emerald-200 active:scale-95 flex items-center gap-1.5"
+                title="Конвертировать выбранные карты в очки действия"
+              >
+                <Zap size={15} />
+                <span>В очки действия ({selectedCardIds.length})</span>
+              </button>
+            )}
+
+            {/* Кнопка отмены конвертации всех очков, если они есть */}
+            {convertedCardIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  convertedCardIds.forEach((id) => refundConvertedCard(id));
+                }}
+                className="min-h-[44px] px-2.5 rounded-lg font-semibold text-xs transition border bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300 flex items-center gap-1"
+                title="Вернуть все очки действия обратно в карты"
+              >
+                <RotateCcw size={14} />
+                <span>Отмена ({convertedCardIds.length})</span>
+              </button>
+            )}
 
             {/* Кнопка Паса */}
             <button
               type="button"
               disabled={!canAct}
-              onClick={handlePass}
+              onClick={handlePassClick}
               className={`min-h-[44px] px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition border ${
                 canAct
                   ? 'bg-red-950/50 hover:bg-red-900/80 border-red-700/60 text-red-200 active:scale-95'
@@ -265,6 +353,38 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             >
               Пас {selectedCardIds.length > 0 ? `(сброс: ${selectedCardIds.length})` : ''}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подтверждения Паса */}
+      {showPassConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-red-600/60 rounded-xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 text-red-400 border-b border-slate-800 pb-3">
+              <AlertCircle size={20} />
+              <h3 className="text-lg font-heading tracking-wider text-white">ПОДТВЕРЖДЕНИЕ ПАСА</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              У вас ещё остались карты на руке ({handCards.length}) или неиспользованные очки действия (
+              {convertedCardIds.length}). Вы уверены, что хотите завершить участие в текущем раунде?
+            </p>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPassConfirm(false)}
+                className="flex-1 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={executePass}
+                className="flex-1 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-bold uppercase transition"
+              >
+                Спасовать
+              </button>
+            </div>
           </div>
         </div>
       )}

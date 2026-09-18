@@ -257,6 +257,13 @@ describe('Действия комнат (Room Abilities)', () => {
 
   it('хирургический отсек (SURGERY): сканирует карты заражения, удаляет зараженные, наносит 1 легкую рану и завершает ход', () => {
     const state = setupState();
+    // Добавим второго игрока, чтобы пас player-1 не закрывал весь раунд
+    state.players['player-2'] = {
+      ...state.players['player-1']!,
+      id: 'player-2',
+      orderNumber: 2,
+      hasPassed: false,
+    };
     const player = state.players['player-1']!;
     giveHand(state, 'player-1', 4);
 

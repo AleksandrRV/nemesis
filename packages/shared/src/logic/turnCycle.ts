@@ -73,6 +73,13 @@ export function advanceTurn(state: GameState, completedPlayerId: string): void {
 
   if (allPassed) {
     state.meta.phase = 'EVENT_PHASE';
+    // В рамках текущей версии Фаза Событий (События, атаки Чужих) находится в разработке (этап v0.5.0).
+    // Чтобы игра не блокировалась, логируем пропуск и автоматически запускаем следующий раунд.
+    appendGameLog(state, {
+      type: 'EVENT_PHASE_SKIPPED',
+      round: state.meta.currentRound,
+    });
+    startNewRound(state);
     return;
   }
 

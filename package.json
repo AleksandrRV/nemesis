@@ -1,6 +1,6 @@
 {
   "name": "nemesis-digital",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "private": true,
   "description": "Digital PWA adaptation of the Nemesis board game",
   "workspaces": [

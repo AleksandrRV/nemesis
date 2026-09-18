@@ -136,7 +136,7 @@ describe('Цикл микроходов и порядок игроков (v0.3.0
     expect(state.gameLog.some((e) => e.event.type === 'FIRE_DAMAGE_TAKEN')).toBe(true);
   });
 
-  it('при общем пасе всех игроков переводит игру в EVENT_PHASE', () => {
+  it('при общем пасе всех игроков автоматически пропускает нереализованную фазу событий и начинает новый раунд', () => {
     const engine = new GameEngine();
     const state = createInitialGameState('test-turn-all-pass', { playerCount: 2 });
 
@@ -144,7 +144,10 @@ describe('Цикл микроходов и порядок игроков (v0.3.0
     expect(s1.meta.phase).toBe('PLAYER_PHASE');
 
     const s2 = engine.processAction(s1, { type: 'ACTION_PASS', payload: {} });
-    expect(s2.meta.phase).toBe('EVENT_PHASE');
+    // Автоматический переход к новому раунду
+    expect(s2.meta.phase).toBe('PLAYER_PHASE');
+    expect(s2.meta.currentRound).toBe(2);
+    expect(s2.gameLog.some((e) => e.event.type === 'EVENT_PHASE_SKIPPED')).toBe(true);
   });
 
   it('startNewRound корректно начинает новый раунд: сброс паса, передача жетона 1-го игрока и добор', () => {

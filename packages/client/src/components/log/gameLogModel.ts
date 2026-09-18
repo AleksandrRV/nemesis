@@ -285,6 +285,16 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
 
+    case 'EVENT_PHASE_SKIPPED':
+      return [
+        { text: 'Фаза Событий (раунд ', tone: 'warning' },
+        { text: String(event.round), tone: 'warning', strong: true },
+        {
+          text: ') пропущена: механика Событий и атак Чужих находится в разработке (v0.5.0). Начат следующий раунд.',
+          tone: 'warning',
+        },
+      ];
+
     case 'DEV_STATE_CHANGED':
       return [
         { text: 'Dev-переключатель', tone: 'warning', strong: true },

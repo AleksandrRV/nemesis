@@ -219,7 +219,7 @@ describe('Интеграция оплаты в действия движка и 
 
   it('действие ACTION_PASS позволяет сбросить любое количество карт (включая Заражение)', () => {
     const engine = new GameEngine();
-    const state = createInitialGameState('test-seed-pass');
+    const state = createInitialGameState('test-seed-pass', { playerCount: 2 });
     const player = state.players['player-1']!;
 
     // Добавим в руку карту Заражения

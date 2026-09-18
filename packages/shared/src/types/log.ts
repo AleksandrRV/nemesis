@@ -112,6 +112,10 @@ export type GameLogEvent =
       discardedCount: number;
     }
   | {
+      type: 'EVENT_PHASE_SKIPPED';
+      round: number;
+    }
+  | {
       type: 'DEV_STATE_CHANGED';
       playerId: string;
       target: 'DOOR' | 'NOISE';

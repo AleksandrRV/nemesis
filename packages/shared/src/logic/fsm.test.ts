@@ -132,10 +132,14 @@ describe('GameEngine: перемещение', () => {
     const farRoom = Object.keys(state.ship.rooms)
       .map(Number)
       .find((roomId) => roomId !== 11 && !findAdjacentOpenRoomIds(state, 11).includes(roomId));
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expectEngineError(
       () =>
-        engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: farRoom!, discardCardIds: [] } }),
+        engine.processAction(state, {
+          type: 'ACTION_MOVE',
+          payload: { targetRoomId: farRoom!, discardCardIds: [cardId] },
+        }),
       'NO_OPEN_DOOR_BETWEEN_ROOMS',
     );
   });
@@ -144,6 +148,7 @@ describe('GameEngine: перемещение', () => {
     const engine = new GameEngine();
     const state = freshState();
     const neighbour = openCorridorFrom(state, 11);
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     for (const corridor of Object.values(state.ship.corridors)) {
       if (corridor.fromRoomId === 11 || corridor.toRoomId === 11) {
@@ -155,7 +160,7 @@ describe('GameEngine: перемещение', () => {
       () =>
         engine.processAction(state, {
           type: 'ACTION_MOVE',
-          payload: { targetRoomId: neighbour.toRoomId, discardCardIds: [] },
+          payload: { targetRoomId: neighbour.toRoomId, discardCardIds: [cardId] },
         }),
       'NO_OPEN_DOOR_BETWEEN_ROOMS',
       /открытой Дверью/,
@@ -164,32 +169,38 @@ describe('GameEngine: перемещение', () => {
 
   it('отклоняет переход в отсек, где персонаж уже стоит', () => {
     const engine = new GameEngine();
+    const state = freshState();
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expectEngineError(
       () =>
-        engine.processAction(freshState(), { type: 'ACTION_MOVE', payload: { targetRoomId: 11, discardCardIds: [] } }),
+        engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 11, discardCardIds: [cardId] } }),
       'MOVE_TARGET_IS_CURRENT_ROOM',
     );
   });
 
   it('отклоняет переход в несуществующий отсек', () => {
     const engine = new GameEngine();
+    const state = freshState();
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expectEngineError(
       () =>
-        engine.processAction(freshState(), { type: 'ACTION_MOVE', payload: { targetRoomId: 999, discardCardIds: [] } }),
+        engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 999, discardCardIds: [cardId] } }),
       'UNKNOWN_ROOM',
     );
   });
 
   it('отклоняет действие от неизвестного персонажа', () => {
     const engine = new GameEngine();
+    const state = freshState();
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expectEngineError(
       () =>
         engine.processAction(
-          freshState(),
-          { type: 'ACTION_MOVE', payload: { targetRoomId: 1, discardCardIds: [] } },
+          state,
+          { type: 'ACTION_MOVE', payload: { targetRoomId: 1, discardCardIds: [cardId] } },
           { actorId: 'player-42' },
         ),
       'UNKNOWN_PLAYER',
@@ -200,11 +211,13 @@ describe('GameEngine: перемещение', () => {
     const engine = new GameEngine();
     const state = freshState();
     const player = state.players['player-1'];
+    const cardId = player!.actionDeck.hand[0]!.id;
 
     if (player) player.isDead = true;
 
     expectEngineError(
-      () => engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 1, discardCardIds: [] } }),
+      () =>
+        engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 1, discardCardIds: [cardId] } }),
       'PLAYER_IS_DEAD',
     );
   });
@@ -1191,6 +1204,7 @@ describe('Запасы маркеров заканчивают партию по
   it('оконченная партия не принимает действий: явная ошибка вместо продолжения', () => {
     const engine = new GameEngine();
     const state = freshState();
+    const cardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     state.meta.phase = 'GAME_OVER';
     state.meta.gameOverReason = 'SHIP_EXPLODED';
@@ -1199,7 +1213,7 @@ describe('Запасы маркеров заканчивают партию по
       () =>
         engine.processAction(state, {
           type: 'ACTION_MOVE',
-          payload: { targetRoomId: findAdjacentOpenRoomIds(state, 11)[0]!, discardCardIds: [] },
+          payload: { targetRoomId: findAdjacentOpenRoomIds(state, 11)[0]!, discardCardIds: [cardId] },
         }),
       'GAME_IS_OVER',
     );

@@ -115,8 +115,9 @@ describe('LocalInMemoryTransport: действия', () => {
     const farRoom = Object.keys(transport.getLocalState().ship.rooms)
       .map(Number)
       .find((roomId) => roomId !== 11 && !findAdjacentOpenRoomIds(transport.getLocalState(), 11).includes(roomId))!;
+    const cardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [] } });
+    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [cardId] } });
 
     expect(views).toHaveLength(1);
     expect(events[0]?.type).toBe('ACTION_REJECTED');

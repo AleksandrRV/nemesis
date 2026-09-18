@@ -19,6 +19,7 @@ import { appendGameLog } from './gameLog.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { drawFromStream } from '../utils/rng.js';
 import { executeCardPayment } from './cardsPayment.js';
+import { advanceTurn } from './turnCycle.js';
 
 /**
  * Движок правил.
@@ -63,7 +64,13 @@ export type EngineErrorCode =
   | 'PAYMENT_CARD_DUPLICATE'
   | 'PAYMENT_CARD_CANNOT_PAY_SELF'
   | 'PAYMENT_CARD_NOT_IN_HAND'
-  | 'CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST';
+  | 'CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST'
+  /** Игрок уже спасовал в текущей Фазе Игроков (стр. 10). */
+  | 'PLAYER_ALREADY_PASSED'
+  /** Действие совершается не в свой ход (стр. 10). */
+  | 'NOT_ACTIVE_PLAYER'
+  /** Игрок не находится в Фазе Игроков. */
+  | 'NOT_IN_PLAYER_PHASE';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -203,6 +210,26 @@ export class GameEngine {
       throw new EngineError('PLAYER_IS_DEAD', `Погибший персонаж ${actorId} не может действовать.`);
     }
 
+    if (!isDevAction(action)) {
+      if (state.meta.phase !== 'PLAYER_PHASE') {
+        throw new EngineError(
+          'NOT_IN_PLAYER_PHASE',
+          `Действия игроков разрешены только в Фазе Игроков (текущая: ${state.meta.phase}).`,
+        );
+      }
+
+      if (player.hasPassed) {
+        throw new EngineError(
+          'PLAYER_ALREADY_PASSED',
+          `Игрок ${actorId} уже спасовал в текущей Фазе Игроков и не может выполнять действия.`,
+        );
+      }
+
+      if (state.meta.activePlayerId !== actorId) {
+        throw new EngineError('NOT_ACTIVE_PLAYER', `Сейчас ход игрока ${state.meta.activePlayerId}, а не ${actorId}.`);
+      }
+    }
+
     switch (action.type) {
       case 'ACTION_MOVE': {
         const targetRoomId = action.payload.targetRoomId;
@@ -212,6 +239,10 @@ export class GameEngine {
         executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
 
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
         return;
       }
 
@@ -229,6 +260,10 @@ export class GameEngine {
         const corridors = findOpenCorridors(state, player.roomId, targetRoomId);
 
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'CAREFUL', chosen });
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
         return;
       }
 
@@ -307,6 +342,7 @@ export class GameEngine {
           playerId: actorId,
           discardedCount: discardIds.length,
         });
+        advanceTurn(state, actorId);
         return;
       }
       default:
@@ -550,6 +586,8 @@ function resolveExploreRoom(
     category: room.category,
   });
 
+  // Эффект вскрытия не должен затирать исходный explorationEffect тайла,
+  // так как он требуется следующему прерыванию шума NOISE_ROLL_INTERRUPT.
   if (explorationEffect !== null) {
     appendGameLog(state, {
       type: 'EXPLORATION_TOKEN_REVEALED',

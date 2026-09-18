@@ -30,6 +30,22 @@ export type GameLogEffectOutcome =
 export type GameLogEvent =
   | { type: 'GAME_STARTED' }
   | {
+      type: 'ROUND_STARTED';
+      round: number;
+      firstPlayerId: string;
+    }
+  | {
+      type: 'PLAYER_TURN_STARTED';
+      playerId: string;
+      round: number;
+    }
+  | {
+      type: 'FIRE_DAMAGE_TAKEN';
+      playerId: string;
+      roomId: RoomId;
+      woundsCount: number;
+    }
+  | {
       type: 'PLAYER_MOVED';
       playerId: string;
       fromRoomId: RoomId;

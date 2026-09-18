@@ -155,6 +155,29 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
     case 'GAME_STARTED':
       return [{ text: 'Партия начата', tone: 'system', strong: true }, { text: '.' }];
 
+    case 'ROUND_STARTED':
+      return [
+        { text: `Раунд ${event.round}`, tone: 'system', strong: true },
+        { text: `: жетон Первого Игрока у ` },
+        { text: playerName(view, event.firstPlayerId), tone: 'player', strong: true },
+        { text: '.' },
+      ];
+
+    case 'PLAYER_TURN_STARTED':
+      return [
+        { text: 'Ход игрока ', tone: 'system' },
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: '.' },
+      ];
+
+    case 'FIRE_DAMAGE_TAKEN':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` завершил ход в горящем отсеке ${roomLabel(view, event.roomId)} и получил ` },
+        { text: `${event.woundsCount} Лёгкую Травму`, tone: 'fire', strong: true },
+        { text: '.' },
+      ];
+
     case 'PLAYER_MOVED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

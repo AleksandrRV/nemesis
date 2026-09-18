@@ -578,8 +578,18 @@ function roomHasTechnicalEntrance(roomId: RoomId): boolean {
 }
 
 /** Свободно ли выбранное место для маркера Шума (стр. 13, 15). */
-function chosenPlaceHasNoise(state: GameState, chosen: CarefulMoveChosenCorridor): boolean {
+function chosenPlaceHasNoise(state: GameState, chosen: CarefulMoveChosenCorridor, targetRoomId?: RoomId): boolean {
   if (chosen.kind === 'TECHNICAL_CORRIDOR') return state.ship.technicalCorridorNoise;
+
+  if (chosen.kind === 'CORRIDOR_NUMBER') {
+    if (!targetRoomId) return false;
+    const leading = corridorsLeadingInto(state, targetRoomId);
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, targetRoomId).includes(chosen.corridorNumber),
+    );
+    // Свободно, если хотя бы в одном коридоре с этим номером ещё нет шума
+    return matching.length > 0 && matching.every((c) => c.hasNoise);
+  }
 
   const corridor = state.ship.corridors[chosen.corridorId];
 
@@ -615,6 +625,16 @@ function requireCarefulMoveAllowed(
         `В отсеке ${targetRoomId} нет Входа в Технические Коридоры: туда нельзя положить маркер (стр. 16).`,
       );
     }
+  } else if (chosen.kind === 'CORRIDOR_NUMBER') {
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, targetRoomId).includes(chosen.corridorNumber),
+    );
+    if (matching.length === 0) {
+      throw new EngineError(
+        'CAREFUL_MOVE_BAD_CHOICE',
+        `Номер коридора ${chosen.corridorNumber} не ведет в отсек ${targetRoomId} (стр. 13).`,
+      );
+    }
   } else if (!leading.some((corridor) => corridor.id === chosen.corridorId)) {
     throw new EngineError(
       'CAREFUL_MOVE_BAD_CHOICE',
@@ -632,7 +652,7 @@ function requireCarefulMoveAllowed(
     );
   }
 
-  if (chosenPlaceHasNoise(state, chosen)) {
+  if (chosenPlaceHasNoise(state, chosen, targetRoomId)) {
     throw new EngineError(
       'CAREFUL_MOVE_NO_FREE_CORRIDOR',
       'Выбранный Коридор уже помечен маркером Шума: выберите другой (стр. 13).',
@@ -1026,6 +1046,36 @@ function placeCarefulNoiseMarker(
       target: { kind: 'TECHNICAL_CORRIDOR' },
       reason: 'CAREFUL',
     });
+    return;
+  }
+
+  if (chosen.kind === 'CORRIDOR_NUMBER') {
+    const leading = corridorsLeadingInto(state, roomId);
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, roomId).includes(chosen.corridorNumber),
+    );
+
+    if (matching.length === 0) {
+      throw new EngineError(
+        'CAREFUL_MOVE_BAD_CHOICE',
+        `Коридоров с номером ${chosen.corridorNumber} нет в отсеке ${roomId}.`,
+      );
+    }
+
+    // Если коридоров с таким номером несколько - шум добавляется во все коридоры с таким номером (без дублирования Контакта, если уже есть шум)
+    for (const corridor of matching) {
+      if (!corridor.hasNoise) {
+        requireNoiseMarkerSupply(state);
+        corridor.hasNoise = true;
+        appendGameLog(state, {
+          type: 'NOISE_MARKER_PLACED',
+          playerId,
+          roomId,
+          target: { kind: 'CORRIDOR', corridorId: corridor.id },
+          reason: 'CAREFUL',
+        });
+      }
+    }
     return;
   }
 

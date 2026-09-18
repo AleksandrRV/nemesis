@@ -1,4 +1,4 @@
-import type { EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
+import type { CharacterClass, EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
 import { create } from 'zustand';
 
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
@@ -33,11 +33,13 @@ export interface GameStoreState {
 
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
-  startNewGame: (seed?: string) => void;
+  startNewGame: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
 }
 
 /** Транспорт локальной партии умеет начинать новый стол; сетевой — нет (это дело сервера). */
-export type TransportFactory = () => IGameTransport & { startNewGame?: (seed?: string) => void };
+export type TransportFactory = () => IGameTransport & {
+  startNewGame?: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
+};
 
 /** Отсек, который открыт по умолчанию: там, где стоит играющий персонаж. */
 function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
@@ -133,11 +135,11 @@ export function createGameStore(createTransport: TransportFactory) {
       set({ selectedRoomId: roomId });
     },
 
-    startNewGame: (seed) => {
+    startNewGame: (seed, options) => {
       if (transport.startNewGame) {
         // Локальная партия продолжается тем же транспортом: он уже держит
         // движок и сохранение, достаточно бросить новый стол.
-        transport.startNewGame(seed);
+        transport.startNewGame(seed, options);
         set({
           selectedRoomId: defaultRoomId(store.getState().view),
           rejection: null,

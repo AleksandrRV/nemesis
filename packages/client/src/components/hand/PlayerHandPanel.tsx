@@ -1,7 +1,18 @@
 import React from 'react';
 import type { ActionCard, SanitizedGameState } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { ChevronUp, ChevronDown, Hand, CheckCircle2, Briefcase, Zap, RotateCcw, Play, AlertCircle } from 'lucide-react';
+import {
+  ChevronUp,
+  ChevronDown,
+  Hand,
+  CheckCircle2,
+  Briefcase,
+  Zap,
+  RotateCcw,
+  Play,
+  AlertCircle,
+  HeartPulse,
+} from 'lucide-react';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -58,9 +69,6 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   };
 
   const handlePlayCard = (card: ActionCard) => {
-    // В текущей версии v0.3.0 базовые карты действий играются как действие.
-    // Если требуется сброс карт (playCost > 0), они спишутся из конвертированных очков
-    // Пока уникальные эффекты карт реализуются, выводим соответствующее уведомление или производим действие
     alert(`Разыгрывание карты «${card.name}» (эффект: ${card.description})`);
   };
 
@@ -94,6 +102,33 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Статус здоровья в свёрнутом состоянии (символическое отображение) */}
+          {!showInventory && (
+            <div className="flex items-center gap-2 mr-2">
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-[11px]"
+                title="Лёгкие раны (макс 2)"
+              >
+                <HeartPulse size={12} className={player.lightWounds > 0 ? 'text-rose-400' : 'text-slate-500'} />
+                <span className={player.lightWounds > 0 ? 'text-rose-300 font-bold' : 'text-slate-400'}>
+                  Раны: {player.lightWounds}/2
+                </span>
+              </div>
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-[11px]"
+                title="Тяжёлые травмы (макс 3)"
+              >
+                <AlertCircle
+                  size={12}
+                  className={player.seriousWounds.length > 0 ? 'text-red-500 animate-pulse' : 'text-slate-500'}
+                />
+                <span className={player.seriousWounds.length > 0 ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                  Травмы: {player.seriousWounds.length}/3
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Кнопка показа снаряжения / инвентаря */}
           <button
             type="button"
@@ -214,37 +249,26 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
 
       {/* Карты в руке и кнопки действий */}
       {isOpen && (
-        <div className="p-3 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between overflow-x-auto">
+        <div className="p-3 pt-4 pb-4 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between overflow-x-auto min-h-[160px]">
           {/* Сетка карт руки */}
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 md:pb-0">
+          <div className="flex items-center gap-3 overflow-x-auto pt-4 pb-2 px-1">
             {handCards.map((card) => {
               const isContamination = !('characterClass' in card);
               const isSelected = selectedCardIds.includes(card.id);
               const isConverted = convertedCardIds.includes(card.id);
 
               return (
-                <div key={card.id} className="relative group">
-                  {/* Всплывающая кнопка «Применить», если выбрана ровно эта одна карта */}
-                  {isSelected && selectedCardIds.length === 1 && !isConverted && !isContamination && (
-                    <button
-                      type="button"
-                      onClick={() => handlePlayCard(card as ActionCard)}
-                      className="absolute -top-7 left-1/2 -translate-x-1/2 z-50 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] px-2.5 py-0.5 rounded shadow-lg flex items-center gap-1 active:scale-95 transition"
-                    >
-                      <Play size={11} /> Применить
-                    </button>
-                  )}
-
+                <div key={card.id} className="relative flex flex-col items-center shrink-0">
                   {/* Карточка */}
                   <button
                     type="button"
                     disabled={isConverted}
                     onClick={() => toggleSelectCard(card.id)}
-                    className={`w-32 h-28 shrink-0 rounded-lg p-2.5 text-left border flex flex-col justify-between transition-all select-none relative ${
+                    className={`w-36 h-32 rounded-xl p-3 text-left border flex flex-col justify-between transition-all select-none relative ${
                       isConverted
                         ? 'border-emerald-700/60 bg-emerald-950/40 opacity-70 cursor-not-allowed'
                         : isSelected
-                          ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_15px_rgba(6,182,212,0.4)] -translate-y-1'
+                          ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_20px_rgba(6,182,212,0.45)] -translate-y-2'
                           : isContamination
                             ? 'border-purple-800/60 bg-purple-950/40 hover:border-purple-600'
                             : 'border-slate-800 bg-slate-900/80 hover:border-slate-700 hover:bg-slate-900'
@@ -253,7 +277,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                     <div>
                       <div className="flex items-center justify-between gap-1 mb-1">
                         <span
-                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
                             isConverted
                               ? 'bg-emerald-900 text-emerald-200'
                               : isContamination
@@ -267,8 +291,8 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                               ? 'Заражение'
                               : `Цена: ${(card as ActionCard).playCost}`}
                         </span>
-                        {isSelected && !isConverted && <CheckCircle2 size={13} className="text-cyan-400" />}
-                        {isConverted && <Zap size={13} className="text-emerald-400" />}
+                        {isSelected && !isConverted && <CheckCircle2 size={14} className="text-cyan-400" />}
+                        {isConverted && <Zap size={14} className="text-emerald-400" />}
                       </div>
 
                       <div className="text-xs font-bold text-white line-clamp-1 leading-snug">
@@ -305,6 +329,20 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                       )}
                     </div>
                   </button>
+
+                  {/* Кнопка «Применить» снизу карты в освободившемся месте после сдвига вверх */}
+                  {isSelected && selectedCardIds.length === 1 && !isConverted && !isContamination && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayCard(card as ActionCard);
+                      }}
+                      className="mt-1 w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] py-1 rounded-lg shadow-lg flex items-center justify-center gap-1 active:scale-95 transition animate-in fade-in slide-in-from-top-1"
+                    >
+                      <Play size={11} fill="currentColor" /> Применить
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -317,7 +355,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
               <button
                 type="button"
                 onClick={convertToEnergy}
-                className="min-h-[44px] px-3 rounded-lg font-bold text-xs uppercase tracking-wider transition border bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-600/70 text-emerald-200 active:scale-95 flex items-center gap-1.5"
+                className="min-h-[44px] px-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition border bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-600/70 text-emerald-200 active:scale-95 flex items-center gap-1.5"
                 title="Конвертировать выбранные карты в очки действия"
               >
                 <Zap size={15} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BoardObject, CarefulMoveChosenCorridor, SanitizedRoomState } from '@nemesis/shared';
+import type { BoardObject, CarefulMoveChosenCorridor, CorridorNumber, SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { X, Flame, Wrench, Laptop, Package, User, Footprints, AlertCircle, Ban, ShieldAlert } from 'lucide-react';
@@ -59,7 +59,29 @@ export const RoomInspector: React.FC = () => {
   const corridorsIntoTarget = Object.values(view.ship.corridors).filter(
     (c) => c.fromRoomId === room.id || c.toRoomId === room.id,
   );
-  const freeCorridors = corridorsIntoTarget.filter((c) => !c.hasNoise);
+
+  // Получаем уникальные номера коридоров со стороны целевого отсека (1..4)
+  const availableNumbersSet = new Set<number>();
+  for (const c of corridorsIntoTarget) {
+    const nums = c.fromRoomId === room.id ? c.fromNumbers : c.toNumbers;
+    for (const n of nums) {
+      availableNumbersSet.add(n);
+    }
+  }
+
+  // Проверяем доступность каждого номера (хотя бы один коридор с этим номером не должен иметь шума)
+  const availableCorridorNumbers = Array.from(availableNumbersSet)
+    .sort((a, b) => a - b)
+    .map((num) => {
+      const corridorNumber = num as CorridorNumber;
+      const corridorsWithNum = corridorsIntoTarget.filter((c) => {
+        const nums = c.fromRoomId === room.id ? c.fromNumbers : c.toNumbers;
+        return nums.includes(corridorNumber);
+      });
+      const isFree = corridorsWithNum.some((c) => !c.hasNoise);
+      return { number: corridorNumber, isFree, count: corridorsWithNum.length };
+    });
+
   const hasFreeTechnical = room.hasTechnicalCorridorEntrance && !view.ship.technicalCorridorNoise;
 
   const handleNormalMove = () => {
@@ -203,7 +225,7 @@ export const RoomInspector: React.FC = () => {
       {isCarefulSelecting && canMoveHere && (
         <div className="p-3 bg-slate-900 border border-amber-500/50 rounded-lg mb-2 space-y-2">
           <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
-            <span>Выберите коридор для маркера шума:</span>
+            <span>Выберите номер коридора для шума:</span>
             <button
               type="button"
               onClick={() => setIsCarefulSelecting(false)}
@@ -213,20 +235,29 @@ export const RoomInspector: React.FC = () => {
             </button>
           </div>
           <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-            {freeCorridors.map((corridor) => (
+            {availableCorridorNumbers.map((entry) => (
               <button
-                key={corridor.id}
+                key={entry.number}
                 type="button"
+                disabled={!entry.isFree}
                 onClick={() =>
                   handleCarefulMove({
-                    kind: 'CORRIDOR',
-                    corridorId: corridor.id,
+                    kind: 'CORRIDOR_NUMBER',
+                    corridorNumber: entry.number,
                   })
                 }
-                className="w-full text-left px-2.5 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 flex justify-between items-center"
+                className={`w-full text-left px-2.5 py-1.5 rounded border text-xs flex justify-between items-center transition ${
+                  entry.isFree
+                    ? 'bg-slate-950 hover:bg-slate-800 border-slate-700 text-slate-200 cursor-pointer'
+                    : 'bg-slate-950/40 border-slate-800 text-slate-600 cursor-not-allowed'
+                }`}
               >
-                <span>Коридор {corridor.id}</span>
-                <span className="text-[10px] text-emerald-400">Свободен</span>
+                <span>
+                  Коридор #{entry.number} {entry.count > 1 ? `(${entry.count} коридора)` : ''}
+                </span>
+                <span className={`text-[10px] ${entry.isFree ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  {entry.isFree ? 'Свободен' : 'Шум уже есть'}
+                </span>
               </button>
             ))}
             {hasFreeTechnical && (
@@ -239,12 +270,12 @@ export const RoomInspector: React.FC = () => {
                 }
                 className="w-full text-left px-2.5 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-amber-300 flex justify-between items-center"
               >
-                <span>Технический коридор</span>
+                <span>Технический коридор (вентиляция)</span>
                 <span className="text-[10px] text-emerald-400">Свободен</span>
               </button>
             )}
-            {freeCorridors.length === 0 && !hasFreeTechnical && (
-              <div className="text-xs text-rose-400 py-1">Нет свободных коридоров для шума</div>
+            {availableCorridorNumbers.every((n) => !n.isFree) && !hasFreeTechnical && (
+              <div className="text-xs text-rose-400 py-1">Нет свободных номеров коридоров для шума</div>
             )}
           </div>
         </div>

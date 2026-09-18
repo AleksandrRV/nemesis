@@ -1,5 +1,5 @@
 import type { CharacterPreset } from '../data/setup.js';
-import type { EscapePodState, PlayerState } from '../types/entities.js';
+import type { CharacterClass, EscapePodState, PlayerState } from '../types/entities.js';
 import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
 import type { GameMode, GameState } from '../types/state.js';
 import { createActionDeckForCharacter, createInitialDecks } from '../data/cardsSetup.js';
@@ -128,6 +128,8 @@ export interface InitialGameOptions {
   playerCount?: number;
   /** Идентификатор партии; по умолчанию выводится из сида. */
   gameId?: string;
+  /** Выбранный класс персонажа для первого игрока (если задан) */
+  chosenCharacterClass?: CharacterClass;
 }
 
 /** Базовая игра полукооперативная; режим Соло — партия на одного игрока (стр. 27). */
@@ -177,9 +179,20 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   const { bag: bagTokens, supply: intruderSupply } = splitIntruderBag(createIntruderSupply(), playerCount);
   const intruderBag = shuffle(createRng(seed, 'bag'), bagTokens);
 
+  const availableCharacters = [...CHARACTERS];
+  if (options.chosenCharacterClass) {
+    const chosenIndex = availableCharacters.findIndex((c) => c.characterClass === options.chosenCharacterClass);
+    if (chosenIndex > -1) {
+      const [chosenPreset] = availableCharacters.splice(chosenIndex, 1);
+      if (chosenPreset) {
+        availableCharacters.unshift(chosenPreset);
+      }
+    }
+  }
+
   const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index + 1}`);
   const players = playerIds.reduce<Record<string, PlayerState>>((acc, playerId, index) => {
-    acc[playerId] = createPlayer(playerId, CHARACTERS[index] ?? CHARACTERS[0]!, index + 1, seed);
+    acc[playerId] = createPlayer(playerId, availableCharacters[index] ?? CHARACTERS[0]!, index + 1, seed);
     return acc;
   }, {});
 

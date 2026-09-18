@@ -1,6 +1,6 @@
 {
   "name": "@nemesis/shared",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "description": "Изоморфное ядро правил Nemesis Digital: типы, данные и логика без зависимостей от DOM/Node",

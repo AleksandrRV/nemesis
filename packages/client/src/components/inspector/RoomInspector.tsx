@@ -149,17 +149,53 @@ export const RoomInspector: React.FC = () => {
 
       {/* Действия: только те, что разрешены правилами. Подсветка доступных
           соседей и переход через открытую Дверь (стр. 14) заменяют телепорт. */}
-      <div className="pt-3 border-t border-slate-800 flex gap-2">
+      <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
+        {isPlayerHere && room.isExplored && (
+          <div className="flex flex-col gap-1.5">
+            {/* Поиск в отсеке */}
+            {room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM' && (room.itemsCount ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: 'ACTION_SEARCH',
+                    payload: { discardCardIds: [] },
+                  })
+                }
+                className="w-full min-h-[38px] bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              >
+                <Package size={14} /> Обыскать отсек [цена: 1]
+              </button>
+            )}
+
+            {/* Действие комнаты */}
+            {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && (
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: 'ACTION_ROOM_ABILITY',
+                    payload: { discardCardIds: [] },
+                  })
+                }
+                className="w-full min-h-[38px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              >
+                <span>Использовать консоль отсека [цена: {roomDef.actionCost}]</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {canMoveHere && (
           <button
             onClick={() => dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: room.id, discardCardIds: [] } })}
-            className="flex-1 min-h-[44px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+            className="w-full min-h-[44px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
           >
-            <Footprints size={14} /> Перейти в отсек
+            <Footprints size={14} /> Перейти в отсек [цена: 1]
           </button>
         )}
         {!canMoveHere && !isPlayerHere && (
-          <div className="flex-1 min-h-[44px] bg-slate-900/60 border border-slate-800 text-slate-500 rounded-lg text-xs flex items-center justify-center gap-1.5 px-3 text-center">
+          <div className="w-full min-h-[44px] bg-slate-900/60 border border-slate-800 text-slate-500 rounded-lg text-xs flex items-center justify-center gap-1.5 px-3 text-center">
             <Ban size={14} /> Сюда нет пути через открытую Дверь
           </div>
         )}

@@ -21,6 +21,7 @@ import { drawFromStream } from '../utils/rng.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { advanceTurn } from './turnCycle.js';
 import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
+import { executeRoomAbility } from './roomAbilities.js';
 import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
 import type { ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
@@ -82,7 +83,9 @@ export type EngineErrorCode =
   | 'UNKNOWN_DECK'
   | 'DECISION_NOT_FOUND'
   | 'INVALID_DECISION'
-  | 'INVALID_DECISION_OPTION';
+  | 'INVALID_DECISION_OPTION'
+  /** Ошибки действий отсеков (v0.3.0 Шаг 6) */
+  | 'ROOM_ABILITY_NOT_ALLOWED';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -523,6 +526,14 @@ export class GameEngine {
           'INVALID_DECISION',
           `Тип решения не поддерживается: ${(decision as PendingDecision).type}`,
         );
+      }
+
+      case 'ACTION_ROOM_ABILITY': {
+        // Оплата действия отсека: ровно 2 карты действия с руки (стр. 13, 24)
+        executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], 2);
+
+        executeRoomAbility(state, actorId, action.payload);
+        return;
       }
       default:
         throw new EngineError(

@@ -76,6 +76,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'drawFromStream',
   'drawSearchCards',
   'executeCardPayment',
+  'executeRoomAbility',
   'findNextActivePlayer',
   'finishSearch',
   'getPlayerHandLimit',

@@ -14,6 +14,7 @@ export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';
 export * from './logic/turnCycle.js';
 export * from './logic/search.js';
+export * from './logic/roomAbilities.js';
 export * from './data/shipGraph.js';
 export * from './data/roomDefinitions.js';
 export * from './data/crafting.js';

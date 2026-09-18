@@ -52,6 +52,8 @@ export interface ItemCard {
   actionCost: number;
   description: string;
   isWeapon: boolean;
+  /** Признак энергетического оружия: заряжается в Оружейной (стр. 22). */
+  isEnergyWeapon?: boolean;
   /**
    * Боезапас — поле экземпляра карты в игре: маркеры кладутся прямо на карту.
    * Для не-оружия — null.

@@ -51,6 +51,13 @@ export type GameLogEvent =
       roomId: RoomId;
     }
   | {
+      type: 'ROOM_ABILITY_USED';
+      playerId: string;
+      roomId: RoomId;
+      roomDefinitionId: string;
+      detail?: string;
+    }
+  | {
       type: 'PLAYER_MOVED';
       playerId: string;
       fromRoomId: RoomId;

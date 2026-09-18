@@ -184,6 +184,14 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: ` выполнил Поиск в ${roomLabel(view, event.roomId)}.` },
       ];
 
+    case 'ROOM_ABILITY_USED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` задействовал отсек ${roomLabel(view, event.roomId)}` },
+        ...(event.detail ? [{ text: ` (${event.detail})` }] : []),
+        { text: '.' },
+      ];
+
     case 'PLAYER_MOVED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

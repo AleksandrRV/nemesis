@@ -2,10 +2,19 @@ import { produce } from 'immer';
 
 import type { EngineAction } from '../types/actions.js';
 import type { InterruptEvent, NoiseRollMode } from '../types/interrupts.js';
-import type { CarefulMoveChosenCorridor, CorridorConnection, CorridorNumber, RoomId } from '../types/rooms.js';
+import type { GameLogEffectOutcome, GameLogNoiseReason } from '../types/log.js';
+import type {
+  CarefulMoveChosenCorridor,
+  CorridorConnection,
+  CorridorNumber,
+  RoomId,
+  RoomState,
+} from '../types/rooms.js';
 import type { GameOverReason, GameState } from '../types/state.js';
+import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
 import { NOISE_DIE_FACES, type NoiseDieFace } from '../data/noiseDie.js';
 import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
+import { appendGameLog } from './gameLog.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { drawFromStream } from '../utils/rng.js';
 
@@ -66,6 +75,7 @@ export interface ProcessActionOptions {
 }
 
 const DEV_ACTION_TYPES: readonly EngineAction['type'][] = ['DEV_TOGGLE_DOOR', 'DEV_TOGGLE_NOISE'];
+const ROOM_DEFINITIONS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
 
 function isDevAction(action: EngineAction): boolean {
   return DEV_ACTION_TYPES.includes(action.type);
@@ -123,6 +133,10 @@ function requireCorridor(state: GameState, corridorId: string): CorridorConnecti
   return corridor;
 }
 
+function roomNameForLog(room: RoomState): string {
+  return ROOM_DEFINITIONS.find((definition) => definition.id === room.definitionId)?.name ?? `Отсек #${room.id}`;
+}
+
 /**
  * Партия окончена: правила запасов закрывают игру, а не продолжают её
  * «как-нибудь» (стр. 17). Стек прерываний очищается: шагов после конца партии
@@ -131,6 +145,7 @@ function requireCorridor(state: GameState, corridorId: string): CorridorConnecti
 function endGame(state: GameState, reason: GameOverReason): void {
   state.meta.phase = 'GAME_OVER';
   state.meta.gameOverReason = reason;
+  appendGameLog(state, { type: 'GAME_OVER', reason });
   state.interruptQueue = [];
 }
 
@@ -220,14 +235,17 @@ export class GameEngine {
               'Жетонов Дверей нет ни в запасе, ни среди Закрытых Дверей на поле (стр. 17).',
             );
           }
-
-          return;
-        }
-
-        if (corridor.doorState === 'CLOSED') {
+        } else if (corridor.doorState === 'CLOSED') {
           corridor.doorState = 'DESTROYED';
         }
 
+        appendGameLog(state, {
+          type: 'DEV_STATE_CHANGED',
+          playerId: actorId,
+          target: 'DOOR',
+          corridorId: corridor.id,
+          value: corridor.doorState,
+        });
         return;
       }
 
@@ -235,6 +253,13 @@ export class GameEngine {
         const corridor = requireCorridor(state, action.payload.corridorId);
 
         corridor.hasNoise = !corridor.hasNoise;
+        appendGameLog(state, {
+          type: 'DEV_STATE_CHANGED',
+          playerId: actorId,
+          target: 'NOISE',
+          corridorId: corridor.id,
+          value: corridor.hasNoise,
+        });
         return;
       }
 
@@ -376,6 +401,15 @@ function movePlayer(
   const wasUnexplored = !targetRoom.isExplored;
   player.roomId = targetRoomId;
 
+  appendGameLog(state, {
+    type: 'PLAYER_MOVED',
+    playerId,
+    fromRoomId: oldRoom?.id ?? player.roomId,
+    toRoomId: targetRoomId,
+    corridorId,
+    mode: noise.kind === 'CAREFUL' ? 'CAREFUL' : 'NORMAL',
+  });
+
   const nextInterrupts: InterruptEvent[] = wasUnexplored
     ? [{ type: 'EXPLORE_ROOM_INTERRUPT', playerId, roomId: targetRoomId, corridorId }]
     : [];
@@ -460,11 +494,44 @@ function resolveExploreRoom(
   }
 
   room.isExplored = true;
+  const explorationEffect = room.explorationEffect;
 
-  switch (room.explorationEffect) {
+  appendGameLog(state, {
+    type: 'ROOM_DISCOVERED',
+    playerId: interrupt.playerId,
+    roomId: room.id,
+    roomName: roomNameForLog(room),
+    category: room.category,
+  });
+
+  if (explorationEffect !== null) {
+    appendGameLog(state, {
+      type: 'EXPLORATION_TOKEN_REVEALED',
+      playerId: interrupt.playerId,
+      roomId: room.id,
+      itemsCount: room.itemsCount,
+      effect: explorationEffect,
+    });
+  }
+
+  switch (explorationEffect) {
     case 'FIRE': {
       // Маркер Пожара в отсек; последний маркер взрывает корабль (стр. 17).
       const placement = placeFireMarker(state, interrupt.roomId);
+      const outcome: GameLogEffectOutcome =
+        placement === 'SHIP_EXPLODED'
+          ? 'SHIP_EXPLODED'
+          : placement === 'ALREADY_PRESENT'
+            ? 'FIRE_ALREADY_PRESENT'
+            : 'FIRE_PLACED';
+
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId: interrupt.playerId,
+        roomId: room.id,
+        effect: 'FIRE',
+        outcome,
+      });
 
       if (placement === 'SHIP_EXPLODED') endGame(state, 'SHIP_EXPLODED');
 
@@ -475,20 +542,63 @@ function resolveExploreRoom(
       // Маркер Неисправности; в Улей и Комнату со Слизью его класть нельзя,
       // а последний маркер разрывает обшивку (стр. 17).
       const placement = placeMalfunctionMarker(state, interrupt.roomId);
+      const outcome: GameLogEffectOutcome =
+        placement === 'HULL_BREACH'
+          ? 'HULL_BREACH'
+          : placement === 'ALREADY_PRESENT'
+            ? 'MALFUNCTION_ALREADY_PRESENT'
+            : placement === 'FORBIDDEN_ROOM'
+              ? 'MALFUNCTION_FORBIDDEN'
+              : 'MALFUNCTION_PLACED';
+
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId: interrupt.playerId,
+        roomId: room.id,
+        effect: 'MALFUNCTION',
+        outcome,
+      });
 
       if (placement === 'HULL_BREACH') endGame(state, 'HULL_BREACH');
 
       return;
     }
 
-    case 'SLIME':
+    case 'SLIME': {
       // У персонажа не больше одного маркера Слизи (стр. 17).
-      player.hasSlime = true;
-      return;
+      const outcome: GameLogEffectOutcome = player.hasSlime ? 'SLIME_ALREADY_PRESENT' : 'SLIME_APPLIED';
 
-    case 'DOORS':
-      closeDoorOfEntry(state, interrupt.corridorId);
+      player.hasSlime = true;
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId: interrupt.playerId,
+        roomId: room.id,
+        effect: 'SLIME',
+        outcome,
+      });
       return;
+    }
+
+    case 'DOORS': {
+      const placement = closeDoorOfEntry(state, interrupt.corridorId);
+      const outcome: GameLogEffectOutcome =
+        placement === 'MOVED_FROM_BOARD'
+          ? 'DOOR_MOVED'
+          : placement === 'ALREADY_CLOSED'
+            ? 'DOOR_ALREADY_CLOSED'
+            : placement === 'DESTROYED'
+              ? 'DOOR_DESTROYED'
+              : 'DOOR_CLOSED';
+
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId: interrupt.playerId,
+        roomId: room.id,
+        effect: 'DOORS',
+        outcome,
+      });
+      return;
+    }
 
     case 'SILENCE':
     case 'DANGER':
@@ -505,9 +615,16 @@ function resolveExploreRoom(
  * Разрушенную снова закрыть нельзя (стр. 17); запас из 12 жетонов и
  * перестановка с поля учтены в `placeDoorToken`.
  */
-function closeDoorOfEntry(state: GameState, corridorId: string): void {
+function closeDoorOfEntry(
+  state: GameState,
+  corridorId: string,
+): 'PLACED' | 'ALREADY_CLOSED' | 'DESTROYED' | 'MOVED_FROM_BOARD' {
   const corridor = requireCorridor(state, corridorId);
   const placement = placeDoorToken(state, corridor.id);
+
+  if (placement === 'UNKNOWN_CORRIDOR') {
+    throw new EngineError('UNKNOWN_CORRIDOR', `Коридора ${corridor.id} нет на корабле.`);
+  }
 
   if (placement === 'NO_TOKEN_IN_SUPPLY') {
     throw new EngineError(
@@ -515,6 +632,8 @@ function closeDoorOfEntry(state: GameState, corridorId: string): void {
       'Жетонов Дверей нет ни в запасе, ни среди Закрытых Дверей на поле (стр. 17).',
     );
   }
+
+  return placement;
 }
 
 /**
@@ -553,25 +672,69 @@ function resolveNoiseRoll(
     room.occupantPlayerIds.some((occupantId) => occupantId !== interrupt.playerId) ||
     room.occupantIntruderIds.length > 0;
 
-  if (hasCompany) return;
+  if (hasCompany) {
+    appendGameLog(state, {
+      type: 'NOISE_SKIPPED',
+      playerId: interrupt.playerId,
+      roomId: interrupt.roomId,
+      reason: 'COMPANION',
+    });
+    return;
+  }
 
   if (tokenEffect === 'DANGER' || (tokenEffect === 'SILENCE' && player.hasSlime)) {
-    resolveDanger(state, interrupt.roomId);
+    appendGameLog(state, {
+      type: 'EXPLORATION_EFFECT_RESOLVED',
+      playerId: interrupt.playerId,
+      roomId: interrupt.roomId,
+      effect: tokenEffect === 'DANGER' ? 'DANGER' : 'SILENCE',
+      outcome: 'DANGER_TRIGGERED',
+    });
+    resolveDanger(state, interrupt.roomId, interrupt.playerId);
     return;
   }
 
   if (interrupt.noise.kind === 'CAREFUL') {
-    placeCarefulNoiseMarker(state, interrupt.roomId, interrupt.noise.chosen);
+    placeCarefulNoiseMarker(state, interrupt.playerId, interrupt.roomId, interrupt.noise.chosen);
     return;
   }
 
-  if (tokenEffect === 'SILENCE') return;
+  if (tokenEffect === 'SILENCE') {
+    appendGameLog(state, {
+      type: 'EXPLORATION_EFFECT_RESOLVED',
+      playerId: interrupt.playerId,
+      roomId: interrupt.roomId,
+      effect: 'SILENCE',
+      outcome: 'SILENCE_RESOLVED',
+    });
+    appendGameLog(state, {
+      type: 'NOISE_SKIPPED',
+      playerId: interrupt.playerId,
+      roomId: interrupt.roomId,
+      reason: 'EXPLORATION_SILENCE',
+    });
+    return;
+  }
 
-  applyNoiseFace(state, interrupt.playerId, interrupt.roomId, rollNoiseDie(state));
+  const face = rollNoiseDie(state);
+
+  appendGameLog(state, {
+    type: 'NOISE_ROLLED',
+    playerId: interrupt.playerId,
+    roomId: interrupt.roomId,
+    result: face,
+  });
+
+  applyNoiseFace(state, interrupt.playerId, interrupt.roomId, face);
 }
 
 /** Маркер Шума «Осторожного движения»: выбранный Коридор или поле Технических Коридоров (стр. 13, 16). */
-function placeCarefulNoiseMarker(state: GameState, roomId: RoomId, chosen: CarefulMoveChosenCorridor): void {
+function placeCarefulNoiseMarker(
+  state: GameState,
+  playerId: string,
+  roomId: RoomId,
+  chosen: CarefulMoveChosenCorridor,
+): void {
   if (chosen.kind === 'TECHNICAL_CORRIDOR') {
     if (state.ship.technicalCorridorNoise) {
       throw new EngineError(
@@ -582,6 +745,13 @@ function placeCarefulNoiseMarker(state: GameState, roomId: RoomId, chosen: Caref
 
     requireNoiseMarkerSupply(state);
     state.ship.technicalCorridorNoise = true;
+    appendGameLog(state, {
+      type: 'NOISE_MARKER_PLACED',
+      playerId,
+      roomId,
+      target: { kind: 'TECHNICAL_CORRIDOR' },
+      reason: 'CAREFUL',
+    });
     return;
   }
 
@@ -600,6 +770,13 @@ function placeCarefulNoiseMarker(state: GameState, roomId: RoomId, chosen: Caref
 
   requireNoiseMarkerSupply(state);
   corridor.hasNoise = true;
+  appendGameLog(state, {
+    type: 'NOISE_MARKER_PLACED',
+    playerId,
+    roomId,
+    target: { kind: 'CORRIDOR', corridorId: corridor.id },
+    reason: 'CAREFUL',
+  });
 }
 
 /** Разыгрывает выпавшую грань кубика Шума (стр. 15). */
@@ -611,13 +788,31 @@ function applyNoiseFace(state: GameState, playerId: string, roomId: RoomId, face
   }
 
   if (face.kind === 'SILENCE') {
-    if (player.hasSlime) resolveDanger(state, roomId);
+    if (player.hasSlime) {
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId,
+        roomId,
+        effect: 'SILENCE',
+        outcome: 'DANGER_TRIGGERED',
+      });
+      resolveDanger(state, roomId, playerId);
+    } else {
+      appendGameLog(state, { type: 'NOISE_SKIPPED', playerId, roomId, reason: 'NOISE_SILENCE' });
+    }
 
     return;
   }
 
   if (face.kind === 'DANGER') {
-    resolveDanger(state, roomId);
+    appendGameLog(state, {
+      type: 'EXPLORATION_EFFECT_RESOLVED',
+      playerId,
+      roomId,
+      effect: 'DANGER',
+      outcome: 'DANGER_TRIGGERED',
+    });
+    resolveDanger(state, roomId, playerId);
     return;
   }
 
@@ -628,12 +823,23 @@ function applyNoiseFace(state: GameState, playerId: string, roomId: RoomId, face
     // не сверены с полем (пакет источника, `ship-graph-corridors`), бросок
     // на номер, которого нет среди выходов отсека, разыгрывается как
     // «Тишина» — включая превращение Слизью в «Опасность» (стр. 17).
-    if (player.hasSlime) resolveDanger(state, roomId);
+    appendGameLog(state, { type: 'NOISE_SKIPPED', playerId, roomId, reason: 'UNMAPPED_EXIT' });
+
+    if (player.hasSlime) {
+      appendGameLog(state, {
+        type: 'EXPLORATION_EFFECT_RESOLVED',
+        playerId,
+        roomId,
+        effect: 'SILENCE',
+        outcome: 'DANGER_TRIGGERED',
+      });
+      resolveDanger(state, roomId, playerId);
+    }
 
     return;
   }
 
-  placeNoiseMarker(state, target);
+  placeNoiseMarker(state, playerId, roomId, target, 'ROLL');
 }
 
 /** Куда кладётся маркер Шума: Коридор с выпавшим номером или Вход в Технические Коридоры (стр. 15). */
@@ -674,7 +880,13 @@ function corridorNumbersOf(corridor: CorridorConnection, roomId: RoomId): Corrid
  * жетона Чужого и Внезапная атака — появится вместе с Пулом Чужих (этап 4
  * дорожной карты), поэтому здесь движок отклоняет шаг явной ошибкой.
  */
-function placeNoiseMarker(state: GameState, target: Exclude<NoiseTarget, { kind: 'UNMAPPED' }>): void {
+function placeNoiseMarker(
+  state: GameState,
+  playerId: string,
+  roomId: RoomId,
+  target: Exclude<NoiseTarget, { kind: 'UNMAPPED' }>,
+  reason: GameLogNoiseReason,
+): void {
   if (target.kind === 'TECHNICAL_CORRIDOR') {
     if (state.ship.technicalCorridorNoise) {
       throw contactError('Технические Коридоры');
@@ -682,6 +894,13 @@ function placeNoiseMarker(state: GameState, target: Exclude<NoiseTarget, { kind:
 
     requireNoiseMarkerSupply(state);
     state.ship.technicalCorridorNoise = true;
+    appendGameLog(state, {
+      type: 'NOISE_MARKER_PLACED',
+      playerId,
+      roomId,
+      target: { kind: 'TECHNICAL_CORRIDOR' },
+      reason,
+    });
     return;
   }
 
@@ -691,6 +910,13 @@ function placeNoiseMarker(state: GameState, target: Exclude<NoiseTarget, { kind:
 
   requireNoiseMarkerSupply(state);
   target.corridor.hasNoise = true;
+  appendGameLog(state, {
+    type: 'NOISE_MARKER_PLACED',
+    playerId,
+    roomId,
+    target: { kind: 'CORRIDOR', corridorId: target.corridor.id },
+    reason,
+  });
 }
 
 /**
@@ -721,7 +947,7 @@ function contactError(place: string): EngineError {
  * в отсеке есть Вход. Маркеры ставятся без Контакта: занятые Коридоры просто
  * пропускаются.
  */
-function resolveDanger(state: GameState, roomId: RoomId): void {
+function resolveDanger(state: GameState, roomId: RoomId, playerId: string): void {
   const neighbours = corridorsLeadingInto(state, roomId).map((corridor) =>
     corridor.fromRoomId === roomId ? corridor.toRoomId : corridor.fromRoomId,
   );
@@ -748,10 +974,24 @@ function resolveDanger(state: GameState, roomId: RoomId): void {
 
   for (const corridor of freeCorridors) {
     corridor.hasNoise = true;
+    appendGameLog(state, {
+      type: 'NOISE_MARKER_PLACED',
+      playerId,
+      roomId,
+      target: { kind: 'CORRIDOR', corridorId: corridor.id },
+      reason: 'DANGER',
+    });
   }
 
   if (needsTechnical) {
     state.ship.technicalCorridorNoise = true;
+    appendGameLog(state, {
+      type: 'NOISE_MARKER_PLACED',
+      playerId,
+      roomId,
+      target: { kind: 'TECHNICAL_CORRIDOR' },
+      reason: 'DANGER',
+    });
   }
 }
 

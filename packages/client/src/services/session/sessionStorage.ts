@@ -52,14 +52,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Проверка намеренно неглубокая: она отсекает чужие и повреждённые данные,
  * а полноту игры проверяет движок, когда действие попадает в стек прерываний.
  * Но поля, без которых партия заведомо не продолжится, обязаны проверяться
- * здесь: сохранение без `intrudersPool.supply` (контракт v3) или без счётчиков
- * случайности — это не «почти партия», а запись другого формата, и молча
- * доигрывать её нельзя (план исправлений, Э2-6).
+ * здесь: сохранение без `intrudersPool.supply` (контракт v3), `gameLog` (v4) или
+ * счётчиков случайности — это не «почти партия», а запись другого формата, и
+ * молча доигрывать её нельзя (план исправлений, Э2-6).
  */
 export function isGameState(value: unknown): value is GameState {
   if (!isRecord(value)) return false;
 
-  const { meta, ship, players, intrudersPool, decks, claimsLog, interruptQueue } = value;
+  const { meta, ship, players, intrudersPool, decks, claimsLog, gameLog, interruptQueue } = value;
 
   return (
     isRecord(meta) &&
@@ -78,6 +78,7 @@ export function isGameState(value: unknown): value is GameState {
     Array.isArray(intrudersPool.supply) &&
     isRecord(decks) &&
     Array.isArray(claimsLog) &&
+    Array.isArray(gameLog) &&
     Array.isArray(interruptQueue)
   );
 }

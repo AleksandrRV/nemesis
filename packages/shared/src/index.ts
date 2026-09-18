@@ -3,6 +3,7 @@ export * from './types/cards.js';
 export * from './types/entities.js';
 export * from './types/actions.js';
 export * from './types/interrupts.js';
+export * from './types/log.js';
 export * from './types/state.js';
 export * from './types/sanitized.js';
 export * from './logic/fsm.js';

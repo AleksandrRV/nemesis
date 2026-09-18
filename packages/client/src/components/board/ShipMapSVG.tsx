@@ -22,7 +22,7 @@ export const ShipMapSVG: React.FC = () => {
   if (!view) return null;
 
   return (
-    <div className="relative w-full h-full bg-nemesis-bg overflow-hidden">
+    <div className="relative w-full h-full touch-none bg-nemesis-bg overflow-hidden">
       <TransformWrapper
         initialScale={1}
         minScale={0.7}

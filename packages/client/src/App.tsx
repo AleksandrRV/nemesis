@@ -5,6 +5,7 @@ import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
 import { DevPanel } from './components/dev/DevPanel';
+import { GameLogPanel } from './components/log/GameLogPanel';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
 import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
@@ -86,6 +87,7 @@ export const App: React.FC = () => {
       <main className="relative flex-1 w-full h-full overflow-hidden">
         <ShipMapSVG />
         <RoomInspector />
+        <GameLogPanel view={view} />
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
     </div>

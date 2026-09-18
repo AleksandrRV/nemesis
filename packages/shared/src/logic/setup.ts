@@ -18,6 +18,7 @@ import {
   WEAKNESS_SLOT_OBJECT_KINDS,
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
+import { createInitialGameLog } from './gameLog.js';
 import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
@@ -331,6 +332,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     players,
 
     claimsLog: [],
+    gameLog: createInitialGameLog(),
     interruptQueue: [],
   };
 }

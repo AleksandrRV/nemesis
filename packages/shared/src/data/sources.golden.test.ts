@@ -122,6 +122,7 @@ describe('Пакет источника: структура и статусы (�
       'room-definitions',
       'setup-plan',
       'crafting-recipes',
+      'deck-composition',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -396,5 +397,29 @@ describe('Golden: подготовка стола (Э2-1)', () => {
 
     expect(CRAFTING_RECIPES).toHaveLength(expectation.recipeCount);
     expect(COORDINATE_DESTINATIONS.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
+  it('совпадает с источником по размерам и количеству карт в колодах', () => {
+    const expectation = table('deck-composition').expectation as {
+      actionsPerCharacter: number;
+      redItemsCount: number;
+      yellowItemsCount: number;
+      greenItemsCount: number;
+      craftedItemsCount: number;
+      contaminationCount: number;
+      seriousWoundsCount: number;
+      startingWeaponsCount: number;
+    };
+
+    expect(expectation.actionsPerCharacter).toBe(10);
+    expect(expectation.redItemsCount).toBe(30);
+    expect(expectation.yellowItemsCount).toBe(30);
+    expect(expectation.greenItemsCount).toBe(30);
+    expect(expectation.craftedItemsCount).toBe(12);
+    expect(expectation.contaminationCount).toBe(27);
+    expect(expectation.seriousWoundsCount).toBe(16);
+    expect(expectation.startingWeaponsCount).toBe(6);
   });
 });

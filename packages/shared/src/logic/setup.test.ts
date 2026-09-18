@@ -252,16 +252,23 @@ describe('createInitialGameState: экипаж', () => {
     expect(state.ship.rooms[11]?.occupantPlayerIds).toContain('player-1');
   });
 
-  it('начинает партию с пустыми колодой, рукой и сбросом персонажа', () => {
+  it('начинает партию с заполненной колодой Действий (10 карт) и пустыми рукой и сбросом', () => {
     const { actionDeck } = createInitialGameState('nemesis-alpha').players['player-1'] ?? {};
 
-    expect(actionDeck).toEqual({ drawPile: [], hand: [], discard: [] });
+    expect(actionDeck?.drawPile).toHaveLength(10);
+    expect(actionDeck?.hand).toEqual([]);
+    expect(actionDeck?.discard).toEqual([]);
   });
 
-  it('оставляет пустыми слоты рук, инвентарь, травмы и цели', () => {
+  it('снаряжает персонажа стартовым оружием в слот руки и оставляет пустыми инвентарь, травмы и цели', () => {
     const player = createInitialGameState('nemesis-alpha').players['player-1'];
 
-    expect(player?.handSlots).toEqual([]);
+    expect(player?.handSlots).toHaveLength(1);
+    const firstSlot = player?.handSlots[0];
+    expect(firstSlot?.source).toBe('ITEM');
+    if (firstSlot && firstSlot.source === 'ITEM') {
+      expect(firstSlot.card.isWeapon).toBe(true);
+    }
     expect(player?.inventory).toEqual([]);
     expect(player?.seriousWounds).toEqual([]);
     expect(player?.objectives).toEqual([]);
@@ -290,30 +297,35 @@ describe('createInitialGameState: экипаж', () => {
 });
 
 describe('createInitialGameState: колоды партии', () => {
-  it('создаёт пустые стопки для трёх колод Предметов (стр. 7, шаг 11)', () => {
+  it('создаёт наполненные стопки по 30 карт для трёх колод Предметов (стр. 7, шаг 11)', () => {
     const { items } = createInitialGameState('nemesis-alpha').decks;
 
     expect(Object.keys(items).sort()).toEqual(['GREEN', 'RED', 'YELLOW']);
     for (const pile of Object.values(items)) {
-      expect(pile).toEqual({ drawPile: [], discard: [] });
+      expect(pile.drawPile).toHaveLength(30);
+      expect(pile.discard).toEqual([]);
     }
   });
 
-  it('создаёт колоды создаваемых предметов, заражения, слабостей, травм, событий и целей', () => {
+  it('создаёт наполненные и пустые колоды в соответствии со спецификацией v0.3.0', () => {
     const { craftedItems, contamination, weaknesses, seriousWounds, events, intruderAttacks, objectives } =
       createInitialGameState('nemesis-alpha').decks;
 
-    expect(craftedItems).toEqual({ drawPile: [], discard: [] });
-    expect(contamination).toEqual({ drawPile: [], discard: [] });
+    expect(craftedItems.drawPile).toHaveLength(12);
+    expect(craftedItems.discard).toEqual([]);
+    expect(contamination.drawPile).toHaveLength(27);
+    expect(contamination.discard).toEqual([]);
+    expect(seriousWounds.drawPile).toHaveLength(16);
+    expect(seriousWounds.discard).toEqual([]);
+
     expect(weaknesses).toEqual({ drawPile: [], discard: [] });
-    expect(seriousWounds).toEqual({ drawPile: [], discard: [] });
     expect(events).toEqual({ drawPile: [], discard: [] });
     expect(intruderAttacks).toEqual({ drawPile: [], discard: [] });
     expect(objectives.personal).toEqual({ drawPile: [], discard: [] });
     expect(objectives.corporate).toEqual({ drawPile: [], discard: [] });
   });
 
-  it('даёт каждой колоде собственные массивы: пустые стопки не разделяются по ссылке', () => {
+  it('даёт каждой колоде собственные массивы: стопки не разделяются по ссылке', () => {
     const decks = createInitialGameState('nemesis-alpha').decks;
     const piles = [
       ...Object.values(decks.items),

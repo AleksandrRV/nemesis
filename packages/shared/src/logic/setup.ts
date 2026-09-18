@@ -1,8 +1,9 @@
 import type { CharacterPreset } from '../data/setup.js';
-import type { GameDecksState } from '../types/cards.js';
 import type { EscapePodState, PlayerState } from '../types/entities.js';
 import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
 import type { GameMode, GameState } from '../types/state.js';
+import { createActionDeckForCharacter, createInitialDecks } from '../data/cardsSetup.js';
+import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { createIntruderSupply, splitIntruderBag } from '../data/intruderPool.js';
@@ -42,29 +43,6 @@ const START_CORPSE_ID = 'CORPSE_BLUE';
 const ENGINE_NUMBERS = [1, 2, 3] as const;
 
 /**
- * Пустые колоды: структура контракта v0 фиксирована, состав карт появится
- * вместе с блоком данных о колодах (этап 3 дорожной карты).
- */
-function createEmptyDecks(): GameDecksState {
-  const emptyPile = <TCard>(): { drawPile: TCard[]; discard: TCard[] } => ({ drawPile: [], discard: [] });
-
-  return {
-    items: {
-      RED: emptyPile(),
-      YELLOW: emptyPile(),
-      GREEN: emptyPile(),
-    },
-    craftedItems: emptyPile(),
-    contamination: emptyPile(),
-    seriousWounds: emptyPile(),
-    events: emptyPile(),
-    intruderAttacks: emptyPile(),
-    objectives: { personal: emptyPile(), corporate: emptyPile() },
-    weaknesses: emptyPile(),
-  };
-}
-
-/**
  * Слоты Слабостей на Планшете Чужих: три карты из восьми, по одной на каждый
  * тип Объекта — Труп, Яйцо и Останки (стр. 6, шаг 9; стр. 21). Состав карт
  * появится вместе с данными о колодах, поэтому слоты создаются пустыми.
@@ -91,15 +69,19 @@ function createEscapePods(playerCount: number, podNumbers: number[]): Record<str
   }, {});
 }
 
-function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: number): PlayerState {
+function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: number, seed: string): PlayerState {
+  const actionDeckCards = createActionDeckForCharacter(preset.characterClass, seed, orderNumber);
+  const startingWeapon = STARTING_WEAPONS[preset.characterClass];
+  const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: startingWeapon }] : [];
+
   return {
     id: playerId,
     name: preset.name,
     characterClass: preset.characterClass,
     orderNumber,
     roomId: START_ROOM_ID,
-    actionDeck: { drawPile: [], hand: [], discard: [] },
-    handSlots: [],
+    actionDeck: { drawPile: actionDeckCards, hand: [], discard: [] },
+    handSlots,
     inventory: [],
     questItems: Array.from({ length: QUEST_ITEM_COUNT }, (_, index) => ({
       id: `${playerId}-quest-${index + 1}`,
@@ -194,7 +176,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
 
   const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index + 1}`);
   const players = playerIds.reduce<Record<string, PlayerState>>((acc, playerId, index) => {
-    acc[playerId] = createPlayer(playerId, CHARACTERS[index] ?? CHARACTERS[0]!, index + 1);
+    acc[playerId] = createPlayer(playerId, CHARACTERS[index] ?? CHARACTERS[0]!, index + 1, seed);
     return acc;
   }, {});
 
@@ -327,7 +309,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       weaknessSlots: createWeaknessSlots(),
     },
 
-    decks: createEmptyDecks(),
+    decks: createInitialDecks(seed),
 
     players,
 

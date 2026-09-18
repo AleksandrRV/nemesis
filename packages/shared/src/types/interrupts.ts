@@ -6,7 +6,7 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
  */
 export type NoiseRollMode = { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor };
 
-/** Событие прерывания: шаг пайплайна, который должен разрешиться до конца действия (AGENTS.md §3.3). */
+/** Событие прерывания: шаг пайплайна, который должен разрешиться до конца действия (tech_stack §4). */
 export type InterruptEvent =
   /** Попытка побега: каждый Чужой в отсеке атакует до шага в целевой отсек. */
   | { type: 'ESCAPE_ATTACK_INTERRUPT'; playerId: string; intruderIds: string[]; targetRoomId: RoomId }

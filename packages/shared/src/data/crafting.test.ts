@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COMPONENT_FAMILY, type CraftComponent, type CraftedItemId } from '../types/cards.js';
 import { CRAFTING_RECIPES } from './crafting.js';
 
-/** Рецепты из AGENTS.md §3.6 и GDD §2.4: ровно 4 создаваемых предмета. */
+/** Рецепты из GDD §2.4: ровно 4 создаваемых предмета. */
 const EXPECTED_RECIPES: Record<string, CraftComponent[]> = {
   ANTIDOTE: ['CHEMICALS', 'CHEMICALS'],
   TASER: ['ELECTRONICS', 'POWER_CELL'],
@@ -16,7 +16,7 @@ describe('Рецепты создания предметов', () => {
     expect(CRAFTING_RECIPES).toHaveLength(4);
   });
 
-  it('совпадает с рецептами из AGENTS.md §3.6', () => {
+  it('совпадает с рецептами из GDD §2.4', () => {
     const actual = Object.fromEntries(CRAFTING_RECIPES.map((recipe) => [recipe.itemId, [...recipe.components].sort()]));
     const expected = Object.fromEntries(
       Object.entries(EXPECTED_RECIPES).map(([itemId, components]) => [itemId, [...components].sort()]),

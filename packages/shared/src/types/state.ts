@@ -115,6 +115,6 @@ export interface GameState {
   decks: GameDecksState;
   players: Record<string, PlayerState>;
   claimsLog: ClaimEvent[];
-  /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (AGENTS.md §3.3). */
+  /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (tech_stack §4). */
   interruptQueue: InterruptEvent[];
 }

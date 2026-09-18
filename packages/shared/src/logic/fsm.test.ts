@@ -88,7 +88,7 @@ describe('GameEngine: перемещение', () => {
     expect(state).toEqual(snapshot);
   });
 
-  it('вскрывает неисследованный отсек прерыванием EXPLORE_ROOM_INTERRUPT (AGENTS §3.3)', () => {
+  it('вскрывает неисследованный отсек прерыванием EXPLORE_ROOM_INTERRUPT (tech_stack §4)', () => {
     const engine = new GameEngine();
     const state = freshState();
     const unexploredNeighbour = findAdjacentOpenRoomIds(state, 11).find(

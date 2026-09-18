@@ -266,7 +266,7 @@ describe('filterStateForPlayer: границы', () => {
     const orderInEngine = state.intrudersPool.bag.map((token) => token.id);
 
     // Мешок в срезе — не список жетонов: порядок вытягивания остаётся в движке,
-    // иначе Контакт был бы предсказуем для игрока и для бота (AGENTS.md §3.4).
+    // иначе Контакт был бы предсказуем для игрока и для бота (GDD §5.1).
     expect(Array.isArray(view.intrudersPool.bag)).toBe(false);
     expect(orderInEngine.length).toBeGreaterThan(0);
 

@@ -16,7 +16,7 @@ import type {
 import type { EngineNumber, GameState } from '../types/state.js';
 
 /**
- * Фильтрация скрытой информации (tech_stack §3.2, AGENTS.md §3.4).
+ * Фильтрация скрытой информации (tech_stack §3.2, GDD §5.1).
  *
  * Это единственная точка, из которой клиент и боты получают состояние: всё,
  * что персонаж видеть не мог, заменяется на явное «неизвестно», а не прячется
@@ -54,7 +54,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
 /**
  * Мешок и запас жетонов Чужих: игроки знают состав (он выкладывается при
  * подготовке, стр. 6, шаг 10), но не порядок вытягивания — иначе Контакт
- * перестаёт быть случайным событием (AGENTS.md §3.4).
+ * перестаёт быть случайным событием (GDD §5.1).
  */
 function sanitizeIntruderPool(state: SanitizedGameState): void {
   state.intrudersPool.bag = countIntruderTokens(state.intrudersPool.bag as unknown as IntruderToken[]);

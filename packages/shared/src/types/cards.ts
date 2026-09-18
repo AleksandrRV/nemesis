@@ -9,7 +9,7 @@ import type { CharacterClass } from './entities.js';
  * и наполняются данными отдельным блоком работ.
  */
 
-/** Семейство компонента крафта (AGENTS.md §3.6, GDD §2.4). */
+/** Семейство компонента крафта (GDD §2.4). */
 export type ComponentFamily = 'MEDICAL' | 'TECH';
 
 /** Синие символы компонентов, напечатанные на картах предметов. */
@@ -61,7 +61,7 @@ export interface ItemCard {
   maxAmmo: number | null;
 }
 
-/** Создаваемые предметы: их ровно 4, состав рецептов зафиксирован (AGENTS.md §3.6). */
+/** Создаваемые предметы: их ровно 4, состав рецептов зафиксирован (GDD §2.4). */
 export type CraftedItemId = 'ANTIDOTE' | 'TASER' | 'FLAMETHROWER' | 'MOLOTOV_COCKTAIL';
 
 /**
@@ -95,7 +95,7 @@ export interface ContaminationCard {
   isScanned: boolean;
 }
 
-/** На руке лежат карты действий и карты Заражения: последние нельзя оплачивать (AGENTS.md §3.1). */
+/** На руке лежат карты действий и карты Заражения: последние нельзя оплачивать (GDD §3.2). */
 export type ActionDeckCard = ActionCard | ContaminationCard;
 
 /**

@@ -72,6 +72,7 @@ npm run dev   # dev-сервер Vite: http://localhost:5173
 - [doc/tech_stack.md](doc/tech_stack.md) — целевая архитектура: контракты данных, транспорт, структура кода;
 - [doc/roadmap.md](doc/roadmap.md) — этапы до релиза;
 - [doc/game-log.md](doc/game-log.md) — контракт, приватность и UI журнала действий;
+- [doc/project-map.md](doc/project-map.md) — карта проекта: архитектура, модули, компоненты и точки входа;
 - [doc/sources/data-sources.json](doc/sources/data-sources.json) — пакет источника: откуда взято каждое число в таблицах данных и что ещё ждёт сверки;
 - [doc/v0.3.0-contract.md](doc/v0.3.0-contract.md) — контракт и границы версии 0.3.0 (Фаза Игроков, карты Действий, промежуточные решения).
 

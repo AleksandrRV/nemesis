@@ -12,7 +12,11 @@ import {
   Play,
   AlertCircle,
   HeartPulse,
+  Info,
+  Check,
+  X,
 } from 'lucide-react';
+import { CardDetailsModal, type CardDetailsTarget } from '../modals/CardDetailsModal';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -23,6 +27,10 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const [showInventory, setShowInventory] = React.useState(false);
   const [prevTurnKey, setPrevTurnKey] = React.useState<string>('');
   const [showPassConfirm, setShowPassConfirm] = React.useState(false);
+  const [inspectCardTarget, setInspectCardTarget] = React.useState<CardDetailsTarget | null>(null);
+
+  // Состояние подтверждения разыгрывания выбранной карты
+  const [pendingPlayCard, setPendingPlayCard] = React.useState<ActionCard | null>(null);
 
   const selectedCardIds = useGameStore((state) => state.selectedCardIds);
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
@@ -30,6 +38,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const clearSelection = useGameStore((state) => state.clearSelection);
   const convertToEnergy = useGameStore((state) => state.convertToEnergy);
   const refundConvertedCard = useGameStore((state) => state.refundConvertedCard);
+  const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
   const dispatch = useGameStore((state) => state.dispatch);
 
   const activePlayerId = view.meta.activePlayerId;
@@ -39,6 +48,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   if (currentTurnKey !== prevTurnKey) {
     setPrevTurnKey(currentTurnKey);
     clearSelection();
+    setPendingPlayCard(null);
   }
 
   if (!player) return null;
@@ -49,7 +59,6 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const canAct = isMyTurn && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE';
 
   const handlePassClick = () => {
-    // Если на руке ещё есть карты или есть конвертированные очки действия — запрашиваем подтверждение
     if (handCards.length > 0 || convertedCardIds.length > 0) {
       setShowPassConfirm(true);
       return;
@@ -66,10 +75,32 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     });
     clearSelection();
     setShowPassConfirm(false);
+    setPendingPlayCard(null);
   };
 
-  const handlePlayCard = (card: ActionCard) => {
-    alert(`Разыгрывание карты «${card.name}» (эффект: ${card.description})`);
+  const executePlayCard = (card: ActionCard) => {
+    const discardCardIds = card.playCost > 0 ? consumePaymentCards(card.playCost) : [];
+    dispatch({
+      type: 'ACTION_PLAY_CARD',
+      payload: {
+        cardId: card.id,
+        discardCardIds,
+      },
+    });
+    setPendingPlayCard(null);
+    clearSelection();
+  };
+
+  const handleUseItem = (itemId: string, actionCost: number) => {
+    const discardCardIds = actionCost > 0 ? consumePaymentCards(actionCost) : [];
+    dispatch({
+      type: 'ACTION_USE_ITEM',
+      payload: {
+        itemId,
+        discardCardIds,
+      },
+    });
+    clearSelection();
   };
 
   return (
@@ -77,6 +108,21 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
       aria-label="Панель руки игрока"
       className="absolute bottom-10 left-0 right-0 z-40 flex flex-col bg-slate-950/95 border-t border-cyan-500/30 backdrop-blur-md shadow-2xl transition-all"
     >
+      {/* Модальное окно полной информации о карте / предмете */}
+      {inspectCardTarget && (
+        <CardDetailsModal
+          target={inspectCardTarget}
+          onClose={() => setInspectCardTarget(null)}
+          onPlay={
+            inspectCardTarget.kind === 'ACTION'
+              ? () => setPendingPlayCard(inspectCardTarget.card)
+              : inspectCardTarget.kind === 'ITEM'
+                ? () => handleUseItem(inspectCardTarget.card.id, inspectCardTarget.card.actionCost)
+                : undefined
+          }
+        />
+      )}
+
       {/* Шапка руки */}
       <header className="flex h-10 shrink-0 items-center justify-between border-b border-slate-800 px-4">
         <div className="flex items-center gap-3">
@@ -140,7 +186,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             }`}
           >
             <Briefcase size={13} />
-            <span>Инвентарь</span>
+            <span>Инвентарь ({player.inventory?.length ?? 0})</span>
           </button>
 
           {/* Свернуть/развернуть */}
@@ -167,21 +213,40 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                 return (
                   <div
                     key={idx}
-                    className="w-40 h-14 rounded border border-slate-700 bg-slate-950/70 p-1.5 flex flex-col justify-between"
+                    className="w-48 h-16 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
                   >
                     {slot ? (
                       slot.source === 'ITEM' ? (
                         <>
-                          <div className="font-bold text-cyan-300 truncate text-[11px]">{slot.card.name}</div>
-                          <div className="text-[10px] text-slate-400">
-                            {slot.card.isWeapon
-                              ? `Оружие • Патроны: ${slot.card.ammo}/${slot.card.maxAmmo}`
-                              : 'Тяжёлый предмет'}
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-cyan-300 truncate text-xs">{slot.card.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setInspectCardTarget({ kind: 'ITEM', card: slot.card })}
+                              className="text-slate-400 hover:text-cyan-300 p-0.5"
+                              title="Инфо о предмете"
+                            >
+                              <Info size={13} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>
+                              {slot.card.isWeapon
+                                ? `Оружие • Патроны: ${slot.card.ammo}/${slot.card.maxAmmo}`
+                                : 'Тяжёлый предмет'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUseItem(slot.card.id, slot.card.actionCost)}
+                              className="text-cyan-400 hover:text-cyan-300 font-bold underline"
+                            >
+                              Исп. [{slot.card.actionCost}]
+                            </button>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="font-bold text-amber-300 truncate text-[11px]">
+                          <div className="font-bold text-amber-300 truncate text-xs">
                             {slot.object.kind === 'CORPSE'
                               ? 'Труп'
                               : slot.object.kind === 'EGG'
@@ -201,7 +266,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           </div>
 
           {/* Инвентарь предметов */}
-          <div className="space-y-1 flex-1 min-w-[200px]">
+          <div className="space-y-1 flex-1 min-w-[240px]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Карманные предметы ({player.inventory?.length ?? 0}):
             </span>
@@ -210,7 +275,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                 player.inventory.map((item) => (
                   <div
                     key={item.id}
-                    className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs text-slate-200 flex items-center gap-1.5"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 flex items-center gap-2 group"
                   >
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -223,7 +288,23 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                               : 'bg-cyan-400'
                       }`}
                     />
-                    <span>{item.name}</span>
+                    <span className="font-semibold">{item.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setInspectCardTarget({ kind: 'ITEM', card: item })}
+                      className="text-slate-400 hover:text-cyan-300 p-0.5 ml-1"
+                      title="Подробнее"
+                    >
+                      <Info size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUseItem(item.id, item.actionCost)}
+                      className="text-emerald-400 hover:text-emerald-300 font-bold text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-600/50"
+                      title={`Использовать за ${item.actionCost} очков/карт`}
+                    >
+                      Исп. [{item.actionCost}]
+                    </button>
                   </div>
                 ))
               ) : (
@@ -259,6 +340,26 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
 
               return (
                 <div key={card.id} className="relative flex flex-col items-center shrink-0">
+                  {/* Кнопка "Инфо" для просмотра всей информации о карте */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isContamination) {
+                        setInspectCardTarget({
+                          kind: 'CONTAMINATION',
+                          card: card as Extract<typeof card, { isInfected: boolean }>,
+                        });
+                      } else {
+                        setInspectCardTarget({ kind: 'ACTION', card: card as ActionCard });
+                      }
+                    }}
+                    className="absolute -top-2 right-1 z-20 p-1 rounded-full bg-slate-800 hover:bg-cyan-600 text-slate-300 hover:text-white border border-slate-700 shadow transition"
+                    title="Полная информация о карте"
+                  >
+                    <Info size={12} />
+                  </button>
+
                   {/* Карточка */}
                   <button
                     type="button"
@@ -275,7 +376,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center justify-between gap-1 mb-1 pr-4">
                         <span
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
                             isConverted
@@ -336,7 +437,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handlePlayCard(card as ActionCard);
+                        setPendingPlayCard(card as ActionCard);
                       }}
                       className="mt-1 w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] py-1 rounded-lg shadow-lg flex items-center justify-center gap-1 active:scale-95 transition animate-in fade-in slide-in-from-top-1"
                     >
@@ -391,6 +492,62 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             >
               Пас {selectedCardIds.length > 0 ? `(сброс: ${selectedCardIds.length})` : ''}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Панель подтверждения разыгрывания действия карты (без системного alert) */}
+      {pendingPlayCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-cyan-500/60 rounded-2xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <Play size={18} fill="currentColor" />
+                <h3 className="text-base font-heading tracking-wider text-white uppercase">
+                  Действие: «{pendingPlayCard.name}»
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingPlayCard(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-xs text-slate-200 leading-relaxed">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Эффект карты:
+              </span>
+              {pendingPlayCard.description}
+            </div>
+
+            {pendingPlayCard.playCost > 0 && (
+              <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/50 p-2.5 rounded-lg flex items-center gap-2">
+                <Zap size={14} className="shrink-0" />
+                <span>
+                  Для розыгрыша требуется сбросить <b>{pendingPlayCard.playCost}</b> карт(ы) / очков действия.
+                </span>
+              </div>
+            )}
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setPendingPlayCard(null)}
+                className="flex-1 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => executePlayCard(pendingPlayCard)}
+                className="flex-1 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-heading font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition"
+              >
+                <Check size={14} /> Подтвердить
+              </button>
+            </div>
           </div>
         </div>
       )}

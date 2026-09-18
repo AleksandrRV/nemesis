@@ -19,6 +19,22 @@ export type RoomAbilityPayload = {
   targetObjectKind?: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
 };
 
+export type PlayCardActionPayload = {
+  cardId: string;
+  discardCardIds?: string[];
+  option?: string;
+  targetRoomId?: RoomId;
+  targetCorridorId?: string;
+};
+
+export type UseItemActionPayload = {
+  itemId: string;
+  discardCardIds?: string[];
+  option?: string;
+  targetRoomId?: RoomId;
+  targetCorridorId?: string;
+};
+
 export type GameAction =
   | { type: 'ACTION_MOVE'; payload: { targetRoomId: RoomId; discardCardIds: string[] } }
   /**
@@ -33,6 +49,8 @@ export type GameAction =
     }
   | { type: 'ACTION_SEARCH'; payload: { chosenDeckColor?: ItemDeckColor; discardCardIds: string[] } }
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
+  | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }
+  | { type: 'ACTION_USE_ITEM'; payload: UseItemActionPayload }
   | { type: 'ACTION_PASS'; payload: { discardCardIds?: string[] } }
   | {
       type: 'ACTION_RESOLVE_DECISION';

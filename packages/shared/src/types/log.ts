@@ -51,6 +51,18 @@ export type GameLogEvent =
       roomId: RoomId;
     }
   | {
+      type: 'ACTION_CARD_PLAYED';
+      playerId: string;
+      cardId: string;
+      cardName: string;
+    }
+  | {
+      type: 'ITEM_USED';
+      playerId: string;
+      itemId: string;
+      itemName: string;
+    }
+  | {
       type: 'ROOM_ABILITY_USED';
       playerId: string;
       roomId: RoomId;

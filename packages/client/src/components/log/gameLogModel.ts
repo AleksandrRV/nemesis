@@ -192,6 +192,22 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
 
+    case 'ACTION_CARD_PLAYED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' разыгрывает карту действия «' },
+        { text: event.cardName, tone: 'system', strong: true },
+        { text: '».' },
+      ];
+
+    case 'ITEM_USED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' использует предмет «' },
+        { text: event.itemName, tone: 'success', strong: true },
+        { text: '».' },
+      ];
+
     case 'PLAYER_MOVED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

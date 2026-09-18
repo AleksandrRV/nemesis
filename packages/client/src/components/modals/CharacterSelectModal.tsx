@@ -1,11 +1,12 @@
 import React from 'react';
 import type { CharacterClass } from '@nemesis/shared';
 import { CHARACTERS } from '@nemesis/shared';
-import { User, Shield, Wrench, Crosshair, Search, FlaskConical, Play } from 'lucide-react';
+import { User, Shield, Wrench, Crosshair, Search, FlaskConical, Play, X } from 'lucide-react';
 
 interface CharacterSelectModalProps {
   onSelect: (characterClass: CharacterClass) => void;
   defaultSeed?: string;
+  onClose?: () => void;
 }
 
 const CLASS_ICONS: Record<CharacterClass, React.ReactNode> = {
@@ -26,12 +27,22 @@ const CLASS_DESCRIPTIONS: Record<CharacterClass, string> = {
   MECHANIC: 'Техник корабля с мощным обрезом. Быстро чинит системы и запечатывает двери коридоров.',
 };
 
-export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({ onSelect }) => {
+export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({ onSelect, onClose }) => {
   const [selectedClass, setSelectedClass] = React.useState<CharacterClass>('CAPTAIN');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-      <div className="w-full max-w-2xl bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full max-w-2xl bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-150 relative">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          >
+            <X size={20} />
+          </button>
+        )}
+
         <header className="border-b border-slate-800 pb-4 text-center">
           <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase">ПОДГОТОВКА МИССИИ</span>
           <h2 className="text-2xl font-heading text-white tracking-wider mt-1">ВЫБОР ПЕРСОНАЖА</h2>

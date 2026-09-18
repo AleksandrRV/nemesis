@@ -4,7 +4,7 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
 /**
  * Действия игрока — единственный способ изменить состояние партии:
  * клиент не мутирует `GameState`, он отправляет действие, а правила применяет
- * движок (`GameEngine.processAction`, AGENTS.md §2.2 и §3.1).
+ * движок (`GameEngine.processAction`, AGENTS.md §2.2, GDD §3.2).
  *
  * Часть действий объявлена контрактом заранее: движок принимает их и отклоняет
  * с кодом `ACTION_NOT_IMPLEMENTED`, пока не наступит соответствующий этап

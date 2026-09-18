@@ -252,11 +252,11 @@ describe('createInitialGameState: экипаж', () => {
     expect(state.ship.rooms[11]?.occupantPlayerIds).toContain('player-1');
   });
 
-  it('начинает партию с заполненной колодой Действий (10 карт) и пустыми рукой и сбросом', () => {
+  it('начинает партию с заполненной рукой (5 карт) и колодой добора (5 карт)', () => {
     const { actionDeck } = createInitialGameState('nemesis-alpha').players['player-1'] ?? {};
 
-    expect(actionDeck?.drawPile).toHaveLength(10);
-    expect(actionDeck?.hand).toEqual([]);
+    expect(actionDeck?.drawPile).toHaveLength(5);
+    expect(actionDeck?.hand).toHaveLength(5);
     expect(actionDeck?.discard).toEqual([]);
   });
 

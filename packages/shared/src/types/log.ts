@@ -79,6 +79,11 @@ export type GameLogEvent =
     }
   | { type: 'GAME_OVER'; reason: GameOverReason }
   | {
+      type: 'PLAYER_PASSED';
+      playerId: string;
+      discardedCount: number;
+    }
+  | {
       type: 'DEV_STATE_CHANGED';
       playerId: string;
       target: 'DOOR' | 'NOISE';

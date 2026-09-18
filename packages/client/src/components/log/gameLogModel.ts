@@ -239,6 +239,15 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: event.reason === 'SHIP_EXPLODED' ? ': корабль взорвался.' : ': произошёл разрыв обшивки.' },
       ];
 
+    case 'PLAYER_PASSED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' объявил ' },
+        { text: 'Пас', tone: 'system', strong: true },
+        ...(event.discardedCount > 0 ? [{ text: ` и сбросил ${event.discardedCount} карт(ы)` }] : []),
+        { text: '.' },
+      ];
+
     case 'DEV_STATE_CHANGED':
       return [
         { text: 'Dev-переключатель', tone: 'warning', strong: true },

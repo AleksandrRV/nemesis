@@ -65,8 +65,11 @@ describe('Стор: dispatch', () => {
   it('переводит персонажа в соседний отсек', () => {
     const { store, transport } = createStore();
     const target = findAdjacentOpenRoomIds(transport.getLocalState(), 11)[0]!;
+    const discardCardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    store.getState().dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [] } });
+    store
+      .getState()
+      .dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [discardCardId] } });
 
     expect(store.getState().view?.players[PLAYER]?.roomId).toBe(target);
   });

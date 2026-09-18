@@ -37,12 +37,13 @@ describe('gameLog: последовательный публичный журн�
   it('движок записывает перемещение и публичные последствия входа', () => {
     const state = createInitialGameState('game-log-move');
     const targetRoomId = findAdjacentOpenRoomIds(state, 11).find((roomId) => !state.ship.rooms[roomId]?.isExplored);
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expect(targetRoomId).toBeDefined();
 
     const next = new GameEngine().processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: targetRoomId!, discardCardIds: [] },
+      payload: { targetRoomId: targetRoomId!, discardCardIds: [discardCardId] },
     });
     const eventTypes = next.gameLog.map((entry) => entry.event.type);
 

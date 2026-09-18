@@ -66,10 +66,11 @@ describe('GameEngine: перемещение', () => {
     const engine = new GameEngine();
     const state = freshState();
     const target = openCorridorFrom(state, 11).toRoomId;
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     const next = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: target, discardCardIds: [] },
+      payload: { targetRoomId: target, discardCardIds: [discardCardId] },
     });
 
     expect(next.players['player-1']?.roomId).toBe(target);
@@ -82,8 +83,12 @@ describe('GameEngine: перемещение', () => {
     const state = freshState();
     const snapshot = structuredClone(state);
     const target = openCorridorFrom(state, 11).toRoomId;
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
-    engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [] } });
+    engine.processAction(state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: target, discardCardIds: [discardCardId] },
+    });
 
     expect(state).toEqual(snapshot);
   });
@@ -94,12 +99,13 @@ describe('GameEngine: перемещение', () => {
     const unexploredNeighbour = findAdjacentOpenRoomIds(state, 11).find(
       (roomId) => !state.ship.rooms[roomId]?.isExplored,
     );
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expect(unexploredNeighbour).toBeDefined();
 
     const next = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: unexploredNeighbour!, discardCardIds: [] },
+      payload: { targetRoomId: unexploredNeighbour!, discardCardIds: [discardCardId] },
     });
 
     expect(next.ship.rooms[unexploredNeighbour!]?.isExplored).toBe(true);
@@ -110,10 +116,11 @@ describe('GameEngine: перемещение', () => {
     const engine = new GameEngine();
     const state = freshState();
     const target = openCorridorFrom(state, 11).toRoomId;
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     const next = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: target, discardCardIds: [] },
+      payload: { targetRoomId: target, discardCardIds: [discardCardId] },
     });
 
     expect(next.interruptQueue).toEqual([]);
@@ -207,7 +214,6 @@ describe('GameEngine: объявленные, но не реализованны
   it.each([
     ['ACTION_SEARCH', { type: 'ACTION_SEARCH', payload: { discardCardIds: [] } }],
     ['ACTION_ROOM_ABILITY', { type: 'ACTION_ROOM_ABILITY', payload: { discardCardIds: [] } }],
-    ['ACTION_PASS', { type: 'ACTION_PASS', payload: {} }],
     ['ACTION_CLAIM', { type: 'ACTION_CLAIM', payload: { target: 'COORDINATES', declaredStatus: 'DESTINATION_EARTH' } }],
   ])('отклоняет %s с явной ошибкой, а не молча', (_name, action) => {
     const engine = new GameEngine();
@@ -621,9 +627,11 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     expect(expectedFace).toEqual({ kind: 'CORRIDOR', number: 3 });
 
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
+
     const next = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: 6, discardCardIds: [] },
+      payload: { targetRoomId: 6, discardCardIds: [discardCardId] },
     });
 
     const marked = corridorsWithNoise(next);
@@ -824,9 +832,14 @@ describe('Кубик Шума (стр. 15, 17)', () => {
 
     numbered.hasNoise = true;
     const before = structuredClone(state);
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     expectEngineError(
-      () => engine.processAction(state, { type: 'ACTION_MOVE', payload: { targetRoomId: 6, discardCardIds: [] } }),
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_MOVE',
+          payload: { targetRoomId: 6, discardCardIds: [discardCardId] },
+        }),
       'CONTACT_NOT_IMPLEMENTED',
       /жетона Чужого/,
     );
@@ -989,13 +1002,17 @@ describe('Осторожное движение: маркер вместо бр�
     const state = freshState();
     const target = neighbourOfStart(state);
     const corridor = corridorsInto(state, target)[0]!;
+    const discardCardIds = [
+      state.players['player-1']!.actionDeck.hand[0]!.id,
+      state.players['player-1']!.actionDeck.hand[1]!.id,
+    ];
 
     const next = engine.processAction(state, {
       type: 'ACTION_CAREFUL_MOVE',
       payload: {
         targetRoomId: target,
         chosenCorridor: { kind: 'CORRIDOR', corridorId: corridor.id },
-        discardCardIds: [],
+        discardCardIds,
       },
     });
 
@@ -1016,10 +1033,14 @@ describe('Осторожное движение: маркер вместо бр�
     );
 
     expect(target, 'среди соседей стартового отсека нет отсека с вентиляцией').toBeDefined();
+    const discardCardIds = [
+      state.players['player-1']!.actionDeck.hand[0]!.id,
+      state.players['player-1']!.actionDeck.hand[1]!.id,
+    ];
 
     const next = engine.processAction(state, {
       type: 'ACTION_CAREFUL_MOVE',
-      payload: { targetRoomId: target!.id, chosenCorridor: { kind: 'TECHNICAL_CORRIDOR' }, discardCardIds: [] },
+      payload: { targetRoomId: target!.id, chosenCorridor: { kind: 'TECHNICAL_CORRIDOR' }, discardCardIds },
     });
 
     expect(next.ship.technicalCorridorNoise).toBe(true);
@@ -1035,6 +1056,10 @@ describe('Осторожное движение: маркер вместо бр�
     );
 
     expect(foreignCorridor).toBeDefined();
+    const discardCardIds = [
+      state.players['player-1']!.actionDeck.hand[0]!.id,
+      state.players['player-1']!.actionDeck.hand[1]!.id,
+    ];
 
     expectEngineError(
       () =>
@@ -1043,7 +1068,7 @@ describe('Осторожное движение: маркер вместо бр�
           payload: {
             targetRoomId: target,
             chosenCorridor: { kind: 'CORRIDOR', corridorId: foreignCorridor!.id },
-            discardCardIds: [],
+            discardCardIds,
           },
         }),
       'CAREFUL_MOVE_BAD_CHOICE',
@@ -1054,6 +1079,10 @@ describe('Осторожное движение: маркер вместо бр�
     const engine = new GameEngine();
     const state = freshState();
     const target = neighbourOfStart(state);
+    const discardCardIds = [
+      state.players['player-1']!.actionDeck.hand[0]!.id,
+      state.players['player-1']!.actionDeck.hand[1]!.id,
+    ];
 
     for (const corridor of corridorsInto(state, target)) {
       corridor.hasNoise = true;
@@ -1066,7 +1095,7 @@ describe('Осторожное движение: маркер вместо бр�
           payload: {
             targetRoomId: target,
             chosenCorridor: { kind: 'CORRIDOR', corridorId: corridorsInto(state, target)[0]!.id },
-            discardCardIds: [],
+            discardCardIds,
           },
         }),
       'CAREFUL_MOVE_NO_FREE_CORRIDOR',
@@ -1077,6 +1106,10 @@ describe('Осторожное движение: маркер вместо бр�
     const engine = new GameEngine();
     const state = freshState();
     const target = neighbourOfStart(state);
+    const discardCardIds = [
+      state.players['player-1']!.actionDeck.hand[0]!.id,
+      state.players['player-1']!.actionDeck.hand[1]!.id,
+    ];
 
     state.ship.rooms[11]!.occupantIntruderIds = ['intruder-1'];
 
@@ -1087,7 +1120,7 @@ describe('Осторожное движение: маркер вместо бр�
           payload: {
             targetRoomId: target,
             chosenCorridor: { kind: 'CORRIDOR', corridorId: corridorsInto(state, target)[0]!.id },
-            discardCardIds: [],
+            discardCardIds,
           },
         }),
       'CAREFUL_MOVE_IN_COMBAT',
@@ -1192,18 +1225,19 @@ describe('Сохранение и восстановление не сдвига
     const engine = new GameEngine();
     const state = freshState();
     const target = findAdjacentOpenRoomIds(state, 11)[0]!;
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     preparePlainRoom(state, target);
 
     const afterDirect = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: target, discardCardIds: [] },
+      payload: { targetRoomId: target, discardCardIds: [discardCardId] },
     });
 
     const reloaded = JSON.parse(JSON.stringify(state)) as GameState;
     const afterReload = engine.processAction(reloaded, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: target, discardCardIds: [] },
+      payload: { targetRoomId: target, discardCardIds: [discardCardId] },
     });
 
     expect(afterReload).toEqual(afterDirect);
@@ -1214,17 +1248,20 @@ describe('Сохранение и восстановление не сдвига
     const engine = new GameEngine();
     const state = freshState();
     const target = findAdjacentOpenRoomIds(state, 11)[0]!;
+    const discard1 = state.players['player-1']!.actionDeck.hand[0]!.id;
 
     preparePlainRoom(state, target);
 
     const once = engine.processAction(state, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: target, discardCardIds: [] },
+      payload: { targetRoomId: target, discardCardIds: [discard1] },
     });
+
+    const discard2 = once.players['player-1']!.actionDeck.hand[0]!.id;
 
     const twice = engine.processAction(JSON.parse(JSON.stringify(once)) as GameState, {
       type: 'ACTION_MOVE',
-      payload: { targetRoomId: 11, discardCardIds: [] },
+      payload: { targetRoomId: 11, discardCardIds: [discard2] },
     });
 
     expect(once.meta.rngDraws.noise).toBe(1);

@@ -10,6 +10,7 @@ export * from './logic/fsm.js';
 export * from './logic/setup.js';
 export * from './logic/sanitizer.js';
 export * from './logic/markers.js';
+export * from './logic/cardsPayment.js';
 export * from './data/shipGraph.js';
 export * from './data/roomDefinitions.js';
 export * from './data/crafting.js';

@@ -17,7 +17,9 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'BAG_ADULTS_PER_PLAYER',
   'BAG_BASE_ADULT_COUNT',
   'BASE_ADULT_COUNT',
+  'BASE_HAND_SIZE',
   'BASIC_ROOMS_1',
+  'CABINS_HAND_SIZE',
   'CHARACTERS',
   'COMPONENT_FAMILY',
   'CONTAMINATION_CARDS',
@@ -70,7 +72,10 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'createRng',
   'createRngDraws',
   'createShuffledPile',
+  'drawCardsToLimit',
   'drawFromStream',
+  'executeCardPayment',
+  'getPlayerHandLimit',
   'isRngStream',
   'pickIndex',
   'rollDie',
@@ -97,6 +102,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'placeMalfunctionMarker',
   'resolveInterrupt',
   'splitIntruderBag',
+  'validatePayment',
 ];
 
 describe('Публичное API ядра', () => {

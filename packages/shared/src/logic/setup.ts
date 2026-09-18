@@ -74,13 +74,16 @@ function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: nu
   const startingWeapon = STARTING_WEAPONS[preset.characterClass];
   const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: startingWeapon }] : [];
 
+  const initialHand = actionDeckCards.slice(0, 5);
+  const initialDrawPile = actionDeckCards.slice(5);
+
   return {
     id: playerId,
     name: preset.name,
     characterClass: preset.characterClass,
     orderNumber,
     roomId: START_ROOM_ID,
-    actionDeck: { drawPile: actionDeckCards, hand: [], discard: [] },
+    actionDeck: { drawPile: initialDrawPile, hand: initialHand, discard: [] },
     handSlots,
     inventory: [],
     questItems: Array.from({ length: QUEST_ITEM_COUNT }, (_, index) => ({

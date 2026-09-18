@@ -1,6 +1,7 @@
 import { produce } from 'immer';
 
 import type { EngineAction } from '../types/actions.js';
+import type { ActionDeckCard } from '../types/cards.js';
 import type { InterruptEvent, NoiseRollMode } from '../types/interrupts.js';
 import type { GameLogEffectOutcome, GameLogNoiseReason } from '../types/log.js';
 import type {
@@ -17,6 +18,7 @@ import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { appendGameLog } from './gameLog.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { drawFromStream } from '../utils/rng.js';
+import { executeCardPayment } from './cardsPayment.js';
 
 /**
  * Движок правил.
@@ -55,7 +57,13 @@ export type EngineErrorCode =
   /** Контакт: в Коридоре уже стоит маркер Шума (стр. 15); сам Контакт — этап 4 дорожной карты. */
   | 'CONTACT_NOT_IMPLEMENTED'
   /** Перемещение Чужих по эффекту «Опасность» появится вместе с Пулом Чужих (этап 4 дорожной карты). */
-  | 'INTRUDER_MOVEMENT_NOT_IMPLEMENTED';
+  | 'INTRUDER_MOVEMENT_NOT_IMPLEMENTED'
+  /** Ошибки валидатора оплаты карт (v0.3.0 Шаг 3) */
+  | 'INSUFFICIENT_ACTION_CARDS'
+  | 'PAYMENT_CARD_DUPLICATE'
+  | 'PAYMENT_CARD_CANNOT_PAY_SELF'
+  | 'PAYMENT_CARD_NOT_IN_HAND'
+  | 'CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -200,19 +208,23 @@ export class GameEngine {
         const targetRoomId = action.payload.targetRoomId;
         const corridors = requireOpenPath(state, player.roomId, targetRoomId);
 
+        // Стоимость базового действия «Движение» — 1 карта действия с руки (стр. 13)
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
         return;
       }
 
       case 'ACTION_CAREFUL_MOVE': {
-        // «Осторожное движение» [1] (стр. 13): обычное Движение, но вместо
-        // броска кубика Шума маркер кладётся в выбранный Коридор. Действие
-        // запрещено в Бою и когда все ведущие в отсек Коридоры уже с маркерами.
+        // «Осторожное движение» [2] (стр. 13): обычное Движение, но вместо
+        // броска кубика Шума маркер кладётся в выбранный Коридор. Стоимость: 2 карты Действий (стр. 13).
         const targetRoomId = action.payload.targetRoomId;
         const chosen = action.payload.chosenCorridor;
 
         requireOpenPath(state, player.roomId, targetRoomId);
         requireCarefulMoveAllowed(state, actorId, targetRoomId, chosen);
+
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 2);
 
         const corridors = findOpenCorridors(state, player.roomId, targetRoomId);
 
@@ -263,6 +275,40 @@ export class GameEngine {
         return;
       }
 
+      case 'ACTION_PASS': {
+        // Обычный пас (стр. 10, 28): игрок объявляет пас и имеет право
+        // сбросить любое количество карт с руки (как карт Действий, так и карт Заражения).
+        const discardIds = action.payload.discardCardIds ?? [];
+        if (discardIds.length > 0) {
+          const uniqueIds = new Set(discardIds);
+          if (uniqueIds.size !== discardIds.length) {
+            throw new EngineError('PAYMENT_CARD_DUPLICATE', 'Переданы повторяющиеся карты для сброса при пасе');
+          }
+          const handCardIds = new Set(player.actionDeck.hand.map((c) => c.id));
+          for (const cardId of discardIds) {
+            if (!handCardIds.has(cardId)) {
+              throw new EngineError('PAYMENT_CARD_NOT_IN_HAND', 'Одной или нескольких сбрасываемых карт нет в руке');
+            }
+          }
+          const remainingHand: ActionDeckCard[] = [];
+          for (const card of player.actionDeck.hand) {
+            if (uniqueIds.has(card.id)) {
+              player.actionDeck.discard.push(card);
+            } else {
+              remainingHand.push(card);
+            }
+          }
+          player.actionDeck.hand = remainingHand;
+        }
+
+        player.hasPassed = true;
+        appendGameLog(state, {
+          type: 'PLAYER_PASSED',
+          playerId: actorId,
+          discardedCount: discardIds.length,
+        });
+        return;
+      }
       default:
         throw new EngineError(
           'ACTION_NOT_IMPLEMENTED',

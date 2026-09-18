@@ -20,6 +20,10 @@ import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunction
 import { drawFromStream } from '../utils/rng.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { advanceTurn } from './turnCycle.js';
+import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
+import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
+import type { ItemDeckColor } from '../types/cards.js';
+import type { PendingDecision } from '../types/decisions.js';
 
 /**
  * Движок правил.
@@ -70,7 +74,15 @@ export type EngineErrorCode =
   /** Действие совершается не в свой ход (стр. 10). */
   | 'NOT_ACTIVE_PLAYER'
   /** Игрок не находится в Фазе Игроков. */
-  | 'NOT_IN_PLAYER_PHASE';
+  | 'NOT_IN_PLAYER_PHASE'
+  /** Ошибки Поиска (v0.3.0 Шаг 5) */
+  | 'SEARCH_NOT_ALLOWED'
+  | 'NO_ITEMS_LEFT'
+  | 'SEARCH_IN_COMBAT'
+  | 'UNKNOWN_DECK'
+  | 'DECISION_NOT_FOUND'
+  | 'INVALID_DECISION'
+  | 'INVALID_DECISION_OPTION';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -344,6 +356,173 @@ export class GameEngine {
         });
         advanceTurn(state, actorId);
         return;
+      }
+
+      case 'ACTION_SEARCH': {
+        const { roomId, color } = validateSearchConditions(state, actorId);
+
+        // Оплата: 1 карта действия с руки
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
+        let targetColor: ItemDeckColor;
+        if (color === 'WHITE') {
+          if (!action.payload.chosenDeckColor) {
+            state.pendingDecision = {
+              id: `search-deck-${Date.now()}-${actorId}`,
+              playerId: actorId,
+              type: 'CHOOSE_WHITE_ROOM_DECK',
+              roomId,
+            };
+            return;
+          }
+          targetColor = action.payload.chosenDeckColor;
+        } else {
+          targetColor = color;
+        }
+
+        const drawn = drawSearchCards(state, targetColor);
+        if (drawn.length === 0) {
+          throw new EngineError('NO_ITEMS_LEFT', `В колоде ${targetColor} предметов не осталось карт`);
+        }
+
+        if (drawn.length === 1) {
+          const item = drawn[0]!;
+          placeItemToPlayer(state, actorId, item);
+          const currentRoom = state.ship.rooms[roomId]!;
+          if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
+          appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId });
+          player.actionsPerformedThisRound += 1;
+          if (player.actionsPerformedThisRound >= 2) {
+            advanceTurn(state, actorId);
+          }
+          return;
+        }
+
+        state.pendingDecision = {
+          id: `search-item-${Date.now()}-${actorId}`,
+          playerId: actorId,
+          type: 'CHOOSE_SEARCH_ITEM',
+          drawnCardIds: drawn.map((c) => c.id),
+          sourceDeck: targetColor,
+          roomId,
+        };
+        return;
+      }
+
+      case 'ACTION_RESOLVE_DECISION': {
+        const decision = state.pendingDecision;
+        if (!decision || decision.id !== action.payload.decisionId) {
+          throw new EngineError('DECISION_NOT_FOUND', 'Активное решение не найдено или идентификатор не совпадает');
+        }
+
+        if (decision.playerId !== actorId) {
+          throw new EngineError('INVALID_DECISION', 'Решение предназначено для другого игрока');
+        }
+
+        if (decision.type === 'CHOOSE_WHITE_ROOM_DECK') {
+          const chosenColor = action.payload.selectedOption as ItemDeckColor;
+          if (!['RED', 'YELLOW', 'GREEN'].includes(chosenColor)) {
+            throw new EngineError('INVALID_DECISION_OPTION', `Недопустимый цвет колоды: ${chosenColor}`);
+          }
+          const drawn = drawSearchCards(state, chosenColor);
+          if (drawn.length === 0) {
+            throw new EngineError('NO_ITEMS_LEFT', `В колоде ${chosenColor} предметов не осталось карт`);
+          }
+          if (drawn.length === 1) {
+            const item = drawn[0]!;
+            placeItemToPlayer(state, actorId, item);
+            const currentRoom = state.ship.rooms[decision.roomId]!;
+            if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
+            appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId: decision.roomId });
+            state.pendingDecision = null;
+            player.actionsPerformedThisRound += 1;
+            if (player.actionsPerformedThisRound >= 2) {
+              advanceTurn(state, actorId);
+            }
+            return;
+          }
+          state.pendingDecision = {
+            id: `search-item-${Date.now()}-${actorId}`,
+            playerId: actorId,
+            type: 'CHOOSE_SEARCH_ITEM',
+            drawnCardIds: drawn.map((c) => c.id),
+            sourceDeck: chosenColor,
+            roomId: decision.roomId,
+          };
+          return;
+        }
+
+        if (decision.type === 'CHOOSE_SEARCH_ITEM') {
+          const chosenCardId = action.payload.selectedOption;
+          if (!decision.drawnCardIds.includes(chosenCardId)) {
+            throw new EngineError('INVALID_DECISION_OPTION', 'Выбранной карты нет среди вытянутых');
+          }
+          const unchosenCardId = decision.drawnCardIds.find((id) => id !== chosenCardId)!;
+          const pile = state.decks.items[decision.sourceDeck];
+
+          const deckItems =
+            decision.sourceDeck === 'RED'
+              ? RED_ITEM_CARDS
+              : decision.sourceDeck === 'YELLOW'
+                ? YELLOW_ITEM_CARDS
+                : GREEN_ITEM_CARDS;
+
+          const chosenCard = deckItems.find((c) => c.id === chosenCardId);
+          const unchosenCard = deckItems.find((c) => c.id === unchosenCardId);
+
+          if (chosenCard) {
+            placeItemToPlayer(state, actorId, chosenCard);
+          }
+          if (unchosenCard) {
+            pile.drawPile.push(unchosenCard);
+          }
+
+          const currentRoom = state.ship.rooms[decision.roomId]!;
+          if (currentRoom.itemsCount > 0) {
+            currentRoom.itemsCount -= 1;
+          }
+
+          appendGameLog(state, {
+            type: 'SEARCH_PERFORMED',
+            playerId: actorId,
+            roomId: decision.roomId,
+          });
+
+          state.pendingDecision = null;
+          player.actionsPerformedThisRound += 1;
+          if (player.actionsPerformedThisRound >= 2) {
+            advanceTurn(state, actorId);
+          }
+          return;
+        }
+
+        if (decision.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
+          const slotIndex = player.handSlots.findIndex(
+            (slot) => slot.source === 'ITEM' && slot.card.id === action.payload.selectedOption,
+          );
+          if (slotIndex === -1) {
+            throw new EngineError('INVALID_DECISION_OPTION', 'Указанный тяжёлый предмет не найден в руках');
+          }
+          const oldSlot = player.handSlots[slotIndex]!;
+          if (oldSlot.source === 'ITEM') {
+            const oldCard = oldSlot.card;
+            if (oldCard.color !== 'BLUE') {
+              state.decks.items[oldCard.color].discard.push(oldCard);
+            }
+          }
+          const allItems = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS];
+          const newCard = allItems.find((c) => c.id === decision.newItemId);
+          if (newCard) {
+            player.handSlots[slotIndex] = { source: 'ITEM', card: newCard };
+          }
+          state.pendingDecision = null;
+          return;
+        }
+
+        throw new EngineError(
+          'INVALID_DECISION',
+          `Тип решения не поддерживается: ${(decision as PendingDecision).type}`,
+        );
       }
       default:
         throw new EngineError(

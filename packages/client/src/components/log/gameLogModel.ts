@@ -178,6 +178,12 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
 
+    case 'SEARCH_PERFORMED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` выполнил Поиск в ${roomLabel(view, event.roomId)}.` },
+      ];
+
     case 'PLAYER_MOVED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

@@ -26,6 +26,13 @@ export type GameAction =
   | { type: 'ACTION_ROOM_ABILITY'; payload: { discardCardIds: string[] } }
   | { type: 'ACTION_PASS'; payload: { discardCardIds?: string[] } }
   | {
+      type: 'ACTION_RESOLVE_DECISION';
+      payload: {
+        decisionId: string;
+        selectedOption: string;
+      };
+    }
+  | {
       type: 'ACTION_CLAIM';
       payload: {
         target: 'ENGINE_1' | 'ENGINE_2' | 'ENGINE_3' | 'COORDINATES';

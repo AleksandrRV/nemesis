@@ -48,6 +48,10 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   sanitizeDecks(sanitized);
   sanitizeWeaknessSlots(sanitized);
 
+  if (sanitized.pendingDecision && sanitized.pendingDecision.playerId !== viewingPlayerId) {
+    sanitized.pendingDecision = null;
+  }
+
   return sanitized;
 }
 

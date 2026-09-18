@@ -319,5 +319,6 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     claimsLog: [],
     gameLog: createInitialGameLog(),
     interruptQueue: [],
+    pendingDecision: null,
   };
 }

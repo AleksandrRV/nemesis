@@ -46,6 +46,11 @@ export type GameLogEvent =
       woundsCount: number;
     }
   | {
+      type: 'SEARCH_PERFORMED';
+      playerId: string;
+      roomId: RoomId;
+    }
+  | {
       type: 'PLAYER_MOVED';
       playerId: string;
       fromRoomId: RoomId;

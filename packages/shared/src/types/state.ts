@@ -1,5 +1,6 @@
 import type { ClaimEvent } from './actions.js';
 import type { GameDecksState } from './cards.js';
+import type { PendingDecision } from './decisions.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
 import type { InterruptEvent } from './interrupts.js';
 import type { GameLogEntry } from './log.js';
@@ -123,4 +124,6 @@ export interface GameState {
   gameLog: GameLogEntry[];
   /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (tech_stack §4). */
   interruptQueue: InterruptEvent[];
+  /** Ожидающее решение активного игрока (Поиск, выбор отсеков, решений комнат). */
+  pendingDecision: PendingDecision | null;
 }

@@ -1,3 +1,4 @@
+import type { PendingDecision } from './decisions.js';
 import type {
   ActionCard,
   ContaminationCard,
@@ -164,7 +165,10 @@ export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'b
   weaknessSlots: SanitizedWeaknessSlotState[];
 }
 
-export interface SanitizedGameState extends Omit<GameState, 'ship' | 'intrudersPool' | 'players' | 'decks'> {
+export interface SanitizedGameState extends Omit<
+  GameState,
+  'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision'
+> {
   decks: SanitizedDecksState;
   ship: Omit<ShipState, 'rooms' | 'engines' | 'coordinates'> & {
     rooms: Record<RoomId, SanitizedRoomState>;
@@ -173,4 +177,5 @@ export interface SanitizedGameState extends Omit<GameState, 'ship' | 'intrudersP
   };
   intrudersPool: SanitizedIntrudersPoolState;
   players: Record<string, SanitizedPlayerState>;
+  pendingDecision: PendingDecision | null;
 }

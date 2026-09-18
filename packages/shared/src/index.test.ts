@@ -74,12 +74,16 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'createShuffledPile',
   'drawCardsToLimit',
   'drawFromStream',
+  'drawSearchCards',
   'executeCardPayment',
   'findNextActivePlayer',
+  'finishSearch',
   'getPlayerHandLimit',
   'getOrderedPlayers',
+  'getRoomDeckColor',
   'isRngStream',
   'pickIndex',
+  'placeItemToPlayer',
   'rollDie',
   'shuffle',
   'startNewRound',
@@ -108,6 +112,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'resolveInterrupt',
   'splitIntruderBag',
   'validatePayment',
+  'validateSearchConditions',
 ];
 
 describe('Публичное API ядра', () => {

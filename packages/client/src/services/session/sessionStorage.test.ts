@@ -39,11 +39,12 @@ describe('Сохранение партии: формат', () => {
     expect(parseSession(raw)).toBeNull();
   });
 
-  it('не принимает состояние без отсеков и игроков: играть такое нельзя', () => {
+  it('не принимает состояние без отсеков, игроков или журнала: играть такое нельзя', () => {
     const state = createInitialGameState(SEED);
 
     expect(isGameState({ ...state, ship: { ...state.ship, rooms: {} } })).toBe(false);
     expect(isGameState({ ...state, players: {} })).toBe(false);
+    expect(isGameState({ ...state, gameLog: undefined })).toBe(false);
     expect(isGameState({ ...state, interruptQueue: undefined })).toBe(false);
   });
 

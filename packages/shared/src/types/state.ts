@@ -2,6 +2,7 @@ import type { ClaimEvent } from './actions.js';
 import type { GameDecksState } from './cards.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
 import type { InterruptEvent } from './interrupts.js';
+import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
@@ -20,8 +21,11 @@ import type { RngStream } from '../utils/rng.js';
  * плюс `supply` (жетоны рядом с полем, стр. 6, шаг 10); у партии появилась
  * причина окончания (`meta.gameOverReason`) для правил запасов маркеров
  * (стр. 17); «Осторожное движение» приносит режим шума в прерывание.
+ *
+ * v4: публичный журнал событий партии (`gameLog`) сохраняется вместе с игрой.
+ * Старые сохранения не восстанавливаются, чтобы журнал и состояние не расходились.
  */
-export const GAME_STATE_SCHEMA_VERSION = 3;
+export const GAME_STATE_SCHEMA_VERSION = 4;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -115,6 +119,8 @@ export interface GameState {
   decks: GameDecksState;
   players: Record<string, PlayerState>;
   claimsLog: ClaimEvent[];
+  /** Публичный журнал уже разыгранных событий партии; скрытые данные сюда не попадают. */
+  gameLog: GameLogEntry[];
   /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (tech_stack §4). */
   interruptQueue: InterruptEvent[];
 }

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": 1,
-    "updated": "2026-09-17",
-    "updatedFor": "0.2.0",
+    "version": 2,
+    "updated": "2026-09-18",
+    "updatedFor": "0.3.0",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
@@ -505,6 +505,52 @@
       ],
       "expectation": {
         "recipeCount": 4
+      }
+    },
+    "deck-composition": {
+      "file": "packages/shared/src/data/actionCards.ts, packages/shared/src/data/itemCards.ts, packages/shared/src/data/contaminationCards.ts, packages/shared/src/data/seriousWounds.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "60 карт Действий: ровно по 10 карт на каждого из 6 персонажей",
+          "source": "rules-md",
+          "lines": "112, 381, 749"
+        },
+        {
+          "claim": "По 30 карт в Красной (Военные), Жёлтой (Технические) и Зелёной (Медицинские) колодах",
+          "source": "rules-md",
+          "lines": "118-120"
+        },
+        {
+          "claim": "12 карт в Синей колоде Создаваемых предметов (по 3 экземпляра 4 рецептов)",
+          "source": "rules-md",
+          "lines": "121, 1500-1508"
+        },
+        {
+          "claim": "27 карт Заражения в отдельной колоде",
+          "source": "rules-md",
+          "lines": "114, 1276-1300"
+        },
+        {
+          "claim": "16 карт Тяжёлых Травм в колоде Травм",
+          "source": "rules-md",
+          "lines": "116, 1342-1360"
+        },
+        {
+          "claim": "6 карт Стартовых Предметов (Оружие) персонажей",
+          "source": "rules-md",
+          "lines": "122, 383"
+        }
+      ],
+      "expectation": {
+        "actionsPerCharacter": 10,
+        "redItemsCount": 30,
+        "yellowItemsCount": 30,
+        "greenItemsCount": 30,
+        "craftedItemsCount": 12,
+        "contaminationCount": 27,
+        "seriousWoundsCount": 16,
+        "startingWeaponsCount": 6
       }
     }
   }

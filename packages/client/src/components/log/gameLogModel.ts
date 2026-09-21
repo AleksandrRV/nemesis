@@ -155,6 +155,59 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
     case 'GAME_STARTED':
       return [{ text: 'Партия начата', tone: 'system', strong: true }, { text: '.' }];
 
+    case 'ROUND_STARTED':
+      return [
+        { text: `Раунд ${event.round}`, tone: 'system', strong: true },
+        { text: `: жетон Первого Игрока у ` },
+        { text: playerName(view, event.firstPlayerId), tone: 'player', strong: true },
+        { text: '.' },
+      ];
+
+    case 'PLAYER_TURN_STARTED':
+      return [
+        { text: 'Ход игрока ', tone: 'system' },
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: '.' },
+      ];
+
+    case 'FIRE_DAMAGE_TAKEN':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` завершил ход в горящем отсеке ${roomLabel(view, event.roomId)} и получил ` },
+        { text: `${event.woundsCount} Лёгкую Травму`, tone: 'fire', strong: true },
+        { text: '.' },
+      ];
+
+    case 'SEARCH_PERFORMED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` выполнил Поиск в ${roomLabel(view, event.roomId)}.` },
+      ];
+
+    case 'ROOM_ABILITY_USED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` задействовал отсек ${roomLabel(view, event.roomId)}` },
+        ...(event.detail ? [{ text: ` (${event.detail})` }] : []),
+        { text: '.' },
+      ];
+
+    case 'ACTION_CARD_PLAYED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' разыгрывает карту действия «' },
+        { text: event.cardName, tone: 'system', strong: true },
+        { text: '».' },
+      ];
+
+    case 'ITEM_USED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' использует предмет «' },
+        { text: event.itemName, tone: 'success', strong: true },
+        { text: '».' },
+      ];
+
     case 'PLAYER_MOVED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },
@@ -237,6 +290,25 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
       return [
         { text: 'ПАРТИЯ ЗАВЕРШЕНА', tone: 'error', strong: true },
         { text: event.reason === 'SHIP_EXPLODED' ? ': корабль взорвался.' : ': произошёл разрыв обшивки.' },
+      ];
+
+    case 'PLAYER_PASSED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' объявил ' },
+        { text: 'Пас', tone: 'system', strong: true },
+        ...(event.discardedCount > 0 ? [{ text: ` и сбросил ${event.discardedCount} карт(ы)` }] : []),
+        { text: '.' },
+      ];
+
+    case 'EVENT_PHASE_SKIPPED':
+      return [
+        { text: 'Фаза Событий (раунд ', tone: 'warning' },
+        { text: String(event.round), tone: 'warning', strong: true },
+        {
+          text: ') пропущена: механика Событий и атак Чужих находится в разработке (v0.5.0). Начат следующий раунд.',
+          tone: 'warning',
+        },
       ];
 
     case 'DEV_STATE_CHANGED':

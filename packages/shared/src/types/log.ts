@@ -30,6 +30,46 @@ export type GameLogEffectOutcome =
 export type GameLogEvent =
   | { type: 'GAME_STARTED' }
   | {
+      type: 'ROUND_STARTED';
+      round: number;
+      firstPlayerId: string;
+    }
+  | {
+      type: 'PLAYER_TURN_STARTED';
+      playerId: string;
+      round: number;
+    }
+  | {
+      type: 'FIRE_DAMAGE_TAKEN';
+      playerId: string;
+      roomId: RoomId;
+      woundsCount: number;
+    }
+  | {
+      type: 'SEARCH_PERFORMED';
+      playerId: string;
+      roomId: RoomId;
+    }
+  | {
+      type: 'ACTION_CARD_PLAYED';
+      playerId: string;
+      cardId: string;
+      cardName: string;
+    }
+  | {
+      type: 'ITEM_USED';
+      playerId: string;
+      itemId: string;
+      itemName: string;
+    }
+  | {
+      type: 'ROOM_ABILITY_USED';
+      playerId: string;
+      roomId: RoomId;
+      roomDefinitionId: string;
+      detail?: string;
+    }
+  | {
       type: 'PLAYER_MOVED';
       playerId: string;
       fromRoomId: RoomId;
@@ -78,6 +118,15 @@ export type GameLogEvent =
       reason: GameLogNoiseSkippedReason;
     }
   | { type: 'GAME_OVER'; reason: GameOverReason }
+  | {
+      type: 'PLAYER_PASSED';
+      playerId: string;
+      discardedCount: number;
+    }
+  | {
+      type: 'EVENT_PHASE_SKIPPED';
+      round: number;
+    }
   | {
       type: 'DEV_STATE_CHANGED';
       playerId: string;

@@ -33,7 +33,10 @@ export function nextDoorState(state: DoorState): DoorState {
  * конкретный Коридор, ведущий в отсек, либо поле Технических Коридоров, если
  * в отсеке есть Вход (стр. 15–16).
  */
-export type CarefulMoveChosenCorridor = { kind: 'CORRIDOR'; corridorId: string } | { kind: 'TECHNICAL_CORRIDOR' };
+export type CarefulMoveChosenCorridor =
+  | { kind: 'CORRIDOR'; corridorId: string }
+  | { kind: 'CORRIDOR_NUMBER'; corridorNumber: CorridorNumber }
+  | { kind: 'TECHNICAL_CORRIDOR' };
 
 export type RoomColor = 'WHITE' | 'RED' | 'YELLOW' | 'GREEN';
 

@@ -65,8 +65,11 @@ describe('Стор: dispatch', () => {
   it('переводит персонажа в соседний отсек', () => {
     const { store, transport } = createStore();
     const target = findAdjacentOpenRoomIds(transport.getLocalState(), 11)[0]!;
+    const discardCardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    store.getState().dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [] } });
+    store
+      .getState()
+      .dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [discardCardId] } });
 
     expect(store.getState().view?.players[PLAYER]?.roomId).toBe(target);
   });
@@ -76,8 +79,9 @@ describe('Стор: dispatch', () => {
     const farRoom = Object.keys(transport.getLocalState().ship.rooms)
       .map(Number)
       .find((roomId) => roomId !== 11 && !findAdjacentOpenRoomIds(transport.getLocalState(), 11).includes(roomId))!;
+    const cardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    store.getState().dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [] } });
+    store.getState().dispatch({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [cardId] } });
 
     expect(store.getState().rejection).toMatch(/открытой Дверью/);
     expect(store.getState().view?.players[PLAYER]?.roomId).toBe(11);

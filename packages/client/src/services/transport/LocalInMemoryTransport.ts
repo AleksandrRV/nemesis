@@ -1,4 +1,4 @@
-import type { EngineAction, GameState, SanitizedGameState } from '@nemesis/shared';
+import type { CharacterClass, EngineAction, GameState, SanitizedGameState } from '@nemesis/shared';
 import { GameEngine, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 
 import type { SessionStorage } from '../session/sessionStorage';
@@ -80,9 +80,11 @@ export class LocalInMemoryTransport implements IGameTransport {
   }
 
   /** Новая партия: старое сохранение стирается, стол бросается заново. */
-  startNewGame(seed?: string): void {
+  startNewGame(seed?: string, options?: { chosenCharacterClass?: CharacterClass }): void {
     this.session.clear();
-    this.localState = createInitialGameState(seed ?? createSeed());
+    this.localState = createInitialGameState(seed ?? createSeed(), {
+      chosenCharacterClass: options?.chosenCharacterClass,
+    });
     this.session.save(this.localState);
     this.broadcastState();
   }

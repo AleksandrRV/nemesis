@@ -1,4 +1,4 @@
-import type { EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
+import type { CharacterClass, EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
 import { create } from 'zustand';
 
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
@@ -20,13 +20,26 @@ export interface GameStoreState {
   /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
   rejection: string | null;
 
+  /** Выбранные в текущий момент карты на руке */
+  selectedCardIds: string[];
+  /** Конвертированные в очки действий ID карт (в резерве) */
+  convertedCardIds: string[];
+
+  toggleSelectCard: (cardId: string) => void;
+  clearSelection: () => void;
+  convertToEnergy: () => void;
+  refundConvertedCard: (cardId: string) => void;
+  consumePaymentCards: (count: number) => string[];
+
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
-  startNewGame: (seed?: string) => void;
+  startNewGame: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
 }
 
 /** Транспорт локальной партии умеет начинать новый стол; сетевой — нет (это дело сервера). */
-export type TransportFactory = () => IGameTransport & { startNewGame?: (seed?: string) => void };
+export type TransportFactory = () => IGameTransport & {
+  startNewGame?: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
+};
 
 /** Отсек, который открыт по умолчанию: там, где стоит играющий персонаж. */
 function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
@@ -37,10 +50,82 @@ export function createGameStore(createTransport: TransportFactory) {
   let transport = createTransport();
   let detach = (): void => undefined;
 
-  const store = create<GameStoreState>()((set) => ({
+  const store = create<GameStoreState>()((set, get) => ({
     view: null,
     selectedRoomId: null,
     rejection: null,
+    selectedCardIds: [],
+    convertedCardIds: [],
+
+    toggleSelectCard: (cardId) => {
+      const { selectedCardIds, convertedCardIds } = get();
+      if (convertedCardIds.includes(cardId)) return; // конвертированные нельзя выбирать
+      if (selectedCardIds.includes(cardId)) {
+        set({ selectedCardIds: selectedCardIds.filter((id) => id !== cardId) });
+      } else {
+        set({ selectedCardIds: [...selectedCardIds, cardId] });
+      }
+    },
+
+    clearSelection: () => {
+      set({ selectedCardIds: [] });
+    },
+
+    convertToEnergy: () => {
+      const { selectedCardIds, convertedCardIds, view } = get();
+      if (!view) return;
+      const player = view.players[view.meta.activePlayerId];
+      if (!player) return;
+
+      // Фильтруем только существующие на руке карты и не Заражение (Заражение нельзя конвертировать)
+      const validToConvert = selectedCardIds.filter((id) => {
+        const card = player.actionDeck.hand.find((c) => c.id === id);
+        return card && 'characterClass' in card;
+      });
+
+      if (validToConvert.length === 0) return;
+
+      set({
+        convertedCardIds: [...convertedCardIds, ...validToConvert],
+        selectedCardIds: selectedCardIds.filter((id) => !validToConvert.includes(id)),
+      });
+    },
+
+    refundConvertedCard: (cardId) => {
+      const { convertedCardIds } = get();
+      set({
+        convertedCardIds: convertedCardIds.filter((id) => id !== cardId),
+      });
+    },
+
+    consumePaymentCards: (count) => {
+      const { convertedCardIds, selectedCardIds, view } = get();
+      const hand = view?.players[view?.meta.activePlayerId ?? '']?.actionDeck.hand ?? [];
+      const handCardIds = new Set(hand.map((c) => c.id));
+
+      // Сначала берём из конвертированных карт, если они есть
+      const validConverted = convertedCardIds.filter((id) => handCardIds.has(id));
+      const chosenFromConverted = validConverted.slice(0, count);
+      const remainingNeeded = count - chosenFromConverted.length;
+
+      // Если не хватает, берём из выделенных карт
+      const validSelected = selectedCardIds.filter((id) => handCardIds.has(id) && !chosenFromConverted.includes(id));
+      const chosenFromSelected = validSelected.slice(0, remainingNeeded);
+
+      const result = [...chosenFromConverted, ...chosenFromSelected];
+
+      // Оставшиеся конвертированные карты
+      const remainingConverted = validConverted.filter((id) => !chosenFromConverted.includes(id));
+      // Оставшиеся выделенные
+      const remainingSelected = selectedCardIds.filter((id) => !result.includes(id));
+
+      set({
+        convertedCardIds: remainingConverted,
+        selectedCardIds: remainingSelected,
+      });
+
+      return result;
+    },
 
     dispatch: (action) => {
       transport.sendAction(action);
@@ -50,12 +135,17 @@ export function createGameStore(createTransport: TransportFactory) {
       set({ selectedRoomId: roomId });
     },
 
-    startNewGame: (seed) => {
+    startNewGame: (seed, options) => {
       if (transport.startNewGame) {
         // Локальная партия продолжается тем же транспортом: он уже держит
         // движок и сохранение, достаточно бросить новый стол.
-        transport.startNewGame(seed);
-        set({ selectedRoomId: defaultRoomId(store.getState().view), rejection: null });
+        transport.startNewGame(seed, options);
+        set({
+          selectedRoomId: defaultRoomId(store.getState().view),
+          rejection: null,
+          selectedCardIds: [],
+          convertedCardIds: [],
+        });
         return;
       }
 
@@ -65,7 +155,7 @@ export function createGameStore(createTransport: TransportFactory) {
       transport = createTransport();
       attach(transport);
       void transport.init();
-      set({ view: null, selectedRoomId: null, rejection: null });
+      set({ view: null, selectedRoomId: null, rejection: null, selectedCardIds: [], convertedCardIds: [] });
     },
   }));
 

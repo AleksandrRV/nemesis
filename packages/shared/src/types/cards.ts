@@ -47,11 +47,13 @@ export interface ItemCard {
   isHeavy: boolean;
   isSingleUse: boolean;
   /** Пустой массив — карта не участвует в создании предметов (стр. 23). */
-  componentSymbols: CraftComponent[];
+  componentSymbols: readonly CraftComponent[];
   /** Цена действия с карты: сколько карт сбросить дополнительно (стр. 13). */
   actionCost: number;
   description: string;
   isWeapon: boolean;
+  /** Признак энергетического оружия: заряжается в Оружейной (стр. 22). */
+  isEnergyWeapon?: boolean;
   /**
    * Боезапас — поле экземпляра карты в игре: маркеры кладутся прямо на карту.
    * Для не-оружия — null.

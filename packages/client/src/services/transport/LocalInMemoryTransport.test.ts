@@ -80,8 +80,9 @@ describe('LocalInMemoryTransport: действия', () => {
     transport.subscribeToEvents((event) => events.push(event));
 
     const target = findAdjacentOpenRoomIds(transport.getLocalState(), 11)[0]!;
+    const discardCardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [] } });
+    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [discardCardId] } });
 
     expect(views).toHaveLength(2);
     expect(views[1]?.players[PLAYER]?.roomId).toBe(target);
@@ -94,8 +95,9 @@ describe('LocalInMemoryTransport: действия', () => {
     await initAndCapture(transport);
 
     const target = findAdjacentOpenRoomIds(transport.getLocalState(), 11)[0]!;
+    const discardCardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [] } });
+    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: target, discardCardIds: [discardCardId] } });
 
     const resumed = new LocalInMemoryTransport({ session: createSessionStorage(storage), playerId: PLAYER });
     const resumedViews = await initAndCapture(resumed);
@@ -113,8 +115,9 @@ describe('LocalInMemoryTransport: действия', () => {
     const farRoom = Object.keys(transport.getLocalState().ship.rooms)
       .map(Number)
       .find((roomId) => roomId !== 11 && !findAdjacentOpenRoomIds(transport.getLocalState(), 11).includes(roomId))!;
+    const cardId = transport.getLocalState().players[PLAYER]!.actionDeck.hand[0]!.id;
 
-    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [] } });
+    transport.sendAction({ type: 'ACTION_MOVE', payload: { targetRoomId: farRoom, discardCardIds: [cardId] } });
 
     expect(views).toHaveLength(1);
     expect(events[0]?.type).toBe('ACTION_REJECTED');

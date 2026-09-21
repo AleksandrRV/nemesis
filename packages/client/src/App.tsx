@@ -1,11 +1,15 @@
 import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
+import type { CharacterClass } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
 import { DevPanel } from './components/dev/DevPanel';
 import { GameLogPanel } from './components/log/GameLogPanel';
+import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
+import { DecisionModal } from './components/modals/DecisionModal';
+import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
 import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
@@ -14,6 +18,14 @@ export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
+  const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
+    return !localStorage.getItem('nemesis_offline_session');
+  });
+
+  const handleCharacterSelect = (characterClass: CharacterClass) => {
+    startNewGame(undefined, { chosenCharacterClass: characterClass });
+    setShowCharacterSelect(false);
+  };
 
   if (!view) {
     return (
@@ -70,15 +82,12 @@ export const App: React.FC = () => {
           )}
 
           <button
-            onClick={() => {
-              if (confirm('Начать новую игру со случайным сидом?')) {
-                startNewGame();
-              }
-            }}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition"
-            title="Новая игра"
+            onClick={() => setShowCharacterSelect(true)}
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white rounded-lg transition flex items-center gap-1.5 text-xs font-semibold"
+            title="Новая игра с выбором персонажа"
           >
             <RotateCcw size={16} />
+            <span className="hidden sm:inline">Новая игра</span>
           </button>
         </div>
       </header>
@@ -87,7 +96,16 @@ export const App: React.FC = () => {
       <main className="relative flex-1 w-full h-full overflow-hidden">
         <ShipMapSVG />
         <RoomInspector />
+        <PlayerHandPanel view={view} />
         <GameLogPanel view={view} />
+        {showCharacterSelect && (
+          <CharacterSelectModal
+            onSelect={handleCharacterSelect}
+            defaultSeed={view.meta.seed}
+            onClose={() => setShowCharacterSelect(false)}
+          />
+        )}
+        {view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
     </div>

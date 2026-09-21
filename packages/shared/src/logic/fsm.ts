@@ -1,6 +1,7 @@
 import { produce } from 'immer';
 
 import type { EngineAction } from '../types/actions.js';
+import type { ActionDeckCard, ItemCard } from '../types/cards.js';
 import type { InterruptEvent, NoiseRollMode } from '../types/interrupts.js';
 import type { GameLogEffectOutcome, GameLogNoiseReason } from '../types/log.js';
 import type {
@@ -17,6 +18,13 @@ import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { appendGameLog } from './gameLog.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { drawFromStream } from '../utils/rng.js';
+import { executeCardPayment } from './cardsPayment.js';
+import { advanceTurn } from './turnCycle.js';
+import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
+import { executeRoomAbility } from './roomAbilities.js';
+import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
+import type { ItemDeckColor } from '../types/cards.js';
+import type { PendingDecision } from '../types/decisions.js';
 
 /**
  * Движок правил.
@@ -55,7 +63,29 @@ export type EngineErrorCode =
   /** Контакт: в Коридоре уже стоит маркер Шума (стр. 15); сам Контакт — этап 4 дорожной карты. */
   | 'CONTACT_NOT_IMPLEMENTED'
   /** Перемещение Чужих по эффекту «Опасность» появится вместе с Пулом Чужих (этап 4 дорожной карты). */
-  | 'INTRUDER_MOVEMENT_NOT_IMPLEMENTED';
+  | 'INTRUDER_MOVEMENT_NOT_IMPLEMENTED'
+  /** Ошибки валидатора оплаты карт (v0.3.0 Шаг 3) */
+  | 'INSUFFICIENT_ACTION_CARDS'
+  | 'PAYMENT_CARD_DUPLICATE'
+  | 'PAYMENT_CARD_CANNOT_PAY_SELF'
+  | 'PAYMENT_CARD_NOT_IN_HAND'
+  | 'CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST'
+  /** Игрок уже спасовал в текущей Фазе Игроков (стр. 10). */
+  | 'PLAYER_ALREADY_PASSED'
+  /** Действие совершается не в свой ход (стр. 10). */
+  | 'NOT_ACTIVE_PLAYER'
+  /** Игрок не находится в Фазе Игроков. */
+  | 'NOT_IN_PLAYER_PHASE'
+  /** Ошибки Поиска (v0.3.0 Шаг 5) */
+  | 'SEARCH_NOT_ALLOWED'
+  | 'NO_ITEMS_LEFT'
+  | 'SEARCH_IN_COMBAT'
+  | 'UNKNOWN_DECK'
+  | 'DECISION_NOT_FOUND'
+  | 'INVALID_DECISION'
+  | 'INVALID_DECISION_OPTION'
+  /** Ошибки действий отсеков (v0.3.0 Шаг 6) */
+  | 'ROOM_ABILITY_NOT_ALLOWED';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -195,28 +225,60 @@ export class GameEngine {
       throw new EngineError('PLAYER_IS_DEAD', `Погибший персонаж ${actorId} не может действовать.`);
     }
 
+    if (!isDevAction(action)) {
+      if (state.meta.phase !== 'PLAYER_PHASE') {
+        throw new EngineError(
+          'NOT_IN_PLAYER_PHASE',
+          `Действия игроков разрешены только в Фазе Игроков (текущая: ${state.meta.phase}).`,
+        );
+      }
+
+      if (player.hasPassed) {
+        throw new EngineError(
+          'PLAYER_ALREADY_PASSED',
+          `Игрок ${actorId} уже спасовал в текущей Фазе Игроков и не может выполнять действия.`,
+        );
+      }
+
+      if (state.meta.activePlayerId !== actorId) {
+        throw new EngineError('NOT_ACTIVE_PLAYER', `Сейчас ход игрока ${state.meta.activePlayerId}, а не ${actorId}.`);
+      }
+    }
+
     switch (action.type) {
       case 'ACTION_MOVE': {
         const targetRoomId = action.payload.targetRoomId;
         const corridors = requireOpenPath(state, player.roomId, targetRoomId);
 
+        // Стоимость базового действия «Движение» — 1 карта действия с руки (стр. 13)
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
         return;
       }
 
       case 'ACTION_CAREFUL_MOVE': {
-        // «Осторожное движение» [1] (стр. 13): обычное Движение, но вместо
-        // броска кубика Шума маркер кладётся в выбранный Коридор. Действие
-        // запрещено в Бою и когда все ведущие в отсек Коридоры уже с маркерами.
+        // «Осторожное движение» [2] (стр. 13): обычное Движение, но вместо
+        // броска кубика Шума маркер кладётся в выбранный Коридор. Стоимость: 2 карты Действий (стр. 13).
         const targetRoomId = action.payload.targetRoomId;
         const chosen = action.payload.chosenCorridor;
 
         requireOpenPath(state, player.roomId, targetRoomId);
         requireCarefulMoveAllowed(state, actorId, targetRoomId, chosen);
 
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 2);
+
         const corridors = findOpenCorridors(state, player.roomId, targetRoomId);
 
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'CAREFUL', chosen });
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
         return;
       }
 
@@ -263,6 +325,370 @@ export class GameEngine {
         return;
       }
 
+      case 'ACTION_PASS': {
+        // Обычный пас (стр. 10, 28): игрок объявляет пас и имеет право
+        // сбросить любое количество карт с руки (как карт Действий, так и карт Заражения).
+        const discardIds = action.payload.discardCardIds ?? [];
+        if (discardIds.length > 0) {
+          const uniqueIds = new Set(discardIds);
+          if (uniqueIds.size !== discardIds.length) {
+            throw new EngineError('PAYMENT_CARD_DUPLICATE', 'Переданы повторяющиеся карты для сброса при пасе');
+          }
+          const handCardIds = new Set(player.actionDeck.hand.map((c) => c.id));
+          for (const cardId of discardIds) {
+            if (!handCardIds.has(cardId)) {
+              throw new EngineError('PAYMENT_CARD_NOT_IN_HAND', 'Одной или нескольких сбрасываемых карт нет в руке');
+            }
+          }
+          const remainingHand: ActionDeckCard[] = [];
+          for (const card of player.actionDeck.hand) {
+            if (uniqueIds.has(card.id)) {
+              player.actionDeck.discard.push(card);
+            } else {
+              remainingHand.push(card);
+            }
+          }
+          player.actionDeck.hand = remainingHand;
+        }
+
+        player.hasPassed = true;
+        appendGameLog(state, {
+          type: 'PLAYER_PASSED',
+          playerId: actorId,
+          discardedCount: discardIds.length,
+        });
+        advanceTurn(state, actorId);
+        return;
+      }
+
+      case 'ACTION_SEARCH': {
+        const { roomId, color } = validateSearchConditions(state, actorId);
+
+        // Оплата: 1 карта действия с руки
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
+        let targetColor: ItemDeckColor;
+        if (color === 'WHITE') {
+          if (!action.payload.chosenDeckColor) {
+            state.pendingDecision = {
+              id: `search-deck-${Date.now()}-${actorId}`,
+              playerId: actorId,
+              type: 'CHOOSE_WHITE_ROOM_DECK',
+              roomId,
+            };
+            return;
+          }
+          targetColor = action.payload.chosenDeckColor;
+        } else {
+          targetColor = color;
+        }
+
+        const drawn = drawSearchCards(state, targetColor);
+        if (drawn.length === 0) {
+          throw new EngineError('NO_ITEMS_LEFT', `В колоде ${targetColor} предметов не осталось карт`);
+        }
+
+        if (drawn.length === 1) {
+          const item = drawn[0]!;
+          placeItemToPlayer(state, actorId, item);
+          const currentRoom = state.ship.rooms[roomId]!;
+          if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
+          appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId });
+          player.actionsPerformedThisRound += 1;
+          if (player.actionsPerformedThisRound >= 2) {
+            advanceTurn(state, actorId);
+          }
+          return;
+        }
+
+        state.pendingDecision = {
+          id: `search-item-${Date.now()}-${actorId}`,
+          playerId: actorId,
+          type: 'CHOOSE_SEARCH_ITEM',
+          drawnCardIds: drawn.map((c) => c.id),
+          sourceDeck: targetColor,
+          roomId,
+        };
+        return;
+      }
+
+      case 'ACTION_RESOLVE_DECISION': {
+        const decision = state.pendingDecision;
+        if (!decision || decision.id !== action.payload.decisionId) {
+          throw new EngineError('DECISION_NOT_FOUND', 'Активное решение не найдено или идентификатор не совпадает');
+        }
+
+        if (decision.playerId !== actorId) {
+          throw new EngineError('INVALID_DECISION', 'Решение предназначено для другого игрока');
+        }
+
+        if (decision.type === 'CHOOSE_WHITE_ROOM_DECK') {
+          const chosenColor = action.payload.selectedOption as ItemDeckColor;
+          if (!['RED', 'YELLOW', 'GREEN'].includes(chosenColor)) {
+            throw new EngineError('INVALID_DECISION_OPTION', `Недопустимый цвет колоды: ${chosenColor}`);
+          }
+          const drawn = drawSearchCards(state, chosenColor);
+          if (drawn.length === 0) {
+            throw new EngineError('NO_ITEMS_LEFT', `В колоде ${chosenColor} предметов не осталось карт`);
+          }
+          if (drawn.length === 1) {
+            const item = drawn[0]!;
+            placeItemToPlayer(state, actorId, item);
+            const currentRoom = state.ship.rooms[decision.roomId]!;
+            if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
+            appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId: decision.roomId });
+            state.pendingDecision = null;
+            player.actionsPerformedThisRound += 1;
+            if (player.actionsPerformedThisRound >= 2) {
+              advanceTurn(state, actorId);
+            }
+            return;
+          }
+          state.pendingDecision = {
+            id: `search-item-${Date.now()}-${actorId}`,
+            playerId: actorId,
+            type: 'CHOOSE_SEARCH_ITEM',
+            drawnCardIds: drawn.map((c) => c.id),
+            sourceDeck: chosenColor,
+            roomId: decision.roomId,
+          };
+          return;
+        }
+
+        if (decision.type === 'CHOOSE_SEARCH_ITEM') {
+          const chosenCardId = action.payload.selectedOption;
+          if (!decision.drawnCardIds.includes(chosenCardId)) {
+            throw new EngineError('INVALID_DECISION_OPTION', 'Выбранной карты нет среди вытянутых');
+          }
+          const unchosenCardId = decision.drawnCardIds.find((id) => id !== chosenCardId)!;
+          const pile = state.decks.items[decision.sourceDeck];
+
+          const deckItems =
+            decision.sourceDeck === 'RED'
+              ? RED_ITEM_CARDS
+              : decision.sourceDeck === 'YELLOW'
+                ? YELLOW_ITEM_CARDS
+                : GREEN_ITEM_CARDS;
+
+          const chosenCard = deckItems.find((c) => c.id === chosenCardId);
+          const unchosenCard = deckItems.find((c) => c.id === unchosenCardId);
+
+          if (chosenCard) {
+            placeItemToPlayer(state, actorId, chosenCard);
+          }
+          if (unchosenCard) {
+            pile.drawPile.push(unchosenCard);
+          }
+
+          const currentRoom = state.ship.rooms[decision.roomId]!;
+          if (currentRoom.itemsCount > 0) {
+            currentRoom.itemsCount -= 1;
+          }
+
+          appendGameLog(state, {
+            type: 'SEARCH_PERFORMED',
+            playerId: actorId,
+            roomId: decision.roomId,
+          });
+
+          state.pendingDecision = null;
+          player.actionsPerformedThisRound += 1;
+          if (player.actionsPerformedThisRound >= 2) {
+            advanceTurn(state, actorId);
+          }
+          return;
+        }
+
+        if (decision.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
+          const slotIndex = player.handSlots.findIndex(
+            (slot) => slot.source === 'ITEM' && slot.card.id === action.payload.selectedOption,
+          );
+          if (slotIndex === -1) {
+            throw new EngineError('INVALID_DECISION_OPTION', 'Указанный тяжёлый предмет не найден в руках');
+          }
+          const oldSlot = player.handSlots[slotIndex]!;
+          if (oldSlot.source === 'ITEM') {
+            const oldCard = oldSlot.card;
+            if (oldCard.color !== 'BLUE') {
+              state.decks.items[oldCard.color].discard.push(oldCard);
+            }
+          }
+          const allItems = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS];
+          const newCard = allItems.find((c) => c.id === decision.newItemId);
+          if (newCard) {
+            player.handSlots[slotIndex] = { source: 'ITEM', card: newCard };
+          }
+          state.pendingDecision = null;
+          return;
+        }
+
+        throw new EngineError(
+          'INVALID_DECISION',
+          `Тип решения не поддерживается: ${(decision as PendingDecision).type}`,
+        );
+      }
+
+      case 'ACTION_ROOM_ABILITY': {
+        // Оплата действия отсека: ровно 2 карты действия с руки (стр. 13, 24)
+        executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], 2);
+
+        executeRoomAbility(state, actorId, action.payload);
+        return;
+      }
+
+      case 'ACTION_PLAY_CARD': {
+        const cardIndex = player.actionDeck.hand.findIndex((c) => c.id === action.payload.cardId);
+        if (cardIndex === -1) {
+          throw new EngineError('INSUFFICIENT_ACTION_CARDS', 'Разыгрываемой карты нет в руке');
+        }
+        const card = player.actionDeck.hand[cardIndex]!;
+        if (!('characterClass' in card)) {
+          throw new EngineError('CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST', 'Карту Заражения нельзя разыграть');
+        }
+
+        // Оплата стоимости карты (playCost)
+        if (card.playCost > 0) {
+          executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], card.playCost, card.id);
+        }
+
+        // Удаляем сыгранную карту из руки и кладём в личный сброс
+        player.actionDeck.hand.splice(cardIndex, 1);
+        player.actionDeck.discard.push(card);
+
+        // Применяем специфический эффект базовых карт, если есть
+        if (card.id.includes('RELOAD')) {
+          // Пополнение патронов для оружия в руке
+          const weaponSlot = player.handSlots.find((s) => s.source === 'ITEM' && s.card.isWeapon);
+          if (weaponSlot && weaponSlot.source === 'ITEM') {
+            weaponSlot.card.ammo = Math.min((weaponSlot.card.ammo ?? 0) + 1, weaponSlot.card.maxAmmo ?? 6);
+          }
+        } else if (card.id.includes('REST') || card.name === 'Отдых') {
+          // Просканировать карты Заражения в руке и удалить чистые
+          const nextHand: ActionDeckCard[] = [];
+          for (const c of player.actionDeck.hand) {
+            if (!('characterClass' in c)) {
+              c.isScanned = true;
+              if (c.isInfected) {
+                // Заражена - остаётся
+                nextHand.push(c);
+              }
+              // Чистая отбрасывается
+            } else {
+              nextHand.push(c);
+            }
+          }
+          player.actionDeck.hand = nextHand;
+        } else if (card.id.includes('REPAIR')) {
+          // Ремонт отсека
+          const currentRoom = state.ship.rooms[player.roomId];
+          if (currentRoom) {
+            currentRoom.hasMalfunction = false;
+          }
+        } else if (card.id.includes('DEMOLITION') && action.payload.targetCorridorId) {
+          const corridor = state.ship.corridors[action.payload.targetCorridorId];
+          if (corridor) {
+            corridor.doorState = 'DESTROYED';
+          }
+        }
+
+        appendGameLog(state, {
+          type: 'ACTION_CARD_PLAYED',
+          playerId: actorId,
+          cardId: card.id,
+          cardName: card.name,
+        });
+
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
+
+      case 'ACTION_USE_ITEM': {
+        const itemIndex = player.inventory.findIndex((it) => it.id === action.payload.itemId);
+        let foundItem: ItemCard | null = null;
+
+        if (itemIndex > -1) {
+          foundItem = player.inventory[itemIndex] ?? null;
+          if (foundItem?.isSingleUse) {
+            player.inventory.splice(itemIndex, 1);
+          }
+        } else {
+          const handSlotIndex = player.handSlots.findIndex(
+            (s) => s.source === 'ITEM' && s.card.id === action.payload.itemId,
+          );
+          if (handSlotIndex > -1) {
+            const slot = player.handSlots[handSlotIndex];
+            if (slot && slot.source === 'ITEM') {
+              foundItem = slot.card;
+              if (foundItem.isSingleUse) {
+                player.handSlots.splice(handSlotIndex, 1);
+              }
+            }
+          }
+        }
+
+        if (!foundItem) {
+          throw new EngineError('NO_ITEMS_LEFT', 'Предмет не найден в инвентаре или слотах рук');
+        }
+
+        // Оплата стоимости предмета
+        if (foundItem.actionCost > 0) {
+          executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], foundItem.actionCost);
+        }
+
+        // Эффекты предметов
+        if (foundItem.id.includes('BANDAGES') || foundItem.id.includes('MEDKIT')) {
+          if (player.lightWounds > 0) {
+            player.lightWounds = 0;
+          } else if (player.seriousWounds.length > 0) {
+            player.seriousWounds.pop();
+          }
+        } else if (foundItem.id.includes('ALCOHOL')) {
+          const contamIndex = player.actionDeck.hand.findIndex((c) => !('characterClass' in c));
+          if (contamIndex > -1) {
+            player.actionDeck.hand.splice(contamIndex, 1);
+          }
+        } else if (foundItem.id.includes('ENERGY_CHARGE')) {
+          const weaponSlot = player.handSlots.find((s) => s.source === 'ITEM' && s.card.isWeapon);
+          if (weaponSlot && weaponSlot.source === 'ITEM') {
+            weaponSlot.card.ammo = weaponSlot.card.maxAmmo;
+          }
+        } else if (foundItem.id.includes('SYNTHETIC_FOOD')) {
+          // Взять 2 карты
+          for (let i = 0; i < 2; i++) {
+            if (player.actionDeck.drawPile.length > 0) {
+              player.actionDeck.hand.push(player.actionDeck.drawPile.pop()!);
+            }
+          }
+        } else if (foundItem.id.includes('CLOTHES')) {
+          player.hasSlime = false;
+        } else if (foundItem.id.includes('FIRE_EXTINGUISHER')) {
+          const currentRoom = state.ship.rooms[player.roomId];
+          if (currentRoom) {
+            currentRoom.hasFire = false;
+          }
+        } else if (foundItem.id.includes('TOOLS') || foundItem.id.includes('DUCT_TAPE')) {
+          const currentRoom = state.ship.rooms[player.roomId];
+          if (currentRoom) {
+            currentRoom.hasMalfunction = false;
+          }
+        }
+
+        appendGameLog(state, {
+          type: 'ITEM_USED',
+          playerId: actorId,
+          itemId: foundItem.id,
+          itemName: foundItem.name,
+        });
+
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
       default:
         throw new EngineError(
           'ACTION_NOT_IMPLEMENTED',
@@ -306,8 +732,18 @@ function roomHasTechnicalEntrance(roomId: RoomId): boolean {
 }
 
 /** Свободно ли выбранное место для маркера Шума (стр. 13, 15). */
-function chosenPlaceHasNoise(state: GameState, chosen: CarefulMoveChosenCorridor): boolean {
+function chosenPlaceHasNoise(state: GameState, chosen: CarefulMoveChosenCorridor, targetRoomId?: RoomId): boolean {
   if (chosen.kind === 'TECHNICAL_CORRIDOR') return state.ship.technicalCorridorNoise;
+
+  if (chosen.kind === 'CORRIDOR_NUMBER') {
+    if (!targetRoomId) return false;
+    const leading = corridorsLeadingInto(state, targetRoomId);
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, targetRoomId).includes(chosen.corridorNumber),
+    );
+    // Свободно, если хотя бы в одном коридоре с этим номером ещё нет шума
+    return matching.length > 0 && matching.every((c) => c.hasNoise);
+  }
 
   const corridor = state.ship.corridors[chosen.corridorId];
 
@@ -343,6 +779,16 @@ function requireCarefulMoveAllowed(
         `В отсеке ${targetRoomId} нет Входа в Технические Коридоры: туда нельзя положить маркер (стр. 16).`,
       );
     }
+  } else if (chosen.kind === 'CORRIDOR_NUMBER') {
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, targetRoomId).includes(chosen.corridorNumber),
+    );
+    if (matching.length === 0) {
+      throw new EngineError(
+        'CAREFUL_MOVE_BAD_CHOICE',
+        `Номер коридора ${chosen.corridorNumber} не ведет в отсек ${targetRoomId} (стр. 13).`,
+      );
+    }
   } else if (!leading.some((corridor) => corridor.id === chosen.corridorId)) {
     throw new EngineError(
       'CAREFUL_MOVE_BAD_CHOICE',
@@ -360,7 +806,7 @@ function requireCarefulMoveAllowed(
     );
   }
 
-  if (chosenPlaceHasNoise(state, chosen)) {
+  if (chosenPlaceHasNoise(state, chosen, targetRoomId)) {
     throw new EngineError(
       'CAREFUL_MOVE_NO_FREE_CORRIDOR',
       'Выбранный Коридор уже помечен маркером Шума: выберите другой (стр. 13).',
@@ -504,6 +950,8 @@ function resolveExploreRoom(
     category: room.category,
   });
 
+  // Эффект вскрытия не должен затирать исходный explorationEffect тайла,
+  // так как он требуется следующему прерыванию шума NOISE_ROLL_INTERRUPT.
   if (explorationEffect !== null) {
     appendGameLog(state, {
       type: 'EXPLORATION_TOKEN_REVEALED',
@@ -752,6 +1200,36 @@ function placeCarefulNoiseMarker(
       target: { kind: 'TECHNICAL_CORRIDOR' },
       reason: 'CAREFUL',
     });
+    return;
+  }
+
+  if (chosen.kind === 'CORRIDOR_NUMBER') {
+    const leading = corridorsLeadingInto(state, roomId);
+    const matching = leading.filter((candidate) =>
+      corridorNumbersOf(candidate, roomId).includes(chosen.corridorNumber),
+    );
+
+    if (matching.length === 0) {
+      throw new EngineError(
+        'CAREFUL_MOVE_BAD_CHOICE',
+        `Коридоров с номером ${chosen.corridorNumber} нет в отсеке ${roomId}.`,
+      );
+    }
+
+    // Если коридоров с таким номером несколько - шум добавляется во все коридоры с таким номером (без дублирования Контакта, если уже есть шум)
+    for (const corridor of matching) {
+      if (!corridor.hasNoise) {
+        requireNoiseMarkerSupply(state);
+        corridor.hasNoise = true;
+        appendGameLog(state, {
+          type: 'NOISE_MARKER_PLACED',
+          playerId,
+          roomId,
+          target: { kind: 'CORRIDOR', corridorId: corridor.id },
+          reason: 'CAREFUL',
+        });
+      }
+    }
     return;
   }
 

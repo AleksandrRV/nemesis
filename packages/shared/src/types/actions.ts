@@ -25,6 +25,10 @@ export type PlayCardActionPayload = {
   option?: string;
   targetRoomId?: RoomId;
   targetCorridorId?: string;
+  /** Боевые карты: цель выстрела («Стрельба очередью», «Прицельный огонь», «Адреналин»). */
+  targetIntruderId?: string;
+  /** Боевые карты: слот руки с Оружием для выстрела. */
+  weaponSlotIndex?: number;
 };
 
 export type UseItemActionPayload = {
@@ -48,6 +52,26 @@ export type GameAction =
       payload: { targetRoomId: RoomId; chosenCorridor: CarefulMoveChosenCorridor; discardCardIds: string[] };
     }
   | { type: 'ACTION_SEARCH'; payload: { chosenDeckColor?: ItemDeckColor; discardCardIds: string[] } }
+  /**
+   * «Поднять Тяжёлый Объект» [1] (стр. 13): Труп, Останки или Яйцо с пола
+   * своего отсека в свободный слот руки. Оплата — 1 карта Действия.
+   */
+  | { type: 'ACTION_PICK_UP_OBJECT'; payload: { objectId: string; discardCardIds: string[] } }
+  /**
+   * «Рукопашная Атака» [1] (стр. 19): атака Чужого в том же отсеке без
+   * расхода патронов. Персонаж сначала берёт 1 Заражение в сброс, затем
+   * бросает кубик; промах наносит ему 1 Тяжёлую Травму. Оплата — 1 карта Действия.
+   */
+  | { type: 'ACTION_MELEE'; payload: { targetIntruderId: string; discardCardIds: string[] } }
+  /**
+   * «Стрельба» [1] (стр. 18): выстрел по Чужому в том же отсеке из Оружия
+   * в руке с ≥1 Боезапаса. `weaponSlotIndex` — индекс слота руки с оружием.
+   * Оплата — 1 карта Действия.
+   */
+  | {
+      type: 'ACTION_SHOOT';
+      payload: { targetIntruderId: string; weaponSlotIndex: number; discardCardIds: string[] };
+    }
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }
   | { type: 'ACTION_USE_ITEM'; payload: UseItemActionPayload }

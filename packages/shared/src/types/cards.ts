@@ -1,4 +1,4 @@
-import type { CharacterClass } from './entities.js';
+import type { CharacterClass, IntruderType } from './entities.js';
 
 /**
  * Карты, колоды и компоненты крафта.
@@ -136,8 +136,11 @@ export interface ObjectiveCard extends CardDefinition {
 /** Карта Событий: сдвигает Чужих по номерам коридоров и разыгрывает текст (стр. 10). */
 export type EventCard = CardDefinition;
 
-/** Карта Атаки Чужих: стойкость Чужого — сумма двух таких карт (стр. 20). */
-export type IntruderAttackCard = CardDefinition;
+export interface IntruderAttackCard extends CardDefinition {
+  toughness: number;
+  hasRetreat: boolean;
+  attackerTypes: readonly IntruderType[];
+}
 
 /**
  * Карта Слабости Чужих. Всего их 8, в партию попадают 3 случайные и лежат

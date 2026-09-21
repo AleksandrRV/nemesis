@@ -1,6 +1,8 @@
 import React from 'react';
-import { SHIP_ROOM_NODES, type SanitizedRoomState } from '@nemesis/shared';
-import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
+import { SHIP_ROOM_NODES, type IntruderEntity, type SanitizedRoomState } from '@nemesis/shared';
+import { Bone, Bug, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
+
+import { INTRUDER_TYPE_COLORS, INTRUDER_TYPE_LABELS } from '../../utils/labels';
 
 interface RoomHexProps {
   /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
@@ -9,6 +11,8 @@ interface RoomHexProps {
   y: number;
   isSelected: boolean;
   onSelect: (roomId: number) => void;
+  /** Особи Чужих в отсеке: значок красится по типу, счётчик показывает раны. */
+  intruders: IntruderEntity[];
 }
 
 const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
@@ -39,7 +43,7 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSelect }) => {
+export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSelect, intruders }) => {
   const radius = 45;
 
   const points = React.useMemo(() => {
@@ -209,6 +213,33 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSele
           </g>
         );
       })}
+
+      {/* Чужие в отсеке: значок по типу особи, счётчик — полученные раны */}
+      {intruders.length > 0 && (
+        <g className="pointer-events-none">
+          {intruders.map((entity, index) => {
+            const colors = INTRUDER_TYPE_COLORS[entity.type];
+            const cx = x + (index - (intruders.length - 1) / 2) * 19;
+            const cy = y + 34;
+
+            return (
+              <g key={entity.id} transform={`translate(${cx}, ${cy})`}>
+                <title>{`${INTRUDER_TYPE_LABELS[entity.type]} — ран: ${entity.woundsCount}`}</title>
+                <circle cx={0} cy={0} r={8} fill={colors.fill} stroke="#05070c" strokeWidth={1.5} />
+                <Bug size={11} x={-5.5} y={-5.5} style={{ color: colors.ink }} />
+                {entity.woundsCount > 0 && (
+                  <g>
+                    <circle cx={7} cy={-7} r={5} fill="#ff003c" stroke="#05070c" strokeWidth={1} />
+                    <text x={7} y={-4.5} textAnchor="middle" className="text-[7px] font-mono fill-white font-bold">
+                      {entity.woundsCount}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      )}
     </g>
   );
 };

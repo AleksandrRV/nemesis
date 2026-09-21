@@ -374,6 +374,67 @@ describe('Действия комнат (Room Abilities)', () => {
     expect(state.intrudersPool.weaknessSlots[0]!.card?.isRevealed).toBe(true);
   });
 
+  it('лаборатория (LABORATORY): кладёт изученный объект на пол и называет Слабость в журнале', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+
+    player.handSlots = [
+      {
+        source: 'OBJECT',
+        object: { id: 'remains-test', kind: 'INTRUDER_REMAINS', intruderType: 'ADULT' },
+      },
+    ];
+
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'INTRUDER_REMAINS',
+        card: { id: 'weakness-2', name: 'Слабость останков', description: 'Слабость', isRevealed: false },
+      },
+    ];
+
+    executeRoomAbility(state, 'player-1', { targetObjectKind: 'INTRUDER_REMAINS' });
+
+    expect(player.handSlots).toHaveLength(0);
+    expect(room.objects.map((object) => object.id)).toContain('remains-test');
+    const entry = state.gameLog[state.gameLog.length - 1]!;
+    expect(entry.event.type).toBe('ROOM_ABILITY_USED');
+    if (entry.event.type !== 'ROOM_ABILITY_USED') throw new Error('Ожидалось событие ROOM_ABILITY_USED.');
+    expect(entry.event.detail).toContain('Слабость останков');
+  });
+
+  it('лаборатория (LABORATORY): без карты в слоте анализ отклоняется, объект остаётся в руках', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+
+    player.handSlots = [
+      {
+        source: 'OBJECT',
+        object: { id: 'remains-test', kind: 'INTRUDER_REMAINS', intruderType: 'ADULT' },
+      },
+    ];
+
+    state.intrudersPool.weaknessSlots = [{ objectKind: 'INTRUDER_REMAINS', card: null }];
+
+    expect(() => {
+      executeRoomAbility(state, 'player-1', { targetObjectKind: 'INTRUDER_REMAINS' });
+    }).toThrowError(/нет карты/);
+    expect(player.handSlots).toHaveLength(1);
+  });
+
   it('GameEngine: корректно списывает 2 карты действия за ACTION_ROOM_ABILITY', () => {
     const engine = new GameEngine();
     const state = setupState();

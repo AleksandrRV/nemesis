@@ -1,7 +1,8 @@
 import React from 'react';
 import type { PendingDecision } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { Package, ArrowRight } from 'lucide-react';
+import { Package, ArrowRight, Crosshair } from 'lucide-react';
+import { COMBAT_DIE_FACE_LABELS } from '../../utils/labels';
 
 interface DecisionModalProps {
   decision: PendingDecision;
@@ -124,6 +125,39 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
                 </button>
               );
             })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (decision.type === 'CHOOSE_AIMED_REROLL') {
+    const firstLabel = COMBAT_DIE_FACE_LABELS[decision.firstFace];
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-orange-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 text-orange-400 border-b border-slate-800 pb-3">
+            <Crosshair size={20} />
+            <h3 className="text-lg font-heading tracking-wider text-white">ПРИЦЕЛЬНЫЙ ОГОНЬ: ПЕРЕБРОС?</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Первая грань кубика Боя: <b className="text-white">{firstLabel}</b>. Оставить результат или перебросить
+            кубик один раз?
+          </p>
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => handleSelect('KEEP')}
+              className="flex-1 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+            >
+              Оставить: {firstLabel}
+            </button>
+            <button
+              onClick={() => handleSelect('REROLL')}
+              className="flex-1 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold uppercase transition"
+            >
+              Перебросить
+            </button>
           </div>
         </div>
       </div>

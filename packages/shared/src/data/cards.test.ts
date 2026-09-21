@@ -4,6 +4,7 @@ import { ACTION_CARDS_BY_CHARACTER } from './actionCards.js';
 import { CONTAMINATION_CARDS } from './contaminationCards.js';
 import { CRAFTED_ITEM_CARDS } from './crafting.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from './itemCards.js';
+import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import { SERIOUS_WOUND_CARDS } from './seriousWounds.js';
 import { STARTING_WEAPONS } from './startingItems.js';
 import { createActionDeckForCharacter, createInitialDecks } from './cardsSetup.js';
@@ -94,6 +95,40 @@ describe('Колода Заражения и Тяжёлых Травм', () => {
   });
 });
 
+describe('Колода Атак Чужих (Intruder Attacks, v0.4.0 Шаг 1)', () => {
+  it('содержит ровно 20 карт с уникальными идентификаторами', () => {
+    expect(INTRUDER_ATTACK_CARDS).toHaveLength(20);
+    expect(new Set(INTRUDER_ATTACK_CARDS.map((card) => card.id)).size).toBe(20);
+  });
+
+  it('каждая карта несёт стойкость, флаг отступления, типы атакующих и эффект', () => {
+    const intruderTypes = ['LARVA', 'CREEPER', 'ADULT', 'BREEDER', 'QUEEN'];
+
+    for (const card of INTRUDER_ATTACK_CARDS) {
+      expect(card.name.length).toBeGreaterThan(0);
+      expect(card.description.length).toBeGreaterThan(0);
+      expect(Number.isInteger(card.toughness)).toBe(true);
+      expect(card.toughness).toBeGreaterThanOrEqual(1);
+      expect(typeof card.hasRetreat).toBe('boolean');
+      expect(card.attackerTypes.length).toBeGreaterThan(0);
+
+      for (const attackerType of card.attackerTypes) {
+        expect(intruderTypes).toContain(attackerType);
+      }
+    }
+  });
+
+  it('тасуется в колоду партии детерминированно через поток cards', () => {
+    const deckIds = (seed: string): string[] =>
+      createInitialDecks(seed).intruderAttacks.drawPile.map((card) => card.id);
+
+    expect(deckIds('seed-test')).toHaveLength(20);
+    expect(deckIds('seed-test')).toEqual(deckIds('seed-test'));
+    expect(deckIds('seed-other')).not.toEqual(deckIds('seed-test'));
+    expect([...deckIds('seed-other')].sort()).toEqual([...deckIds('seed-test')].sort());
+  });
+});
+
 describe('Инициализация колод партии (createInitialDecks)', () => {
   it('создаёт корректно наполненные и перетасованные колоды', () => {
     const decks = createInitialDecks('seed-test');
@@ -103,5 +138,7 @@ describe('Инициализация колод партии (createInitialDecks
     expect(decks.craftedItems.drawPile).toHaveLength(12);
     expect(decks.contamination.drawPile).toHaveLength(27);
     expect(decks.seriousWounds.drawPile).toHaveLength(16);
+    expect(decks.intruderAttacks.drawPile).toHaveLength(20);
+    expect(decks.intruderAttacks.discard).toEqual([]);
   });
 });

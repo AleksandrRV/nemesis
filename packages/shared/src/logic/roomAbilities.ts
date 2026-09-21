@@ -245,21 +245,33 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `У персонажа в руках нет объекта типа ${targetKind}`);
       }
 
-      // Сбрасываем объект из рук
-      player.handSlots.splice(slotIndex, 1);
-
-      // Раскрываем соответствующий слот Слабости
+      // В слоте обязана лежать карта сетапа: молча глотать анализ нельзя.
       const weaknessSlot = state.intrudersPool.weaknessSlots.find((s) => s.objectKind === targetKind);
-      if (weaknessSlot && weaknessSlot.card) {
-        weaknessSlot.card.isRevealed = true;
+
+      if (!weaknessSlot?.card) {
+        throw new EngineError(
+          'ROOM_ABILITY_NOT_ALLOWED',
+          `В слоте Слабости для ${targetKind} нет карты: анализировать нечего.`,
+        );
       }
+
+      // Изученный объект не исчезает: жетон остаётся на полу Лаборатории (стр. 22).
+      const [studiedSlot] = player.handSlots.splice(slotIndex, 1);
+      const studiedObject = studiedSlot?.source === 'OBJECT' ? studiedSlot.object : undefined;
+
+      if (!studiedObject) {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Слот руки пуст: изучать нечего.');
+      }
+
+      room.objects.push(studiedObject);
+      weaknessSlot.card.isRevealed = true;
 
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
         playerId: actorId,
         roomId: room.id,
         roomDefinitionId: 'LABORATORY',
-        detail: `Изучен объект ${targetKind}, открыта карта Слабости`,
+        detail: `Изучен объект ${targetKind}, раскрыта Слабость «${weaknessSlot.card.name}»`,
       });
       break;
     }

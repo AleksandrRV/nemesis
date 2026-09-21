@@ -22,6 +22,11 @@ export type InterruptEvent =
    * в выбранный игроком Коридор (стр. 13).
    */
   | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode }
+  /**
+   * Контакт: маркер Шума лёг бы вторым — сброс маркеров, жетон из мешка,
+   * появление Чужого и проверка Внезапной атаки (стр. 18).
+   */
+  | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId }
   /** Контакт: вытянутый из мешка жетон Чужого появляется на поле. */
   | { type: 'ENCOUNTER_INTERRUPT'; roomId: RoomId; intruderTokenId: string }
   /** Внезапная атака: карт на руке меньше числа на жетоне (стр. 18). */

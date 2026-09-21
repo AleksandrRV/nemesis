@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { COMBAT_DIE_FACES } from './combatDie.js';
 import { CRAFTING_RECIPES } from './crafting.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
+import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import {
   ADULT_ESCAPE_NUMBERS,
   BAG_ADULTS_PER_PLAYER,
@@ -123,6 +125,8 @@ describe('Пакет источника: структура и статусы (�
       'setup-plan',
       'crafting-recipes',
       'deck-composition',
+      'combat-die',
+      'intruder-attacks',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -397,6 +401,65 @@ describe('Golden: подготовка стола (Э2-1)', () => {
 
     expect(CRAFTING_RECIPES).toHaveLength(expectation.recipeCount);
     expect(COORDINATE_DESTINATIONS.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Golden: кубик Боя (v0.4.0 Шаг 1)', () => {
+  it('совпадает с источником по числу и составу граней', () => {
+    const expectation = table('combat-die').expectation as {
+      faceCount: number;
+      faces: string[];
+    };
+
+    expect(COMBAT_DIE_FACES).toHaveLength(expectation.faceCount);
+    expect([...COMBAT_DIE_FACES]).toEqual(expectation.faces);
+  });
+});
+
+describe('Golden: колода Атак Чужих (v0.4.0 Шаг 1)', () => {
+  it('совпадает с источником по числу карт и названиям', () => {
+    const expectation = table('intruder-attacks').expectation as {
+      cardCount: number;
+      byName: Record<string, number>;
+    };
+
+    expect(INTRUDER_ATTACK_CARDS).toHaveLength(expectation.cardCount);
+
+    const byName: Record<string, number> = {};
+
+    for (const card of INTRUDER_ATTACK_CARDS) {
+      byName[card.name] = (byName[card.name] ?? 0) + 1;
+    }
+
+    expect(byName).toEqual(expectation.byName);
+  });
+
+  it('совпадает с источником по стойкости, отступлению и типам атакующих', () => {
+    const expectation = table('intruder-attacks').expectation as {
+      toughnessByName: Record<string, number[]>;
+      retreatCountByName: Record<string, number>;
+      attackerTypesByName: Record<string, string[]>;
+    };
+
+    const toughnessByName: Record<string, number[]> = {};
+    const retreatCountByName: Record<string, number> = {};
+    const attackerTypesByName: Record<string, string[]> = {};
+
+    for (const card of INTRUDER_ATTACK_CARDS) {
+      toughnessByName[card.name] = [...(toughnessByName[card.name] ?? []), card.toughness];
+      retreatCountByName[card.name] = (retreatCountByName[card.name] ?? 0) + (card.hasRetreat ? 1 : 0);
+      attackerTypesByName[card.name] = [...card.attackerTypes].sort();
+    }
+
+    for (const [name, toughness] of Object.entries(expectation.toughnessByName)) {
+      expect(toughnessByName[name]?.sort((a, b) => a - b)).toEqual([...toughness].sort((a, b) => a - b));
+    }
+
+    expect(retreatCountByName).toEqual(expectation.retreatCountByName);
+
+    for (const [name, attackerTypes] of Object.entries(expectation.attackerTypesByName)) {
+      expect(attackerTypesByName[name]).toEqual([...attackerTypes].sort());
+    }
   });
 });
 

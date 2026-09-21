@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CHARACTERS, MAX_PLAYER_COUNT, WEAKNESS_SLOT_OBJECT_KINDS } from '../data/setup.js';
+import { WEAKNESS_CARDS } from '../data/weaknessCards.js';
 import { createInitialGameState, explorationTokenAt } from './setup.js';
 
 describe('createInitialGameState: состав партии по числу игроков', () => {
@@ -82,10 +83,17 @@ describe('createInitialGameState: Планшет Чужих', () => {
     expect(new Set(slots.map((slot) => slot.objectKind)).size).toBe(3);
   });
 
-  it('оставляет слоты Слабостей пустыми до появления данных о картах', () => {
+  it('раздаёт в слоты 3 различные карты Слабостей рубашкой вверх (стр. 6, шаг 9)', () => {
     const slots = createInitialGameState('nemesis-alpha').intrudersPool.weaknessSlots;
+    const ids = slots.map((slot) => slot.card?.id);
 
-    expect(slots.every((slot) => slot.card === null)).toBe(true);
+    expect(ids.every((id) => id !== undefined)).toBe(true);
+    expect(new Set(ids).size).toBe(3);
+    expect(slots.every((slot) => slot.card?.isRevealed === false)).toBe(true);
+
+    for (const id of ids) {
+      expect(WEAKNESS_CARDS.some((card) => card.id === id)).toBe(true);
+    }
   });
 });
 

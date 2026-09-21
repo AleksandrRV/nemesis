@@ -6,6 +6,8 @@ import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { COORDINATE_DESTINATIONS, ESCAPE_POD_NUMBERS } from '../data/setup.js';
+import { STARTING_WEAPONS } from '../data/startingItems.js';
+import { WEAKNESS_CARDS } from '../data/weaknessCards.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
 
@@ -307,7 +309,7 @@ describe('createInitialGameState: колоды партии', () => {
     }
   });
 
-  it('создаёт наполненные и пустые колоды в соответствии со спецификацией v0.3.0', () => {
+  it('создаёт наполненные и пустые колоды в соответствии со спецификацией v0.4.0 (шаг 1)', () => {
     const { craftedItems, contamination, weaknesses, seriousWounds, events, intruderAttacks, objectives } =
       createInitialGameState('nemesis-alpha').decks;
 
@@ -317,10 +319,11 @@ describe('createInitialGameState: колоды партии', () => {
     expect(contamination.discard).toEqual([]);
     expect(seriousWounds.drawPile).toHaveLength(16);
     expect(seriousWounds.discard).toEqual([]);
+    expect(intruderAttacks.drawPile).toHaveLength(20);
+    expect(intruderAttacks.discard).toEqual([]);
 
     expect(weaknesses).toEqual({ drawPile: [], discard: [] });
     expect(events).toEqual({ drawPile: [], discard: [] });
-    expect(intruderAttacks).toEqual({ drawPile: [], discard: [] });
     expect(objectives.personal).toEqual({ drawPile: [], discard: [] });
     expect(objectives.corporate).toEqual({ drawPile: [], discard: [] });
   });
@@ -439,5 +442,57 @@ describe('createInitialGameState: Спасательные Капсулы', () =
         expect(pod.occupantIds).toEqual([]);
       }
     }
+  });
+});
+
+describe('createInitialGameState: стартовое оружие', () => {
+  it('выдаёт каждой партии независимую копию оружия (выстрел мутирует боезапас)', () => {
+    const first = createInitialGameState('weapon-copy-a', { playerCount: 1 });
+    const second = createInitialGameState('weapon-copy-b', { playerCount: 1 });
+    const slotA = first.players['player-1']!.handSlots[0]!;
+    const slotB = second.players['player-1']!.handSlots[0]!;
+
+    if (slotA.source !== 'ITEM' || slotB.source !== 'ITEM') {
+      throw new Error('В сетапе ожидалось оружие в руке.');
+    }
+
+    slotA.card.ammo = 0;
+
+    expect(slotB.card.ammo).toBe(slotB.card.maxAmmo);
+    expect(slotB.card.ammo).toBeGreaterThan(0);
+
+    const characterClass = first.players['player-1']!.characterClass;
+    expect(STARTING_WEAPONS[characterClass].ammo).toBe(STARTING_WEAPONS[characterClass].maxAmmo);
+  });
+});
+
+describe('createInitialGameState: слоты Слабостей', () => {
+  it('раздаёт 3 различные карты рубашкой вверх (стр. 6, шаг 9)', () => {
+    for (const seed of SEEDS) {
+      const slots = createInitialGameState(seed).intrudersPool.weaknessSlots;
+
+      expect(slots).toHaveLength(3);
+
+      const ids: string[] = [];
+
+      for (const slot of slots) {
+        expect(slot.card).not.toBeNull();
+        expect(slot.card!.isRevealed).toBe(false);
+        expect(WEAKNESS_CARDS.some((card) => card.id === slot.card!.id)).toBe(true);
+        ids.push(slot.card!.id);
+      }
+
+      expect(new Set(ids).size).toBe(3);
+    }
+  });
+
+  it('выдаёт независимые копии карт: переворот не портит данные', () => {
+    const first = createInitialGameState('weakness-copy-a');
+    const card = first.intrudersPool.weaknessSlots[0]!.card!;
+
+    card.isRevealed = true;
+
+    const source = WEAKNESS_CARDS.find((candidate) => candidate.id === card.id)!;
+    expect(source.isRevealed).toBe(false);
   });
 });

@@ -185,3 +185,18 @@ describe('Стор: новая партия', () => {
     expect(store.getState().view?.meta.seed).toBe('fixed-seed');
   });
 });
+describe('Стор: модалка Контакта', () => {
+  it('dismissContact запоминает sequence, новая партия сбрасывает отметку', () => {
+    const { store } = createStore();
+
+    expect(store.getState().dismissedContactSequence).toBeNull();
+
+    store.getState().dismissContact(7);
+
+    expect(store.getState().dismissedContactSequence).toBe(7);
+
+    store.getState().startNewGame('contact-dismiss-seed');
+
+    expect(store.getState().dismissedContactSequence).toBeNull();
+  });
+});

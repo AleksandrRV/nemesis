@@ -3,6 +3,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { SHIP_ROOM_NODES } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { RoomHex } from './RoomHex';
+import { roomIntruders } from '../../utils/roomIntruders';
 import { CorridorEdge } from './CorridorEdge';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
@@ -101,6 +102,7 @@ export const ShipMapSVG: React.FC = () => {
                         y={coord.y}
                         isSelected={selectedRoomId === room.id}
                         onSelect={selectRoom}
+                        intruders={roomIntruders(view, room.id)}
                       />
                     );
                   })}

@@ -9,7 +9,8 @@ import { IS_DEV } from '../utils/env';
  * Стор интерфейса — тонкий клиент транспорта.
  *
  * Правила игры здесь не живут: стор хранит только то, что пришло по подписке
- * (`SanitizedGameState`), выбранный отсек и причину последнего отказа движка.
+ * (`SanitizedGameState`), выбранный отсек, причину последнего отказа движка
+ * и отметку уже показанных модалок Контакта.
  * Любое изменение партии — это `dispatch(action)`: правил в сторе нет.
  */
 export interface GameStoreState {
@@ -19,6 +20,8 @@ export interface GameStoreState {
   selectedRoomId: RoomId | null;
   /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
   rejection: string | null;
+  /** До какого Контакта (sequence в журнале) игрок уже видел модалку. */
+  dismissedContactSequence: number | null;
 
   /** Выбранные в текущий момент карты на руке */
   selectedCardIds: string[];
@@ -33,6 +36,7 @@ export interface GameStoreState {
 
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
+  dismissContact: (sequence: number) => void;
   startNewGame: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
 }
 
@@ -54,6 +58,7 @@ export function createGameStore(createTransport: TransportFactory) {
     view: null,
     selectedRoomId: null,
     rejection: null,
+    dismissedContactSequence: null,
     selectedCardIds: [],
     convertedCardIds: [],
 
@@ -135,6 +140,10 @@ export function createGameStore(createTransport: TransportFactory) {
       set({ selectedRoomId: roomId });
     },
 
+    dismissContact: (sequence) => {
+      set({ dismissedContactSequence: sequence });
+    },
+
     startNewGame: (seed, options) => {
       if (transport.startNewGame) {
         // Локальная партия продолжается тем же транспортом: он уже держит
@@ -143,6 +152,7 @@ export function createGameStore(createTransport: TransportFactory) {
         set({
           selectedRoomId: defaultRoomId(store.getState().view),
           rejection: null,
+          dismissedContactSequence: null,
           selectedCardIds: [],
           convertedCardIds: [],
         });
@@ -155,7 +165,14 @@ export function createGameStore(createTransport: TransportFactory) {
       transport = createTransport();
       attach(transport);
       void transport.init();
-      set({ view: null, selectedRoomId: null, rejection: null, selectedCardIds: [], convertedCardIds: [] });
+      set({
+        view: null,
+        selectedRoomId: null,
+        rejection: null,
+        dismissedContactSequence: null,
+        selectedCardIds: [],
+        convertedCardIds: [],
+      });
     },
   }));
 

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": 2,
-    "updated": "2026-09-18",
-    "updatedFor": "0.3.0",
+    "version": 3,
+    "updated": "2026-09-21",
+    "updatedFor": "0.4.0 (шаг 1)",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
@@ -30,6 +30,11 @@
         "kind": "EXTERNAL_UNVERIFIED",
         "title": "UltraBoardGames: Nemesis — Movement and Exploration",
         "location": "https://www.ultraboardgames.com/nemesis/movement-and-exploration.php"
+      },
+      "intruders-doc": {
+        "kind": "EXTERNAL_UNVERIFIED",
+        "title": "doc/data/INTRUDERS.md — сводная таблица данных по Чужим (§1 кубик Боя, §4 колода Атак); сканов компонентов в репозитории нет, сверка с физическими кубиком и картами не проводилась",
+        "location": "doc/data/INTRUDERS.md"
       }
     }
   },
@@ -506,6 +511,170 @@
       "expectation": {
         "recipeCount": 4
       }
+    },
+    "combat-die": {
+      "file": "packages/shared/src/data/combatDie.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "В коробке 2 кубика Боя d6",
+          "source": "rules-md",
+          "lines": "70, 309"
+        },
+        {
+          "claim": "Бросок кубика Боя даёт 5 исходов: промах (перечёркнутый прицел), хвост (Личинка/Крипер), три силуэта (Личинка/Крипер/Взрослая), 1 рана, 2 раны",
+          "source": "rules-md",
+          "lines": "1133-1138, 1157-1162"
+        },
+        {
+          "claim": "Раскладка 6 граней: Промах продублирован (MISS, MISS, TAIL, SILHOUETTES, ONE_WOUND, TWO_WOUNDS)",
+          "source": "intruders-doc",
+          "note": "Книга правил печатает только исходы броска, состав граней виден лишь на физическом кубике"
+        }
+      ],
+      "expectation": {
+        "faceCount": 6,
+        "faces": [
+          "MISS",
+          "MISS",
+          "TAIL",
+          "SILHOUETTES",
+          "ONE_WOUND",
+          "TWO_WOUNDS"
+        ]
+      },
+      "unverified": [
+        "Какая грань продублирована на d6, читается только с физического кубика: сверки не было, принято допущение из doc/data/INTRUDERS.md §1.",
+        "Формулировка шага 1 этапа 0.4.0 в roadmap упоминает грань «Лапа» — в исходах книги правил (стр. 18–19) ей нет соответствия; грани следуют книге правил."
+      ]
+    },
+    "intruder-attacks": {
+      "file": "packages/shared/src/data/intruderAttacks.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "Карт Атаки Чужих в коробке 20; колода тасуется и кладётся лицом вниз рядом с полем",
+          "source": "rules-md",
+          "lines": "114, 296"
+        },
+        {
+          "claim": "Карта несёт число стойкости (символ Раны), символы типов Чужих и текст эффекта; Крипер/Взрослая проверяются 1 картой, Трутень/Королева — суммой 2 карт",
+          "source": "rules-md",
+          "lines": "1206-1212, 1255-1257"
+        },
+        {
+          "claim": "Стрелка Отступления на символе Раны заставляет Чужого сбежать при проверке результата атаки",
+          "source": "rules-md",
+          "lines": "1219-1224"
+        },
+        {
+          "claim": "Точный состав 20 карт: стойкость, отступление, типы атакующих и эффекты",
+          "source": "intruders-doc",
+          "note": "Значения напечатаны на физических картах; в книге правил их нет"
+        }
+      ],
+      "expectation": {
+        "cardCount": 20,
+        "byName": {
+          "Царапина": 4,
+          "Укус": 4,
+          "Атака когтями": 4,
+          "Атака хвостом": 2,
+          "Трансформация": 2,
+          "Ярость": 2,
+          "Слизь": 1,
+          "Зов": 1
+        },
+        "toughnessByName": {
+          "Царапина": [
+            2,
+            3,
+            5,
+            6
+          ],
+          "Укус": [
+            2,
+            4,
+            4,
+            6
+          ],
+          "Атака когтями": [
+            3,
+            4,
+            4,
+            5
+          ],
+          "Атака хвостом": [
+            2,
+            5
+          ],
+          "Трансформация": [
+            4,
+            5
+          ],
+          "Ярость": [
+            3,
+            4
+          ],
+          "Слизь": [
+            5
+          ],
+          "Зов": [
+            3
+          ]
+        },
+        "retreatCountByName": {
+          "Царапина": 1,
+          "Укус": 2,
+          "Атака когтями": 2,
+          "Атака хвостом": 0,
+          "Трансформация": 0,
+          "Ярость": 0,
+          "Слизь": 0,
+          "Зов": 0
+        },
+        "attackerTypesByName": {
+          "Царапина": [
+            "CREEPER",
+            "ADULT",
+            "BREEDER",
+            "QUEEN"
+          ],
+          "Укус": [
+            "ADULT",
+            "BREEDER",
+            "QUEEN"
+          ],
+          "Атака когтями": [
+            "ADULT",
+            "BREEDER",
+            "QUEEN"
+          ],
+          "Атака хвостом": [
+            "QUEEN"
+          ],
+          "Трансформация": [
+            "CREEPER"
+          ],
+          "Ярость": [
+            "BREEDER",
+            "QUEEN"
+          ],
+          "Слизь": [
+            "CREEPER",
+            "ADULT",
+            "BREEDER",
+            "QUEEN"
+          ],
+          "Зов": [
+            "CREEPER",
+            "QUEEN"
+          ]
+        }
+      },
+      "unverified": [
+        "Стойкость, отступление, символы типов и тексты эффектов напечатаны на физических картах; сверки колоды с картоном не было — состав зафиксирован по doc/data/INTRUDERS.md §4."
+      ]
     },
     "deck-composition": {
       "file": "packages/shared/src/data/actionCards.ts, packages/shared/src/data/itemCards.ts, packages/shared/src/data/contaminationCards.ts, packages/shared/src/data/seriousWounds.ts",

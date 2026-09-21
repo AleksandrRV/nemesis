@@ -9,6 +9,8 @@ import { DevPanel } from './components/dev/DevPanel';
 import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
+import { ContactModal } from './components/modals/ContactModal';
+import { selectContactEntry } from './components/modals/contactModalModel';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
@@ -17,6 +19,7 @@ import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
+  const dismissedContactSequence = useGameStore((state) => state.dismissedContactSequence);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !localStorage.getItem('nemesis_offline_session');
@@ -36,6 +39,7 @@ export const App: React.FC = () => {
   }
 
   const activePlayerName = view.players[view.meta.activePlayerId]?.name ?? 'Экипаж';
+  const contactEntry = selectContactEntry(view, dismissedContactSequence);
 
   return (
     <div className="relative w-screen h-screen bg-nemesis-bg flex flex-col overflow-hidden">
@@ -106,6 +110,7 @@ export const App: React.FC = () => {
           />
         )}
         {view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
+        {contactEntry && <ContactModal entry={contactEntry} view={view} />}
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
     </div>

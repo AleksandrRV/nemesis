@@ -21,6 +21,7 @@ export const DOOR_LABELS: Record<DoorState, string> = {
 export const GAME_OVER_REASON_LABELS: Record<NonNullable<SanitizedGameState['meta']['gameOverReason']>, string> = {
   SHIP_EXPLODED: 'корабль взорвался',
   HULL_BREACH: 'разрыв обшивки',
+  ALL_PLAYERS_DEAD: 'погибли все персонажи',
 };
 
 /** Разрушенную Дверь снова не закрыть: переключать её некуда (стр. 17). */

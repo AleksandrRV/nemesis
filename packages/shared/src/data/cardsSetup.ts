@@ -4,6 +4,7 @@ import { ACTION_CARDS_BY_CHARACTER } from '../data/actionCards.js';
 import { CONTAMINATION_CARDS } from '../data/contaminationCards.js';
 import { CRAFTED_ITEM_CARDS } from '../data/crafting.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from '../data/itemCards.js';
+import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { SERIOUS_WOUND_CARDS } from '../data/seriousWounds.js';
 import { createRng, shuffle } from '../utils/rng.js';
 
@@ -47,7 +48,7 @@ export function createInitialDecks(seed: string): GameDecksState {
     contamination: { drawPile: shuffle(rng, [...CONTAMINATION_CARDS]), discard: [] },
     seriousWounds: { drawPile: shuffle(rng, [...SERIOUS_WOUND_CARDS]), discard: [] },
     events: { drawPile: [], discard: [] },
-    intruderAttacks: { drawPile: [], discard: [] },
+    intruderAttacks: { drawPile: shuffle(rng, [...INTRUDER_ATTACK_CARDS]), discard: [] },
     objectives: {
       personal: { drawPile: [], discard: [] },
       corporate: { drawPile: [], discard: [] },

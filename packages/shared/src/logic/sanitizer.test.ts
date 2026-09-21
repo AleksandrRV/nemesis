@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EngineErrorCode } from './fsm.js';
+import type { IntruderEntity } from '../types/entities.js';
 import { EngineError } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { createInitialGameState } from './setup.js';
@@ -381,6 +382,32 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     expect(serialized).toContain('red-discard-1');
   });
 
+  it('колоду Атак Чужих отдаёт числом, а сброс — открыто: разыгранные карты лежат лицом вверх', () => {
+    const state = freshState();
+    const attackCard = (id: string) => ({
+      id,
+      name: 'Царапина',
+      fortitude: 1,
+      hasRetreatArrow: false,
+      attackerTypes: ['ADULT'],
+      effect: 'test',
+    });
+
+    state.decks.intruderAttacks = {
+      drawPile: [attackCard('attack-draw-1'), attackCard('attack-draw-2')],
+      discard: [attackCard('attack-discard-1')],
+    } as never;
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const serialized = JSON.stringify(view);
+
+    expect(view.decks.intruderAttacks.drawPileCount).toBe(2);
+    expect(view.decks.intruderAttacks.discard.map((card) => card.id)).toEqual(['attack-discard-1']);
+    expect(serialized).not.toContain('attack-draw-1');
+    expect(serialized).not.toContain('attack-draw-2');
+    expect(serialized).toContain('attack-discard-1');
+  });
+
   it('у колоды Заражения, Целей и Слабостей скрыт и сброс: наружу уходят только числа', () => {
     const state = freshState();
 
@@ -451,5 +478,58 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     for (const token of [...state.intrudersPool.bag, ...state.intrudersPool.supply]) {
       expect(serialized, `жетон ${token.id} утёк в срез`).not.toContain(token.id);
     }
+  });
+});
+
+describe('filterStateForPlayer: Чужие на поле (этап 0.4.0, шаг 3)', () => {
+  it('передаёт в срез монстров исследованного отсека и их раны', () => {
+    const state = freshState();
+    const room = state.ship.rooms[11]!;
+
+    expect(room.isExplored).toBe(true);
+
+    const entity: IntruderEntity = {
+      id: 'test-adult-1',
+      type: 'ADULT',
+      roomId: 11,
+      woundsCount: 2,
+      token: { id: 'test-adult-1', type: 'ADULT', escapeNumber: 4 },
+    };
+
+    state.intrudersPool.boardTokens.push(entity);
+    room.occupantIntruderIds.push(entity.id);
+
+    const view = filterStateForPlayer(state, VIEWER);
+
+    expect(view.ship.rooms[11]?.occupantIntruderIds).toEqual(['test-adult-1']);
+    expect(view.intrudersPool.boardTokens).toHaveLength(1);
+    expect(view.intrudersPool.boardTokens[0]).toMatchObject({
+      id: 'test-adult-1',
+      type: 'ADULT',
+      roomId: 11,
+      woundsCount: 2,
+    });
+  });
+});
+
+describe('filterStateForPlayer: чужие решения (Шаг 8)', () => {
+  it('владелец видит свой переброс с первой гранью, остальные — null', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+
+    state.pendingDecision = {
+      id: 'aimed-sanitize',
+      playerId: 'player-1',
+      type: 'CHOOSE_AIMED_REROLL',
+      firstFace: 'MISS',
+      targetIntruderId: 't-adult',
+      weaponSlotIndex: 0,
+    };
+
+    const owner = filterStateForPlayer(state, 'player-1');
+    const stranger = filterStateForPlayer(state, 'player-2');
+
+    expect(owner.pendingDecision).toMatchObject({ id: 'aimed-sanitize', firstFace: 'MISS' });
+    expect(stranger.pendingDecision).toBeNull();
+    expect(JSON.stringify(stranger)).not.toContain('aimed-sanitize');
   });
 });

@@ -4,8 +4,16 @@ import {
   SPECIAL_ROOMS,
   type GameLogEntry,
   type GameLogEvent,
+  type GameOverReason,
   type SanitizedGameState,
 } from '@nemesis/shared';
+
+import {
+  COMBAT_DIE_FACE_LABELS,
+  HEAVY_OBJECT_LABELS,
+  INTRUDER_TOKEN_LABELS,
+  INTRUDER_TYPE_LABELS,
+} from '../../utils/labels';
 
 export type GameLogTone =
   | 'system'
@@ -57,6 +65,12 @@ const CATEGORY_LABELS: Record<Extract<GameLogEvent, { type: 'ROOM_DISCOVERED' }>
   ROOM_2: 'дополнительная «2»',
 };
 
+const GAME_OVER_LABELS: Record<GameOverReason, string> = {
+  SHIP_EXPLODED: ': корабль взорвался.',
+  HULL_BREACH: ': произошёл разрыв обшивки.',
+  ALL_PLAYERS_DEAD: ': погибли все персонажи.',
+};
+
 const OUTCOME_LABELS: Record<Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_RESOLVED' }>['outcome'], string> = {
   FIRE_PLACED: 'маркер Пожара установлен',
   FIRE_ALREADY_PRESENT: 'Пожар уже был в отсеке',
@@ -79,7 +93,7 @@ function playerName(view: SanitizedGameState, playerId: string): string {
   return view.players[playerId]?.name ?? playerId;
 }
 
-function roomLabel(view: SanitizedGameState, roomId: number): string {
+export function roomLabel(view: SanitizedGameState, roomId: number): string {
   const room = view.ship.rooms[roomId];
   const numberLabel = `#${String(roomId).padStart(3, '0')}`;
 
@@ -117,6 +131,7 @@ function targetLabel(target: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED'
 function reasonLabel(reason: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['reason']): string {
   if (reason === 'CAREFUL') return 'Осторожное движение';
   if (reason === 'DANGER') return 'Опасность';
+  if (reason === 'BLANK') return 'Пустой жетон';
 
   return 'бросок Шума';
 }
@@ -146,6 +161,19 @@ function outcomeTone(outcome: Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_
   if (outcome.includes('DANGER')) return 'danger';
 
   return 'silence';
+}
+
+export function woundsSummary(light: number, serious: number, contamination: number): string | null {
+  const parts: string[] = [];
+
+  if (light > 0) parts.push(light === 1 ? '1 Лёгкая Травма' : `${light} Лёгкие Травмы`);
+  if (serious > 0) parts.push(serious === 1 ? '1 Тяжёлая Травма' : `${serious} Тяжёлые Травмы`);
+
+  if (contamination > 0) {
+    parts.push(contamination === 1 ? '1 Заражение' : `${contamination} Заражения`);
+  }
+
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegment[] {
@@ -286,11 +314,207 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: 'Выпавший номер не имеет выхода из отсека: маркер не установлен.', tone: 'warning', strong: true },
       ];
 
-    case 'GAME_OVER':
+    case 'CONTACT_OCCURRED': {
+      const cleared: GameLogSegment[] =
+        event.clearedCorridorIds.length > 0 || event.clearedTechnical
+          ? [
+              {
+                text: ` Маркеры Шума сброшены${event.clearedTechnical ? ' (включая Технические Коридоры)' : ''}.`,
+                tone: 'noise',
+              },
+            ]
+          : [];
+
       return [
-        { text: 'ПАРТИЯ ЗАВЕРШЕНА', tone: 'error', strong: true },
-        { text: event.reason === 'SHIP_EXPLODED' ? ': корабль взорвался.' : ': произошёл разрыв обшивки.' },
+        { text: 'КОНТАКТ', tone: 'danger', strong: true },
+        { text: '! ' },
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)} — жетон «` },
+        { text: INTRUDER_TOKEN_LABELS[event.tokenType], tone: 'danger', strong: true },
+        {
+          text: `» (число Бегства ${event.escapeNumber}, карт на руке: ${event.handCount}).`,
+        },
+        ...(event.isFirstContact ? [{ text: ' Первый Контакт партии!', tone: 'warning' as const, strong: true }] : []),
+        ...cleared,
       ];
+    }
+
+    case 'SURPRISE_ATTACK_TRIGGERED':
+      return [
+        { text: 'ВНЕЗАПНАЯ АТАКА', tone: 'error', strong: true },
+        { text: '! ' },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ' атакует ' },
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` (карт на руке: ${event.handCount}, число Бегства: ${event.escapeNumber}).` },
+      ];
+
+    case 'SURPRISE_ATTACK_RESOLVED': {
+      if (event.outcome === 'MISSED') {
+        return [
+          { text: 'Мимо', tone: 'success', strong: true },
+          { text: `! Карта «${event.attackCardName ?? '—'}» не задела ` },
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: '.' },
+        ];
+      }
+
+      if (event.outcome === 'LARVA_INFECTION') {
+        return [
+          { text: 'Личинка', tone: 'danger', strong: true },
+          { text: ' заражает ' },
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: ': +1 Заражение, Личинка уходит на планшет персонажа.' },
+        ];
+      }
+
+      if (event.outcome === 'HIT_DIED') {
+        return [
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: ` погибает от Внезапной атаки («${event.attackCardName ?? '—'}»)!` },
+        ];
+      }
+
+      const summary = woundsSummary(event.lightWoundsDealt, event.seriousWoundsDealt, event.contaminationDealt);
+
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` пережил Внезапную атаку («${event.attackCardName ?? '—'}»)` },
+        ...(summary ? [{ text: `: ${summary}.` }] : [{ text: ' без ран и Заражения.' }]),
+      ];
+    }
+
+    case 'ESCAPE_ATTACK_RESOLVED': {
+      if (event.outcome === 'MISSED') {
+        return [
+          { text: 'Мимо', tone: 'success', strong: true },
+          { text: `! Карта «${event.attackCardName ?? '—'}» не задела убегающего ` },
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: '.' },
+        ];
+      }
+
+      if (event.outcome === 'LARVA_INFECTION') {
+        return [
+          { text: 'Личинка', tone: 'danger', strong: true },
+          { text: ' заражает убегающего ' },
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: ': +1 Заражение, Личинка уходит на планшет персонажа.' },
+        ];
+      }
+
+      if (event.outcome === 'HIT_DIED') {
+        return [
+          { text: playerName(view, event.playerId), tone: 'player', strong: true },
+          { text: ` погибает при Побеге («${event.attackCardName ?? '—'}»)!` },
+        ];
+      }
+
+      const summary = woundsSummary(event.lightWoundsDealt, event.seriousWoundsDealt, event.contaminationDealt);
+
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` пережил атаку в спину («${event.attackCardName ?? '—'}»)` },
+        ...(summary ? [{ text: `: ${summary}.` }] : [{ text: ' без ран и Заражения.' }]),
+      ];
+    }
+
+    case 'INTRUDER_TRANSFORMED':
+      return [
+        { text: 'Трансформация', tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}: Крипер становится Трутнем.` },
+      ];
+
+    case 'INTRUDER_CALLED':
+      if (!event.intruderId) {
+        return [
+          { text: 'Зов', tone: 'danger', strong: true },
+          { text: ` в ${roomLabel(view, event.roomId)}: Пустой жетон — никто не пришёл.` },
+        ];
+      }
+
+      return [
+        { text: 'Зов', tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}: появляется ` },
+        { text: INTRUDER_TOKEN_LABELS[event.tokenType], tone: 'danger', strong: true },
+        { text: '!' },
+      ];
+
+    case 'SHOT_FIRED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` стреляет из «${event.weaponName}» по ` },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}: кубик — «` },
+        { text: COMBAT_DIE_FACE_LABELS[event.dieFace], tone: 'warning', strong: true },
+        { text: event.woundsDealt > 0 ? `», Ран нанесено: ${event.woundsDealt}.` : '» — промах.' },
+      ];
+
+    case 'TOUGHNESS_CHECKED': {
+      const cards = event.attackCards
+        .map((card) => `«${card.name}» (Стойкость ${card.toughness}${card.hasRetreat ? ', отступление!' : ''})`)
+        .join(' + ');
+      const outcome = event.retreated
+        ? { text: 'Чужой отступает!', tone: 'warning' as const }
+        : event.killed
+          ? { text: 'Чужой убит!', tone: 'success' as const }
+          : { text: 'Чужой выживает.', tone: 'danger' as const };
+      return [
+        { text: 'Проверка Стойкости', tone: 'system', strong: true },
+        { text: ': ' },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ` — ${cards} против ${event.woundsTotal} Ран(ы). ` },
+        { text: outcome.text, tone: outcome.tone, strong: true },
+      ];
+    }
+
+    case 'INTRUDER_KILLED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' убивает ' },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}.` },
+      ];
+
+    case 'INTRUDER_RETREATED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' заставляет ' },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ` отступить: ${roomLabel(view, event.fromRoomId)} → ${roomLabel(view, event.toRoomId)}.` },
+      ];
+
+    case 'MELEE_ATTACKED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' атакует врукопашную ' },
+        { text: INTRUDER_TYPE_LABELS[event.intruderType], tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}: кубик — «` },
+        { text: COMBAT_DIE_FACE_LABELS[event.dieFace], tone: 'warning', strong: true },
+        {
+          text:
+            event.woundsDealt > 0
+              ? `», Ран нанесено: ${event.woundsDealt}. Заражение: +${event.contaminationDealt}.`
+              : `» — промах. Заражение: +${event.contaminationDealt}, Тяжёлая Травма: +${event.seriousWoundDealt}.`,
+        },
+      ];
+
+    case 'OBJECT_PICKED_UP':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' подбирает ' },
+        { text: HEAVY_OBJECT_LABELS[event.objectKind], tone: 'system', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}.` },
+      ];
+
+    case 'PLAYER_DIED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` погибает в ${roomLabel(view, event.roomId)} от атаки Чужого. Труп остаётся в отсеке.` },
+      ];
+
+    case 'GAME_OVER':
+      return [{ text: 'ПАРТИЯ ЗАВЕРШЕНА', tone: 'error', strong: true }, { text: GAME_OVER_LABELS[event.reason] }];
 
     case 'PLAYER_PASSED':
       return [

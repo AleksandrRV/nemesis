@@ -1,15 +1,26 @@
 import React from 'react';
-import type { BoardObject, CarefulMoveChosenCorridor, CorridorNumber, SanitizedRoomState } from '@nemesis/shared';
+import type { CarefulMoveChosenCorridor, CorridorNumber, IntruderEntity, SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { X, Flame, Wrench, Laptop, Package, User, Footprints, AlertCircle, Ban, ShieldAlert } from 'lucide-react';
-
-/** Подписи Тяжёлых объектов на полу отсека (стр. 22). */
-const BOARD_OBJECT_LABELS: Record<BoardObject['kind'], string> = {
-  CORPSE: 'Труп члена экипажа',
-  EGG: 'Яйцо Чужих',
-  INTRUDER_REMAINS: 'Останки Чужого',
-};
+import {
+  X,
+  Flame,
+  Wrench,
+  Laptop,
+  Package,
+  User,
+  Footprints,
+  AlertCircle,
+  Ban,
+  ShieldAlert,
+  Bug,
+  Crosshair,
+  Swords,
+} from 'lucide-react';
+import { HEAVY_OBJECT_LABELS, INTRUDER_TYPE_COLORS, INTRUDER_TYPE_LABELS } from '../../utils/labels';
+import { roomIntruders } from '../../utils/roomIntruders';
+import { ShootModal } from '../modals/ShootModal';
+import { MeleeModal } from '../modals/MeleeModal';
 
 const CATEGORY_LABELS: Record<SanitizedRoomState['category'], string> = {
   SPECIAL: 'ОСОБАЯ',
@@ -25,6 +36,31 @@ function unknown(value: string | number | boolean | null): string {
   return String(value);
 }
 
+/** Строка особи Чужого: тип цветом миниатюры и шкала полученных ран. */
+function IntruderRow({ entity }: { entity: IntruderEntity }): React.ReactElement {
+  const colors = INTRUDER_TYPE_COLORS[entity.type];
+
+  return (
+    <div className="flex items-center gap-2 text-xs bg-slate-900/60 p-1.5 rounded">
+      <span
+        className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/60"
+        style={{ backgroundColor: colors.fill }}
+      />
+      <b className="text-white">{INTRUDER_TYPE_LABELS[entity.type]}</b>
+      <span className="ml-auto flex items-center gap-1 text-slate-400">
+        Ран: {entity.woundsCount}
+        {entity.woundsCount > 0 && (
+          <span className="flex gap-0.5">
+            {Array.from({ length: entity.woundsCount }).map((_, index) => (
+              <span key={index} className="w-2 h-2 rounded-[2px] bg-red-500" />
+            ))}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 export const RoomInspector: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
@@ -34,6 +70,9 @@ export const RoomInspector: React.FC = () => {
   const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
 
   const [isCarefulSelecting, setIsCarefulSelecting] = React.useState(false);
+  const [showShootModal, setShowShootModal] = React.useState(false);
+  const [showMeleeModal, setShowMeleeModal] = React.useState(false);
+  const [showEscapeConfirm, setShowEscapeConfirm] = React.useState(false);
 
   if (!view || !selectedRoomId) return null;
 
@@ -50,10 +89,15 @@ export const RoomInspector: React.FC = () => {
   const activePlayer = view.players[activePlayerId];
   const isPlayerHere = room.occupantPlayerIds.includes(activePlayerId);
   const occupantNames = room.occupantPlayerIds.map((playerId) => view.players[playerId]?.name ?? playerId);
+  const intruders = roomIntruders(view, room.id);
 
   // Переходить можно только в соседний отсек через открытую Дверь (стр. 14):
   const reachableRoomIds = activePlayer ? findAdjacentOpenRoomIds(view, activePlayer.roomId) : [];
   const canMoveHere = !isPlayerHere && reachableRoomIds.includes(room.id);
+
+  // Побег (стр. 19): уход из отсека с Чужими — только через подтверждение.
+  const activeRoomIntruders = activePlayer ? roomIntruders(view, activePlayer.roomId) : [];
+  const isEscape = canMoveHere && activeRoomIntruders.length > 0;
 
   // Коридоры, ведущие в целевой отсек (для выбора коридора при осторожном движении)
   const corridorsIntoTarget = Object.values(view.ship.corridors).filter(
@@ -95,6 +139,16 @@ export const RoomInspector: React.FC = () => {
     });
   };
 
+  const handleMoveClick = () => {
+    if (isEscape && !showEscapeConfirm) {
+      setShowEscapeConfirm(true);
+      return;
+    }
+
+    setShowEscapeConfirm(false);
+    handleNormalMove();
+  };
+
   const handleCarefulMove = (chosen: CarefulMoveChosenCorridor) => {
     const discardCardIds = consumePaymentCards(2);
     dispatch({
@@ -121,6 +175,14 @@ export const RoomInspector: React.FC = () => {
     dispatch({
       type: 'ACTION_ROOM_ABILITY',
       payload: { discardCardIds },
+    });
+  };
+
+  const handlePickUpObject = (objectId: string) => {
+    const discardCardIds = consumePaymentCards(1);
+    dispatch({
+      type: 'ACTION_PICK_UP_OBJECT',
+      payload: { objectId, discardCardIds },
     });
   };
 
@@ -200,6 +262,19 @@ export const RoomInspector: React.FC = () => {
           </div>
         )}
 
+        {/* Чужие в отсеке */}
+        {intruders.length > 0 && (
+          <div className="bg-red-950/30 border border-red-900/50 p-2 rounded space-y-1.5">
+            <div className="text-[11px] text-rose-300 flex items-center gap-2 font-bold uppercase tracking-wider">
+              <Bug size={14} />
+              <span>Чужие в отсеке: {intruders.length}</span>
+            </div>
+            {intruders.map((entity) => (
+              <IntruderRow key={entity.id} entity={entity} />
+            ))}
+          </div>
+        )}
+
         {room.objects.map((object) => (
           <div
             key={object.id}
@@ -207,8 +282,17 @@ export const RoomInspector: React.FC = () => {
           >
             <AlertCircle size={14} />
             <span>
-              На полу: <b>{BOARD_OBJECT_LABELS[object.kind]}</b>
+              На полу: <b>{HEAVY_OBJECT_LABELS[object.kind]}</b>
             </span>
+            {isPlayerHere && (
+              <button
+                type="button"
+                onClick={() => handlePickUpObject(object.id)}
+                className="ml-auto px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-[11px] active:scale-95 transition"
+              >
+                Поднять [цена: 1]
+              </button>
+            )}
           </div>
         ))}
 
@@ -306,13 +390,75 @@ export const RoomInspector: React.FC = () => {
                 <span>Использовать консоль отсека [цена: {roomDef.actionCost}]</span>
               </button>
             )}
+
+            {/* Стрельба по Чужим в отсеке */}
+            {intruders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowShootModal(true)}
+                className="w-full min-h-[38px] bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              >
+                <Crosshair size={14} /> Стрельба [цена: 1]
+              </button>
+            )}
+
+            {/* Рукопашная атака: без патронов, но с гарантированной ценой */}
+            {intruders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowMeleeModal(true)}
+                className="w-full min-h-[38px] bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              >
+                <Swords size={14} /> Рукопашная атака [цена: 1]
+              </button>
+            )}
+            {intruders.length > 0 && (
+              <div className="flex gap-1.5">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/60 border border-amber-500/60 text-amber-300">
+                  +1 Заражение
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950/60 border border-rose-500/60 text-rose-300">
+                  Риск Тяжёлой Травмы
+                </span>
+              </div>
+            )}
           </div>
         )}
 
-        {canMoveHere && !isCarefulSelecting && (
+        {showEscapeConfirm && canMoveHere && (
+          <div className="p-3 bg-red-950/40 border border-red-500/50 rounded-lg mb-2 space-y-2">
+            <div className="text-xs text-red-200">
+              В отсеке находятся Чужие! Попытка побега спровоцирует внеочередную атаку монстров в спину. Бежать?
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleMoveClick}
+                className="flex-1 min-h-[36px] bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs active:scale-95 transition"
+              >
+                Бежать [цена: 1]
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEscapeConfirm(false)}
+                className="flex-1 min-h-[36px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg text-xs active:scale-95 transition"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        )}
+
+        {canMoveHere && !isCarefulSelecting && !showEscapeConfirm && (
           <div className="flex flex-col gap-1.5">
+            {isEscape && (
+              <div className="text-[11px] bg-red-950/40 border border-red-900/60 p-2 rounded flex items-start gap-2 text-red-200">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                <span>Побег: Чужие в отсеке атакуют в спину!</span>
+              </div>
+            )}
             <button
-              onClick={handleNormalMove}
+              onClick={handleMoveClick}
               className="w-full min-h-[40px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
             >
               <Footprints size={14} /> Движение [цена: 1]
@@ -332,6 +478,9 @@ export const RoomInspector: React.FC = () => {
           </div>
         )}
       </div>
+
+      {showShootModal && <ShootModal roomId={room.id} onClose={() => setShowShootModal(false)} />}
+      {showMeleeModal && <MeleeModal roomId={room.id} onClose={() => setShowMeleeModal(false)} />}
     </div>
   );
 };

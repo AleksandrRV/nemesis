@@ -7,6 +7,7 @@ import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { createIntruderSupply, splitIntruderBag } from '../data/intruderPool.js';
+import { WEAKNESS_CARDS } from '../data/weaknessCards.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import {
   CHARACTERS,
@@ -20,7 +21,7 @@ import {
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameLog } from './gameLog.js';
-import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
+import { createRng, createRngDraws, shuffle, type Rng } from '../utils/rng.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
 
@@ -47,8 +48,18 @@ const ENGINE_NUMBERS = [1, 2, 3] as const;
  * тип Объекта — Труп, Яйцо и Останки (стр. 6, шаг 9; стр. 21). Состав карт
  * появится вместе с данными о колодах, поэтому слоты создаются пустыми.
  */
-function createWeaknessSlots(): GameState['intrudersPool']['weaknessSlots'] {
-  return WEAKNESS_SLOT_OBJECT_KINDS.map((objectKind) => ({ objectKind, card: null }));
+/**
+ * Слоты Слабостей: 3 случайные карты рубашкой вверх (стр. 6, шаг 9), остальные
+ * возвращаются в коробку. Тасуется потоком `layout` последним в подготовке —
+ * раздачи выше по коду сид не меняет. Карты клонируются: переворот мутирует.
+ */
+function createWeaknessSlots(rng: Rng): GameState['intrudersPool']['weaknessSlots'] {
+  const dealt = shuffle(rng, WEAKNESS_CARDS).slice(0, WEAKNESS_SLOT_OBJECT_KINDS.length);
+
+  return WEAKNESS_SLOT_OBJECT_KINDS.map((objectKind, index) => ({
+    objectKind,
+    card: { ...dealt[index]!, isRevealed: false },
+  }));
 }
 
 /**
@@ -72,7 +83,9 @@ function createEscapePods(playerCount: number, podNumbers: number[]): Record<str
 function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: number, seed: string): PlayerState {
   const actionDeckCards = createActionDeckForCharacter(preset.characterClass, seed, orderNumber);
   const startingWeapon = STARTING_WEAPONS[preset.characterClass];
-  const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: startingWeapon }] : [];
+  // Копия, а не ссылка: выстрел мутирует боезапас, и общий объект данных
+  // потёк бы между партиями (новую игру начинали бы с пустым оружием).
+  const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: { ...startingWeapon } }] : [];
 
   const initialHand = actionDeckCards.slice(0, 5);
   const initialDrawPile = actionDeckCards.slice(5);
@@ -95,6 +108,7 @@ function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: nu
     seriousWounds: [],
     objectives: [],
     hasSlime: false,
+    hasLarva: false,
     hasSignalSent: false,
     isInHibernation: false,
     hasEscapedInPod: false,
@@ -322,7 +336,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       boardTokens: [],
       deadTokens: [],
       eggsOnBoard: 5,
-      weaknessSlots: createWeaknessSlots(),
+      weaknessSlots: createWeaknessSlots(rng),
     },
 
     decks: createInitialDecks(seed),

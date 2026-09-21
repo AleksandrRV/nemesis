@@ -13,12 +13,14 @@ export interface IntruderToken {
   escapeNumber: number;
 }
 
-/** Чужой на поле: миниатюра с накопленными ранами. */
+/** Чужой на поле: миниатюра с накопленными ранами и отложенным жетоном. */
 export interface IntruderEntity {
   id: string;
   type: IntruderType;
   roomId: RoomId;
   woundsCount: number;
+  /** Вытянутый жетон: отложен при появлении и вернётся в пул при отступлении в вентиляцию. */
+  token: IntruderToken;
 }
 
 /**
@@ -87,6 +89,8 @@ export interface PlayerState {
   objectives: ObjectiveCard[]; // 1 личная и 1 корпоративная цель
   /** Маркер Слизи лежит на планшете Персонажа, а не в отсеке (стр. 15). */
   hasSlime: boolean;
+  /** Личинка на планшете Персонажа после атаки-инфицирования (стр. 20). */
+  hasLarva: boolean;
   hasSignalSent: boolean;
   isInHibernation: boolean;
   hasEscapedInPod: boolean;

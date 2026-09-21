@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EngineAction } from '../types/actions.js';
+import type { ActionCard } from '../types/cards.js';
+import type { IntruderType } from '../types/entities.js';
 import type { CorridorConnection, CorridorNumber, ExplorationEffect, RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
@@ -17,6 +19,7 @@ import {
 } from './fsm.js';
 import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { DOOR_TOKEN_SUPPLY, FIRE_MARKER_SUPPLY, MALFUNCTION_MARKER_SUPPLY } from './markers.js';
+import { resolveEscapeAttacks } from './contact.js';
 import { createInitialGameState } from './setup.js';
 
 const SEED = 'engine-test';
@@ -223,6 +226,543 @@ describe('GameEngine: перемещение', () => {
   });
 });
 
+/** Особь на поле: жетон спавнится прямо в отсек, мешок не трогаем. */
+function spawnIntruder(state: GameState, roomId: RoomId, type: IntruderType, tokenId: string): void {
+  const token = { id: tokenId, type, escapeNumber: 1 };
+
+  state.intrudersPool.boardTokens.push({ id: token.id, type, roomId, woundsCount: 0, token });
+  state.ship.rooms[roomId]!.occupantIntruderIds.push(tokenId);
+}
+
+/** Кладёт карту с именем на верх колоды Атак Чужих. */
+function rigAttackTop(state: GameState, name: string): void {
+  const pile = state.decks.intruderAttacks.drawPile;
+  const index = pile.findIndex((card) => card.name === name);
+
+  if (index === -1) throw new Error(`В колоде Атак Чужих нет карты «${name}».`);
+
+  const [card] = pile.splice(index, 1);
+
+  pile.unshift(card!);
+}
+
+function woundSerious(state: GameState, playerId: string, count: number): void {
+  const player = state.players[playerId]!;
+
+  for (let dealt = 0; dealt < count; dealt++) {
+    player.seriousWounds.push(state.decks.seriousWounds.drawPile.shift()!);
+  }
+}
+
+function escapeEvents(state: GameState): { intruderId: string; outcome: string }[] {
+  return state.gameLog
+    .map((entry) => entry.event)
+    .filter((event) => event.type === 'ESCAPE_ATTACK_RESOLVED')
+    .map((event) => ({
+      intruderId: (event as { intruderId: string }).intruderId,
+      outcome: (event as { outcome: string }).outcome,
+    }));
+}
+
+describe('GameEngine: Побег из боя (стр. 19)', () => {
+  // Свой сид: бросок Шума после выхода не должен давать «Опасность» —
+  // «Опасность» при Чужих рядом требует механики движения 0.5.0.
+  const ESCAPE_SEED = 'escape-test';
+
+  function escapeSetup() {
+    const engine = new GameEngine();
+    const state = createInitialGameState(ESCAPE_SEED);
+    const target = openCorridorFrom(state, 11).toRoomId as RoomId;
+    const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
+
+    // Цель пред-разведана: иначе жетон «Опасности» потребует механики 0.5.0.
+    state.ship.rooms[target]!.isExplored = true;
+
+    return { engine, state, target, discardCardId };
+  }
+
+  function targetHasNoise(state: GameState, target: RoomId): boolean {
+    return Object.values(state.ship.corridors).some(
+      (corridor) => (corridor.fromRoomId === target || corridor.toRoomId === target) && corridor.hasNoise,
+    );
+  }
+
+  function doMove(setup: ReturnType<typeof escapeSetup>): GameState {
+    return setup.engine.processAction(setup.state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: setup.target, discardCardIds: [setup.discardCardId] },
+    });
+  }
+
+  it('без Чужих движение не разыгрывает атак', () => {
+    const after = doMove(escapeSetup());
+
+    expect(escapeEvents(after)).toHaveLength(0);
+    expect(after.players['player-1']!.roomId).not.toBe(11);
+  });
+
+  it('одна особь: промах — персонаж уходит и шумит', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'ADULT', 'escape-adult-1');
+    rigAttackTop(setup.state, 'Атака хвостом');
+
+    const after = doMove(setup);
+    const events = escapeEvents(after);
+
+    expect(events).toEqual([{ intruderId: 'escape-adult-1', outcome: 'MISSED' }]);
+    expect(after.players['player-1']!.roomId).toBe(setup.target);
+    expect(after.players['player-1']!.lightWounds).toBe(0);
+    expect(targetHasNoise(after, setup.target)).toBe(true);
+  });
+
+  it('одна особь: попадание — раны в журнале, персонаж уходит', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'ADULT', 'escape-adult-1');
+    rigAttackTop(setup.state, 'Царапина');
+
+    const after = doMove(setup);
+    const player = after.players['player-1']!;
+
+    expect(escapeEvents(after)).toEqual([{ intruderId: 'escape-adult-1', outcome: 'HIT_SURVIVED' }]);
+    expect(player.roomId).toBe(setup.target);
+    expect(player.lightWounds).toBe(1);
+    expect(player.actionDeck.discard).toHaveLength(2);
+    expect(player.actionDeck.discard.some((card) => card.id.startsWith('CONTAMINATION_'))).toBe(true);
+  });
+
+  it('каждый Чужой в отсеке атакует по очереди', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'ADULT', 'escape-adult-1');
+    spawnIntruder(setup.state, 11, 'BREEDER', 'escape-breeder-1');
+
+    // Две верхние карты — «Царапины»: повторный rigAttackTop нашёл бы ту же.
+    rigAttackTop(setup.state, 'Царапина');
+
+    const pile = setup.state.decks.intruderAttacks.drawPile;
+    const second = pile.findIndex((card, index) => index > 0 && card.name === 'Царапина');
+    const [scratch] = pile.splice(second, 1);
+
+    pile.splice(1, 0, scratch!);
+
+    const after = doMove(setup);
+
+    expect(escapeEvents(after)).toEqual([
+      { intruderId: 'escape-adult-1', outcome: 'HIT_SURVIVED' },
+      { intruderId: 'escape-breeder-1', outcome: 'HIT_SURVIVED' },
+    ]);
+    expect(after.players['player-1']!.roomId).toBe(setup.target);
+    expect(after.players['player-1']!.lightWounds).toBe(2);
+  });
+
+  it('гибель в Побеге: нет перемещения и шума, Труп остаётся в отсеке', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'ADULT', 'escape-adult-1');
+    woundSerious(setup.state, 'player-1', 2);
+    rigAttackTop(setup.state, 'Укус');
+
+    const after = doMove(setup);
+    const player = after.players['player-1']!;
+
+    expect(escapeEvents(after)).toEqual([{ intruderId: 'escape-adult-1', outcome: 'HIT_DIED' }]);
+    expect(player.isDead).toBe(true);
+    expect(player.roomId).toBe(11);
+    expect(after.gameLog.some((entry) => entry.event.type === 'PLAYER_MOVED')).toBe(false);
+    expect(
+      after.ship.rooms[11]!.objects.some((object) => object.kind === 'CORPSE' && object.id === 'corpse-player-1'),
+    ).toBe(true);
+
+    const targetCorridors = Object.values(after.ship.corridors).filter(
+      (corridor) => corridor.fromRoomId === setup.target || corridor.toRoomId === setup.target,
+    );
+
+    expect(targetCorridors.some((corridor) => corridor.hasNoise)).toBe(false);
+  });
+
+  it('Личинка заражает без карты Атаки', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'LARVA', 'escape-larva-1');
+
+    const deckBefore = setup.state.decks.intruderAttacks.drawPile.length;
+    const after = doMove(setup);
+    const player = after.players['player-1']!;
+
+    expect(escapeEvents(after)).toEqual([{ intruderId: 'escape-larva-1', outcome: 'LARVA_INFECTION' }]);
+    expect(after.decks.intruderAttacks.drawPile.length).toBe(deckBefore);
+    expect(player.hasLarva).toBe(true);
+    expect(player.roomId).toBe(setup.target);
+  });
+
+  it('призванный «Зовом» Чужой в этом Побеге не атакует', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'CREEPER', 'escape-creeper-1');
+    rigAttackTop(setup.state, 'Зов');
+
+    const after = doMove(setup);
+
+    expect(escapeEvents(after)).toHaveLength(1);
+    expect(after.intrudersPool.boardTokens.length).toBeGreaterThan(1);
+    expect(after.players['player-1']!.roomId).toBe(setup.target);
+  });
+
+  it('трансформировавшийся Крипер не атакует дважды', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'CREEPER', 'escape-creeper-1');
+    rigAttackTop(setup.state, 'Трансформация');
+
+    const after = doMove(setup);
+
+    expect(escapeEvents(after)).toHaveLength(1);
+    expect(after.intrudersPool.boardTokens.some((entity) => entity.type === 'BREEDER')).toBe(true);
+    expect(after.players['player-1']!.roomId).toBe(setup.target);
+  });
+
+  it('прерывание Побега: атаки разыгрываются до шага, шум — после', () => {
+    const setup = escapeSetup();
+
+    spawnIntruder(setup.state, 11, 'ADULT', 'escape-adult-1');
+    rigAttackTop(setup.state, 'Атака хвостом');
+
+    resolveInterrupt(setup.state, {
+      type: 'ESCAPE_ATTACK_INTERRUPT',
+      playerId: 'player-1',
+      intruderIds: ['escape-adult-1'],
+      targetRoomId: setup.target,
+    });
+
+    expect(escapeEvents(setup.state)).toEqual([{ intruderId: 'escape-adult-1', outcome: 'MISSED' }]);
+    expect(setup.state.players['player-1']!.roomId).toBe(setup.target);
+    expect(setup.state.interruptQueue.some((interrupt) => interrupt.type === 'NOISE_ROLL_INTERRUPT')).toBe(true);
+  });
+
+  it('Побег неизвестного персонажа отклоняется', () => {
+    expectEngineError(() => resolveEscapeAttacks(freshState(), 'nobody'), 'UNKNOWN_PLAYER');
+  });
+});
+
+function classCard(id: string, name: string): ActionCard {
+  return { id, characterClass: 'SOLDIER', name, playCost: 0, description: 'классовая боевая карта (тест)' };
+}
+
+function weaponAmmo(state: GameState, playerId: string): number {
+  const slot = state.players[playerId]!.handSlots[0]!;
+
+  if (slot.source !== 'ITEM') throw new Error('В первом слоте руки нет предмета.');
+
+  return slot.card.ammo ?? 0;
+}
+
+describe('GameEngine: классовые боевые карты (Шаг 8)', () => {
+  // Тот же сид, что у Побега: бросок Шума после выхода — не «Опасность».
+  const CARD_SEED = 'escape-test';
+
+  function cardSetup(playerCount = 1): { engine: GameEngine; state: GameState; target: RoomId } {
+    const engine = new GameEngine();
+    const state = createInitialGameState(CARD_SEED, { playerCount });
+    const target = openCorridorFrom(state, 11).toRoomId as RoomId;
+
+    state.ship.rooms[target]!.isExplored = true;
+
+    return { engine, state, target };
+  }
+
+  function giveCard(state: GameState, playerId: string, card: ActionCard): void {
+    state.players[playerId]!.actionDeck.hand.push(card);
+  }
+
+  it('«Прицельный огонь»: ставит решение о перебросе и не тратит выстрел заранее', () => {
+    const { engine, state } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'aimed-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_AIMED_FIRE', 'Прицельный огонь'));
+
+    const ammoBefore = weaponAmmo(state, 'player-1');
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_AIMED_FIRE', targetIntruderId: 'aimed-adult-1', weaponSlotIndex: 0 },
+    });
+
+    expect(after.pendingDecision?.type).toBe('CHOOSE_AIMED_REROLL');
+
+    if (after.pendingDecision?.type === 'CHOOSE_AIMED_REROLL') {
+      expect(after.pendingDecision.targetIntruderId).toBe('aimed-adult-1');
+      expect(after.pendingDecision.weaponSlotIndex).toBe(0);
+    }
+
+    expect(after.players['player-1']!.actionsPerformedThisRound).toBe(0);
+    expect(weaponAmmo(after, 'player-1')).toBe(ammoBefore);
+    expect(after.gameLog.some((entry) => entry.event.type === 'SHOT_FIRED')).toBe(false);
+  });
+
+  it('«Прицельный огонь»: «Оставить» применяет первую грань и засчитывает действие', () => {
+    const { engine, state } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'aimed-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_AIMED_FIRE', 'Прицельный огонь'));
+
+    const ammoBefore = weaponAmmo(state, 'player-1');
+    const played = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_AIMED_FIRE', targetIntruderId: 'aimed-adult-1', weaponSlotIndex: 0 },
+    });
+    const decision = played.pendingDecision;
+
+    if (decision?.type !== 'CHOOSE_AIMED_REROLL') throw new Error('Нет решения о перебросе.');
+
+    const resolved = engine.processAction(played, {
+      type: 'ACTION_RESOLVE_DECISION',
+      payload: { decisionId: decision.id, selectedOption: 'KEEP' },
+    });
+    const shot = resolved.gameLog.map((entry) => entry.event).find((event) => event.type === 'SHOT_FIRED');
+
+    expect(shot?.type).toBe('SHOT_FIRED');
+
+    if (shot?.type === 'SHOT_FIRED') {
+      expect(shot.dieFace).toBe(decision.firstFace);
+    }
+
+    expect(resolved.pendingDecision).toBeNull();
+    expect(weaponAmmo(resolved, 'player-1')).toBe(ammoBefore - 1);
+    expect(resolved.players['player-1']!.actionsPerformedThisRound).toBe(1);
+  });
+
+  it('«Прицельный огонь»: «Перебросить» тратит второй бросок кубика', () => {
+    const first = cardSetup();
+
+    spawnIntruder(first.state, 11, 'ADULT', 'aimed-adult-1');
+    giveCard(first.state, 'player-1', classCard('ACT_SOL_AIMED_FIRE', 'Прицельный огонь'));
+
+    const played = first.engine.processAction(first.state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_AIMED_FIRE', targetIntruderId: 'aimed-adult-1', weaponSlotIndex: 0 },
+    });
+    const decision = played.pendingDecision;
+
+    if (decision?.type !== 'CHOOSE_AIMED_REROLL') throw new Error('Нет решения о перебросе.');
+
+    const kept = first.engine.processAction(played, {
+      type: 'ACTION_RESOLVE_DECISION',
+      payload: { decisionId: decision.id, selectedOption: 'KEEP' },
+    });
+    const rerolled = first.engine.processAction(played, {
+      type: 'ACTION_RESOLVE_DECISION',
+      payload: { decisionId: decision.id, selectedOption: 'REROLL' },
+    });
+
+    expect(rerolled.meta.rngDraws.combat - kept.meta.rngDraws.combat).toBe(1);
+    expect(rerolled.gameLog.some((entry) => entry.event.type === 'SHOT_FIRED')).toBe(true);
+    expect(rerolled.pendingDecision).toBeNull();
+  });
+
+  it('«Прицельный огонь»: неизвестный вариант решения отклоняется', () => {
+    const { engine, state } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'aimed-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_AIMED_FIRE', 'Прицельный огонь'));
+
+    const played = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_AIMED_FIRE', targetIntruderId: 'aimed-adult-1', weaponSlotIndex: 0 },
+    });
+    const decision = played.pendingDecision;
+
+    if (decision?.type !== 'CHOOSE_AIMED_REROLL') throw new Error('Нет решения о перебросе.');
+
+    expectEngineError(
+      () =>
+        engine.processAction(played, {
+          type: 'ACTION_RESOLVE_DECISION',
+          payload: { decisionId: decision.id, selectedOption: 'MAYBE' },
+        }),
+      'INVALID_DECISION_OPTION',
+    );
+  });
+
+  it('выстрел без цели и оружия отклоняется до броска', () => {
+    const { engine, state } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'aimed-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_AIMED_FIRE', 'Прицельный огонь'));
+
+    expectEngineError(
+      () => engine.processAction(state, { type: 'ACTION_PLAY_CARD', payload: { cardId: 'ACT_SOL_AIMED_FIRE' } }),
+      'CARD_TARGET_REQUIRED',
+    );
+  });
+
+  it('«Заградительный огонь»: уход из боя без внеочередных атак', () => {
+    const { engine, state, target } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'barrage-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_SUPPRESSIVE_FIRE', 'Заградительный огонь'));
+
+    const ammoBefore = weaponAmmo(state, 'player-1');
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_SUPPRESSIVE_FIRE', targetRoomId: target },
+    });
+    const types = after.gameLog.map((entry) => entry.event.type);
+
+    expect(after.players['player-1']!.roomId).toBe(target);
+    expect(types).toContain('PLAYER_MOVED');
+    expect(types).not.toContain('ESCAPE_ATTACK_RESOLVED');
+    expect(weaponAmmo(after, 'player-1')).toBe(ammoBefore - 1);
+  });
+
+  it('«Заградительный огонь»: уводит себя и другого персонажа', () => {
+    const { engine, state, target } = cardSetup(2);
+
+    spawnIntruder(state, 11, 'ADULT', 'barrage-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SOL_SUPPRESSIVE_FIRE', 'Заградительный огонь'));
+
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SOL_SUPPRESSIVE_FIRE', targetRoomId: target, option: 'BOTH:player-2' },
+    });
+
+    expect(after.players['player-1']!.roomId).toBe(target);
+    expect(after.players['player-2']!.roomId).toBe(target);
+    expect(after.gameLog.map((entry) => entry.event.type)).not.toContain('ESCAPE_ATTACK_RESOLVED');
+  });
+
+  it('«Огонь на подавление»: уводит другого, сам остаётся', () => {
+    const { engine, state, target } = cardSetup(2);
+
+    spawnIntruder(state, 11, 'ADULT', 'suppressive-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_CAP_SUPPRESSIVE_FIRE', 'Огонь на подавление'));
+
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_CAP_SUPPRESSIVE_FIRE', targetRoomId: target, option: 'OTHER:player-2' },
+    });
+
+    expect(after.players['player-1']!.roomId).toBe(11);
+    expect(after.players['player-2']!.roomId).toBe(target);
+    expect(after.gameLog.map((entry) => entry.event.type)).not.toContain('ESCAPE_ATTACK_RESOLVED');
+  });
+
+  it('«Огонь на подавление»: обоих сразу — нельзя', () => {
+    const { engine, state, target } = cardSetup(2);
+
+    giveCard(state, 'player-1', classCard('ACT_CAP_SUPPRESSIVE_FIRE', 'Огонь на подавление'));
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_PLAY_CARD',
+          payload: { cardId: 'ACT_CAP_SUPPRESSIVE_FIRE', targetRoomId: target, option: 'BOTH:player-2' },
+        }),
+      'INVALID_CARD_OPTION',
+    );
+  });
+
+  it('увод без отсека, патронов и спутника отклоняется', () => {
+    const { engine, state, target } = cardSetup(2);
+
+    giveCard(state, 'player-1', classCard('ACT_SOL_SUPPRESSIVE_FIRE', 'Заградительный огонь'));
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_PLAY_CARD',
+          payload: { cardId: 'ACT_SOL_SUPPRESSIVE_FIRE' },
+        }),
+      'CARD_TARGET_REQUIRED',
+    );
+
+    for (const slot of state.players['player-1']!.handSlots) {
+      if (slot.source === 'ITEM') slot.card.ammo = 0;
+    }
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_PLAY_CARD',
+          payload: { cardId: 'ACT_SOL_SUPPRESSIVE_FIRE', targetRoomId: target },
+        }),
+      'CARD_NO_AMMO',
+    );
+
+    const other = state.players['player-2']!;
+
+    other.roomId = target;
+    state.ship.rooms[11]!.occupantPlayerIds = state.ship.rooms[11]!.occupantPlayerIds.filter((id) => id !== 'player-2');
+    state.ship.rooms[target]!.occupantPlayerIds.push('player-2');
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_PLAY_CARD',
+          payload: { cardId: 'ACT_SOL_SUPPRESSIVE_FIRE', targetRoomId: target, option: 'OTHER:player-2' },
+        }),
+      'CARD_COMPANION_NOT_HERE',
+    );
+  });
+
+  it('«Адреналин» (выстрел): бьёт и добирает карту', () => {
+    const { engine, state } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'adrenaline-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SCO_ADRENALINE', 'Адреналин'));
+
+    const handBefore = state.players['player-1']!.actionDeck.hand.length;
+    const drawBefore = state.players['player-1']!.actionDeck.drawPile.length;
+    const ammoBefore = weaponAmmo(state, 'player-1');
+
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: {
+        cardId: 'ACT_SCO_ADRENALINE',
+        option: 'SHOOT',
+        targetIntruderId: 'adrenaline-adult-1',
+        weaponSlotIndex: 0,
+      },
+    });
+    const player = after.players['player-1']!;
+
+    expect(after.gameLog.some((entry) => entry.event.type === 'SHOT_FIRED')).toBe(true);
+    expect(weaponAmmo(after, 'player-1')).toBe(ammoBefore - 1);
+    expect(player.actionDeck.hand.length).toBe(handBefore);
+    expect(player.actionDeck.drawPile.length).toBe(drawBefore - 1);
+  });
+
+  it('«Адреналин» (побег): атаки в спину идут, карта добирается', () => {
+    const { engine, state, target } = cardSetup();
+
+    spawnIntruder(state, 11, 'ADULT', 'adrenaline-adult-1');
+    giveCard(state, 'player-1', classCard('ACT_SCO_ADRENALINE', 'Адреналин'));
+    rigAttackTop(state, 'Царапина');
+
+    const handBefore = state.players['player-1']!.actionDeck.hand.length;
+    const after = engine.processAction(state, {
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: 'ACT_SCO_ADRENALINE', option: 'ESCAPE', targetRoomId: target },
+    });
+    const types = after.gameLog.map((entry) => entry.event.type);
+
+    expect(types).toContain('ESCAPE_ATTACK_RESOLVED');
+    expect(after.players['player-1']!.roomId).toBe(target);
+    expect(after.players['player-1']!.actionDeck.hand.length).toBe(handBefore);
+  });
+
+  it('«Адреналин» без режима отклоняется', () => {
+    const { engine, state } = cardSetup();
+
+    giveCard(state, 'player-1', classCard('ACT_SCO_ADRENALINE', 'Адреналин'));
+
+    expectEngineError(
+      () => engine.processAction(state, { type: 'ACTION_PLAY_CARD', payload: { cardId: 'ACT_SCO_ADRENALINE' } }),
+      'CARD_TARGET_REQUIRED',
+    );
+  });
+});
+
 describe('GameEngine: объявленные, но не реализованные действия', () => {
   it.each([
     ['ACTION_CLAIM', { type: 'ACTION_CLAIM', payload: { target: 'COORDINATES', declaredStatus: 'DESTINATION_EARTH' } }],
@@ -353,16 +893,12 @@ describe('Прерывания', () => {
     expect(state.ship.rooms[2]?.isExplored).toBe(true);
   });
 
-  it.each([
-    ['ENCOUNTER_INTERRUPT', { type: 'ENCOUNTER_INTERRUPT', roomId: 11, intruderTokenId: 'blank' }],
-    ['SURPRISE_ATTACK_INTERRUPT', { type: 'SURPRISE_ATTACK_INTERRUPT', playerId: 'player-1', intruderId: 'adult-1' }],
-    [
-      'ESCAPE_ATTACK_INTERRUPT',
-      { type: 'ESCAPE_ATTACK_INTERRUPT', playerId: 'player-1', intruderIds: [], targetRoomId: 11 },
-    ],
-  ])('отклоняет %s: прерывание ещё не разыгрывается движком', (_name, interrupt) => {
-    expectEngineError(() => resolveInterrupt(freshState(), interrupt as never), 'INTERRUPT_NOT_IMPLEMENTED');
-  });
+  it.each([['ENCOUNTER_INTERRUPT', { type: 'ENCOUNTER_INTERRUPT', roomId: 11, intruderTokenId: 'blank' }]])(
+    'отклоняет %s: прерывание ещё не разыгрывается движком',
+    (_name, interrupt) => {
+      expectEngineError(() => resolveInterrupt(freshState(), interrupt as never), 'INTERRUPT_NOT_IMPLEMENTED');
+    },
+  );
 
   it('разбирает очередь прерываний по порядку', () => {
     const state = freshState();
@@ -832,7 +1368,7 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     expect(state.meta.rngDraws.noise).toBe(1);
   });
 
-  it('повторный маркер в Коридоре — Контакт, и он пока не разыгрывается', () => {
+  it('повторный маркер в Коридоре — Контакт: жетон вытягивается и Чужой появляется (стр. 15, 18)', () => {
     const engine = new GameEngine();
     const state = createInitialGameState(SEED);
 
@@ -842,21 +1378,22 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     const numbered = Object.values(state.ship.corridors).find((corridor) => numbersOn(corridor, 6).includes(3))!;
 
     numbered.hasNoise = true;
-    const before = structuredClone(state);
+    state.intrudersPool.bag.unshift({ id: 'test-adult-1', type: 'ADULT', escapeNumber: 1 });
     const discardCardId = state.players['player-1']!.actionDeck.hand[0]!.id;
 
-    expectEngineError(
-      () =>
-        engine.processAction(state, {
-          type: 'ACTION_MOVE',
-          payload: { targetRoomId: 6, discardCardIds: [discardCardId] },
-        }),
-      'CONTACT_NOT_IMPLEMENTED',
-      /жетона Чужого/,
-    );
+    const next = engine.processAction(state, {
+      type: 'ACTION_MOVE',
+      payload: { targetRoomId: 6, discardCardIds: [discardCardId] },
+    });
 
-    // Действие отклонено целиком: иммер откатывает и перемещение, и бросок.
-    expect(state).toEqual(before);
+    const contact = next.gameLog.find((entry) => entry.event.type === 'CONTACT_OCCURRED');
+
+    expect(contact).toBeDefined();
+    expect(next.intrudersPool.boardTokens.map((entity) => entity.id)).toContain('test-adult-1');
+    expect(next.ship.rooms[6]?.occupantIntruderIds).toContain('test-adult-1');
+    expect(numbered.hasNoise).toBe(true);
+    expect(next.ship.corridors[numbered.id]?.hasNoise).toBe(false);
+    expect(next.interruptQueue).toEqual([]);
   });
 
   it('выпавший номер Входа уводит маркер на общее поле Технических Коридоров (стр. 15)', () => {
@@ -899,25 +1436,30 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     );
   });
 
-  it('повторный маркер на Технических Коридорах — тоже Контакт', () => {
+  it('повторный маркер на Технических Коридорах — тоже Контакт (стр. 15, 18)', () => {
     const state = createInitialGameState(SEED);
 
     // У отсека 14 есть Вход в Технические Коридоры с номером 3 — это и есть грань сида.
     prepareRoll(state, 14);
     placePlayer(state, 14);
     state.ship.technicalCorridorNoise = true;
+    state.intrudersPool.bag.unshift({ id: 'test-creeper-1', type: 'CREEPER', escapeNumber: 1 });
 
-    expectEngineError(
-      () =>
-        resolveInterrupt(state, {
-          type: 'NOISE_ROLL_INTERRUPT',
-          playerId: 'player-1',
-          roomId: 14,
-          noise: { kind: 'ROLL' },
-        }),
-      'CONTACT_NOT_IMPLEMENTED',
-      /Технические Коридоры/,
-    );
+    resolveInterrupt(state, {
+      type: 'NOISE_ROLL_INTERRUPT',
+      playerId: 'player-1',
+      roomId: 14,
+      noise: { kind: 'ROLL' },
+    });
+
+    expect(state.interruptQueue).toEqual([{ type: 'CONTACT_INTERRUPT', playerId: 'player-1', roomId: 14 }]);
+
+    drainInterrupts(state);
+
+    expect(state.ship.technicalCorridorNoise).toBe(false);
+    expect(state.intrudersPool.boardTokens.map((entity) => entity.id)).toContain('test-creeper-1');
+    expect(state.gameLog.some((entry) => entry.event.type === 'CONTACT_OCCURRED')).toBe(true);
+    expect(state.interruptQueue).toEqual([]);
   });
 
   it('бросок для несуществующего отсека — ошибка контракта', () => {

@@ -1,5 +1,6 @@
 import type { ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
+import type { CombatDieFace } from '../data/combatDie.js';
 
 export type PendingDecision =
   | {
@@ -39,4 +40,13 @@ export type PendingDecision =
       playerId: string;
       type: 'CHOOSE_REST_CONTAMINATION_DISCARD';
       scannedCardIds: string[];
+    }
+  | {
+      id: string;
+      playerId: string;
+      type: 'CHOOSE_AIMED_REROLL';
+      /** Первая грань: игрок видит её до решения. */
+      firstFace: CombatDieFace;
+      targetIntruderId: string;
+      weaponSlotIndex: number;
     };

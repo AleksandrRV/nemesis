@@ -17,6 +17,13 @@ import {
   X,
 } from 'lucide-react';
 import { CardDetailsModal, type CardDetailsTarget } from '../modals/CardDetailsModal';
+import {
+  CardTargetingForm,
+  defaultCardSelection,
+  isSelectionComplete,
+  isTargetedCombatCard,
+  type CardTargetSelection,
+} from './CardTargetingForm';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -31,6 +38,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
 
   // Состояние подтверждения разыгрывания выбранной карты
   const [pendingPlayCard, setPendingPlayCard] = React.useState<ActionCard | null>(null);
+  const [cardTargets, setCardTargets] = React.useState<CardTargetSelection>({});
 
   const selectedCardIds = useGameStore((state) => state.selectedCardIds);
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
@@ -49,6 +57,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     setPrevTurnKey(currentTurnKey);
     clearSelection();
     setPendingPlayCard(null);
+    setCardTargets({});
   }
 
   if (!player) return null;
@@ -78,6 +87,11 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     setPendingPlayCard(null);
   };
 
+  const openPlayConfirm = (card: ActionCard) => {
+    setPendingPlayCard(card);
+    setCardTargets(defaultCardSelection(card.id, view, activePlayerId));
+  };
+
   const executePlayCard = (card: ActionCard) => {
     const discardCardIds = card.playCost > 0 ? consumePaymentCards(card.playCost) : [];
     dispatch({
@@ -85,9 +99,11 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
       payload: {
         cardId: card.id,
         discardCardIds,
+        ...cardTargets,
       },
     });
     setPendingPlayCard(null);
+    setCardTargets({});
     clearSelection();
   };
 
@@ -115,7 +131,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           onClose={() => setInspectCardTarget(null)}
           onPlay={
             inspectCardTarget.kind === 'ACTION'
-              ? () => setPendingPlayCard(inspectCardTarget.card)
+              ? () => openPlayConfirm(inspectCardTarget.card)
               : inspectCardTarget.kind === 'ITEM'
                 ? () => handleUseItem(inspectCardTarget.card.id, inspectCardTarget.card.actionCost)
                 : undefined
@@ -437,7 +453,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPendingPlayCard(card as ActionCard);
+                        openPlayConfirm(card as ActionCard);
                       }}
                       className="mt-1 w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] py-1 rounded-lg shadow-lg flex items-center justify-center gap-1 active:scale-95 transition animate-in fade-in slide-in-from-top-1"
                     >
@@ -523,6 +539,16 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
               {pendingPlayCard.description}
             </div>
 
+            {isTargetedCombatCard(pendingPlayCard.id) && (
+              <CardTargetingForm
+                cardId={pendingPlayCard.id}
+                view={view}
+                playerId={activePlayerId}
+                selection={cardTargets}
+                onSelectionChange={setCardTargets}
+              />
+            )}
+
             {pendingPlayCard.playCost > 0 && (
               <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/50 p-2.5 rounded-lg flex items-center gap-2">
                 <Zap size={14} className="shrink-0" />
@@ -543,7 +569,8 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
               <button
                 type="button"
                 onClick={() => executePlayCard(pendingPlayCard)}
-                className="flex-1 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-heading font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition"
+                disabled={!isSelectionComplete(pendingPlayCard.id, cardTargets)}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg transition ${isSelectionComplete(pendingPlayCard.id, cardTargets) ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 active:scale-95' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
               >
                 <Check size={14} /> Подтвердить
               </button>

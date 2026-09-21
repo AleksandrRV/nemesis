@@ -25,8 +25,13 @@ import type { RngStream } from '../utils/rng.js';
  *
  * v4: публичный журнал событий партии (`gameLog`) сохраняется вместе с игрой.
  * Старые сохранения не восстанавливаются, чтобы журнал и состояние не расходились.
+ *
+ * v5 (0.4.0, шаг 2): Контакт и Внезапная атака — у особи Чужого на поле хранится
+ * отложенный жетон (`IntruderEntity.token`), у персонажа — Личинка на планшете
+ * (`PlayerState.hasLarva`), а гибель всех персонажей завершает партию
+ * (`ALL_PLAYERS_DEAD`).
  */
-export const GAME_STATE_SCHEMA_VERSION = 4;
+export const GAME_STATE_SCHEMA_VERSION = 5;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -35,8 +40,8 @@ export const GAME_STATE_SCHEMA_VERSION = 4;
  */
 export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
 
-/** Почему партия окончена: корабль взорвался или обшивка не выдержала (стр. 17). */
-export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH';
+/** Почему партия окончена: корабль взорвался, обшивка не выдержала (стр. 17) или погибли все персонажи. */
+export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'ALL_PLAYERS_DEAD';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
 export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';

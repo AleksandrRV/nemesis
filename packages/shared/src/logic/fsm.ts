@@ -1,7 +1,7 @@
 import { produce } from 'immer';
 
-import type { EngineAction } from '../types/actions.js';
-import type { ActionDeckCard, ItemCard } from '../types/cards.js';
+import type { EngineAction, PlayCardActionPayload } from '../types/actions.js';
+import type { ActionCard, ActionDeckCard, ItemCard } from '../types/cards.js';
 import type { InterruptEvent, NoiseRollMode } from '../types/interrupts.js';
 import type { GameLogEffectOutcome, GameLogNoiseReason } from '../types/log.js';
 import type {
@@ -16,9 +16,26 @@ import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '../data/roomDe
 import { NOISE_DIE_FACES, type NoiseDieFace } from '../data/noiseDie.js';
 import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { appendGameLog } from './gameLog.js';
+import {
+  queueContact,
+  resolveContactInterrupt,
+  resolveEscapeAttacks,
+  resolveSurpriseAttackInterrupt,
+} from './contact.js';
+import {
+  applyShootFace,
+  assertShootFaceAllowed,
+  drawCombatFace,
+  performBurstFire,
+  performMelee,
+  performShoot,
+  validateMeleeConditions,
+  validateShootConditions,
+} from './combat.js';
+import { performPickUpObject, validatePickUpConditions } from './objects.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { drawFromStream } from '../utils/rng.js';
-import { executeCardPayment } from './cardsPayment.js';
+import { drawCardsToLimit, executeCardPayment } from './cardsPayment.js';
 import { advanceTurn } from './turnCycle.js';
 import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
 import { executeRoomAbility } from './roomAbilities.js';
@@ -60,9 +77,21 @@ export type EngineErrorCode =
   | 'MARKER_SUPPLY_EXHAUSTED'
   /** Жетонов Дверей нет ни в запасе, ни среди закрытых Дверей на поле (стр. 17). */
   | 'DOOR_TOKEN_SUPPLY_EXHAUSTED'
-  /** Контакт: в Коридоре уже стоит маркер Шума (стр. 15); сам Контакт — этап 4 дорожной карты. */
-  | 'CONTACT_NOT_IMPLEMENTED'
-  /** Перемещение Чужих по эффекту «Опасность» появится вместе с Пулом Чужих (этап 4 дорожной карты). */
+  /** Пул Чужих пуст, а Контакт или Зов требуют вытянуть жетон. */
+  | 'INTRUDER_BAG_EMPTY'
+  /** Внезапная атака ссылается на Чужого, которого нет на поле. */
+  | 'UNKNOWN_INTRUDER'
+  /** Колода и сброс Заражения пусты, а эффект требует карту. */
+  | 'NO_CONTAMINATION_LEFT'
+  /** Колода и сброс Тяжёлых Травм пусты, а эффект требует карту. */
+  | 'NO_SERIOUS_WOUNDS_LEFT'
+  /** Колода и сброс Атак Чужих пусты, а Чужой должен атаковать. */
+  | 'NO_INTRUDER_ATTACKS_LEFT'
+  /** Трансформация требует Трутня из запаса, но оба уже в игре. */
+  | 'NO_BREEDER_IN_SUPPLY'
+  /** Карта Атаки Чужих без разбора эффекта в движке. */
+  | 'UNKNOWN_ATTACK_EFFECT'
+  /** Перемещение Чужих по эффекту «Опасность» — этап 5 дорожной карты. */
   | 'INTRUDER_MOVEMENT_NOT_IMPLEMENTED'
   /** Ошибки валидатора оплаты карт (v0.3.0 Шаг 3) */
   | 'INSUFFICIENT_ACTION_CARDS'
@@ -85,7 +114,24 @@ export type EngineErrorCode =
   | 'INVALID_DECISION'
   | 'INVALID_DECISION_OPTION'
   /** Ошибки действий отсеков (v0.3.0 Шаг 6) */
-  | 'ROOM_ABILITY_NOT_ALLOWED';
+  | 'ROOM_ABILITY_NOT_ALLOWED'
+  /** Ошибки Стрельбы (v0.4.0 Шаг 4) */
+  | 'SHOOT_TARGET_NOT_IN_ROOM'
+  | 'SHOOT_INVALID_WEAPON'
+  | 'SHOOT_NO_AMMO'
+  /** Огнемёт при [2 Ранах] ставит маркер Пожара — механика огня (Шаг 6). */
+  | 'SHOOT_FIRE_NOT_IMPLEMENTED'
+  /** Цель Рукопашной Атаки не в отсеке атакующего (v0.4.0 Шаг 5). */
+  | 'MELEE_TARGET_NOT_IN_ROOM'
+  /** Ошибки подбора Тяжёлых Объектов (v0.4.0 Шаг 6) */
+  | 'PICK_UP_OBJECT_NOT_HERE'
+  | 'PICK_UP_HANDS_FULL'
+  /** Классовые боевые карты (v0.4.0 Шаг 8) */
+  | 'CARD_TARGET_REQUIRED'
+  | 'INVALID_CARD_OPTION'
+  | 'CARD_NO_AMMO'
+  | 'CARD_COMPANION_NOT_HERE'
+  | 'BURST_FIRE_REQUIRES_RIFLE';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;
@@ -183,8 +229,8 @@ export class GameEngine {
   /**
    * Применяет действие к состоянию партии и возвращает новое состояние.
    * Исходное состояние не меняется: работа идёт на immer-драфте. Если каскад
-   * прерываний отклоняет шаг (например, Контакт ещё не разыгрывается), откат
-   * возвращает партию к состоянию до действия целиком.
+   * прерываний отклоняет шаг, откат возвращает партию к состоянию до действия
+   * целиком.
    */
   processAction(state: GameState, action: EngineAction, options: ProcessActionOptions = {}): GameState {
     const actorId = options.actorId ?? state.meta.activePlayerId;
@@ -192,6 +238,7 @@ export class GameEngine {
     return produce(state, (draft) => {
       this.handleAction(draft, action, actorId, options);
       drainInterrupts(draft);
+      settleDeadActivePlayer(draft);
     });
   }
 
@@ -248,12 +295,11 @@ export class GameEngine {
     switch (action.type) {
       case 'ACTION_MOVE': {
         const targetRoomId = action.payload.targetRoomId;
-        const corridors = requireOpenPath(state, player.roomId, targetRoomId);
 
         // Стоимость базового действия «Движение» — 1 карта действия с руки (стр. 13)
         executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
 
-        movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+        startMoveOrEscape(state, actorId, targetRoomId);
         player.actionsPerformedThisRound += 1;
         if (player.actionsPerformedThisRound >= 2) {
           advanceTurn(state, actorId);
@@ -275,6 +321,48 @@ export class GameEngine {
         const corridors = findOpenCorridors(state, player.roomId, targetRoomId);
 
         movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'CAREFUL', chosen });
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
+
+      case 'ACTION_SHOOT': {
+        validateShootConditions(state, actorId, action.payload.targetIntruderId, action.payload.weaponSlotIndex);
+
+        // Стоимость базового действия «Стрельба» — 1 карта действия с руки (стр. 18)
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
+        performShoot(state, actorId, action.payload.targetIntruderId, action.payload.weaponSlotIndex);
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
+
+      case 'ACTION_MELEE': {
+        validateMeleeConditions(state, actorId, action.payload.targetIntruderId);
+
+        // Стоимость базового действия «Рукопашная Атака» — 1 карта действия с руки (стр. 19)
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
+        performMelee(state, actorId, action.payload.targetIntruderId);
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
+
+      case 'ACTION_PICK_UP_OBJECT': {
+        validatePickUpConditions(state, actorId, action.payload.objectId);
+
+        // Стоимость базового действия «Поднять Тяжёлый Объект» — 1 карта действия с руки (стр. 13)
+        executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+
+        performPickUpObject(state, actorId, action.payload.objectId);
         player.actionsPerformedThisRound += 1;
         if (player.actionsPerformedThisRound >= 2) {
           advanceTurn(state, actorId);
@@ -522,6 +610,37 @@ export class GameEngine {
           return;
         }
 
+        if (decision.type === 'CHOOSE_AIMED_REROLL') {
+          const choice = action.payload.selectedOption;
+
+          if (choice !== 'KEEP' && choice !== 'REROLL') {
+            throw new EngineError(
+              'INVALID_DECISION_OPTION',
+              `«Прицельный огонь»: вариант «${choice}» — нужен «KEEP» или «REROLL».`,
+            );
+          }
+
+          // Решение снимается до выстрела: если переброс угодит в Огнемётные
+          // [2 Раны], откат вернёт решение на место и игрок выберет «Оставить».
+          state.pendingDecision = null;
+
+          const conditions = validateShootConditions(
+            state,
+            actorId,
+            decision.targetIntruderId,
+            decision.weaponSlotIndex,
+          );
+          const face = choice === 'REROLL' ? drawCombatFace(state) : decision.firstFace;
+
+          applyShootFace(state, actorId, conditions, face);
+
+          player.actionsPerformedThisRound += 1;
+          if (player.actionsPerformedThisRound >= 2) {
+            advanceTurn(state, actorId);
+          }
+          return;
+        }
+
         throw new EngineError(
           'INVALID_DECISION',
           `Тип решения не поддерживается: ${(decision as PendingDecision).type}`,
@@ -589,6 +708,29 @@ export class GameEngine {
           if (corridor) {
             corridor.doorState = 'DESTROYED';
           }
+        }
+
+        // Классовые боевые карты (v0.4.0 Шаг 8): точные id из data/actionCards.ts.
+        // «Прицельный огонь» ставит решение о перебросе: действие засчитывается
+        // только после решения (как Поиск), поэтому счётчик — в ветке ниже.
+        if (CLASS_COMBAT_CARD_IDS.has(card.id)) {
+          const outcome = applyClassCombatCard(state, actorId, card, action.payload);
+
+          appendGameLog(state, {
+            type: 'ACTION_CARD_PLAYED',
+            playerId: actorId,
+            cardId: card.id,
+            cardName: card.name,
+          });
+
+          if (outcome === 'RESOLVED') {
+            player.actionsPerformedThisRound += 1;
+            if (player.actionsPerformedThisRound >= 2) {
+              advanceTurn(state, actorId);
+            }
+          }
+
+          return;
         }
 
         appendGameLog(state, {
@@ -825,6 +967,230 @@ function requireCarefulMoveAllowed(
  *    движения»; его могут отменить эффекты жетона и присутствие персонажа
  *    или Чужого в отсеке, стр. 14–15).
  */
+/** Классовые боевые карты с разобранными эффектами (data/actionCards.ts, v0.4.0 Шаг 8). */
+const CLASS_COMBAT_CARD_IDS: ReadonlySet<string> = new Set([
+  'ACT_SOL_BURST_FIRE',
+  'ACT_SOL_AIMED_FIRE',
+  'ACT_SOL_SUPPRESSIVE_FIRE',
+  'ACT_CAP_SUPPRESSIVE_FIRE',
+  'ACT_SCO_ADRENALINE',
+]);
+
+/**
+ * Эффекты классовых боевых карт. Карта уже оплачена и сброшена вызывающей
+ * веткой. Возвращает 'DECISION_PENDING', если действие продолжится решением
+ * («Прицельный огонь»), иначе 'RESOLVED'.
+ */
+function applyClassCombatCard(
+  state: GameState,
+  actorId: string,
+  card: ActionCard,
+  payload: PlayCardActionPayload,
+): 'RESOLVED' | 'DECISION_PENDING' {
+  switch (card.id) {
+    case 'ACT_SOL_BURST_FIRE': {
+      const { targetIntruderId, weaponSlotIndex } = requireShootTargets(payload, card.name);
+
+      performBurstFire(state, actorId, targetIntruderId, weaponSlotIndex);
+
+      return 'RESOLVED';
+    }
+
+    case 'ACT_SOL_AIMED_FIRE': {
+      const { targetIntruderId, weaponSlotIndex } = requireShootTargets(payload, card.name);
+      const conditions = validateShootConditions(state, actorId, targetIntruderId, weaponSlotIndex);
+      const firstFace = drawCombatFace(state);
+
+      assertShootFaceAllowed(conditions.weaponCard, firstFace);
+
+      state.pendingDecision = {
+        id: `aimed-reroll-${Date.now()}-${actorId}`,
+        playerId: actorId,
+        type: 'CHOOSE_AIMED_REROLL',
+        firstFace,
+        targetIntruderId,
+        weaponSlotIndex,
+      };
+
+      return 'DECISION_PENDING';
+    }
+
+    case 'ACT_SOL_SUPPRESSIVE_FIRE':
+      applyCoverMove(state, actorId, card.name, payload, true);
+
+      return 'RESOLVED';
+
+    case 'ACT_CAP_SUPPRESSIVE_FIRE':
+      applyCoverMove(state, actorId, card.name, payload, false);
+
+      return 'RESOLVED';
+
+    case 'ACT_SCO_ADRENALINE': {
+      const mode = payload.option;
+
+      if (mode !== 'SHOOT' && mode !== 'ESCAPE') {
+        throw new EngineError(
+          'CARD_TARGET_REQUIRED',
+          '«Адреналин» требует выбрать режим: option «SHOOT» или «ESCAPE».',
+        );
+      }
+
+      if (mode === 'SHOOT') {
+        const { targetIntruderId, weaponSlotIndex } = requireShootTargets(payload, card.name);
+
+        performShoot(state, actorId, targetIntruderId, weaponSlotIndex);
+      } else {
+        if (payload.targetRoomId === undefined) {
+          throw new EngineError('CARD_TARGET_REQUIRED', '«Адреналин» (Побег) требует целевой отсек.');
+        }
+
+        // Побег — настоящий, с внеочередными атаками: карта даёт действие,
+        // а не иммунитет (в отличие от Заградительного огня).
+        startMoveOrEscape(state, actorId, payload.targetRoomId);
+      }
+
+      const player = state.players[actorId]!;
+
+      drawCardsToLimit(state, actorId, player.actionDeck.hand.length + 1);
+
+      return 'RESOLVED';
+    }
+
+    default:
+      throw new EngineError(
+        'ACTION_NOT_IMPLEMENTED',
+        `Карта «${card.name}» (${card.id}) помечена боевой, но эффекта у неё нет.`,
+      );
+  }
+}
+
+/** Цели выстрела из payload: без них боевая карта не разыгрывается. */
+function requireShootTargets(
+  payload: PlayCardActionPayload,
+  cardName: string,
+): { targetIntruderId: string; weaponSlotIndex: number } {
+  if (payload.targetIntruderId === undefined || payload.weaponSlotIndex === undefined) {
+    throw new EngineError(
+      'CARD_TARGET_REQUIRED',
+      `«${cardName}» требует цель (targetIntruderId) и Оружие (weaponSlotIndex).`,
+    );
+  }
+
+  return { targetIntruderId: payload.targetIntruderId, weaponSlotIndex: payload.weaponSlotIndex };
+}
+
+/**
+ * «Заградительный огонь» / «Огонь на подавление»: сброс 1 Боезапаса и
+ * перемещение без Атак Чужих — себя и/или другого (Заградительный) либо
+ * себя или другого (Подавление). Шум и вскрытие — как обычно.
+ */
+function applyCoverMove(
+  state: GameState,
+  actorId: string,
+  cardName: string,
+  payload: PlayCardActionPayload,
+  allowBoth: boolean,
+): void {
+  const player = state.players[actorId];
+
+  if (!player) {
+    throw new EngineError('UNKNOWN_PLAYER', `Карта «${cardName}» от неизвестного персонажа: ${actorId}.`);
+  }
+
+  const targetRoomId = payload.targetRoomId;
+
+  if (targetRoomId === undefined) {
+    throw new EngineError('CARD_TARGET_REQUIRED', `«${cardName}» требует целевой отсек (targetRoomId).`);
+  }
+
+  const who = payload.option ?? 'SELF';
+  let movers: string[];
+
+  if (who === 'SELF') {
+    movers = [actorId];
+  } else if (who.startsWith('OTHER:') || who.startsWith('BOTH:')) {
+    const both = who.startsWith('BOTH:');
+    const otherId = who.slice(both ? 'BOTH:'.length : 'OTHER:'.length);
+
+    if (both && !allowBoth) {
+      throw new EngineError(
+        'INVALID_CARD_OPTION',
+        `«${cardName}» перемещает себя ИЛИ другого: обоих сразу умеет только «Заградительный огонь».`,
+      );
+    }
+
+    const other = state.players[otherId];
+
+    if (!other) {
+      throw new EngineError('UNKNOWN_PLAYER', `Карта «${cardName}» ссылается на неизвестного персонажа: ${otherId}.`);
+    }
+
+    if (other.isDead || other.roomId !== player.roomId) {
+      throw new EngineError(
+        'CARD_COMPANION_NOT_HERE',
+        `«${cardName}»: ${otherId} должен быть жив и находиться в том же отсеке.`,
+      );
+    }
+
+    if (otherId === actorId) {
+      throw new EngineError('INVALID_CARD_OPTION', `«${cardName}»: «другой» — не вы сами.`);
+    }
+
+    movers = both ? [actorId, otherId] : [otherId];
+  } else {
+    throw new EngineError(
+      'INVALID_CARD_OPTION',
+      `«${cardName}»: вариант «${who}» — нужен «SELF», «OTHER:<id>» или «BOTH:<id>».`,
+    );
+  }
+
+  const corridors = requireOpenPath(state, player.roomId, targetRoomId);
+  const weaponSlot = player.handSlots.find(
+    (slot) => slot.source === 'ITEM' && slot.card.isWeapon === true && (slot.card.ammo ?? 0) > 0,
+  );
+
+  if (!weaponSlot || weaponSlot.source !== 'ITEM') {
+    throw new EngineError('CARD_NO_AMMO', `«${cardName}» требует 1 ед. Боезапаса: заряженного Оружия в руках нет.`);
+  }
+
+  weaponSlot.card.ammo = weaponSlot.card.ammo! - 1;
+
+  for (const moverId of movers) {
+    movePlayer(state, moverId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+  }
+}
+
+/**
+ * Шаг в соседний отсек (стр. 14, 19): из отсека с Чужими — через прерывание
+ * Побега, иначе — сразу. Общее для ACTION_MOVE и «Адреналина».
+ */
+function startMoveOrEscape(state: GameState, actorId: string, targetRoomId: RoomId): void {
+  const player = state.players[actorId];
+
+  if (!player) {
+    throw new EngineError('UNKNOWN_PLAYER', `Движение от неизвестного персонажа: ${actorId}.`);
+  }
+
+  const corridors = requireOpenPath(state, player.roomId, targetRoomId);
+
+  // Побег (стр. 19): выход из отсека с Чужими оформляется прерыванием —
+  // каждая особь атакует до шага, погибший никуда не уходит.
+  const intruderIds = state.intrudersPool.boardTokens
+    .filter((entity) => entity.roomId === player.roomId)
+    .map((entity) => entity.id);
+
+  if (intruderIds.length > 0) {
+    state.interruptQueue.push({
+      type: 'ESCAPE_ATTACK_INTERRUPT',
+      playerId: actorId,
+      intruderIds,
+      targetRoomId,
+    });
+  } else {
+    movePlayer(state, actorId, targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+  }
+}
+
 function movePlayer(
   state: GameState,
   playerId: string,
@@ -867,6 +1233,28 @@ function movePlayer(
   ];
 }
 
+/**
+ * Ход погибшего активного игрока завершается сам: иначе партия встанет —
+ * мёртвый не может ни действовать, ни пасовать. Если живых не осталось
+ * вовсе, продолжать некому и партия заканчивается.
+ */
+function settleDeadActivePlayer(state: GameState): void {
+  if (state.meta.phase !== 'PLAYER_PHASE') return;
+
+  const active = state.players[state.meta.activePlayerId];
+
+  if (!active || !active.isDead || active.hasPassed) return;
+
+  active.hasPassed = true;
+
+  if (!Object.values(state.players).some((player) => !player.isDead)) {
+    endGame(state, 'ALL_PLAYERS_DEAD');
+    return;
+  }
+
+  advanceTurn(state, active.id);
+}
+
 /** Разбирает стек прерываний до конца: действие считается завершённым только тогда (tech_stack §4). */
 export function drainInterrupts(state: GameState): void {
   while (state.interruptQueue.length > 0) {
@@ -888,10 +1276,10 @@ export function drainInterrupts(state: GameState): void {
 /**
  * Разыгрывает одно прерывание.
  *
- * Реализованы вскрытие отсека и шум (бросок кубика и «Осторожное движение»).
- * Побег, Контакт и Внезапная атака требуют Пула Чужих, боя и колод: их разбор —
- * следующие этапы дорожной карты, поэтому движок отклоняет их явной ошибкой,
- * а не разыгрывает наугад.
+ * Реализованы вскрытие отсека, шум (бросок кубика и «Осторожное движение»),
+ * Контакт, Внезапная атака и Побег (атаки — до шага, перемещение — после,
+ * если персонаж выжил). Появление Чужих по картам Событий — этап 0.5.0,
+ * поэтому движок отклоняет его явной ошибкой, а не разыгрывает наугад.
  */
 export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): void {
   switch (interrupt.type) {
@@ -901,6 +1289,18 @@ export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): v
 
     case 'NOISE_ROLL_INTERRUPT':
       resolveNoiseRoll(state, interrupt);
+      return;
+
+    case 'CONTACT_INTERRUPT':
+      resolveContactInterrupt(state, interrupt);
+      return;
+
+    case 'SURPRISE_ATTACK_INTERRUPT':
+      resolveSurpriseAttackInterrupt(state, interrupt);
+      return;
+
+    case 'ESCAPE_ATTACK_INTERRUPT':
+      resolveEscapeAttack(state, interrupt);
       return;
 
     default:
@@ -920,6 +1320,26 @@ export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): v
  * Эффекты «Тишина» и «Опасность» управляют шумом, поэтому их разыгрывает
  * следующее прерывание `NOISE_ROLL_INTERRUPT`, когда шум уже можно отменить.
  */
+/**
+ * Побег (стр. 19): разыгрывает внеочередные атаки из снимка прерывания и,
+ * если персонаж выжил, завершает шаг в целевой отсек обычным порядком
+ * (вскрытие тайла и шум оформляет `movePlayer` следующими прерываниями).
+ */
+function resolveEscapeAttack(
+  state: GameState,
+  interrupt: Extract<InterruptEvent, { type: 'ESCAPE_ATTACK_INTERRUPT' }>,
+): void {
+  resolveEscapeAttacks(state, interrupt.playerId, interrupt.intruderIds);
+
+  const player = state.players[interrupt.playerId];
+
+  if (!player || player.isDead) return;
+
+  const corridors = requireOpenPath(state, player.roomId, interrupt.targetRoomId);
+
+  movePlayer(state, interrupt.playerId, interrupt.targetRoomId, corridors[0]!.id, { kind: 'ROLL' });
+}
+
 function resolveExploreRoom(
   state: GameState,
   interrupt: Extract<InterruptEvent, { type: 'EXPLORE_ROOM_INTERRUPT' }>,
@@ -1354,9 +1774,8 @@ function corridorNumbersOf(corridor: CorridorConnection, roomId: RoomId): Corrid
 
 /**
  * Кладёт маркер Шума. В каждом Коридоре не может быть больше одного маркера:
- * попытка положить второй означает Контакт (стр. 15), а сам Контакт — вытягивание
- * жетона Чужого и Внезапная атака — появится вместе с Пулом Чужих (этап 4
- * дорожной карты), поэтому здесь движок отклоняет шаг явной ошибкой.
+ * попытка положить второй означает Контакт (стр. 15) — маркер не ставится,
+ * а в очередь уходит прерывание Контакта.
  */
 function placeNoiseMarker(
   state: GameState,
@@ -1367,7 +1786,8 @@ function placeNoiseMarker(
 ): void {
   if (target.kind === 'TECHNICAL_CORRIDOR') {
     if (state.ship.technicalCorridorNoise) {
-      throw contactError('Технические Коридоры');
+      queueContact(state, playerId, roomId);
+      return;
     }
 
     requireNoiseMarkerSupply(state);
@@ -1383,7 +1803,8 @@ function placeNoiseMarker(
   }
 
   if (target.corridor.hasNoise) {
-    throw contactError(`Коридор ${target.corridor.id}`);
+    queueContact(state, playerId, roomId);
+    return;
   }
 
   requireNoiseMarkerSupply(state);
@@ -1411,13 +1832,6 @@ function requireNoiseMarkerSupply(state: GameState): void {
   }
 }
 
-function contactError(place: string): EngineError {
-  return new EngineError(
-    'CONTACT_NOT_IMPLEMENTED',
-    `Контакт: в этом месте уже стоит маркер Шума (${place}). Вытягивание жетона Чужого появится вместе с Пулом Чужих (этап 4 дорожной карты).`,
-  );
-}
-
 /**
  * Эффект «Опасность» (стр. 14–15 и стр. 15): Чужой из соседнего отсека
  * перемещается сюда, а если Чужих рядом нет — по одному маркеру Шума в каждый
@@ -1436,7 +1850,7 @@ function resolveDanger(state: GameState, roomId: RoomId, playerId: string): void
   if (intrudersAround) {
     throw new EngineError(
       'INTRUDER_MOVEMENT_NOT_IMPLEMENTED',
-      'Эффект «Опасность» требует переместить Чужого из соседнего отсека: это появится вместе с Пулом Чужих (этап 4 дорожной карты).',
+      'Эффект «Опасность» требует переместить Чужого из соседнего отсека: это появится вместе с Фазой Событий (этап 5 дорожной карты).',
     );
   }
 

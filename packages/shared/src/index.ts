@@ -32,6 +32,7 @@ export * from './data/cardsSetup.js';
 export * from './data/noiseDie.js';
 export * from './data/combatDie.js';
 export * from './data/intruderAttacks.js';
+export * from './data/eventCards.js';
 export * from './data/weaknesses.js';
 export * from './data/explorationTokens.js';
 export * from './data/intruderPool.js';

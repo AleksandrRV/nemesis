@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CONTAMINATION_CARDS } from './contaminationCards.js';
 import { createInitialDecks } from './cardsSetup.js';
+import { EVENT_CARDS } from './eventCards.js';
 import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from './itemCards.js';
 import { SERIOUS_WOUND_CARDS } from './seriousWounds.js';
@@ -62,6 +63,7 @@ describe('Подготовка колоды Атак Чужих (стр. 7, ша
     expect(decks.items.GREEN.drawPile).toEqual(shuffle(rng, GREEN_ITEM_CARDS));
     expect(decks.contamination.drawPile).toEqual(shuffle(rng, CONTAMINATION_CARDS));
     expect(decks.seriousWounds.drawPile).toEqual(shuffle(rng, SERIOUS_WOUND_CARDS));
+    expect(decks.events.drawPile).toEqual(shuffle(rng, EVENT_CARDS));
     expect(decks.intruderAttacks.drawPile).toEqual(shuffle(rng, INTRUDER_ATTACK_CARDS));
   });
 

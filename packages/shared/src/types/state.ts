@@ -7,8 +7,10 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// doc/v0.4.0-step-2.md — совместимость сохранений.
-export const GAME_STATE_SCHEMA_VERSION = 12;
+// Совместимость сохранений: карта Событий получила машинный контракт
+// (эффект, направление, символы Чужих, флаги уничтожения и замешивания),
+// колода Событий наполняется при подготовке — сохранения схемы 12 не восстанавливаются.
+export const GAME_STATE_SCHEMA_VERSION = 13;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

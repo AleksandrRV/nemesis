@@ -11,6 +11,7 @@ import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
 import { ContactOverlay } from './components/contact/ContactOverlay';
+import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { ShootModal } from './components/combat/ShootModal';
 import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
@@ -101,6 +102,7 @@ export const App: React.FC = () => {
         <RoomInspector />
         <PlayerHandPanel view={view} />
         <GameLogPanel view={view} />
+        <EventPhaseBanner view={view} />
         {showCharacterSelect && (
           <CharacterSelectModal
             onSelect={handleCharacterSelect}

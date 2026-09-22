@@ -413,4 +413,26 @@ describe('Отступление Чужого в журнале (стр. 20)', (
     expect(messages[2]).toContain('любой Коридор');
     expect(messages[2]).toContain('Карта не указывает номер Коридора');
   });
+
+  it('показывает атаку Чужого в Фазе Событий и подавление Зовом', () => {
+    const view = filterStateForPlayer(createInitialGameState('game-log-model-phase-attacks'), 'player-1');
+    const name = view.players['player-1']!.name;
+    const card = structuredClone(INTRUDER_ATTACK_CARDS.find((candidate) => candidate.id === 'IAT_BITE_1')!);
+    const base = {
+      playerId: 'player-1',
+      roomId: 11 as const,
+      intruderId: 'adult-1',
+      intruderType: 'ADULT' as const,
+    };
+    view.gameLog = [
+      eventEntry(1, { ...base, type: 'EVENT_PHASE_ATTACK_RESOLVED', card, outcome: 'HIT', victims: [] }),
+      eventEntry(2, { ...base, type: 'EVENT_PHASE_ATTACK_RESOLVED', card: null, outcome: 'SUPPRESSED', victims: [] }),
+    ];
+
+    const messages = formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
+
+    expect(messages[0]).toContain(`Фаза Событий: Взрослая особь атакует ${name}`);
+    expect(messages[0]).toContain('Укус');
+    expect(messages[1]).toContain('подавлена эффектом Зова');
+  });
 });

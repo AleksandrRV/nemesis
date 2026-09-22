@@ -1,18 +1,18 @@
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import type { GameState } from '../types/state.js';
 import { killPlayer } from './characterDamage.js';
+import { resolveEventPhaseAttacks } from './eventsPhaseAttacks.js';
 import { endGame } from './gameEnd.js';
 import { appendGameLog } from './gameLog.js';
 import { checkInjuryResult } from './shoot.js';
-import { startNewRound } from './turnCycle.js';
+import { getOrderedPlayers, startNewRound } from './turnCycle.js';
 
 /**
  * Оркестратор Фазы Событий (стр. 10): шаги книги правил исполняются
  * последовательно внутри одной транзакции.
  *
  * - Шаг 4: Счётчик Времени и Самоуничтожения — реализован;
- * - Шаг 5: Атаки Чужих — следующий шаг этапа 0.5.0, пропуск фиксируется
- *   в журнале явно;
+ * - Шаг 5: Атаки Чужих — реализован (`resolveEventPhaseAttacks`);
  * - Шаг 6: Урон от огня — реализован;
  * - Шаг 7: карта События, Шаг 8: Развитие Улья — следующие шаги этапа,
  *   пропуски фиксируются в журнале явно;
@@ -25,7 +25,8 @@ export function runEventPhase(state: GameState): void {
   advanceTimeAndSelfDestruct(state);
   if (state.meta.phase === 'GAME_OVER') return;
 
-  appendGameLog(state, { type: 'EVENT_PHASE_STEP_SKIPPED', round: state.meta.currentRound, step: 5 });
+  resolveEventPhaseAttacks(state);
+  if (endIfNoActiveCharacters(state)) return;
 
   resolveFireDamage(state);
 
@@ -33,6 +34,16 @@ export function runEventPhase(state: GameState): void {
   appendGameLog(state, { type: 'EVENT_PHASE_STEP_SKIPPED', round: state.meta.currentRound, step: 8 });
 
   startNewRound(state);
+}
+
+/**
+ * Полная гибель активных Персонажей в Фазе Событий (например, Исступление
+ * в переполненном отсеке) завершает партию: ходить больше некому.
+ */
+function endIfNoActiveCharacters(state: GameState): boolean {
+  if (getOrderedPlayers(state).length > 0) return false;
+  endGame(state, 'NO_ACTIVE_CHARACTERS');
+  return true;
 }
 
 /**

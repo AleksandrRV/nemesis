@@ -49,11 +49,14 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text = `${name} выбрал Цель. Содержание выбранной и удалённой карт скрыто.`;
       break;
     case 'SURPRISE_ATTACK_RESOLVED':
-    case 'ESCAPE_ATTACK_RESOLVED': {
+    case 'ESCAPE_ATTACK_RESOLVED':
+    case 'EVENT_PHASE_ATTACK_RESOLVED': {
       text =
         event.type === 'ESCAPE_ATTACK_RESOLVED'
           ? `Побег: ${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name} в спину — `
-          : `${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name}: `;
+          : event.type === 'EVENT_PHASE_ATTACK_RESOLVED'
+            ? `Фаза Событий: ${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name} — `
+            : `${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name}: `;
       text +=
         event.outcome === 'MISS'
           ? `«${event.card?.name}» — промах, нет символа атакующего.`

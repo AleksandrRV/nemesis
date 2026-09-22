@@ -74,6 +74,17 @@ export type IntruderLogEvent =
       outcome: 'HIT' | 'MISS' | 'INFESTATION' | 'SUPPRESSED';
       victims: AttackVictimStatus[];
     }
+  | {
+      /** Атака в Фазе Событий (стр. 10, шаг 5): цель — минимум карт на руке (стр. 20). */
+      type: 'EVENT_PHASE_ATTACK_RESOLVED';
+      playerId: string;
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+      card: IntruderAttackCard | null;
+      outcome: 'HIT' | 'MISS' | 'INFESTATION' | 'SUPPRESSED';
+      victims: AttackVictimStatus[];
+    }
   | { type: 'CONTAMINATION_RECEIVED'; playerId: string }
   | {
       type: 'SHOOT_RESOLVED';

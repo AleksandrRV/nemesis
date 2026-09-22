@@ -209,27 +209,30 @@ describe('Шаг 6 Фазы Событий: Урон от огня (стр. 10, 
 });
 
 describe('Оркестратор Фазы Событий: порядок Шагов книги правил (стр. 10)', () => {
-  it('полный цикл: счётчики, пропуски 5/7/8, огонь и новый раунд без застревания фазы', () => {
+  it('полный цикл: счётчики, атаки, пропуски 7/8, огонь и новый раунд без застревания фазы', () => {
     const state = freshState('evp-orchestrator');
     const intruderId = putIntruder(state, 'ADULT', 11);
     state.ship.rooms[11]!.hasFire = true;
     stackToughness(state, 'IAT_SCRATCH_2');
+    // Персонаж вне отсека с Чужим: Боя нет, атака Шага 5 не вносит недетерминизм
+    state.players['player-1']!.roomId = 12;
     state.meta.currentRound = 1;
     state.meta.phase = 'EVENT_PHASE';
 
     runEventPhase(state);
 
     const types = lastEvents(state).map((event) => event.type);
+    const skipped = lastEvents(state).flatMap((event) =>
+      event.type === 'EVENT_PHASE_STEP_SKIPPED' ? [event.step] : [],
+    );
     expect(state.meta.phase).toBe('PLAYER_PHASE');
     expect(state.meta.currentRound).toBe(2);
     expect(state.meta.timeTrackPosition).toBe(1);
     expect(types.indexOf('TIME_TRACK_ADVANCED')).toBeLessThan(types.indexOf('EVENT_PHASE_STEP_SKIPPED'));
-    expect(types.filter((type) => type === 'EVENT_PHASE_STEP_SKIPPED')).toHaveLength(3);
+    // Шаг 5 (Атаки Чужих) исполняется: остаются честные пропуски Шагов 7 и 8
+    expect(skipped).toEqual([7, 8]);
     expect(types).toContain('FIRE_DAMAGE_TAKEN_BY_INTRUDER');
     expect(types).toContain('ROUND_STARTED');
-    expect(lastEvents(state)).toContainEqual(expect.objectContaining({ type: 'EVENT_PHASE_STEP_SKIPPED', step: 5 }));
-    expect(lastEvents(state)).toContainEqual(expect.objectContaining({ type: 'EVENT_PHASE_STEP_SKIPPED', step: 7 }));
-    expect(lastEvents(state)).toContainEqual(expect.objectContaining({ type: 'EVENT_PHASE_STEP_SKIPPED', step: 8 }));
     expect(state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.woundsCount).toBe(1);
   });
 

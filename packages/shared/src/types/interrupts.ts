@@ -6,6 +6,11 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
  */
 export type NoiseRollMode = { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor };
 
+/** Целевое место шума для прерывания Контакта: Коридор или Технические Коридоры. */
+export type NoiseTargetForContact =
+  | { kind: 'CORRIDOR'; corridorId: string }
+  | { kind: 'TECHNICAL_CORRIDOR' };
+
 /** Событие прерывания: шаг пайплайна, который должен разрешиться до конца действия (tech_stack §4). */
 export type InterruptEvent =
   /** Попытка побега: каждый Чужой в отсеке атакует до шага в целевой отсек. */
@@ -22,7 +27,11 @@ export type InterruptEvent =
    * в выбранный игроком Коридор (стр. 13).
    */
   | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode }
-  /** Контакт: вытянутый из мешка жетон Чужого появляется на поле. */
-  | { type: 'ENCOUNTER_INTERRUPT'; roomId: RoomId; intruderTokenId: string }
+  /**
+   * Контакт (v0.4.0 Шаг 2): при попытке положить маркер Шума в место, где он уже стоит,
+   * инициируется прерывание: удаляются все маркеры Шума из коридоров отсека,
+   * вытягивается жетон из Пула Чужих.
+   */
+  | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId; noiseTarget: NoiseTargetForContact }
   /** Внезапная атака: карт на руке меньше числа на жетоне (стр. 18). */
   | { type: 'SURPRISE_ATTACK_INTERRUPT'; playerId: string; intruderId: string };

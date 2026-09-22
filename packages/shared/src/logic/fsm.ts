@@ -1,7 +1,7 @@
 import { produce } from 'immer';
 
-import type { EngineAction } from '../types/actions.js';
-import type { ActionDeckCard, ItemCard } from '../types/cards.js';
+import type { EngineAction, ShootActionPayload } from '../types/actions.js';
+import type { ActionDeckCard, IntruderAttackCard, ItemCard } from '../types/cards.js';
 import type { InterruptEvent, NoiseRollMode } from '../types/interrupts.js';
 import type { GameLogEffectOutcome, GameLogNoiseReason } from '../types/log.js';
 import type {
@@ -14,6 +14,7 @@ import type {
 import type { GameOverReason, GameState } from '../types/state.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
 import { NOISE_DIE_FACES, type NoiseDieFace } from '../data/noiseDie.js';
+import { COMBAT_DIE_FACES } from '../data/combatDie.js';
 import { SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { appendGameLog } from './gameLog.js';
 import { noiseMarkersInSupply, placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
@@ -25,6 +26,7 @@ import { executeRoomAbility } from './roomAbilities.js';
 import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
 import type { ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
+import type { IntruderType } from '../types/entities.js';
 
 /**
  * Движок правил.
@@ -55,6 +57,19 @@ export type EngineErrorCode =
   /** Выбранный Коридор не ведёт в отсек назначения (стр. 13). */
   | 'CAREFUL_MOVE_BAD_CHOICE'
   /** Во всех Коридорах, ведущих в отсек, уже стоят маркеры Шума (стр. 13). */
+  | 'CAREFUL_MOVE_NO_FREE_CORRIDOR'
+  /** Чужой с указанным ID не найден на поле. */
+  | 'UNKNOWN_INTRUDER'
+  /** Персонаж должен находиться в одном отсеке с целью для стрельбы. */
+  | 'SHOOT_TARGET_NOT_IN_ROOM'
+  /** Неверный индекс слота руки. */
+  | 'INVALID_HAND_SLOT'
+  /** В выбранном слоте нет оружия. */
+  | 'NOT_A_WEAPON'
+  /** В оружии нет патронов. */
+  | 'NO_AMMO'
+  /** Неверный результат броска кубика Боя. */
+  | 'INVALID_COMBAT_DIE_ROLL'
   | 'CAREFUL_MOVE_NO_FREE_CORRIDOR'
   /** Маркеров Шума в запасе не осталось: правило не описано книгой (стр. 3, 15–16). */
   | 'MARKER_SUPPLY_EXHAUSTED'
@@ -689,6 +704,173 @@ export class GameEngine {
         }
         return;
       }
+
+      case 'ACTION_SHOOT': {
+        const payload = action.payload as ShootActionPayload;
+        
+        // Проверка: персонаж должен быть в том же отсеке, что и цель
+        const targetIntruder = state.intrudersPool.boardTokens.find(
+          (t) => t.id === payload.targetIntruderId
+        );
+        if (!targetIntruder) {
+          throw new EngineError('UNKNOWN_INTRUDER', `Чужой с ID ${payload.targetIntruderId} не найден на поле.`);
+        }
+        if (targetIntruder.roomId !== player.roomId) {
+          throw new EngineError(
+            'SHOOT_TARGET_NOT_IN_ROOM',
+            'Персонаж должен находиться в одном отсеке с целью для стрельбы.'
+          );
+        }
+
+        // Проверка: оружие должно быть в руках персонажа
+        const handSlotIndex = payload.weaponHandSlotIndex;
+        if (handSlotIndex < 0 || handSlotIndex >= player.handSlots.length) {
+          throw new EngineError('INVALID_HAND_SLOT', 'Неверный индекс слота руки.');
+        }
+        const handSlot = player.handSlots[handSlotIndex];
+        if (!handSlot || handSlot.source !== 'ITEM' || !handSlot.card.isWeapon) {
+          throw new EngineError('NOT_A_WEAPON', 'В выбранном слоте нет оружия.');
+        }
+        const weapon = handSlot.card;
+
+        // Проверка: наличие патронов (если оружие не энергетическое или без боезапаса)
+        if (weapon.ammo !== null && weapon.ammo <= 0) {
+          throw new EngineError('NO_AMMO', 'В оружии нет патронов.');
+        }
+
+        // Оплата: 1 карта действия
+        executeCardPayment(state, actorId, payload.discardCardIds, 1);
+
+        // Расход патрона (если есть боезапас)
+        if (weapon.ammo !== null && weapon.ammo > 0) {
+          weapon.ammo -= 1;
+        }
+
+        // Бросок кубика Боя
+        const dieFace = COMBAT_DIE_FACES[payload.combatDieRoll];
+        if (!dieFace) {
+          throw new EngineError('INVALID_COMBAT_DIE_ROLL', 'Неверный результат броска кубика Боя.');
+        }
+
+        // Проверка: попадает ли грань по типу цели
+        let damageDealt = 0;
+        switch (dieFace.kind) {
+          case 'MISS':
+            damageDealt = 0;
+            break;
+          case 'CLAW_HIT':
+            if (targetIntruder.type === 'LARVA' || targetIntruder.type === 'CREEPER') {
+              damageDealt = 1;
+            }
+            break;
+          case 'ALIEN_HIT':
+            if (
+              targetIntruder.type === 'LARVA' ||
+              targetIntruder.type === 'CREEPER' ||
+              targetIntruder.type === 'ADULT'
+            ) {
+              damageDealt = 1;
+            }
+            break;
+          case 'ONE_HIT':
+            damageDealt = 1;
+            break;
+          case 'TWO_HITS':
+            damageDealt = 2;
+            break;
+        }
+
+        // Нанесение ран Чужому
+        if (damageDealt > 0) {
+          targetIntruder.woundsCount += damageDealt;
+
+          // Проверка стойкости Чужого: берём карту Атаки Чужих
+          const drawPile = state.decks.intruderAttacks.drawPile as IntruderAttackCard[];
+          const discard = state.decks.intruderAttacks.discard as IntruderAttackCard[];
+          
+          // Если колода пуста, перемешиваем сброс
+          if (drawPile.length === 0 && discard.length > 0) {
+            state.decks.intruderAttacks.drawPile = [...discard].sort(() => Math.random() - 0.5);
+            state.decks.intruderAttacks.discard = [];
+          }
+          
+          const attackCard = (state.decks.intruderAttacks.drawPile as IntruderAttackCard[]).shift();
+          if (!attackCard) {
+            throw new EngineError('ACTION_NOT_IMPLEMENTED', 'Колода Атак Чужих пуста');
+          }
+          state.meta.rngDraws.combat += 1;
+
+          // Проверяем, применима ли карта к этому типу Чужого
+          const isApplicable =
+            !attackCard.applicableTypes || attackCard.applicableTypes.includes(targetIntruder.type);
+
+          // Сравниваем раны со стойкостью
+          if (isApplicable && targetIntruder.woundsCount >= (attackCard.toughness ?? 0)) {
+            // Чужой погибает или отступает
+            if (attackCard.hasRetreat) {
+              // Отступление: переместить в соседний отсек (упрощённо - в случайный соседний)
+              const adjacentCorridors = Object.values(state.ship.corridors).filter(
+                (c) => c.fromRoomId === targetIntruder.roomId || c.toRoomId === targetIntruder.roomId
+              );
+              if (adjacentCorridors.length > 0) {
+                const randomCorridor = adjacentCorridors[Math.floor(Math.random() * adjacentCorridors.length)];
+                if (randomCorridor) {
+                  const newRoomId =
+                    randomCorridor.fromRoomId === targetIntruder.roomId ? randomCorridor.toRoomId : randomCorridor.fromRoomId;
+                  targetIntruder.roomId = newRoomId;
+                  
+                  appendGameLog(state, {
+                    type: 'INTRUDER_FLED',
+                    intruderId: targetIntruder.id,
+                    intruderType: targetIntruder.type,
+                    fromRoomId: targetIntruder.roomId,
+                    toRoomId: newRoomId,
+                  });
+                }
+              }
+            } else {
+              // Смерть: удалить с поля
+              const tokenIndex = state.intrudersPool.boardTokens.findIndex((t) => t.id === targetIntruder.id);
+              if (tokenIndex > -1) {
+                state.intrudersPool.boardTokens.splice(tokenIndex, 1);
+                // Добавить жетон в мёртвые
+                const tokenType: IntruderType = targetIntruder.type;
+                // Находим соответствующий токен в supply или создаём новый
+                const deadToken = {
+                  id: targetIntruder.id,
+                  type: tokenType,
+                  escapeNumber: 1, // Упрощённо
+                };
+                state.intrudersPool.deadTokens.push(deadToken);
+                
+                appendGameLog(state, {
+                  type: 'INTRUDER_KILLED',
+                  playerId: actorId,
+                  intruderId: targetIntruder.id,
+                  intruderType: targetIntruder.type,
+                });
+              }
+            }
+          }
+        }
+
+        appendGameLog(state, {
+          type: 'COMBAT_ROUND_RESOLVED',
+          playerId: actorId,
+          intruderId: targetIntruder.id,
+          intruderType: targetIntruder.type,
+          damageDealt,
+          combatDieResult: dieFace.kind,
+          attackCardId: (damageDealt > 0 ? (state.decks.intruderAttacks.drawPile as IntruderAttackCard[])[0]?.id : undefined),
+        });
+
+        player.actionsPerformedThisRound += 1;
+        if (player.actionsPerformedThisRound >= 2) {
+          advanceTurn(state, actorId);
+        }
+        return;
+      }
+
       default:
         throw new EngineError(
           'ACTION_NOT_IMPLEMENTED',

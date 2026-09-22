@@ -22,7 +22,7 @@ export type InterruptEvent =
    * в выбранный игроком Коридор (стр. 13).
    */
   | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode }
-  | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId; source: 'NOISE' | 'CALL' }
+  | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId; source: 'NOISE' | 'CALL' | 'EVENT' }
   | { type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT'; playerId: string }
   | { type: 'COMPLETE_ACTION_INTERRUPT'; playerId: string }
   /** Внезапная атака: карт на руке меньше числа на жетоне (стр. 18). */

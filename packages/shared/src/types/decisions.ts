@@ -1,5 +1,5 @@
 import type { CombatDieFace } from '../data/combatDie.js';
-import type { ItemDeckColor } from './cards.js';
+import type { EventCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
 
 export type PendingDecision =
@@ -56,4 +56,12 @@ export type PendingDecision =
       woundsBefore: number;
       /** Оружие даёт бонусные Раны при ≥1 Ране (Энергооружие/Боевая винтовка). */
       weaponBonusEligible: boolean;
+    }
+  | {
+      /** «Подготовка» (стр. 10): разыграть одну из трёх вытянутых карт Событий. */
+      id: string;
+      playerId: string;
+      type: 'CHOOSE_EVENT_CARD';
+      /** Три вытянутые карты — публичная информация: карты Событий вскрываются лицом вверх. */
+      cards: EventCard[];
     };

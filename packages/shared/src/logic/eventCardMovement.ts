@@ -1,19 +1,17 @@
+import type { EventCard } from '../types/cards.js';
 import type { IntruderEntity } from '../types/entities.js';
 import type { CorridorNumber } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import { drawSharedCard } from './cardPiles.js';
+import { disposeEventCard, resolveEventCardEffect } from './eventEffects.js';
 import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, removeIntruder } from './intruderPlacement.js';
 import { findNoiseTarget } from './shipGraphQueries.js';
 
 /**
- * Шаг 7 Фазы Событий, часть «Движение Чужих» (стр. 10, 15): вытягивается
- * верхняя карта Событий, её верхний блок задаёт типы двигающихся Чужих
- * и номер Коридора. Чужие в Бою (в отсеке с живым Персонажем) не
- * перемещаются. После Движения карта уходит в сброс.
- *
- * Текстовый эффект карты (нижний блок) и флаги уничтожения/замешивания
- * исполняются следующим шагом этапа 0.5.0.
+ * Шаг 7 Фазы Событий (стр. 10): верхняя карта Событий вытягивается лицом
+ * вверх, её верхний блок задаёт Движение Чужих, нижний разыгрывает
+ * текстовый эффект, затем карта уходит по правилам судьбы карт.
  */
 export function resolveEventCardMovement(state: GameState): void {
   const card = drawSharedCard(state, state.decks.events, 'События');
@@ -23,11 +21,24 @@ export function resolveEventCardMovement(state: GameState): void {
     card: { ...card, intruderTypes: [...card.intruderTypes] },
   });
 
+  playEventCard(state, card);
+}
+
+/**
+ * Полный розыгрыш одной карты Событий: Движение Чужих по верхнему блоку,
+ * текстовый эффект нижнего блока и судьба карты («Подготовка» вызывает
+ * этот путь повторно для выбранной карты).
+ */
+export function playEventCard(state: GameState, card: EventCard): void {
   if (card.corridorNumber !== 'ANY') {
     moveIntrudersByCard(state, card.intruderTypes, card.corridorNumber);
   }
-
-  state.decks.events.discard.push(card);
+  if (state.meta.phase !== 'GAME_OVER') {
+    resolveEventCardEffect(state, card);
+  }
+  if (state.meta.phase !== 'GAME_OVER') {
+    disposeEventCard(state, card);
+  }
 }
 
 /**

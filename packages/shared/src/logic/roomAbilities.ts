@@ -304,7 +304,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       // Спасательные отсеки: вход в капсулу
       const section = room.definitionId === 'ESCAPE_POD_A' ? 'A' : 'B';
       const availablePods = Object.values(state.ship.escapePods).filter((pod) => pod.section === section);
-      const pod = availablePods.find((p) => !p.isLocked && p.occupantIds.length < 2);
+      const pod = availablePods.find((p) => !p.isLocked && !p.isDestroyed && p.occupantIds.length < 2);
       if (!pod) {
         throw new EngineError(
           'ROOM_ABILITY_NOT_ALLOWED',

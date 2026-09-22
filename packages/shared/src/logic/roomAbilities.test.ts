@@ -327,6 +327,7 @@ describe('Действия комнат (Room Abilities)', () => {
         number: 1,
         section: 'A',
         isLocked: false,
+        isDestroyed: false,
         occupantIds: [],
       },
     };

@@ -43,7 +43,8 @@ export type IntruderLogEvent =
       intruderId: string | null;
       firstEncounter: boolean;
       surpriseAttack: boolean;
-      source: 'NOISE' | 'CALL';
+      /** Источник Контакта: Шум, Зов или карта События («Защита кладки»). */
+      source: 'NOISE' | 'CALL' | 'EVENT';
       /**
        * Заполняется только для жетона Личинки (стр. 18; INTRUDERS §2 —
        * «атакует автоматически»): миниатюра не ставится, персонаж немедленно

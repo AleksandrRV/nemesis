@@ -104,5 +104,7 @@ export interface EscapePodState {
   number: number;
   section: 'A' | 'B';
   isLocked: boolean;
+  /** «Катапультирование капсулы»: уничтоженная Капсула не возвращается в партию. */
+  isDestroyed: boolean;
   occupantIds: string[];
 }

@@ -1,4 +1,5 @@
 import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
+import { eventCardName, formatEventEffectOutcome } from './eventEffectLogModel';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
@@ -77,11 +78,11 @@ const OUTCOME_LABELS: Record<Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_R
   SILENCE_RESOLVED: 'Шум отменён',
 };
 
-function playerName(view: SanitizedGameState, playerId: string): string {
+export function playerName(view: SanitizedGameState, playerId: string): string {
   return view.players[playerId]?.name ?? playerId;
 }
 
-function roomLabel(view: SanitizedGameState, roomId: number): string {
+export function roomLabel(view: SanitizedGameState, roomId: number): string {
   const room = view.ship.rooms[roomId];
   const numberLabel = `#${String(roomId).padStart(3, '0')}`;
 
@@ -120,6 +121,7 @@ function reasonLabel(reason: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED'
   if (reason === 'CAREFUL') return 'Осторожное движение';
   if (reason === 'DANGER') return 'Опасность';
   if (reason === 'BLANK') return 'Пустой жетон';
+  if (reason === 'EVENT') return 'карта События';
 
   return 'бросок Шума';
 }
@@ -377,6 +379,15 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: ` в ${roomLabel(view, event.roomId)}.` },
       ];
     }
+    case 'EVENT_EFFECT_RESOLVED':
+      return formatEventEffectOutcome(event.outcome, view);
+    case 'EVENT_CARD_CHOSEN':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' разыгрывает выбранную карту Событий: ' },
+        { text: `«${eventCardName(event.chosenCardId)}»`, tone: 'warning', strong: true },
+        { text: ` (${event.discardedCardIds.length} других — в сброс).` },
+      ];
     case 'DEV_STATE_CHANGED':
       return [
         { text: 'Dev-переключатель', tone: 'warning', strong: true },

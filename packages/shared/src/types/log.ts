@@ -1,5 +1,5 @@
 import type { IntruderLogEvent } from './contact.js';
-import type { EventCard } from './cards.js';
+import type { EventCard, EventEffect } from './cards.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
 import type { IntruderType } from './entities.js';
@@ -9,7 +9,38 @@ export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
 export type GameLogNoiseTarget = { kind: 'CORRIDOR'; corridorId: string } | { kind: 'TECHNICAL_CORRIDOR' };
 
-export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER' | 'BLANK';
+export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER' | 'BLANK' | 'EVENT';
+
+/**
+ * Итог текстового эффекта карты События (стр. 10, шаг 7): структурные
+ * подробности для журнала и клиента — по одному варианту на эффект.
+ */
+export type EventEffectOutcome =
+  | { kind: 'HUNT'; movedIntruderIds: string[] }
+  | { kind: 'PROTECT_NEST'; contactPlayerIds: string[] }
+  | { kind: 'BROOD'; eggDiscarded: boolean; infectedPlayerIds: string[]; larvaAddedToBag: boolean }
+  | { kind: 'REGENERATION'; healedIntruderIds: string[]; woundsRemoved: number }
+  | { kind: 'HIDDEN'; withdrawnIntruderIds: string[] }
+  | {
+      kind: 'MATURATION';
+      deadPlayerIds: string[];
+      creeperRoomIds: RoomId[];
+      scannedPlayerIds: string[];
+      infectedPlayerIds: string[];
+    }
+  | { kind: 'RAMPAGE'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'PREPARATION'; decisionPlayerId: string }
+  | { kind: 'PREY_SCENT'; noiseCorridorIds: string[] }
+  | { kind: 'NOISE_TECH_CORRIDORS'; markerPlaced: boolean; rolledPlayerIds: string[] }
+  | { kind: 'HIVE'; noiseCorridorIds: string[]; nestExplored: boolean }
+  | { kind: 'FLAMMABLE_MIXTURE'; fireRoomIds: RoomId[]; spread: boolean }
+  | { kind: 'DESTRUCTIVE_FLAME'; malfunctionRoomIds: RoomId[]; fireRoomIds: RoomId[] }
+  | { kind: 'ESCAPE_POD_EJECTION'; podId: string | null }
+  | { kind: 'SHORT_CIRCUIT'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'COOLANT_LEAK'; selfDestructStarted: boolean }
+  | { kind: 'LIFE_SUPPORT_MALFUNCTION'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'MALFUNCTION'; targetRoomId: RoomId | null }
+  | { kind: 'OPEN_COMPARTMENTS'; openedCorridorIds: string[] };
 
 export type GameLogNoiseSkippedReason = 'COMPANION' | 'EXPLORATION_SILENCE' | 'NOISE_SILENCE' | 'UNMAPPED_EXIT';
 
@@ -123,7 +154,8 @@ export type GameLogEvent =
     }
   | {
       type: 'NOISE_MARKER_PLACED';
-      playerId: string;
+      /** null — маркер размещён картой События, а не действием Персонажа. */
+      playerId: string | null;
       roomId: RoomId;
       target: GameLogNoiseTarget;
       reason: GameLogNoiseReason;
@@ -158,6 +190,21 @@ export type GameLogEvent =
       type: 'EVENT_CARD_DRAWN';
       round: number;
       card: EventCard;
+    }
+  | {
+      /** Текстовый эффект карты События исполнен (стр. 10, шаг 7). */
+      type: 'EVENT_EFFECT_RESOLVED';
+      round: number;
+      cardId: string;
+      effect: EventEffect;
+      outcome: EventEffectOutcome;
+    }
+  | {
+      /** «Подготовка»: игрок выбрал одну из трёх вытянутых карт Событий для розыгрыша. */
+      type: 'EVENT_CARD_CHOSEN';
+      playerId: string;
+      chosenCardId: string;
+      discardedCardIds: string[];
     }
   | {
       /** Урон от огня (стр. 10, шаг 6): Чужой в горящем отсеке получил 1 Рану. */

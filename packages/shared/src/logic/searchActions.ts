@@ -1,5 +1,6 @@
 import { queueActionCompletion } from './actionCompletion.js';
 import { resolveRerollCombatDie } from './classCombatCards.js';
+import { playEventCard } from './eventCardMovement.js';
 import type { EngineAction } from '../types/actions.js';
 import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
@@ -74,6 +75,27 @@ export function executeDecision(
   if (decision.type === 'REROLL_COMBAT_DIE') {
     state.pendingDecision = null;
     resolveRerollCombatDie(state, decision, action.payload.selectedOption);
+    return;
+  }
+  if (decision.type === 'CHOOSE_EVENT_CARD') {
+    const chosen = decision.cards.find((card) => card.id === action.payload.selectedOption);
+    if (!chosen) {
+      throw new EngineError('INVALID_DECISION_OPTION', 'Выбранной карты нет среди вытянутых.');
+    }
+    state.pendingDecision = null;
+    const discardedCardIds: string[] = [];
+    for (const other of decision.cards) {
+      if (other.id === chosen.id) continue;
+      state.decks.events.discard.push(other);
+      discardedCardIds.push(other.id);
+    }
+    appendGameLog(state, {
+      type: 'EVENT_CARD_CHOSEN',
+      playerId: actorId,
+      chosenCardId: chosen.id,
+      discardedCardIds,
+    });
+    playEventCard(state, chosen);
     return;
   }
   if (decision.type === 'CHOOSE_OBJECTIVE') {

@@ -73,7 +73,7 @@ function createEscapePods(playerCount: number, podNumbers: number[]): Record<str
     const section = index % 2 === 0 ? 'A' : 'B';
     const id = `POD_${section}${number}`;
 
-    pods[id] = { id, number, section, isLocked: true, occupantIds: [] };
+    pods[id] = { id, number, section, isLocked: true, isDestroyed: false, occupantIds: [] };
     return pods;
   }, {});
 }

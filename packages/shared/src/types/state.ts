@@ -7,10 +7,11 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Совместимость сохранений: Фаза Событий исполняет Шаг 7а книги правил —
-// Автономное Движение Чужих по карте События (события `EVENT_CARD_DRAWN` и
-// `INTRUDER_MOVED`, источник разрушения Двери) — сохранения схемы 16 не восстанавливаются.
-export const GAME_STATE_SCHEMA_VERSION = 17;
+// Совместимость сохранений: Фаза Событий исполняет Шаг 7б книги правил —
+// текстовые эффекты 19 карт Событий (события `EVENT_EFFECT_RESOLVED`,
+// `EVENT_CARD_CHOSEN`, решение `CHOOSE_EVENT_CARD`, уничтожение Капсул) —
+// сохранения схемы 17 не восстанавливаются.
+export const GAME_STATE_SCHEMA_VERSION = 18;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

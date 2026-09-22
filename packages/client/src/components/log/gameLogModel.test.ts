@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameLogEvent } from '@nemesis/shared';
-import { INTRUDER_ATTACK_CARDS } from '@nemesis/shared';
+import { EVENT_CARDS, INTRUDER_ATTACK_CARDS } from '@nemesis/shared';
 import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 
 import { formatGameLog } from './gameLogModel';
@@ -323,5 +323,160 @@ describe('Журнал: атаки при Побеге (Шаг 7)', () => {
     expect(messages[0]).toContain('Царапина');
     expect(messages[1]).toContain('промах, нет символа атакующего');
     expect(messages[2]).toContain('Личинка удалена с поля');
+  });
+});
+
+describe('Отступление Чужого в журнале (стр. 20)', () => {
+  function retreatView(events: GameLogEvent[]) {
+    const state = createInitialGameState('game-log-retreat');
+    const view = filterStateForPlayer(state, 'player-1');
+    view.gameLog = events.map((event, index) => eventEntry(index + 1, event));
+    return formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
+  }
+
+  it('переход в соседний отсек: карта Событий, номер Коридора и направление', () => {
+    const [message] = retreatView([
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-1',
+        intruderType: 'ADULT',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'MOVED',
+          toRoomId: 8,
+          corridorId: '8-11',
+        },
+      },
+    ]);
+
+    expect(message).toContain('Отступление: карта Событий «Охота» указывает Коридор №3');
+    expect(message).toContain('отступает через Коридор 8-11 в отсек #8');
+  });
+
+  it('Закрытая Дверь разрушена, вентиляция и «Подготовка» без номера', () => {
+    const messages = retreatView([
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-1',
+        intruderType: 'ADULT',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'DOOR_DESTROYED',
+          toRoomId: null,
+          corridorId: '8-11',
+        },
+      },
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 14,
+        intruderId: 'intruder-2',
+        intruderType: 'CREEPER',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'TECHNICAL_CORRIDORS',
+          toRoomId: null,
+          corridorId: null,
+        },
+      },
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-3',
+        intruderType: 'QUEEN',
+        retreat: {
+          eventCardId: 'EVT_PREPARATION',
+          eventCardName: 'Подготовка',
+          corridorNumber: 'ANY',
+          outcome: 'STAYED',
+          toRoomId: null,
+          corridorId: null,
+        },
+      },
+    ]);
+
+    expect(messages[0]).toContain('Дверь Коридора 8-11 разрушена');
+    expect(messages[0]).toContain('остаётся в отсеке');
+    expect(messages[1]).toContain('уходит в Технический Коридор');
+    expect(messages[1]).toContain('все Раны сброшены');
+    expect(messages[2]).toContain('любой Коридор');
+    expect(messages[2]).toContain('Карта не указывает номер Коридора');
+  });
+
+  it('показывает атаку Чужого в Фазе Событий и подавление Зовом', () => {
+    const view = filterStateForPlayer(createInitialGameState('game-log-model-phase-attacks'), 'player-1');
+    const name = view.players['player-1']!.name;
+    const card = structuredClone(INTRUDER_ATTACK_CARDS.find((candidate) => candidate.id === 'IAT_BITE_1')!);
+    const base = {
+      playerId: 'player-1',
+      roomId: 11 as const,
+      intruderId: 'adult-1',
+      intruderType: 'ADULT' as const,
+    };
+    view.gameLog = [
+      eventEntry(1, { ...base, type: 'EVENT_PHASE_ATTACK_RESOLVED', card, outcome: 'HIT', victims: [] }),
+      eventEntry(2, { ...base, type: 'EVENT_PHASE_ATTACK_RESOLVED', card: null, outcome: 'SUPPRESSED', victims: [] }),
+    ];
+
+    const messages = formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
+
+    expect(messages[0]).toContain(`Фаза Событий: Взрослая особь атакует ${name}`);
+    expect(messages[0]).toContain('Укус');
+    expect(messages[1]).toContain('подавлена эффектом Зова');
+  });
+
+  it('показывает карту События и Движение Чужих в Фазе Событий', () => {
+    const view = filterStateForPlayer(createInitialGameState('game-log-model-movement'), 'player-1');
+    const eventCard = structuredClone(EVENT_CARDS.find((card) => card.id === 'EVT_HUNT_2')!);
+    view.gameLog = [
+      eventEntry(1, { type: 'EVENT_CARD_DRAWN', round: 1, card: eventCard }),
+      eventEntry(2, {
+        type: 'INTRUDER_MOVED',
+        intruderId: 'adult-1',
+        intruderType: 'ADULT',
+        fromRoomId: 12,
+        toRoomId: 16,
+        corridorId: '12-16',
+        corridorNumber: 3,
+        technicalCorridors: false,
+      }),
+      eventEntry(3, {
+        type: 'INTRUDER_MOVED',
+        intruderId: 'adult-2',
+        intruderType: 'ADULT',
+        fromRoomId: 5,
+        toRoomId: null,
+        corridorId: null,
+        corridorNumber: 4,
+        technicalCorridors: true,
+      }),
+      eventEntry(4, {
+        type: 'INTRUDERS_BLOCKED_BY_DOOR',
+        intruderIds: ['adult-3', 'adult-4'],
+        corridorId: '12-16',
+        source: 'EVENT_PHASE',
+      }),
+    ];
+
+    const messages = formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
+
+    expect(messages[0]).toContain('Охота');
+    expect(messages[0]).toContain('Коридор 3');
+    expect(messages[0]).toContain('Взрослая особь, Трутень, Королева');
+    expect(messages[1]).toContain('Взрослая особь перемещается из отсека #12 в #16');
+    expect(messages[2]).toContain('уходит в Технические Коридоры через вход 4');
+    expect(messages[2]).toContain('миниатюра снята, Раны сброшены');
+    expect(messages[3]).toContain('2 Чужих разрушили Дверь в Коридоре 12-16');
   });
 });

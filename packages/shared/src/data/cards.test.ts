@@ -103,5 +103,7 @@ describe('Инициализация колод партии (createInitialDecks
     expect(decks.craftedItems.drawPile).toHaveLength(12);
     expect(decks.contamination.drawPile).toHaveLength(27);
     expect(decks.seriousWounds.drawPile).toHaveLength(16);
+    expect(decks.events.drawPile).toHaveLength(20);
+    expect(decks.events.discard).toEqual([]);
   });
 });

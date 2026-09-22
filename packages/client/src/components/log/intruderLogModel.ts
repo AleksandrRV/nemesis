@@ -1,8 +1,9 @@
 import type { IntruderLogEvent, IntruderToken, SanitizedGameState } from '@nemesis/shared';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
+import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
 import type { GameLogSegment } from './gameLogModel';
 
-const NAMES: Record<IntruderToken['type'], string> = {
+export const INTRUDER_TYPE_NAMES: Record<IntruderToken['type'], string> = {
   BLANK: 'Пустой жетон',
   LARVA: 'Личинка',
   CREEPER: 'Крипер',
@@ -22,11 +23,12 @@ const NAMES_ACCUSATIVE: Record<IntruderToken['type'], string> = {
 };
 
 export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedGameState): GameLogSegment[] {
-  const name = 'playerId' in event ? (view.players[event.playerId]?.name ?? event.playerId) : '';
+  const name =
+    'playerId' in event && event.playerId !== null ? (view.players[event.playerId]?.name ?? event.playerId) : '';
   let text: string;
   switch (event.type) {
     case 'CONTACT_OCCURRED':
-      text = `${name}: Контакт в отсеке #${event.roomId} — ${NAMES[event.tokenType]}. `;
+      text = `${name}: Контакт в отсеке #${event.roomId} — ${INTRUDER_TYPE_NAMES[event.tokenType]}. `;
       if (event.infestation) {
         text += event.infestation.alreadyInfested
           ? 'Повторная Личинка исчезла; ещё одна карта Заражения в сброс, без гибели (FAQ Rules 12).'
@@ -47,11 +49,14 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text = `${name} выбрал Цель. Содержание выбранной и удалённой карт скрыто.`;
       break;
     case 'SURPRISE_ATTACK_RESOLVED':
-    case 'ESCAPE_ATTACK_RESOLVED': {
+    case 'ESCAPE_ATTACK_RESOLVED':
+    case 'EVENT_PHASE_ATTACK_RESOLVED': {
       text =
         event.type === 'ESCAPE_ATTACK_RESOLVED'
-          ? `Побег: ${NAMES[event.intruderType]} атакует ${name} в спину — `
-          : `${NAMES[event.intruderType]} атакует ${name}: `;
+          ? `Побег: ${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name} в спину — `
+          : event.type === 'EVENT_PHASE_ATTACK_RESOLVED'
+            ? `Фаза Событий: ${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name} — `
+            : `${INTRUDER_TYPE_NAMES[event.intruderType]} атакует ${name}: `;
       text +=
         event.outcome === 'MISS'
           ? `«${event.card?.name}» — промах, нет символа атакующего.`
@@ -65,12 +70,13 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
     }
     case 'SHOOT_RESOLVED': {
       const die = COMBAT_DIE_PRESENTATION[event.dieFace].label;
-      text = `${name} стреляет из «${event.weaponName}» (цель: ${NAMES[event.targetType]}): ${die}. `;
+      text = `${name} стреляет из «${event.weaponName}» (цель: ${INTRUDER_TYPE_NAMES[event.targetType]}): ${die}. `;
       text +=
         event.injuries === 0
           ? 'Без ран.'
           : `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
       text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
+      if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       break;
     }
     case 'MELEE_RESOLVED': {
@@ -80,10 +86,18 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       if (event.injuries > 0) {
         text += `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
         text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
+        if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       } else {
         text += 'Промах: Персонаж получает Тяжёлую Травму.';
         if (event.attackerDied) text += ' Персонаж мёртв!';
       }
+      break;
+    }
+    case 'INTRUDER_RETREATED': {
+      const retreatSource = event.playerId === null ? `Пожар в отсеке #${event.roomId}. ` : '';
+      text =
+        `${retreatSource}Отступление: карта Событий «${event.retreat.eventCardName}» указывает ${retreatNumberLabel(event.retreat)}. ` +
+        retreatOutcomeText(event.retreat);
       break;
     }
     case 'CONTAMINATION_RECEIVED':
@@ -93,7 +107,10 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text = `${name} погиб в отсеке #${event.roomId}. Труп и Тяжёлые Объекты остаются на полу.`;
       break;
     case 'ESCAPE_PODS_UNLOCKED':
-      text = 'Первый погибший персонаж: все Спасательные Капсулы разблокированы.';
+      text =
+        event.cause === 'SELF_DESTRUCT'
+          ? 'Самоуничтожение вошло в необратимую зону: все Спасательные Капсулы разблокированы.'
+          : 'Первый погибший персонаж: все Спасательные Капсулы разблокированы.';
       break;
     case 'INTRUDERS_WITHDRAWN':
       text = `Лимит миниатюр: ${event.intruderIds.length} Взрослых вне Боя снято с поля; доступные жетоны возвращены в мешок.`;
@@ -102,13 +119,25 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text = `Опасность: ${event.intruderIds.length} Чужих перемещаются из отсека #${event.fromRoomId} в #${event.toRoomId}, без Контакта.`;
       break;
     case 'INTRUDERS_BLOCKED_BY_DOOR':
-      text = `Опасность: Чужие разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`;
+      text =
+        event.source === 'EVENT_PHASE'
+          ? `Фаза Событий: ${event.intruderIds.length} Чужих разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`
+          : `Опасность: Чужие разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`;
       break;
-    case 'INTRUDER_KILLED':
+    case 'INTRUDER_MOVED': {
+      const mover = INTRUDER_TYPE_NAMES[event.intruderType];
+      text = event.technicalCorridors
+        ? `Фаза Событий: ${mover} уходит в Технические Коридоры через вход ${event.corridorNumber} из отсека #${event.fromRoomId} — миниатюра снята, Раны сброшены.`
+        : `Фаза Событий: ${mover} перемещается из отсека #${event.fromRoomId} в #${event.toRoomId} через Коридор ${event.corridorId}.`;
+      break;
+    }
+    case 'INTRUDER_KILLED': {
+      const killer = event.playerId === null ? 'Пожар' : name;
       text = event.remainsObjectId
-        ? `${name} убивает ${NAMES_ACCUSATIVE[event.targetType]}! Жетон Останков — на полу отсека #${event.roomId}.`
-        : `${name} убивает ${NAMES_ACCUSATIVE[event.targetType]} — Личинка не оставляет Останков (стр. 22).`;
+        ? `${killer} убивает ${NAMES_ACCUSATIVE[event.targetType]}! Жетон Останков — на полу отсека #${event.roomId}.`
+        : `${killer} убивает ${NAMES_ACCUSATIVE[event.targetType]} — Личинка не оставляет Останков (стр. 22).`;
       break;
+    }
     case 'INTRUDER_TRANSFORMED':
       text = `Крипер в отсеке #${event.roomId} заменён Трутнем.`;
       break;

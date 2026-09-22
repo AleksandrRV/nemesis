@@ -1,4 +1,5 @@
 import type { IntruderBadgeModel } from './intruderMapModel';
+import { isDominantIntruder } from './intruderMapModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
 
 const INTRUDER_NAMES_RU: Record<IntruderBadgeModel['type'], string> = {
@@ -13,23 +14,44 @@ interface IntruderBadgeProps {
   badge: IntruderBadgeModel;
   x: number;
   y: number;
+  /** Индивидуальный масштаб класса (Шаг 8): Трутень и Королева крупнее. */
+  scale?: number;
 }
 
 /**
  * Бейдж Чужих в узле отсека: цветной силуэт типа, число миниатюр и суммарные
- * раны. Появился на карте — значит движок разместил миниатюру в отсеке;
- * скрытых данных бейдж не содержит (состав отсеков и раны публичны, стр. 19).
+ * раны. Доминантные классы (Трутень, Королева) получают увеличенный силуэт
+ * и пульсирующую ауру биоугрозы. Появился на карте — значит движок разместил
+ * миниатюру в отсеке; скрытых данных бейдж не содержит (состав отсеков и
+ * раны публичны, стр. 19).
  */
-export function IntruderBadge({ badge, x, y }: IntruderBadgeProps) {
+export function IntruderBadge({ badge, x, y, scale = 1 }: IntruderBadgeProps) {
   const color = INTRUDER_COLORS[badge.type];
   const label = `${INTRUDER_NAMES_RU[badge.type]}: ${badge.count} шт., ран ${badge.wounds}`;
+  const baseWidth = badge.wounds > 0 ? 40 : 26;
+  const dominant = isDominantIntruder(badge.type);
 
   return (
-    <g transform={`translate(${x}, ${y})`} aria-label={label} className="pointer-events-none">
+    <g transform={`translate(${x}, ${y}) scale(${scale})`} aria-label={label} className="pointer-events-none">
+      {dominant && (
+        <rect
+          x={-2.5}
+          y={-2.5}
+          width={baseWidth + 5}
+          height={20}
+          rx={6}
+          fill={color}
+          fillOpacity={0.16}
+          stroke={color}
+          strokeWidth={1}
+          strokeOpacity={0.55}
+          className="animate-pulse"
+        />
+      )}
       <rect
         x={0}
         y={0}
-        width={badge.wounds > 0 ? 40 : 26}
+        width={baseWidth}
         height={15}
         rx={4}
         fill="#05070c"

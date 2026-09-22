@@ -1,6 +1,6 @@
 import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
-import type { CharacterClass } from '@nemesis/shared';
+import type { CharacterClass, RoomId } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
@@ -11,6 +11,9 @@ import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
 import { ContactOverlay } from './components/contact/ContactOverlay';
+import { EventPhaseBanner } from './components/events/EventPhaseBanner';
+import { EventPhaseModal } from './components/events/EventPhaseModal';
+import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
 import { ShootModal } from './components/combat/ShootModal';
 import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
@@ -24,6 +27,22 @@ export const App: React.FC = () => {
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
   });
+
+  // Кинематографичная презентация Фазы Событий (Шаг 9): открывается один раз
+  // на каждую Фазу (ключ — секвенс Сдвига Счётчиков Времени), повторные
+  // обновления снимка её уже не тревожат.
+  const eventPhaseModalModel = React.useMemo(() => (view ? buildEventPhaseModalModel(view) : null), [view]);
+  const [dismissedEventPhaseKeys, setDismissedEventPhaseKeys] = React.useState<number[]>([]);
+  const [eventPhaseHighlightRoomIds, setEventPhaseHighlightRoomIds] = React.useState<readonly RoomId[]>([]);
+  const eventPhaseModalOpen =
+    eventPhaseModalModel !== null && !dismissedEventPhaseKeys.includes(eventPhaseModalModel.phaseKey);
+
+  const closeEventPhaseModal = () => {
+    if (eventPhaseModalModel) {
+      setDismissedEventPhaseKeys((keys) => [...keys, eventPhaseModalModel.phaseKey]);
+    }
+    setEventPhaseHighlightRoomIds([]);
+  };
 
   const handleCharacterSelect = (characterClass: CharacterClass) => {
     startNewGame(undefined, { chosenCharacterClass: characterClass });
@@ -97,10 +116,19 @@ export const App: React.FC = () => {
 
       {/* Основная зона карты */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
-        <ShipMapSVG />
+        <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
         <RoomInspector />
         <PlayerHandPanel view={view} />
         <GameLogPanel view={view} />
+        {!eventPhaseModalOpen && <EventPhaseBanner view={view} />}
+        {eventPhaseModalOpen && eventPhaseModalModel && (
+          <EventPhaseModal
+            view={view}
+            model={eventPhaseModalModel}
+            onClose={closeEventPhaseModal}
+            onStepChange={setEventPhaseHighlightRoomIds}
+          />
+        )}
         {showCharacterSelect && (
           <CharacterSelectModal
             onSelect={handleCharacterSelect}

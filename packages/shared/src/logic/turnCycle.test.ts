@@ -4,7 +4,7 @@ import { createInitialGameState } from './setup.js';
 import { GameEngine, EngineError, findAdjacentOpenRoomIds } from './fsm.js';
 import { applyFireEndTurnEffect, findNextActivePlayer, getOrderedPlayers, startNewRound } from './turnCycle.js';
 
-describe('Цикл микроходов и порядок игроков (v0.3.0 Шаг 4)', () => {
+describe('Цикл микроходов и порядок игроков (Фаза Игроков, этап 0.5.0)', () => {
   it('возвращает игроков, упорядоченных по orderNumber', () => {
     const state = createInitialGameState('test-turn-1', { playerCount: 3 });
     const ordered = getOrderedPlayers(state);
@@ -136,7 +136,7 @@ describe('Цикл микроходов и порядок игроков (v0.3.0
     expect(state.gameLog.some((e) => e.event.type === 'FIRE_DAMAGE_TAKEN')).toBe(true);
   });
 
-  it('при общем пасе всех игроков автоматически пропускает нереализованную фазу событий и начинает новый раунд', () => {
+  it('при общем пасе всех игроков исполняет оркестратор Фазы Событий и начинает новый раунд', () => {
     const engine = new GameEngine();
     const state = createInitialGameState('test-turn-all-pass', { playerCount: 2 });
 
@@ -144,10 +144,14 @@ describe('Цикл микроходов и порядок игроков (v0.3.0
     expect(s1.meta.phase).toBe('PLAYER_PHASE');
 
     const s2 = engine.processAction(s1, { type: 'ACTION_PASS', payload: {} });
-    // Автоматический переход к новому раунду
+    // Оркестратор Шагов Фазы Событий: счётчики, атаки, карта Событий, Развитие Улья, новый раунд
     expect(s2.meta.phase).toBe('PLAYER_PHASE');
     expect(s2.meta.currentRound).toBe(2);
-    expect(s2.gameLog.some((e) => e.event.type === 'EVENT_PHASE_SKIPPED')).toBe(true);
+    expect(s2.meta.timeTrackPosition).toBe(1);
+    expect(s2.gameLog.some((e) => e.event.type === 'TIME_TRACK_ADVANCED')).toBe(true);
+    expect(s2.gameLog.some((e) => e.event.type === 'EVENT_CARD_DRAWN')).toBe(true);
+    expect(s2.gameLog.some((e) => e.event.type === 'HIVE_DEVELOPMENT_RESOLVED')).toBe(true);
+    expect(s2.gameLog.some((e) => e.event.type === 'ROUND_STARTED')).toBe(true);
   });
 
   it('startNewRound корректно начинает новый раунд: сброс паса, передача жетона 1-го игрока и добор', () => {
@@ -161,7 +165,8 @@ describe('Цикл микроходов и порядок игроков (v0.3.0
 
     expect(state.meta.phase).toBe('PLAYER_PHASE');
     expect(state.meta.currentRound).toBe(2);
-    expect(state.meta.timeTrackPosition).toBe(1);
+    // Маркер Времени двигает Шаг 4 Фазы Событий, а не начало раунда
+    expect(state.meta.timeTrackPosition).toBe(0);
     expect(state.meta.firstPlayerId).toBe('player-2');
     expect(state.meta.activePlayerId).toBe('player-2');
     expect(state.players['player-1']?.hasPassed).toBe(false);

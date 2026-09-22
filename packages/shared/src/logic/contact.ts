@@ -13,7 +13,7 @@ export function isSurpriseAttack(
   state: GameState,
   token: { escapeNumber: number },
   handCount: number,
-  source: 'NOISE' | 'CALL',
+  source: 'NOISE' | 'CALL' | 'EVENT',
 ): boolean {
   const threshold = Math.max(1, token.escapeNumber - (isWeaknessRevealed(state, 'DANGER_REACTION') ? 1 : 0));
   return source !== 'CALL' && handCount < threshold;

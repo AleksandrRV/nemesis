@@ -1,7 +1,27 @@
-import type { IntruderAttackCard } from './cards.js';
+import type { EventCorridorNumber, IntruderAttackCard } from './cards.js';
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { IntruderToken, IntruderType } from './entities.js';
-import type { RoomId } from './rooms.js';
+import type { CorridorNumber, RoomId } from './rooms.js';
+
+/** Исход Отступления в бою: куда привёл номер Коридора с карты События (стр. 20). */
+export type IntruderRetreatOutcome = 'MOVED' | 'DOOR_DESTROYED' | 'TECHNICAL_CORRIDORS' | 'STAYED';
+
+/**
+ * Розыгрыш Отступления Чужого по колоде Событий (стр. 20): вытянутая карта
+ * сбрасывается без розыгрыша эффекта; Закрытая Дверь разрушается, а Чужой
+ * остаётся (FAQ Rules 8); номер входа в вентиляцию снимает миниатюру с поля
+ * и сбрасывает Раны (стр. 16).
+ */
+export interface IntruderRetreatRecord {
+  eventCardId: string;
+  eventCardName: string;
+  corridorNumber: EventCorridorNumber;
+  outcome: IntruderRetreatOutcome;
+  /** Отсек, куда ушла миниатюра (заполнен только при исходе MOVED). */
+  toRoomId: RoomId | null;
+  /** Коридор направления: переход или разрушенная Дверь (не заполнен для вентиляции). */
+  corridorId: string | null;
+}
 
 export interface AttackVictimStatus {
   playerId: string;
@@ -23,7 +43,8 @@ export type IntruderLogEvent =
       intruderId: string | null;
       firstEncounter: boolean;
       surpriseAttack: boolean;
-      source: 'NOISE' | 'CALL';
+      /** Источник Контакта: Шум, Зов или карта События («Защита кладки»). */
+      source: 'NOISE' | 'CALL' | 'EVENT';
       /**
        * Заполняется только для жетона Личинки (стр. 18; INTRUDERS §2 —
        * «атакует автоматически»): миниатюра не ставится, персонаж немедленно
@@ -46,6 +67,17 @@ export type IntruderLogEvent =
   | {
       /** Побег (стр. 19): атака Чужого по убегающему до выхода из отсека. */
       type: 'ESCAPE_ATTACK_RESOLVED';
+      playerId: string;
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+      card: IntruderAttackCard | null;
+      outcome: 'HIT' | 'MISS' | 'INFESTATION' | 'SUPPRESSED';
+      victims: AttackVictimStatus[];
+    }
+  | {
+      /** Атака в Фазе Событий (стр. 10, шаг 5): цель — минимум карт на руке (стр. 20). */
+      type: 'EVENT_PHASE_ATTACK_RESOLVED';
       playerId: string;
       roomId: RoomId;
       intruderId: string;
@@ -79,6 +111,8 @@ export type IntruderLogEvent =
       burstAmmoSpent?: number;
       /** Бонус Боевой винтовки: ≥1 Раны от выстрела — ещё 1 Рана. */
       rifleBonusApplied?: boolean;
+      /** Стрелка Отступления у выжившего: розыгрыш направления по колоде Событий (стр. 20). */
+      retreat?: IntruderRetreatRecord;
     }
   | {
       /** Базовое действие «Рукопашная атака» (стр. 19): публичный исход драки. */
@@ -102,11 +136,14 @@ export type IntruderLogEvent =
       seriousWoundTaken: boolean;
       /** Персонаж погиб от ответной Травмы (стр. 21). */
       attackerDied: boolean;
+      /** Стрелка Отступления у выжившего: розыгрыш направления по колоде Событий (стр. 20). */
+      retreat?: IntruderRetreatRecord;
     }
   | {
       /** Чужой убит (стр. 20): миниатюра снята, Останки на полу (кроме Личинки). */
       type: 'INTRUDER_KILLED';
-      playerId: string;
+      /** null — атакующего нет (например, Чужой погиб в огне, стр. 10 шаг 6). */
+      playerId: string | null;
       roomId: RoomId;
       targetIntruderId: string;
       targetType: IntruderType;
@@ -114,10 +151,40 @@ export type IntruderLogEvent =
       remainsObjectId: string | null;
     }
   | { type: 'PLAYER_DIED'; playerId: string; roomId: RoomId }
-  | { type: 'ESCAPE_PODS_UNLOCKED' }
+  | { type: 'ESCAPE_PODS_UNLOCKED'; cause: 'FIRST_DEATH' | 'SELF_DESTRUCT' }
+  | {
+      /** Отступление в бою (стр. 20): карта Событий задала направление Чужому. */
+      type: 'INTRUDER_RETREATED';
+      /** null — атакующего нет (например, Отступление из огня, стр. 10 шаг 6). */
+      playerId: string | null;
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+      retreat: IntruderRetreatRecord;
+    }
   | { type: 'INTRUDERS_WITHDRAWN'; intruderIds: string[] }
   | { type: 'INTRUDERS_MOVED'; intruderIds: string[]; fromRoomId: RoomId; toRoomId: RoomId }
-  | { type: 'INTRUDERS_BLOCKED_BY_DOOR'; intruderIds: string[]; corridorId: string }
+  | {
+      /** Дверь разрушена Чужими и они остались в отсеке (стр. 17). */
+      type: 'INTRUDERS_BLOCKED_BY_DOOR';
+      intruderIds: string[];
+      corridorId: string;
+      /** Источник: Опасность от Шума или Шаг 7 Фазы Событий. */
+      source: 'DANGER' | 'EVENT_PHASE';
+    }
+  | {
+      /** Автономное Движение Чужого в Фазе Событий (стр. 10, 15): направление задала карта События. */
+      type: 'INTRUDER_MOVED';
+      intruderId: string;
+      intruderType: IntruderType;
+      fromRoomId: RoomId;
+      /** null — Чужой ушёл в Технические Коридоры: миниатюра снята с поля. */
+      toRoomId: RoomId | null;
+      /** null — переход через Вход в Технические Коридоры, а не через Коридор. */
+      corridorId: string | null;
+      corridorNumber: CorridorNumber;
+      technicalCorridors: boolean;
+    }
   | { type: 'INTRUDER_TRANSFORMED'; intruderId: string; roomId: RoomId };
 
 export type ContactPresentationEvent = Extract<

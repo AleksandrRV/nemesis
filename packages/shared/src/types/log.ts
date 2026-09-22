@@ -1,13 +1,66 @@
 import type { IntruderLogEvent } from './contact.js';
+import type { EventCard, EventEffect } from './cards.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
+import type { IntruderToken, IntruderType } from './entities.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
 export type GameLogNoiseTarget = { kind: 'CORRIDOR'; corridorId: string } | { kind: 'TECHNICAL_CORRIDOR' };
 
-export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER' | 'BLANK';
+export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER' | 'BLANK' | 'EVENT';
+
+/**
+ * Итог текстового эффекта карты События (стр. 10, шаг 7): структурные
+ * подробности для журнала и клиента — по одному варианту на эффект.
+ */
+export type EventEffectOutcome =
+  | { kind: 'HUNT'; movedIntruderIds: string[] }
+  | { kind: 'PROTECT_NEST'; contactPlayerIds: string[] }
+  | { kind: 'BROOD'; eggDiscarded: boolean; infectedPlayerIds: string[]; larvaAddedToBag: boolean }
+  | { kind: 'REGENERATION'; healedIntruderIds: string[]; woundsRemoved: number }
+  | { kind: 'HIDDEN'; withdrawnIntruderIds: string[] }
+  | {
+      kind: 'MATURATION';
+      deadPlayerIds: string[];
+      creeperRoomIds: RoomId[];
+      scannedPlayerIds: string[];
+      infectedPlayerIds: string[];
+    }
+  | { kind: 'RAMPAGE'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'PREPARATION'; decisionPlayerId: string }
+  | { kind: 'PREY_SCENT'; noiseCorridorIds: string[] }
+  | { kind: 'NOISE_TECH_CORRIDORS'; markerPlaced: boolean; rolledPlayerIds: string[] }
+  | { kind: 'HIVE'; noiseCorridorIds: string[]; nestExplored: boolean }
+  | { kind: 'FLAMMABLE_MIXTURE'; fireRoomIds: RoomId[]; spread: boolean }
+  | { kind: 'DESTRUCTIVE_FLAME'; malfunctionRoomIds: RoomId[]; fireRoomIds: RoomId[] }
+  | { kind: 'ESCAPE_POD_EJECTION'; podId: string | null }
+  | { kind: 'SHORT_CIRCUIT'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'COOLANT_LEAK'; selfDestructStarted: boolean }
+  | { kind: 'LIFE_SUPPORT_MALFUNCTION'; malfunctionRoomIds: RoomId[] }
+  | { kind: 'MALFUNCTION'; targetRoomId: RoomId | null }
+  | { kind: 'OPEN_COMPARTMENTS'; openedCorridorIds: string[] };
+
+/**
+ * Итог Развития Улья (стр. 10, шаг 8; стр. 31): по одному варианту на тип
+ * вытянутого жетона Пула Чужих.
+ */
+export type HiveDevelopmentOutcome =
+  | { kind: 'LARVA'; adultAdded: boolean }
+  | { kind: 'CREEPER'; breederAdded: boolean }
+  | { kind: 'ADULT'; rolledPlayerIds: string[] }
+  | { kind: 'BREEDER'; rolledPlayerIds: string[] }
+  | {
+      kind: 'QUEEN';
+      /** Миниатюра Королевы выставлена в Улей и разыгран Контакт. */
+      queenPlaced: boolean;
+      intruderId: string | null;
+      contactPlayerIds: string[];
+      /** Яйцо добавлено на Планшет Чужих (вместо Контакта). */
+      eggAdded: boolean;
+    }
+  | { kind: 'BLANK'; adultAdded: boolean };
 
 export type GameLogNoiseSkippedReason = 'COMPANION' | 'EXPLORATION_SILENCE' | 'NOISE_SILENCE' | 'UNMAPPED_EXIT';
 
@@ -121,7 +174,8 @@ export type GameLogEvent =
     }
   | {
       type: 'NOISE_MARKER_PLACED';
-      playerId: string;
+      /** null — маркер размещён картой События, а не действием Персонажа. */
+      playerId: string | null;
       roomId: RoomId;
       target: GameLogNoiseTarget;
       reason: GameLogNoiseReason;
@@ -139,8 +193,58 @@ export type GameLogEvent =
       discardedCount: number;
     }
   | {
-      type: 'EVENT_PHASE_SKIPPED';
+      /** Шаг 4 Фазы Событий (стр. 10): маркеры Времени и Самоуничтожения сдвинуты. */
+      type: 'TIME_TRACK_ADVANCED';
       round: number;
+      timeTrackPosition: number;
+      selfDestructTrackPosition: number | null;
+    }
+  | {
+      /** Шаг 7 Фазы Событий (стр. 10): верхняя карта Событий вытянута лицом вверх. */
+      type: 'EVENT_CARD_DRAWN';
+      round: number;
+      card: EventCard;
+    }
+  | {
+      /** Текстовый эффект карты События исполнен (стр. 10, шаг 7). */
+      type: 'EVENT_EFFECT_RESOLVED';
+      round: number;
+      cardId: string;
+      effect: EventEffect;
+      outcome: EventEffectOutcome;
+    }
+  | {
+      /** «Подготовка»: игрок выбрал одну из трёх вытянутых карт Событий для розыгрыша. */
+      type: 'EVENT_CARD_CHOSEN';
+      playerId: string;
+      chosenCardId: string;
+      discardedCardIds: string[];
+    }
+  | {
+      /** Развитие Улья исполнено (стр. 10, шаг 8; стр. 31): жетон вытянут и разыгран. */
+      type: 'HIVE_DEVELOPMENT_RESOLVED';
+      round: number;
+      tokenType: IntruderToken['type'];
+      outcome: HiveDevelopmentOutcome;
+    }
+  | {
+      /** Развитие Улья пропущено по честной причине (стр. 10, шаг 8). */
+      type: 'HIVE_DEVELOPMENT_SKIPPED';
+      round: number;
+      reason: 'EMPTY_BAG';
+    }
+  | {
+      /** Урон от огня (стр. 10, шаг 6): Чужой в горящем отсеке получил 1 Рану. */
+      type: 'FIRE_DAMAGE_TAKEN_BY_INTRUDER';
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+    }
+  | {
+      /** Огонь уничтожил Яйцо, не находящееся в руках Персонажа (стр. 25, Улей). */
+      type: 'EGG_DESTROYED_BY_FIRE';
+      roomId: RoomId;
+      objectId: string;
     }
   | {
       type: 'DEV_STATE_CHANGED';

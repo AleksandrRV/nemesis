@@ -4,6 +4,7 @@ import type { RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
+import { EVENT_CARDS } from '../data/eventCards.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { COORDINATE_DESTINATIONS, ESCAPE_POD_NUMBERS } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
@@ -319,7 +320,9 @@ describe('createInitialGameState: колоды партии', () => {
     expect(seriousWounds.discard).toEqual([]);
 
     expect(weaknesses).toEqual({ drawPile: [], discard: [] });
-    expect(events).toEqual({ drawPile: [], discard: [] });
+    expect(events.drawPile).toHaveLength(20);
+    expect(events.drawPile.map((card) => card.id).sort()).toEqual(EVENT_CARDS.map((card) => card.id).sort());
+    expect(events.discard).toEqual([]);
     expect(intruderAttacks.drawPile).toHaveLength(20);
     expect(intruderAttacks.discard).toEqual([]);
     expect(objectives.personal).toEqual({ drawPile: [], discard: [] });

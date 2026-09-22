@@ -57,6 +57,43 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
     );
   }
 
+  if (decision.type === 'CHOOSE_EVENT_CARD') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label="Подготовка: выбор карты Событий"
+          className="w-full max-w-2xl space-y-4 rounded-xl border border-violet-500/60 bg-slate-900 p-5 shadow-2xl"
+        >
+          <h2 className="font-heading text-xl tracking-wider text-violet-200">ПОДГОТОВКА: ВЫБЕРИТЕ КАРТУ СОБЫТИЙ</h2>
+          <p className="text-sm leading-relaxed text-slate-300">
+            «Подготовка» позволяет вытянуть три карты Событий и разыграть одну из них — её перемещение и эффект
+            выполняются немедленно. Две другие отправляются в сброс Событий.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {decision.cards.map((card) => (
+              <button
+                key={card.id}
+                onClick={() => handleSelect(card.id)}
+                className="rounded-lg border border-violet-700 bg-slate-950 p-4 text-left transition hover:border-violet-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+              >
+                <span className="block font-semibold text-violet-100">{card.name}</span>
+                <span className="mt-1 block text-[11px] font-bold uppercase tracking-wide text-violet-400">
+                  {card.corridorNumber === 'ANY'
+                    ? 'Перемещение Чужих не выполняется'
+                    : `Коридор ${card.corridorNumber}`}
+                </span>
+                <span className="mt-2 block text-xs leading-relaxed text-slate-300">{card.description}</span>
+                <span className="mt-3 block text-xs font-bold text-violet-300">Разыграть эту карту →</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   if (decision.type === 'CHOOSE_WHITE_ROOM_DECK') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">

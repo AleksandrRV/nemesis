@@ -25,7 +25,7 @@ const TONE_CLASSES: Record<GameLogTone, string> = {
   error: 'text-red-200 font-bold',
 };
 
-function LogLine({ segments }: { segments: GameLogSegment[] }): React.ReactElement {
+export function LogLine({ segments }: { segments: GameLogSegment[] }): React.ReactElement {
   return (
     <p className="break-words text-xs leading-5 text-slate-200">
       {segments.map((segment, index) => (

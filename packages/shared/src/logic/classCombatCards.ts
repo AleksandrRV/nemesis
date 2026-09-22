@@ -9,7 +9,7 @@ import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { isPlayerInCombat } from './combatStatus.js';
-import { checkInjuryResult, injuriesForFace, performShoot } from './shoot.js';
+import { checkInjuryResult, injuriesForFace, performShoot, type InjuryCheckResult } from './shoot.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
@@ -270,7 +270,7 @@ export function resolveRerollCombatDie(
   let injuries = injuriesForFace(dieFace, target.type);
   if (injuries > 0 && decision.weaponBonusEligible) injuries += 1;
 
-  const result =
+  const result: InjuryCheckResult =
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, decision.playerId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
@@ -292,6 +292,7 @@ export function resolveRerollCombatDie(
     killed: result.killed,
     ...(rerolled ? { rerolled: true as const } : {}),
     ...(injuries > 0 && decision.weaponBonusEligible ? { rifleBonusApplied: true } : {}),
+    ...(result.retreat ? { retreat: result.retreat } : {}),
   });
   queueActionCompletion(state, decision.playerId);
 }

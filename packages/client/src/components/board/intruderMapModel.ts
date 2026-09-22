@@ -18,6 +18,18 @@ const TYPE_ORDER: Record<IntruderType, number> = {
   QUEEN: 4,
 };
 
+/**
+ * Индивидуальный масштаб силуэта по классу (Шаг 8): Личинка мельче всех,
+ * Трутень и Королева — доминантные силуэты увеличенного размера.
+ */
+export const INTRUDER_BADGE_SCALE: Record<IntruderType, number> = {
+  LARVA: 0.9,
+  CREEPER: 0.95,
+  ADULT: 1,
+  BREEDER: 1.2,
+  QUEEN: 1.3,
+};
+
 /** Чужие одного типа в отсеке: иконка типа, число миниатюр и суммарные раны. */
 export interface IntruderBadgeModel {
   type: IntruderType;
@@ -71,9 +83,14 @@ export function isActivePlayerInCombat(view: SanitizedGameState): boolean {
   return (view.ship.rooms[player.roomId]?.occupantIntruderIds.length ?? 0) > 0;
 }
 
-/** Ширина одного бейджа: с пилой ран шире, без — компактнее. */
+/** Ширина одного бейджа: с пилой ран шире, без — компактнее; крупные виды больше. */
 export function intruderBadgeWidth(badge: IntruderBadgeModel): number {
-  return badge.wounds > 0 ? 40 : 26;
+  return (badge.wounds > 0 ? 40 : 26) * INTRUDER_BADGE_SCALE[badge.type];
+}
+
+/** Доминантные классы (Шаг 8): увеличенный силуэт и пульсирующая аура биоугрозы. */
+export function isDominantIntruder(type: IntruderType): boolean {
+  return type === 'BREEDER' || type === 'QUEEN';
 }
 
 export interface IntruderBadgeLayout {
@@ -99,4 +116,14 @@ export function layoutIntruderBadges(badges: readonly IntruderBadgeModel[], maxW
   });
 
   return { items, scale: width > maxWidth ? maxWidth / width : 1, width };
+}
+
+/**
+ * Адаптивная сетка миниатюр внутри гекса (Шаг 8): до двух бейджей в строке,
+ * при трёх и более типах строки складываются стопкой без взаимного
+ * перекрытия; каждая строка центрируется и сжимается независимо.
+ */
+export function layoutIntruderGrid(badges: readonly IntruderBadgeModel[], maxWidth = 88): IntruderBadgeLayout[] {
+  if (badges.length <= 2) return [layoutIntruderBadges(badges, maxWidth)];
+  return [layoutIntruderBadges(badges.slice(0, 2), maxWidth), layoutIntruderBadges(badges.slice(2), maxWidth)];
 }

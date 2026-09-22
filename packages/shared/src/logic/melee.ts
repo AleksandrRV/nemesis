@@ -1,4 +1,3 @@
-import type { IntruderAttackCard } from '../types/cards.js';
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { IntruderType } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
@@ -10,7 +9,7 @@ import { appendGameLog } from './gameLog.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { requireIntruder } from './intruderPlacement.js';
 import { receiveContamination, sufferSeriousWound } from './characterDamage.js';
-import { checkInjuryResult } from './shoot.js';
+import { checkInjuryResult, type InjuryCheckResult } from './shoot.js';
 import { queueActionCompletion } from './actionCompletion.js';
 
 /**
@@ -73,7 +72,7 @@ export function executeMelee(
   const injuries = meleeInjuriesForFace(dieFace, target.type);
   const woundsBefore = target.woundsCount;
 
-  let result = { toughnessCards: [] as IntruderAttackCard[], toughnessTotal: 0, killed: false };
+  let result: InjuryCheckResult = { toughnessCards: [], toughnessTotal: 0, killed: false };
   let seriousWoundTaken = false;
   if (injuries > 0) {
     result = checkInjuryResult(state, target.id, target.type, injuries, actorId);
@@ -100,6 +99,7 @@ export function executeMelee(
     contaminated: true,
     seriousWoundTaken,
     attackerDied: player.isDead,
+    ...(result.retreat ? { retreat: result.retreat } : {}),
   });
   queueActionCompletion(state, actorId);
 }

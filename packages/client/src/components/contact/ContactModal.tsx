@@ -5,6 +5,7 @@ import type { ContactPresentationEntry } from './contactPresentationModel';
 import { INTRUDER_NAMES } from './contactPresentationModel';
 import { IntruderSilhouette } from './IntruderSilhouette';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
+import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
 
 interface ContactModalProps {
   entry: ContactPresentationEntry;
@@ -214,10 +215,24 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                   </p>
                 </div>
               ) : (
-                <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
-                  Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
-                  миниатюре до следующей успешной атаки (стр. 20).
-                </p>
+                <>
+                  <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
+                    Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
+                    миниатюре до следующей успешной атаки (стр. 20).
+                  </p>
+                  {event.retreat && (
+                    <div
+                      role="status"
+                      className="rounded-lg border border-amber-500/70 bg-amber-950/40 p-4 text-amber-100"
+                    >
+                      <div className="font-bold uppercase tracking-wider">Отступление Чужого</div>
+                      <p className="mt-1 text-sm">
+                        Карта Событий «{event.retreat.eventCardName}» указывает {retreatNumberLabel(event.retreat)}.{' '}
+                        {retreatOutcomeText(event.retreat)}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : isMelee ? (
@@ -301,10 +316,24 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                   </p>
                 </div>
               ) : (
-                <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
-                  Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
-                  миниатюре до следующей успешной атаки (стр. 20).
-                </p>
+                <>
+                  <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
+                    Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
+                    миниатюре до следующей успешной атаки (стр. 20).
+                  </p>
+                  {event.retreat && (
+                    <div
+                      role="status"
+                      className="rounded-lg border border-amber-500/70 bg-amber-950/40 p-4 text-amber-100"
+                    >
+                      <div className="font-bold uppercase tracking-wider">Отступление Чужого</div>
+                      <p className="mt-1 text-sm">
+                        Карта Событий «{event.retreat.eventCardName}» указывает {retreatNumberLabel(event.retreat)}.{' '}
+                        {retreatOutcomeText(event.retreat)}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (

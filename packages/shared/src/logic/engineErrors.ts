@@ -58,12 +58,7 @@ export type EngineErrorCode =
   /** Выбранная карта в слоте Руки — не Оружие либо Оружия там нет (стр. 19). */
   | 'WEAPON_NOT_AVAILABLE'
   /** На выбранном Оружии не осталось Боезапаса (стр. 19). */
-  | 'WEAPON_NO_AMMO'
-  /**
-   * Для направления Отступления нужна карта События (стр. 20); колода Событий
-   * и её сброс пусты — Фаза Событий не реализована (этап 0.5.0).
-   */
-  | 'EMPTY_EVENT_DECK';
+  | 'WEAPON_NO_AMMO';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;

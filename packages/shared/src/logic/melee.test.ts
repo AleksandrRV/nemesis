@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
+import { EVENT_CARDS } from '../data/eventCards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import type { GameState } from '../types/state.js';
 import type { IntruderType } from '../types/entities.js';
@@ -35,6 +36,13 @@ function deckTop(state: GameState, cards: (typeof INTRUDER_ATTACK_CARDS)[number]
   const ids = new Set(cards.map((card) => card.id));
   const rest = INTRUDER_ATTACK_CARDS.filter((card) => !ids.has(card.id));
   state.decks.intruderAttacks = { drawPile: [...cards.map((card) => structuredClone(card)), ...rest], discard: [] };
+}
+
+/** Ставит карту Событий на верх колоды — её вытянет Отступление (стр. 20). */
+function eventDeckTop(state: GameState, cardId: string): void {
+  const cards = structuredClone(EVENT_CARDS);
+  const first = cards.find((card) => card.id === cardId)!;
+  state.decks.events = { drawPile: [first, ...cards.filter((card) => card.id !== cardId)], discard: [] };
 }
 
 const SCRATCH_2 = INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_2')!; // Стойкость 3, без стрелки
@@ -230,19 +238,32 @@ describe('Проверка Результата Атаки (стр. 20) в ру�
     expect(next.intrudersPool.boardTokens[0]!.woundsCount).toBe(1);
   });
 
-  it('стрелка Отступления на карте выжившего: EMPTY_EVENT_DECK и полный откат', () => {
+  it('стрелка Отступления у выжившего: направление по верхней карте Событий (стр. 20)', () => {
     forceCombatDie('ONE_WOUND');
     const state = combatReady('melee-retreat', 'ADULT');
     deckTop(state, [SCRATCH_1]);
-    const snapshot = structuredClone(state);
-    try {
-      melee(state);
-      expect.unreachable('ожидался отказ');
-    } catch (error) {
-      expect((error as { code: string }).code).toBe('EMPTY_EVENT_DECK');
-    }
-    // Полный откат: заражение, оплата, Раны и чтения колод не сохранились.
-    expect(state).toEqual(snapshot);
+    eventDeckTop(state, 'EVT_REGENERATION'); // Коридор 1 — отсек 15 из отсека 11
+    const intruderId = state.intrudersPool.boardTokens[0]!.id;
+
+    const next = melee(state);
+    const event = meleeLog(next);
+
+    expect(event.killed).toBe(false);
+    expect(event.retreat).toMatchObject({
+      eventCardId: 'EVT_REGENERATION',
+      corridorNumber: 1,
+      outcome: 'MOVED',
+      toRoomId: 15,
+      corridorId: '11-15',
+    });
+    // Транзакция фиксируется: заражение, Раны и перемещение сохранены.
+    expect(next.gameLog.some((entry) => entry.event.type === 'CONTAMINATION_RECEIVED')).toBe(true);
+    const intruder = next.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!;
+    expect(intruder.roomId).toBe(15);
+    expect(intruder.woundsCount).toBe(1);
+    // Карта События — в сбросе без розыгрыша эффекта (стр. 20).
+    expect(next.decks.events.discard.map((card) => card.id)).toContain('EVT_REGENERATION');
+    expect(next.gameLog.some((entry) => entry.event.type === 'INTRUDER_RETREATED')).toBe(true);
   });
 
   it('перетасовка из сброса читает поток cards', () => {

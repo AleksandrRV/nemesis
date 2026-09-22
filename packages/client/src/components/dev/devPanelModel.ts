@@ -21,6 +21,7 @@ export const DOOR_LABELS: Record<DoorState, string> = {
 export const GAME_OVER_REASON_LABELS: Record<NonNullable<SanitizedGameState['meta']['gameOverReason']>, string> = {
   SHIP_EXPLODED: 'корабль взорвался',
   HULL_BREACH: 'разрыв обшивки',
+  HYPERSPACE_JUMP: 'гиперпрыжок: все вне Анабиоза погибли от перегрузок',
   NO_ACTIVE_CHARACTERS: 'на корабле не осталось активных персонажей',
 };
 

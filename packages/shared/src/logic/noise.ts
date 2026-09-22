@@ -164,7 +164,7 @@ function resolveDanger(state: GameState, roomId: RoomId, playerId: string): void
     const intruderIds = intruders.map((intruder) => intruder.id);
     if (route.doorState === 'CLOSED') {
       route.doorState = 'DESTROYED';
-      appendGameLog(state, { type: 'INTRUDERS_BLOCKED_BY_DOOR', intruderIds, corridorId: route.id });
+      appendGameLog(state, { type: 'INTRUDERS_BLOCKED_BY_DOOR', intruderIds, corridorId: route.id, source: 'DANGER' });
       continue;
     }
     for (const intruder of intruders) intruder.roomId = roomId;

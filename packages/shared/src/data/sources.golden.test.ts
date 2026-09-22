@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CRAFTING_RECIPES } from './crafting.js';
 import { COMBAT_DIE_FACES } from './combatDie.js';
+import { EVENT_CARDS, EVENT_CARDS_COUNT } from './eventCards.js';
 import { INTRUDER_MINIATURE_LIMITS } from './intruderMiniatures.js';
 import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
@@ -32,6 +33,7 @@ import {
   CHARACTERS,
 } from './setup.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from './shipGraph.js';
+import { HIVE_EGG_CAPACITY } from '../logic/hiveDevelopment.js';
 import {
   DOOR_TOKEN_SUPPLY,
   FIRE_MARKER_SUPPLY,
@@ -117,12 +119,14 @@ describe('Пакет источника: структура и статусы (�
       'intruder-supply',
       'intruder-miniatures',
       'intruder-bag',
+      'hive-egg-capacity',
       'escape-numbers',
       'marker-supply',
       'door-rules',
       'noise-die',
       'combat-die',
       'intruder-attacks',
+      'event-cards',
       'weakness-cards',
       'ship-graph-rooms',
       'ship-graph-corridors',
@@ -222,6 +226,12 @@ describe('Golden: Пул Чужих (Э2-1)', () => {
     for (const [playerCount, composition] of Object.entries(expectation.bagByPlayerCount)) {
       expect(bagComposition(Number(playerCount)), `мешок на ${playerCount} игроков`).toEqual(composition);
     }
+  });
+
+  it('совпадает с источником по вместимости Планшета Яиц', () => {
+    const expectation = table('hive-egg-capacity').expectation as { hiveEggCapacity: number };
+
+    expect(HIVE_EGG_CAPACITY).toBe(expectation.hiveEggCapacity);
   });
 
   it('совпадает с источником по числам Внезапной атаки, включая пометку о несверенном', () => {
@@ -417,6 +427,7 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
       craftedItemsCount: number;
       contaminationCount: number;
       seriousWoundsCount: number;
+      eventCardsCount: number;
       startingWeaponsCount: number;
     };
 
@@ -427,6 +438,8 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(expectation.craftedItemsCount).toBe(12);
     expect(expectation.contaminationCount).toBe(27);
     expect(expectation.seriousWoundsCount).toBe(16);
+    expect(expectation.eventCardsCount).toBe(20);
+    expect(EVENT_CARDS).toHaveLength(expectation.eventCardsCount);
     expect(expectation.startingWeaponsCount).toBe(6);
   });
 });
@@ -462,6 +475,64 @@ describe('Golden: кубик Боя и Атаки Чужих (v0.4.0, шаг 1)'
     expect(entry.facts.some((fact) => fact.source === 'rules-md' && fact.lines)).toBe(true);
     expect(dataSources.meta.sources['intruders-transcript']?.kind).toBe('EXTERNAL_UNVERIFIED');
     expect(dataSources.meta.sources['intruders-transcript']?.location).toBe('doc/data/INTRUDERS.md');
+  });
+});
+
+describe('Golden: колода Событий (этап 0.5.0, шаг 1)', () => {
+  it('сверяет каждый экземпляр: ID, эффект, направление, символы Чужих и флаги уничтожения', () => {
+    const expectation = table('event-cards').expectation as {
+      cardCount: number;
+      byEffect: Record<string, number>;
+      destroyedOnResolve: string[];
+      reshuffledIntoDeck: string[];
+      corridorNumbers: Record<string, number | 'ANY'>;
+      cards: unknown[];
+    };
+    const byEffect: Record<string, number> = {};
+
+    for (const card of EVENT_CARDS) byEffect[card.effect] = (byEffect[card.effect] ?? 0) + 1;
+
+    expect(expectation.cardCount).toBe(20);
+    expect(EVENT_CARDS_COUNT).toBe(20);
+    expect(EVENT_CARDS).toHaveLength(20);
+    expect(new Set(EVENT_CARDS.map((card) => card.id)).size).toBe(20);
+    expect(EVENT_CARDS).toEqual(expectation.cards);
+    expect(byEffect).toEqual(expectation.byEffect);
+  });
+
+  it('сверяет коридоры уничтожения, замешивания и избранные направления', () => {
+    const expectation = table('event-cards').expectation as {
+      destroyedOnResolve: string[];
+      reshuffledIntoDeck: string[];
+      corridorNumbers: Record<string, number | 'ANY'>;
+    };
+    const byId = new Map(EVENT_CARDS.map((card) => [card.id, card]));
+
+    for (const card of EVENT_CARDS) {
+      expect(expectation.destroyedOnResolve.includes(card.id), `${card.id}: флаг уничтожения`).toBe(
+        card.isDestroyedOnResolve,
+      );
+      expect(expectation.reshuffledIntoDeck.includes(card.id), `${card.id}: флаг замешивания`).toBe(
+        card.isReshuffledIntoDeck,
+      );
+      expect(card.isDestroyedOnResolve && card.isReshuffledIntoDeck, `${card.id}: флаги взаимоисключающи`).toBe(false);
+    }
+
+    for (const [id, corridorNumber] of Object.entries(expectation.corridorNumbers)) {
+      expect(byId.get(id)?.corridorNumber, `${id}: направление`).toBe(corridorNumber);
+    }
+  });
+
+  it('не выдаёт транскрипт за независимую сверку компонентов', () => {
+    const entry = table('event-cards');
+
+    expect(entry.status).toBe('EXTERNAL_UNVERIFIED');
+    expect(entry.unverified?.length).toBeGreaterThan(0);
+    expect(entry.facts.some((fact) => fact.source === 'events-transcript')).toBe(true);
+    expect(entry.facts.some((fact) => fact.source === 'rules-md' && fact.lines)).toBe(true);
+    expect(entry.facts.some((fact) => fact.source === 'owner-decision-2026-09-22')).toBe(true);
+    expect(dataSources.meta.sources['events-transcript']?.kind).toBe('EXTERNAL_UNVERIFIED');
+    expect(dataSources.meta.sources['events-transcript']?.location).toBe('doc/data/EVENTS.md');
   });
 });
 

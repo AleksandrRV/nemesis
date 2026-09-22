@@ -2,7 +2,7 @@ import React from 'react';
 import { SHIP_ROOM_NODES, type IntruderEntity, type SanitizedRoomState } from '@nemesis/shared';
 import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
 import { IntruderBadge } from './IntruderBadge';
-import { groupIntrudersByRoom, layoutIntruderBadges } from './intruderMapModel';
+import { INTRUDER_BADGE_SCALE, groupIntrudersByRoom, layoutIntruderGrid } from './intruderMapModel';
 
 interface RoomHexProps {
   /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
@@ -13,6 +13,12 @@ interface RoomHexProps {
   y: number;
   isSelected: boolean;
   onSelect: (roomId: number) => void;
+  /** Шум на поле Технических Коридоров считается на всех входах вентиляции (стр. 15–16). */
+  technicalNoise?: boolean;
+  /** Персонажи, скользящие по анимационному слою: статический чип не дублируется (Шаг 9). */
+  hiddenPlayerIds?: ReadonlySet<string>;
+  /** Подсветка затронутых отсеков интерфейсом Фазы Событий (Шаг 9). */
+  isHighlighted?: boolean;
 }
 
 const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
@@ -43,8 +49,21 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelected, onSelect }) => {
+export const RoomHex: React.FC<RoomHexProps> = ({
+  room,
+  intruders,
+  x,
+  y,
+  isSelected,
+  onSelect,
+  technicalNoise,
+  hiddenPlayerIds,
+  isHighlighted = false,
+}) => {
   const radius = 45;
+  const visibleOccupantCount = hiddenPlayerIds
+    ? room.occupantPlayerIds.filter((playerId) => !hiddenPlayerIds.has(playerId)).length
+    : room.occupantPlayerIds.length;
 
   const points = React.useMemo(() => {
     const pts: string[] = [];
@@ -60,8 +79,10 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
 
   const intruderBadges = React.useMemo(() => groupIntrudersByRoom(intruders).get(room.id) ?? [], [intruders, room.id]);
 
-  const layout = React.useMemo(() => layoutIntruderBadges(intruderBadges), [intruderBadges]);
-  const layoutScale = layout.scale;
+  const gridRows = React.useMemo(() => layoutIntruderGrid(intruderBadges), [intruderBadges]);
+
+  /** Статус Боя (стр. 18): Персонаж и Чужой в одном отсеке — тревожная рамка. */
+  const inCombat = room.occupantPlayerIds.length > 0 && intruderBadges.length > 0;
 
   const nodeData = React.useMemo(() => SHIP_ROOM_NODES.find((node) => node.id === room.id), [room.id]);
 
@@ -111,10 +132,36 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
         />
       )}
 
+      {/* Статус «В Бою»: контрастная пульсирующая рамка вокруг гекса (стр. 18) */}
+      {inCombat && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke="#ff4d00"
+          strokeWidth="4.5"
+          strokeOpacity="0.85"
+          className="animate-pulse"
+          aria-label="Отсек в Бою"
+        />
+      )}
+
       <polygon points={points} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? 3 : 2} />
 
       {hasTechEntrance && (
         <g transform={`translate(${x}, ${y - radius + 3})`} className="pointer-events-none">
+          {technicalNoise && (
+            <circle
+              cx={0}
+              cy={0}
+              r={10.5}
+              fill="none"
+              stroke="#ff003c"
+              strokeWidth={2}
+              className="motion-safe:animate-vent-alarm motion-reduce:opacity-70"
+              aria-label="Шум в вентиляции"
+            />
+          )}
+
           <circle cx={0} cy={0} r={6.5} fill="#ff003c" stroke="#05070c" strokeWidth={1.5} />
 
           <polygon points="-2.5,1.5 0,-2.5 2.5,1.5" fill="white" />
@@ -188,8 +235,21 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
         {room.hasComputer && room.isExplored && <Laptop size={12} className="text-cyan-400" x={24} y={0} />}
       </g>
 
-      {/* Персонажи */}
-      {room.occupantPlayerIds.length > 0 && (
+      {/* Подсветка отсека интерфейсом Фазы Событий (Шаг 9) */}
+      {isHighlighted && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke="#ffb700"
+          strokeWidth="5"
+          strokeOpacity="0.75"
+          className="pointer-events-none animate-pulse motion-reduce:animate-none"
+          aria-label="Отсек подсвечен"
+        />
+      )}
+
+      {/* Персонажи (скрыты, пока скользят по анимационному слою) */}
+      {visibleOccupantCount > 0 && (
         <g transform={`translate(${x - 10}, ${y - 34})`} className="pointer-events-none">
           <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
 
@@ -197,16 +257,28 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
         </g>
       )}
 
-      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19) */}
-      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19).
-          Строка центрирована по гексу и сжимается целиком при переполнении. */}
-      {intruderBadges.length > 0 && (
-        <g transform={`translate(${x - (layout.width * layoutScale) / 2}, ${y + 22}) scale(${layoutScale})`}>
-          {layout.items.map((item) => (
-            <IntruderBadge key={item.badge.type} badge={item.badge} x={item.x} y={0} />
-          ))}
-        </g>
-      )}
+      {/* Чужие в отсеке: силуэты классов с индивидуальным масштабом, счётчики
+          и шкалы ран (стр. 19). Один-два типа — строка, три и больше —
+          адаптивная сетка из двух стопок без перекрытия текста отсека. */}
+      {gridRows.map((row, rowIndex) => {
+        const rowY = gridRows.length === 1 ? y + 22 : y + 13 + rowIndex * 17;
+        return (
+          <g
+            key={`intruder-row-${rowIndex}`}
+            transform={`translate(${x - (row.width * row.scale) / 2}, ${rowY}) scale(${row.scale})`}
+          >
+            {row.items.map((item) => (
+              <IntruderBadge
+                key={item.badge.type}
+                badge={item.badge}
+                x={item.x}
+                y={0}
+                scale={INTRUDER_BADGE_SCALE[item.badge.type]}
+              />
+            ))}
+          </g>
+        );
+      })}
 
       {/* Объекты на полу: Труп, Яйцо, Останки (стр. 22) */}
       {room.objects.map((object, index) => {

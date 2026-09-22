@@ -4,8 +4,9 @@ import type { EngineErrorCode } from './fsm.js';
 import { EngineError } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { createInitialGameState } from './setup.js';
-import type { WeaknessCard } from '../types/cards.js';
+import type { EventCard, WeaknessCard } from '../types/cards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
+import { EVENT_CARDS } from '../data/eventCards.js';
 
 const SEED = 'sanitizer-test';
 const VIEWER = 'player-1';
@@ -405,6 +406,17 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     isRevealed: false,
   });
 
+  const eventCard = (id: string): EventCard => ({
+    id,
+    name: 'Событие',
+    description: '',
+    effect: 'HUNT',
+    corridorNumber: 1,
+    intruderTypes: ['ADULT'],
+    isDestroyedOnResolve: false,
+    isReshuffledIntoDeck: false,
+  });
+
   it('закрытую колоду отдаёт числом, а сброс Предметов оставляет открытым: он лежит лицом вверх', () => {
     const state = freshState();
 
@@ -413,9 +425,9 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
       discard: [itemCard('red-discard-1')],
     };
     state.decks.events = {
-      drawPile: [{ id: 'event-draw-1', name: 'Событие', description: '' }],
-      discard: [{ id: 'event-discard-1', name: 'Событие', description: '' }],
-    } as never;
+      drawPile: [eventCard('event-draw-1')],
+      discard: [eventCard('event-discard-1')],
+    };
 
     const view = filterStateForPlayer(state, VIEWER);
     const serialized = JSON.stringify(view);
@@ -500,6 +512,37 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     expect(deck.drawPileCount).toBe(state.decks.intruderAttacks.drawPile.length);
     expect(deck.discard).toHaveLength(1);
     expect(deck.discard[0]).toMatchObject({ id: 'IAT_SCRATCH_4', toughness: 6 });
+  });
+
+  it('колода Событий при подготовке: порядок закрыт числом, сброс пуст и открыт (стр. 7, шаг 11)', () => {
+    const state = freshState();
+    const view = filterStateForPlayer(state, VIEWER);
+    const deck = view.decks.events;
+    const serialized = JSON.stringify(view);
+
+    expect('drawPile' in deck).toBe(false);
+    expect(deck.drawPileCount).toBe(EVENT_CARDS.length);
+    expect(deck.discard).toEqual([]);
+
+    for (const card of state.decks.events.drawPile) {
+      expect(serialized, `карта ${card.id} утёкла в срез`).not.toContain(card.id);
+    }
+  });
+
+  it('колода Событий: разыгранная карта в сбросе видна целиком, направление и эффект открыты', () => {
+    const state = freshState();
+    const resolved = structuredClone(EVENT_CARDS.find((card) => card.effect === 'COOLANT_LEAK')!);
+
+    state.decks.events.discard = [resolved];
+
+    const view = filterStateForPlayer(state, VIEWER);
+
+    expect(view.decks.events.discard).toHaveLength(1);
+    expect(view.decks.events.discard[0]).toMatchObject({
+      id: 'EVT_COOLANT_LEAK',
+      corridorNumber: 1,
+      isDestroyedOnResolve: true,
+    });
   });
 
   it('отдаёт состав мешка и запаса числами, не раскрывая порядок жетонов (стр. 6, шаг 10)', () => {

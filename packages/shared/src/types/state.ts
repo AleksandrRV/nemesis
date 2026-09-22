@@ -7,8 +7,11 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// doc/v0.4.0-step-2.md — совместимость сохранений.
-export const GAME_STATE_SCHEMA_VERSION = 12;
+// Совместимость сохранений: Фаза Событий исполняет Шаг 8 книги правил —
+// Развитие Улья (события `HIVE_DEVELOPMENT_RESOLVED`, `HIVE_DEVELOPMENT_SKIPPED`)
+// и возврат жетонов Чужих в Пул при уходе в Технические Коридоры —
+// сохранения схемы 18 не восстанавливаются.
+export const GAME_STATE_SCHEMA_VERSION = 19;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -17,8 +20,8 @@ export const GAME_STATE_SCHEMA_VERSION = 12;
  */
 export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
 
-/** Почему партия окончена: корабль взорвался или обшивка не выдержала (стр. 17). */
-export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'NO_ACTIVE_CHARACTERS';
+/** Почему партия окончена (стр. 11, 17): взрыв, разрыв обшивки, гиперпрыжок или отсутствие участников. */
+export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'HYPERSPACE_JUMP' | 'NO_ACTIVE_CHARACTERS';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
 export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';

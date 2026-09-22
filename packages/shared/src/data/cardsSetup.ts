@@ -3,6 +3,7 @@ import type { CharacterClass } from '../types/entities.js';
 import { ACTION_CARDS_BY_CHARACTER } from '../data/actionCards.js';
 import { CONTAMINATION_CARDS } from '../data/contaminationCards.js';
 import { CRAFTED_ITEM_CARDS } from '../data/crafting.js';
+import { EVENT_CARDS } from '../data/eventCards.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from '../data/itemCards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { SERIOUS_WOUND_CARDS } from '../data/seriousWounds.js';
@@ -47,7 +48,7 @@ export function createInitialDecks(seed: string, rng: Rng = createRng(seed, 'car
     craftedItems: { drawPile: [...CRAFTED_ITEM_CARDS], discard: [] },
     contamination: { drawPile: shuffle(rng, structuredClone(CONTAMINATION_CARDS)), discard: [] },
     seriousWounds: { drawPile: shuffle(rng, structuredClone(SERIOUS_WOUND_CARDS)), discard: [] },
-    events: { drawPile: [], discard: [] },
+    events: { drawPile: shuffle(rng, structuredClone(EVENT_CARDS)), discard: [] },
     intruderAttacks: { drawPile: shuffle(rng, structuredClone(INTRUDER_ATTACK_CARDS)), discard: [] },
     objectives: {
       personal: { drawPile: [], discard: [] },

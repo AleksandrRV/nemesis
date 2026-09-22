@@ -124,8 +124,53 @@ export interface ObjectiveCard extends CardDefinition {
   kind: 'PERSONAL' | 'CORPORATE';
 }
 
-/** Карта Событий: сдвигает Чужих по номерам коридоров и разыгрывает текст (стр. 10). */
-export type EventCard = CardDefinition;
+/**
+ * Направление Движения Чужих, напечатанное в верхнем блоке карты События
+ * (стр. 10, шаг 7). «Подготовка» двигает Чужих через любой Коридор —
+ * её направление не фиксировано числом.
+ */
+export type EventCorridorNumber = 1 | 2 | 3 | 4 | 'ANY';
+
+/**
+ * Машинный эффект нижнего блока карты События (стр. 10; `doc/data/EVENTS.md`).
+ * Движение Чужих определяет верхний блок (`intruderTypes` + `corridorNumber`),
+ * поэтому эффект описывает только текстовое событие.
+ */
+export type EventEffect =
+  | 'HUNT'
+  | 'PROTECT_NEST'
+  | 'BROOD'
+  | 'REGENERATION'
+  | 'HIDDEN'
+  | 'MATURATION'
+  | 'RAMPAGE'
+  | 'PREPARATION'
+  | 'PREY_SCENT'
+  | 'NOISE_TECH_CORRIDORS'
+  | 'HIVE'
+  | 'FLAMMABLE_MIXTURE'
+  | 'DESTRUCTIVE_FLAME'
+  | 'ESCAPE_POD_EJECTION'
+  | 'SHORT_CIRCUIT'
+  | 'COOLANT_LEAK'
+  | 'LIFE_SUPPORT_MALFUNCTION'
+  | 'MALFUNCTION'
+  | 'OPEN_COMPARTMENTS';
+
+/**
+ * Карта Событий: верхний блок двигает Чужих по номерам Коридоров, нижний
+ * разыгрывает текстовый эффект (стр. 10, шаг 7). В коробке 20 карт (стр. 3).
+ */
+export interface EventCard extends CardDefinition {
+  effect: EventEffect;
+  corridorNumber: EventCorridorNumber;
+  /** Символы Чужих верхнего блока: двигаются только соответствующие особи. */
+  intruderTypes: readonly IntruderType[];
+  /** «УДАЛИТЕ эту карту из игры и замешайте сброс в колоду Событий» (стр. 10). */
+  isDestroyedOnResolve: boolean;
+  /** Карта замешивается обратно в колоду вместо сброса («Неисправность»). */
+  isReshuffledIntoDeck: boolean;
+}
 
 export type IntruderAttackEffect =
   'SCRATCH' | 'BITE' | 'CLAW_ATTACK' | 'TAIL_ATTACK' | 'TRANSFORMATION' | 'FRENZY' | 'SLIME' | 'CALL';

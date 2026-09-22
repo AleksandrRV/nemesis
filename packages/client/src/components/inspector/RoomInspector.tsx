@@ -10,6 +10,7 @@ import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
 import { carefulMoveChoices } from './carefulMoveModel';
 import { RoomStatusGrid } from './RoomStatusGrid';
+import { TechCorridorPanel } from './TechCorridorPanel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { X, Package, User, Footprints, Ban, ShieldAlert, Bug, Droplets, Crosshair, Hand } from 'lucide-react';
 
@@ -33,6 +34,7 @@ export const RoomInspector: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
   const selectRoom = useGameStore((state) => state.selectRoom);
+  const technicalCorridorsOpen = useGameStore((state) => state.technicalCorridorsOpen);
   const dispatch = useGameStore((state) => state.dispatch);
   const rejection = useGameStore((state) => state.rejection);
   const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
@@ -45,7 +47,13 @@ export const RoomInspector: React.FC = () => {
   const [escapePromptOpen, setEscapePromptOpen] = React.useState(false);
   const [disengageOpen, setDisengageOpen] = React.useState(false);
 
-  if (!view || !selectedRoomId) return null;
+  if (!view) return null;
+
+  // Поле Технических Коридоров — отдельная локация со своей панелью (Шаг 3
+  // этапа 0.5.0): выбор узла вентиляции заменяет инспектор отсека.
+  if (technicalCorridorsOpen) return <TechCorridorPanel />;
+
+  if (!selectedRoomId) return null;
 
   const room = view.ship.rooms[selectedRoomId];
   if (!room) return null;

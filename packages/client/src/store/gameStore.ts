@@ -17,6 +17,8 @@ export interface GameStoreState {
   view: SanitizedGameState | null;
   /** Выбор в интерфейсе: не часть партии и не сохраняется. */
   selectedRoomId: RoomId | null;
+  /** Открыта ли панель Технических Коридоров (Шаг 3 этапа 0.5.0): выбор локации, не партии. */
+  technicalCorridorsOpen: boolean;
   /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
   rejection: string | null;
 
@@ -39,6 +41,8 @@ export interface GameStoreState {
 
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
+  openTechnicalCorridors: () => void;
+  closeTechnicalCorridors: () => void;
   startNewGame: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
 }
 
@@ -59,6 +63,7 @@ export function createGameStore(createTransport: TransportFactory) {
   const store = create<GameStoreState>()((set, get) => ({
     view: null,
     selectedRoomId: null,
+    technicalCorridorsOpen: false,
     rejection: null,
     shootModalOpen: false,
     meleeModalOpen: false,
@@ -148,7 +153,15 @@ export function createGameStore(createTransport: TransportFactory) {
     },
 
     selectRoom: (roomId) => {
-      set({ selectedRoomId: roomId });
+      set({ selectedRoomId: roomId, technicalCorridorsOpen: false });
+    },
+
+    openTechnicalCorridors: () => {
+      set({ technicalCorridorsOpen: true, selectedRoomId: null });
+    },
+
+    closeTechnicalCorridors: () => {
+      set({ technicalCorridorsOpen: false });
     },
 
     startNewGame: (seed, options) => {
@@ -158,6 +171,7 @@ export function createGameStore(createTransport: TransportFactory) {
         transport.startNewGame(seed, options);
         set({
           selectedRoomId: defaultRoomId(store.getState().view),
+          technicalCorridorsOpen: false,
           rejection: null,
           shootModalOpen: false,
           meleeModalOpen: false,
@@ -176,6 +190,7 @@ export function createGameStore(createTransport: TransportFactory) {
       set({
         view: null,
         selectedRoomId: null,
+        technicalCorridorsOpen: false,
         rejection: null,
         shootModalOpen: false,
         meleeModalOpen: false,

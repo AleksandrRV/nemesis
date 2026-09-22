@@ -13,6 +13,8 @@ interface RoomHexProps {
   y: number;
   isSelected: boolean;
   onSelect: (roomId: number) => void;
+  /** Шум на поле Технических Коридоров считается на всех входах вентиляции (стр. 15–16). */
+  technicalNoise?: boolean;
 }
 
 const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
@@ -43,7 +45,7 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelected, onSelect }) => {
+export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelected, onSelect, technicalNoise }) => {
   const radius = 45;
 
   const points = React.useMemo(() => {
@@ -115,6 +117,19 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
 
       {hasTechEntrance && (
         <g transform={`translate(${x}, ${y - radius + 3})`} className="pointer-events-none">
+          {technicalNoise && (
+            <circle
+              cx={0}
+              cy={0}
+              r={10.5}
+              fill="none"
+              stroke="#ff003c"
+              strokeWidth={2}
+              className="motion-safe:animate-vent-alarm motion-reduce:opacity-70"
+              aria-label="Шум в вентиляции"
+            />
+          )}
+
           <circle cx={0} cy={0} r={6.5} fill="#ff003c" stroke="#05070c" strokeWidth={1.5} />
 
           <polygon points="-2.5,1.5 0,-2.5 2.5,1.5" fill="white" />

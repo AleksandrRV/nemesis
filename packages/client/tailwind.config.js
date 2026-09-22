@@ -36,12 +36,29 @@ export default {
           '75%': { transform: 'rotate(-6deg) scale(0.98)' },
           '100%': { transform: 'rotate(0deg) scale(1)', opacity: '1' },
         },
+        'vent-alarm': {
+          '0%, 100%': { opacity: '0.85' },
+          '50%': { opacity: '0.25' },
+        },
+        'vent-flow': {
+          '0%': { strokeDashoffset: '0' },
+          '100%': { strokeDashoffset: '-24' },
+        },
+        'vent-echo': {
+          '0%': { opacity: '0', transform: 'translateY(6px) scale(0.55)' },
+          '14%': { opacity: '0.95', transform: 'translateY(0) scale(1)' },
+          '65%': { opacity: '0.5', transform: 'translateY(-3px) scale(0.92)' },
+          '100%': { opacity: '0', transform: 'translateY(9px) scale(0.4)' },
+        },
       },
       animation: {
         'contact-reveal': 'contact-reveal 800ms ease-out both',
         'contact-warning': 'contact-warning 700ms ease-in-out 2',
         'contact-card': 'contact-card 450ms ease-out both',
         'die-roll': 'die-roll 900ms ease-out both',
+        'vent-alarm': 'vent-alarm 1.1s ease-in-out infinite',
+        'vent-flow': 'vent-flow 1.6s linear infinite',
+        'vent-echo': 'vent-echo 2400ms ease-in-out both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

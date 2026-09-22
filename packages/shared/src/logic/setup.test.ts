@@ -307,7 +307,7 @@ describe('createInitialGameState: колоды партии', () => {
     }
   });
 
-  it('создаёт наполненные и пустые колоды в соответствии со спецификацией v0.3.0', () => {
+  it('наполняет реализованные колоды, не подменяя данными будущие этапы', () => {
     const { craftedItems, contamination, weaknesses, seriousWounds, events, intruderAttacks, objectives } =
       createInitialGameState('nemesis-alpha').decks;
 
@@ -320,7 +320,8 @@ describe('createInitialGameState: колоды партии', () => {
 
     expect(weaknesses).toEqual({ drawPile: [], discard: [] });
     expect(events).toEqual({ drawPile: [], discard: [] });
-    expect(intruderAttacks).toEqual({ drawPile: [], discard: [] });
+    expect(intruderAttacks.drawPile).toHaveLength(20);
+    expect(intruderAttacks.discard).toEqual([]);
     expect(objectives.personal).toEqual({ drawPile: [], discard: [] });
     expect(objectives.corporate).toEqual({ drawPile: [], discard: [] });
   });

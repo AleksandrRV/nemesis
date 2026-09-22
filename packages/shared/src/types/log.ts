@@ -1,3 +1,4 @@
+import type { IntruderLogEvent } from './contact.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
@@ -6,7 +7,7 @@ export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
 export type GameLogNoiseTarget = { kind: 'CORRIDOR'; corridorId: string } | { kind: 'TECHNICAL_CORRIDOR' };
 
-export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER';
+export type GameLogNoiseReason = 'ROLL' | 'CAREFUL' | 'DANGER' | 'BLANK';
 
 export type GameLogNoiseSkippedReason = 'COMPANION' | 'EXPLORATION_SILENCE' | 'NOISE_SILENCE' | 'UNMAPPED_EXIT';
 
@@ -28,6 +29,7 @@ export type GameLogEffectOutcome =
   | 'SILENCE_RESOLVED';
 
 export type GameLogEvent =
+  | IntruderLogEvent
   | { type: 'GAME_STARTED' }
   | {
       type: 'ROUND_STARTED';
@@ -38,6 +40,11 @@ export type GameLogEvent =
       type: 'PLAYER_TURN_STARTED';
       playerId: string;
       round: number;
+    }
+  | {
+      /** Классовая карта добрала карту Действия («Адреналин», Шаг 8). */
+      type: 'ACTION_CARD_DRAWN';
+      playerId: string;
     }
   | {
       type: 'FIRE_DAMAGE_TAKEN';
@@ -61,6 +68,14 @@ export type GameLogEvent =
       playerId: string;
       itemId: string;
       itemName: string;
+    }
+  | {
+      /** Поднят Тяжёлый объект Действием [1] (стр. 13, 22). */
+      type: 'OBJECT_PICKED_UP';
+      playerId: string;
+      roomId: RoomId;
+      objectId: string;
+      objectKind: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
     }
   | {
       type: 'ROOM_ABILITY_USED';

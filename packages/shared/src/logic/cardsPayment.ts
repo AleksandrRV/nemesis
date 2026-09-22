@@ -1,7 +1,7 @@
 import type { ActionCard, ActionDeckCard, ActionDeckState } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
-import { EngineError } from './fsm.js';
-import { drawFromStream } from '../utils/rng.js';
+import { EngineError } from './engineErrors.js';
+import { reshuffleDiscard } from './cardPiles.js';
 
 export const BASE_HAND_SIZE = 5;
 export const CABINS_HAND_SIZE = 6;
@@ -30,28 +30,6 @@ export function getPlayerHandLimit(state: GameState, playerId: string): number {
 }
 
 /**
- * Тасование личного сброса через поток RNG 'cards'.
- */
-function shuffleDiscardIntoDrawPile(state: GameState, deck: ActionDeckState): void {
-  if (deck.discard.length === 0) return;
-
-  const drawIndex = state.meta.rngDraws.cards;
-  const items = [...deck.discard];
-  deck.discard = [];
-
-  for (let i = items.length - 1; i > 0; i--) {
-    const r = drawFromStream(state.meta.seed, 'cards', drawIndex + (items.length - 1 - i));
-    const j = Math.floor(r * (i + 1));
-    const temp = items[i]!;
-    items[i] = items[j]!;
-    items[j] = temp;
-  }
-
-  state.meta.rngDraws.cards = drawIndex + items.length;
-  deck.drawPile.push(...items);
-}
-
-/**
  * Добор карт до целевого лимита руки.
  * Если колода добора пуста, сброс перемешивается потоком 'cards' и добор продолжается.
  */
@@ -70,7 +48,7 @@ export function drawCardsToLimit(state: GameState, playerId: string, limit?: num
         // Карт больше нет ни в колоде, ни в сбросе
         break;
       }
-      shuffleDiscardIntoDrawPile(state, player.actionDeck);
+      reshuffleDiscard(state, player.actionDeck);
     }
 
     const card = player.actionDeck.drawPile.shift();

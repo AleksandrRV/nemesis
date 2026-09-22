@@ -1,4 +1,5 @@
 import type { CharacterPreset } from '../data/setup.js';
+import type { WeaknessCard } from '../types/cards.js';
 import type { CharacterClass, EscapePodState, PlayerState } from '../types/entities.js';
 import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
 import type { GameMode, GameState } from '../types/state.js';
@@ -16,11 +17,13 @@ import {
   MAX_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
   QUEST_ITEM_COUNT,
+  WEAKNESS_SLOT_COUNT,
   WEAKNESS_SLOT_OBJECT_KINDS,
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameLog } from './gameLog.js';
 import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
+import type { RngStream } from '../utils/rng.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
 
@@ -47,8 +50,14 @@ const ENGINE_NUMBERS = [1, 2, 3] as const;
  * тип Объекта — Труп, Яйцо и Останки (стр. 6, шаг 9; стр. 21). Состав карт
  * появится вместе с данными о колодах, поэтому слоты создаются пустыми.
  */
-function createWeaknessSlots(): GameState['intrudersPool']['weaknessSlots'] {
-  return WEAKNESS_SLOT_OBJECT_KINDS.map((objectKind) => ({ objectKind, card: null }));
+function createWeaknessSlots(deck: readonly WeaknessCard[]): GameState['intrudersPool']['weaknessSlots'] {
+  return WEAKNESS_SLOT_OBJECT_KINDS.map((objectKind, index) => {
+    const card = deck[index];
+    if (!card) {
+      throw new Error(`В колоде Слабостей нет карты для слота ${objectKind}: подготовка партии нарушена.`);
+    }
+    return { objectKind, card: { ...card, isRevealed: false } };
+  });
 }
 
 /**
@@ -95,6 +104,7 @@ function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: nu
     seriousWounds: [],
     objectives: [],
     hasSlime: false,
+    hasLarva: false,
     hasSignalSent: false,
     isInHibernation: false,
     hasEscapedInPod: false,
@@ -160,7 +170,16 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   // Поток `layout`: тайлы, жетоны Исследования, номера капсул и пункты
   // назначения тасуются одной последовательностью, отдельной от броском Шума и
   // колод (utils/rng.ts). Перемешивание — общее для проекта.
-  const rng = createRng(seed, 'layout');
+  const rngDraws = createRngDraws();
+  const trackedRng = (stream: RngStream) => {
+    const generator = createRng(seed, stream);
+    return () => {
+      const value = generator();
+      rngDraws[stream] += 1;
+      return value;
+    };
+  };
+  const rng = trackedRng('layout');
 
   const shuffledRooms1 = shuffle(rng, BASIC_ROOMS_1);
   const shuffledRooms2 = shuffle(rng, ADDITIONAL_ROOMS_2).slice(0, 5);
@@ -177,7 +196,14 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   // скрыт от игроков (санитайзер отдаёт наружу только состав), а посторонний
   // бросок в другом потоке этот порядок не сдвигает (utils/rng.ts).
   const { bag: bagTokens, supply: intruderSupply } = splitIntruderBag(createIntruderSupply(), playerCount);
-  const intruderBag = shuffle(createRng(seed, 'bag'), bagTokens);
+  const intruderBag = shuffle(trackedRng('bag'), bagTokens);
+
+  // Колоды стола: 3 верхние карты Слабостей уходят в слоты Планшета Чужих
+  // рубашкой вниз, остальные убираются в коробку и в партии не участвуют
+  // (стр. 6, шаг 9; стр. 21).
+  const decks = createInitialDecks(seed, trackedRng('cards'));
+  const weaknessDeck = decks.weaknesses.drawPile.slice(0, WEAKNESS_SLOT_COUNT);
+  decks.weaknesses = { drawPile: [], discard: [] };
 
   const availableCharacters = [...CHARACTERS];
   if (options.chosenCharacterClass) {
@@ -288,6 +314,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       schemaVersion: GAME_STATE_SCHEMA_VERSION,
       gameId: options.gameId ?? `game-${seed}`,
       seed,
+      nextEntitySequence: 1,
       gameMode: resolveGameMode(playerCount),
       currentRound: 1,
       phase: 'PLAYER_PHASE',
@@ -296,10 +323,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       timeTrackPosition: 0,
       selfDestructTrackPosition: null,
 
-      // Счётчики потоков случайности начинают с нуля: расклад уже прочитал
-      // `layout`, но он читается только при подготовке стола, поэтому
-      // восстановление партии идёт от мастер-сида (utils/rng.ts).
-      rngDraws: createRngDraws(),
+      rngDraws,
       gameOverReason: null,
     },
 
@@ -317,15 +341,17 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     },
 
     intrudersPool: {
+      firstEncounterOccurred: false,
+      attackSuppression: {},
       bag: intruderBag,
       supply: intruderSupply,
       boardTokens: [],
       deadTokens: [],
       eggsOnBoard: 5,
-      weaknessSlots: createWeaknessSlots(),
+      weaknessSlots: createWeaknessSlots(weaknessDeck),
     },
 
-    decks: createInitialDecks(seed),
+    decks,
 
     players,
 

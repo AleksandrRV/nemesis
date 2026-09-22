@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { CRAFTING_RECIPES } from './crafting.js';
+import { COMBAT_DIE_FACES } from './combatDie.js';
+import { INTRUDER_MINIATURE_LIMITS } from './intruderMiniatures.js';
+import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
 import {
   ADULT_ESCAPE_NUMBERS,
@@ -59,7 +62,7 @@ import { DOOR_STATES, nextDoorState } from '../types/rooms.js';
  */
 
 interface SourceCard {
-  kind: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED';
+  kind: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'ORIGINAL_PUBLISHER';
   title: string;
   location: string;
 }
@@ -112,11 +115,15 @@ describe('Пакет источника: структура и статусы (�
     const expectedTables = [
       'exploration-tokens',
       'intruder-supply',
+      'intruder-miniatures',
       'intruder-bag',
       'escape-numbers',
       'marker-supply',
       'door-rules',
       'noise-die',
+      'combat-die',
+      'intruder-attacks',
+      'weakness-cards',
       'ship-graph-rooms',
       'ship-graph-corridors',
       'room-definitions',
@@ -421,5 +428,48 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(expectation.contaminationCount).toBe(27);
     expect(expectation.seriousWoundsCount).toBe(16);
     expect(expectation.startingWeaponsCount).toBe(6);
+  });
+});
+
+describe('Golden: кубик Боя и Атаки Чужих (v0.4.0, шаг 1)', () => {
+  it('сверяет все шесть граней, включая кратность Промаха (стр. 2, 18)', () => {
+    const expectation = table('combat-die').expectation;
+
+    expect(expectation.faceCount).toBe(6);
+    expect(COMBAT_DIE_FACES).toHaveLength(6);
+    expect(COMBAT_DIE_FACES).toEqual(expectation.faces);
+    expect(COMBAT_DIE_FACES.filter((face) => face === 'MISS')).toHaveLength(2);
+  });
+
+  it('сверяет каждый экземпляр: ID, эффект, текст, стойкость, стрелку и символы атакующих', () => {
+    const expectation = table('intruder-attacks').expectation;
+    const byEffect: Record<string, number> = {};
+
+    for (const card of INTRUDER_ATTACK_CARDS) byEffect[card.effect] = (byEffect[card.effect] ?? 0) + 1;
+
+    expect(expectation.cardCount).toBe(20);
+    expect(INTRUDER_ATTACK_CARDS).toHaveLength(20);
+    expect(INTRUDER_ATTACK_CARDS).toEqual(expectation.cards);
+    expect(byEffect).toEqual(expectation.byEffect);
+  });
+
+  it.each(['combat-die', 'intruder-attacks'])('%s не выдаёт транскрипт за независимую сверку компонентов', (id) => {
+    const entry = table(id);
+
+    expect(entry.status).toBe('EXTERNAL_UNVERIFIED');
+    expect(entry.unverified?.length).toBeGreaterThan(0);
+    expect(entry.facts.some((fact) => fact.source === 'intruders-transcript' && fact.lines)).toBe(true);
+    expect(entry.facts.some((fact) => fact.source === 'rules-md' && fact.lines)).toBe(true);
+    expect(dataSources.meta.sources['intruders-transcript']?.kind).toBe('EXTERNAL_UNVERIFIED');
+    expect(dataSources.meta.sources['intruders-transcript']?.location).toBe('doc/data/INTRUDERS.md');
+  });
+});
+
+describe('Golden: физический лимит миниатюр (стр. 2, 15)', () => {
+  it('отличает миниатюры от жетонов: 6 Личинок и 8 Взрослых, не 8 и 12', () => {
+    expect(INTRUDER_MINIATURE_LIMITS).toEqual(table('intruder-miniatures').expectation);
+    expect(INTRUDER_MINIATURE_LIMITS).toEqual({ LARVA: 6, CREEPER: 3, ADULT: 8, BREEDER: 2, QUEEN: 1 });
+    expect(table('intruder-miniatures').status).toBe('RULES_LOCAL');
+    expect(dataSources.meta.sources['nemesis-official-faq']?.kind).toBe('ORIGINAL_PUBLISHER');
   });
 });

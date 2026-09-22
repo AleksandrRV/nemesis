@@ -17,7 +17,24 @@ export type RoomAbilityPayload = {
   targetDeckColor?: ItemDeckColor;
   targetEscapePodId?: string;
   targetObjectKind?: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
+  /** Стр. 16: после Изучения можно сбросить объект с руки, не тратя Действия. */
+  discardObjectAfterStudy?: boolean;
 };
+
+/**
+ * Встроенное боевое действие классовой карты (Шаг 8): разыгрывание карты и
+ * действие атомарны — один ход, одна транзакция.
+ */
+export type CombatCardPayload =
+  /** Стрельба с перебросом кубика («Прицельный огонь»). */
+  | { kind: 'AIMED_SHOOT'; weaponItemId: string; targetIntruderId: string }
+  /** Стрельба со сбросом всего Боезапаса винтовки («Стрельба очередью»). */
+  | { kind: 'BURST_SHOOT'; weaponItemId: string; targetIntruderId: string }
+  /** Отход без Атаки Чужих («Заградительный огонь» / «Огонь на подавление»). */
+  | { kind: 'REPOSITION'; weaponItemId: string; moves: { playerId: string; targetRoomId: RoomId }[] }
+  /** «Адреналин»: Стрельба или Побег, затем добор 1 карты Действия. */
+  | { kind: 'ADRENALINE_SHOOT'; weaponItemId: string; targetIntruderId: string }
+  | { kind: 'ADRENALINE_ESCAPE'; targetRoomId: RoomId };
 
 export type PlayCardActionPayload = {
   cardId: string;
@@ -25,6 +42,8 @@ export type PlayCardActionPayload = {
   option?: string;
   targetRoomId?: RoomId;
   targetCorridorId?: string;
+  /** Шаг 8: параметры классовой боевой карты — карта и действие играются вместе. */
+  combat?: CombatCardPayload;
 };
 
 export type UseItemActionPayload = {
@@ -48,6 +67,25 @@ export type GameAction =
       payload: { targetRoomId: RoomId; chosenCorridor: CarefulMoveChosenCorridor; discardCardIds: string[] };
     }
   | { type: 'ACTION_SEARCH'; payload: { chosenDeckColor?: ItemDeckColor; discardCardIds: string[] } }
+  /**
+   * Базовое действие «Стрельба» [1] (стр. 19): Оружие из слота Руки с хотя бы
+   * 1 ед. Боезапаса, цель — Чужой в одном отсеке со стрелком. Цена — 1 карта
+   * Действия сверх Боезапаса; результат определяет кубик Боя (стр. 18).
+   */
+  | {
+      type: 'ACTION_SHOOT';
+      payload: { weaponItemId: string; targetIntruderId: string; discardCardIds: string[] };
+    }
+  | {
+      /** Базовое действие «Рукопашная атака» (стр. 19): без Оружия, цена — 1 карта Действия. */
+      type: 'ACTION_MELEE';
+      payload: { targetIntruderId: string; discardCardIds: string[] };
+    }
+  | {
+      /** Базовое действие «Поднять Тяжёлый объект» [1] (стр. 13, 22): Труп, Яйцо или Останки из своего отсека. */
+      type: 'ACTION_PICK_UP_OBJECT';
+      payload: { objectId: string; discardCardIds: string[] };
+    }
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }
   | { type: 'ACTION_USE_ITEM'; payload: UseItemActionPayload }

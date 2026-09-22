@@ -4,12 +4,18 @@ import { SHIP_ROOM_NODES } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { RoomHex } from './RoomHex';
 import { CorridorEdge } from './CorridorEdge';
+import { groupIntrudersByRoom } from './intruderMapModel';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export const ShipMapSVG: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
   const selectRoom = useGameStore((state) => state.selectRoom);
+
+  const intrudersByRoom = React.useMemo(
+    () => (view ? groupIntrudersByRoom(view.intrudersPool.boardTokens) : new Map()),
+    [view],
+  );
 
   const coordsMap = React.useMemo(() => {
     const map = new Map<number, { x: number; y: number }>();
@@ -97,6 +103,7 @@ export const ShipMapSVG: React.FC = () => {
                       <RoomHex
                         key={room.id}
                         room={room}
+                        intruders={intrudersByRoom.get(room.id) ?? []}
                         x={coord.x}
                         y={coord.y}
                         isSelected={selectedRoomId === room.id}

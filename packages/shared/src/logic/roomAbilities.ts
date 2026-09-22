@@ -1,10 +1,14 @@
 import type { GameState } from '../types/state.js';
 import type { RoomAbilityPayload } from '../types/actions.js';
 import type { ActionDeckCard, ContaminationCard } from '../types/cards.js';
-import { EngineError } from './fsm.js';
+import { isPlayerInCombat } from './combatStatus.js';
+import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { drawSearchCards } from './search.js';
 import { advanceTurn } from './turnCycle.js';
+import { queueActionCompletion } from './actionCompletion.js';
+import { allocateEntityId } from './stateIds.js';
+import { sufferLightWounds } from './characterDamage.js';
 
 export function executeRoomAbility(state: GameState, actorId: string, payload: RoomAbilityPayload): void {
   const player = state.players[actorId]!;
@@ -22,8 +26,8 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать неисправный отсек (требуется починка)');
   }
 
-  if ((room.occupantIntruderIds?.length ?? 0) > 0) {
-    throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать отсек в Бою с Чужими');
+  if (isPlayerInCombat(state, actorId)) {
+    throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать отсек в Бою с Чужими (стр. 18).');
   }
 
   switch (room.definitionId) {
@@ -192,7 +196,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `В колоде ${targetDeck} не осталось карт`);
       }
       state.pendingDecision = {
-        id: `storage-item-${Date.now()}-${actorId}`,
+        id: allocateEntityId(state, 'storage-choice'),
         playerId: actorId,
         type: 'CHOOSE_SEARCH_ITEM',
         drawnCardIds: drawn.map((c) => c.id),
@@ -233,25 +237,56 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     }
 
     case 'LABORATORY': {
-      // Лаборатория: изучение объекта (Труп, Яйцо или Останки)
+      // Лаборатория [2] «Изучите 1 объект» (стр. 16): в отсеке должен быть
+      // Труп, Останки или Яйцо — на полу или в руках любого Персонажа («например,
+      // в руках Персонажа»). Объект не удаляется из игры; после изучения можно
+      // сбросить свой объект с руки, не тратя Действия (стр. 16).
       const targetKind = payload.targetObjectKind;
       if (!targetKind) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Не указан тип объекта для изучения в Лаборатории');
+        throw new EngineError(
+          'ROOM_ABILITY_NOT_ALLOWED',
+          'Не указан тип объекта для изучения: Труп, Останки или Яйцо (стр. 16).',
+        );
       }
-      const slotIndex = player.handSlots.findIndex(
-        (slot) => slot.source === 'OBJECT' && slot.object.kind === targetKind,
+      const weaknessSlot = state.intrudersPool.weaknessSlots.find((slot) => slot.objectKind === targetKind);
+      if (!weaknessSlot) {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `Слота Слабостей для объекта ${targetKind} не существует.`);
+      }
+      if (!weaknessSlot.card) {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'В этом слоте Планшета Чужих нет карты Слабости.');
+      }
+      if (weaknessSlot.card.isRevealed) {
+        throw new EngineError(
+          'WEAKNESS_ALREADY_REVEALED',
+          `Слабость «${weaknessSlot.card.name}» уже изучена — раскрывать больше нечего (стр. 21).`,
+        );
+      }
+      const onFloor = room.objects.some((object) => object.kind === targetKind);
+      const inHands = room.occupantPlayerIds.some((occupantId) =>
+        state.players[occupantId]!.handSlots.some(
+          (slot) => slot.source === 'OBJECT' && slot.object.kind === targetKind,
+        ),
       );
-      if (slotIndex === -1) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `У персонажа в руках нет объекта типа ${targetKind}`);
+      if (!onFloor && !inHands) {
+        throw new EngineError(
+          'ROOM_ABILITY_NOT_ALLOWED',
+          `В Лаборатории нет объекта типа ${targetKind} ни на полу, ни в руках Персонажей (стр. 16).`,
+        );
       }
 
-      // Сбрасываем объект из рук
-      player.handSlots.splice(slotIndex, 1);
+      weaknessSlot.card.isRevealed = true;
 
-      // Раскрываем соответствующий слот Слабости
-      const weaknessSlot = state.intrudersPool.weaknessSlots.find((s) => s.objectKind === targetKind);
-      if (weaknessSlot && weaknessSlot.card) {
-        weaknessSlot.card.isRevealed = true;
+      if (payload.discardObjectAfterStudy) {
+        const slotIndex = player.handSlots.findIndex(
+          (slot) => slot.source === 'OBJECT' && slot.object.kind === targetKind,
+        );
+        if (slotIndex > -1) {
+          const dropped = player.handSlots.splice(slotIndex, 1)[0];
+          if (dropped && dropped.source === 'OBJECT') {
+            // Сброшенный объект — жетон в текущую Комнату (стр. 22).
+            room.objects.push(dropped.object);
+          }
+        }
       }
 
       appendGameLog(state, {
@@ -259,7 +294,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         playerId: actorId,
         roomId: room.id,
         roomDefinitionId: 'LABORATORY',
-        detail: `Изучен объект ${targetKind}, открыта карта Слабости`,
+        detail: `Изучен объект (${targetKind}): раскрыта Слабость «${weaknessSlot.card.name}»`,
       });
       break;
     }
@@ -311,7 +346,8 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       // Карты с инфекцией удаляются из игры, чистые карты замешиваются в колоду
       player.actionDeck.hand = [];
       player.actionDeck.drawPile.push(...cleanCards);
-      player.lightWounds += 1;
+      player.hasLarva = false;
+      sufferLightWounds(state, actorId, 1);
       player.hasPassed = true;
 
       appendGameLog(state, {
@@ -332,8 +368,5 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       );
   }
 
-  player.actionsPerformedThisRound += 1;
-  if (player.actionsPerformedThisRound >= 2) {
-    advanceTurn(state, actorId);
-  }
+  queueActionCompletion(state, actorId);
 }

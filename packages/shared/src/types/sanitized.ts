@@ -178,4 +178,5 @@ export interface SanitizedGameState extends Omit<
   intrudersPool: SanitizedIntrudersPoolState;
   players: Record<string, SanitizedPlayerState>;
   pendingDecision: PendingDecision | null;
+  pendingDecisionPlayerId: string | null;
 }

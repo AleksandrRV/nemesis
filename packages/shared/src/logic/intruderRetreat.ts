@@ -31,7 +31,8 @@ import { findNoiseTarget } from './shipGraphQueries.js';
 export function resolveIntruderRetreat(
   state: GameState,
   intruderId: string,
-  attackerId: string,
+  /** null — атакующего нет: Отступление из огня Фазы Событий (стр. 10, шаг 6). */
+  attackerId: string | null,
 ): IntruderRetreatRecord {
   const intruder = requireIntruder(state, intruderId);
   const roomId = intruder.roomId;

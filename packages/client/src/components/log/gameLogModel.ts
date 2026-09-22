@@ -1,8 +1,9 @@
-import { formatIntruderLogEvent } from './intruderLogModel';
+import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
   SPECIAL_ROOMS,
+  TIME_TRACK_LENGTH,
   type GameLogEntry,
   type GameLogEvent,
   type SanitizedGameState,
@@ -303,7 +304,9 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
               ? ': корабль взорвался.'
               : event.reason === 'HULL_BREACH'
                 ? ': произошёл разрыв обшивки.'
-                : ': на корабле не осталось активных персонажей.',
+                : event.reason === 'HYPERSPACE_JUMP'
+                  ? ': корабль совершил гиперпрыжок. Все, кто не успел в Анабиоз, погибли от перегрузок.'
+                  : ': на корабле не осталось активных персонажей.',
         },
       ];
 
@@ -316,14 +319,36 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
 
-    case 'EVENT_PHASE_SKIPPED':
+    case 'TIME_TRACK_ADVANCED':
       return [
-        { text: 'Фаза Событий (раунд ', tone: 'warning' },
-        { text: String(event.round), tone: 'warning', strong: true },
-        {
-          text: ') пропущена: механика Событий и атак Чужих находится в разработке (v0.5.0). Начат следующий раунд.',
-          tone: 'warning',
-        },
+        { text: `Фаза Событий: маркер Времени — позиция ${event.timeTrackPosition} из ${TIME_TRACK_LENGTH}.` },
+        ...(event.selfDestructTrackPosition !== null
+          ? [
+              {
+                text: ` Самоуничтожение — позиция ${event.selfDestructTrackPosition} из 8.`,
+                tone: 'warning' as const,
+              },
+            ]
+          : []),
+      ];
+
+    case 'EVENT_PHASE_STEP_SKIPPED': {
+      const stepLabel = event.step === 5 ? 'Атаки Чужих' : event.step === 7 ? 'Карта События' : 'Развитие Улья';
+      return [{ text: `Шаг Фазы Событий «${stepLabel}» ещё в разработке (этап 0.5.0) и пропущен.`, tone: 'warning' }];
+    }
+
+    case 'FIRE_DAMAGE_TAKEN_BY_INTRUDER':
+      return [
+        { text: `Пожар в ${roomLabel(view, event.roomId)}: `, tone: 'fire' },
+        { text: INTRUDER_TYPE_NAMES[event.intruderType], tone: 'danger', strong: true },
+        { text: ' получает 1 Рану.' },
+      ];
+
+    case 'EGG_DESTROYED_BY_FIRE':
+      return [
+        { text: 'Пожар уничтожает ', tone: 'fire' },
+        { text: 'Яйцо Чужих', tone: 'danger', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}.` },
       ];
 
     case 'OBJECT_PICKED_UP': {

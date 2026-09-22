@@ -1,6 +1,7 @@
 import type { IntruderLogEvent } from './contact.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
+import type { IntruderType } from './entities.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
@@ -139,8 +140,30 @@ export type GameLogEvent =
       discardedCount: number;
     }
   | {
-      type: 'EVENT_PHASE_SKIPPED';
+      /** Шаг 4 Фазы Событий (стр. 10): маркеры Времени и Самоуничтожения сдвинуты. */
+      type: 'TIME_TRACK_ADVANCED';
       round: number;
+      timeTrackPosition: number;
+      selfDestructTrackPosition: number | null;
+    }
+  | {
+      /** Шаг Фазы Событий ещё не реализован движком и честно пропущен (этап 0.5.0 в разработке). */
+      type: 'EVENT_PHASE_STEP_SKIPPED';
+      round: number;
+      step: 5 | 7 | 8;
+    }
+  | {
+      /** Урон от огня (стр. 10, шаг 6): Чужой в горящем отсеке получил 1 Рану. */
+      type: 'FIRE_DAMAGE_TAKEN_BY_INTRUDER';
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+    }
+  | {
+      /** Огонь уничтожил Яйцо, не находящееся в руках Персонажа (стр. 25, Улей). */
+      type: 'EGG_DESTROYED_BY_FIRE';
+      roomId: RoomId;
+      objectId: string;
     }
   | {
       type: 'DEV_STATE_CHANGED';

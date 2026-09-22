@@ -101,7 +101,8 @@ export function checkInjuryResult(
   intruderId: string,
   targetType: IntruderType,
   injuries: number,
-  attackerId: string,
+  /** null — атакующего нет: так Раны наносит огонь Фазы Событий (стр. 10, шаг 6). */
+  attackerId: string | null,
 ): InjuryCheckResult {
   if (targetType === 'LARVA') {
     // Личинка: 1 Раны достаточно, «удалите их миниатюры с поля» — без

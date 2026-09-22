@@ -27,7 +27,7 @@ export function killPlayer(state: GameState, playerId: string): void {
   appendGameLog(state, { type: 'PLAYER_DIED', playerId, roomId: room.id });
   if (firstDeath) {
     for (const pod of Object.values(state.ship.escapePods)) pod.isLocked = false;
-    appendGameLog(state, { type: 'ESCAPE_PODS_UNLOCKED' });
+    appendGameLog(state, { type: 'ESCAPE_PODS_UNLOCKED', cause: 'FIRST_DEATH' });
   }
 }
 

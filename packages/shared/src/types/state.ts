@@ -7,10 +7,10 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Совместимость сохранений: карта Событий получила машинный контракт
-// (эффект, направление, символы Чужих, флаги уничтожения и замешивания),
-// колода Событий наполняется при подготовке — сохранения схемы 12 не восстанавливаются.
-export const GAME_STATE_SCHEMA_VERSION = 14;
+// Совместимость сохранений: Фаза Событий получила оркестратор (Шаг 4 и Шаг 6
+// книги правил), журнал пополнился событиями времени, огня и пропущенных
+// шагов, капсулы помечают причину разблокировки — сохранения схемы 14 не восстанавливаются.
+export const GAME_STATE_SCHEMA_VERSION = 15;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -19,8 +19,8 @@ export const GAME_STATE_SCHEMA_VERSION = 14;
  */
 export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
 
-/** Почему партия окончена: корабль взорвался или обшивка не выдержала (стр. 17). */
-export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'NO_ACTIVE_CHARACTERS';
+/** Почему партия окончена (стр. 11, 17): взрыв, разрыв обшивки, гиперпрыжок или отсутствие участников. */
+export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'HYPERSPACE_JUMP' | 'NO_ACTIVE_CHARACTERS';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
 export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';

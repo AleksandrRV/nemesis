@@ -130,7 +130,8 @@ export type IntruderLogEvent =
   | {
       /** Чужой убит (стр. 20): миниатюра снята, Останки на полу (кроме Личинки). */
       type: 'INTRUDER_KILLED';
-      playerId: string;
+      /** null — атакующего нет (например, Чужой погиб в огне, стр. 10 шаг 6). */
+      playerId: string | null;
       roomId: RoomId;
       targetIntruderId: string;
       targetType: IntruderType;
@@ -138,11 +139,12 @@ export type IntruderLogEvent =
       remainsObjectId: string | null;
     }
   | { type: 'PLAYER_DIED'; playerId: string; roomId: RoomId }
-  | { type: 'ESCAPE_PODS_UNLOCKED' }
+  | { type: 'ESCAPE_PODS_UNLOCKED'; cause: 'FIRST_DEATH' | 'SELF_DESTRUCT' }
   | {
       /** Отступление в бою (стр. 20): карта Событий задала направление Чужому. */
       type: 'INTRUDER_RETREATED';
-      playerId: string;
+      /** null — атакующего нет (например, Отступление из огня, стр. 10 шаг 6). */
+      playerId: string | null;
       roomId: RoomId;
       intruderId: string;
       intruderType: IntruderType;

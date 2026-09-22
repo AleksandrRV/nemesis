@@ -1,5 +1,6 @@
 import { sufferLightWounds } from './characterDamage.js';
 import { endGame } from './gameEnd.js';
+import { runEventPhase } from './eventsPhase.js';
 import type { GameState } from '../types/state.js';
 import type { PlayerState } from '../types/entities.js';
 import { appendGameLog } from './gameLog.js';
@@ -73,13 +74,7 @@ export function advanceTurn(state: GameState, completedPlayerId: string): void {
 
   if (allPassed) {
     state.meta.phase = 'EVENT_PHASE';
-    // В рамках текущей версии Фаза Событий (События, атаки Чужих) находится в разработке (этап v0.5.0).
-    // Чтобы игра не блокировалась, логируем пропуск и автоматически запускаем следующий раунд.
-    appendGameLog(state, {
-      type: 'EVENT_PHASE_SKIPPED',
-      round: state.meta.currentRound,
-    });
-    startNewRound(state);
+    runEventPhase(state);
     return;
   }
 
@@ -95,9 +90,11 @@ export function advanceTurn(state: GameState, completedPlayerId: string): void {
 }
 
 /**
- * Переход из Фазы Событий (EVENT_PHASE) в новый раунд Фазы Игроков (PLAYER_PHASE).
- * В рамках v0.3.0 выполняет:
- * 1. Инкремент currentRound (+1) и timeTrackPosition (+1);
+ * Переход из Фазы Событий (Шаг 9 книги правил, стр. 10) в новый раунд Фазы
+ * Игроков (Шаг 1). Счётчики Времени и Самоуничтожения здесь больше не
+ * двигаются: маркер Времени сдвигается в Шаге 4 Фазы Событий
+ * (`advanceTimeAndSelfDestruct`). Выполняет:
+ * 1. Инкремент currentRound (+1);
  * 2. Передачу жетона Первого Игрока следующему игроку по часовой стрелке;
  * 3. Сброс флагов hasPassed и actionsPerformedThisRound;
  * 4. Добор карт всеми игроками до лимита руки (включая проверку Кают);
@@ -109,7 +106,6 @@ export function startNewRound(state: GameState): void {
   }
 
   state.meta.currentRound += 1;
-  state.meta.timeTrackPosition += 1;
 
   const players = getOrderedPlayers(state);
   if (players.length > 0) {

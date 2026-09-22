@@ -2,7 +2,7 @@ import React from 'react';
 import { SHIP_ROOM_NODES, type SanitizedGameState } from '@nemesis/shared';
 import { User } from 'lucide-react';
 import type { BoardAnimation } from './boardAnimationModel';
-import { TECH_HUB } from './techCorridorModel';
+import { TECH_HUB, TECH_HUB_RADIUS } from './techCorridorModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
 
 interface Point {
@@ -90,6 +90,9 @@ function IntruderFigure({ type }: { type: keyof typeof INTRUDER_SHAPES }) {
 }
 
 /** Вспышка деформации и взлома металла на переборке разрушенной Двери. */
+/** Углы искр взлома: шесть лучей вокруг точки удара. */
+const SPARK_ANGLES = [8, 72, 140, 196, 262, 318] as const;
+
 function DoorBreachFx({ point }: { point: Point }) {
   return (
     <g
@@ -97,6 +100,36 @@ function DoorBreachFx({ point }: { point: Point }) {
       aria-label="Взлом Закрытой Двери"
       className="pointer-events-none"
     >
+      {/* Ударная волна: кольцо, расходящееся от точки взлома. */}
+      <circle
+        r={26}
+        fill="none"
+        stroke="#ffb700"
+        strokeWidth={2.5}
+        className="motion-safe:animate-door-shockwave motion-reduce:animate-none"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      {/* Искры деформации металла: разлёт по лучам. */}
+      {SPARK_ANGLES.map((angle, index) => (
+        <g key={angle} transform={`rotate(${angle})`}>
+          <line
+            x1={0}
+            y1={-12}
+            x2={0}
+            y2={-24}
+            stroke="#ff5500"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            className="motion-safe:animate-door-spark motion-reduce:animate-none"
+            style={{
+              transformBox: 'fill-box',
+              transformOrigin: 'center bottom',
+              animationDelay: `${(index % 3) * 90}ms`,
+            }}
+          />
+        </g>
+      ))}
+      {/* Вспышка деформации переборки. */}
       <g
         className="motion-safe:animate-door-breach motion-reduce:animate-none"
         style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
@@ -110,6 +143,24 @@ function DoorBreachFx({ point }: { point: Point }) {
           strokeLinecap="round"
         />
       </g>
+    </g>
+  );
+}
+
+/** Круги на «воде» узла вентиляции: Чужой растворился в Технических Коридорах. */
+function VentHubRipple({ animationKey }: { animationKey: string }) {
+  return (
+    <g key={`${animationKey}-ripple`} aria-label="Прибытие в Технические Коридоры" className="pointer-events-none">
+      <circle
+        cx={TECH_HUB.x}
+        cy={TECH_HUB.y}
+        r={TECH_HUB_RADIUS}
+        fill="none"
+        stroke="#ff003c"
+        strokeWidth={2.5}
+        className="motion-safe:animate-hub-ripple motion-reduce:animate-none"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
     </g>
   );
 }
@@ -183,20 +234,23 @@ export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, 
           );
         }
 
-        // INTRUDER_TO_TECH: фигурка стягивается к узлу Технических Коридоров и растворяется.
+        // INTRUDER_TO_TECH: фигурка стягивается к узлу Технических Коридоров,
+        // растворяется в нём, и узел расходится кругами по прибытии.
         const from = roomCoords.get(animation.fromRoomId);
         if (!from) return null;
         return (
-          <GlideToken
-            key={animation.key}
-            from={from}
-            to={{ x: TECH_HUB.x, y: TECH_HUB.y }}
-            reducedMotion={reducedMotion}
-            fadeAfterArrival
-            ariaLabel="Чужой уходит в Технические Коридоры"
-          >
-            <IntruderFigure type={animation.intruderType} />
-          </GlideToken>
+          <React.Fragment key={animation.key}>
+            <GlideToken
+              from={from}
+              to={{ x: TECH_HUB.x, y: TECH_HUB.y }}
+              reducedMotion={reducedMotion}
+              fadeAfterArrival
+              ariaLabel="Чужой уходит в Технические Коридоры"
+            >
+              <IntruderFigure type={animation.intruderType} />
+            </GlideToken>
+            <VentHubRipple animationKey={animation.key} />
+          </React.Fragment>
         );
       })}
     </g>

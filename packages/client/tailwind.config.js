@@ -62,6 +62,49 @@ export default {
           '30%': { opacity: '1' },
           '100%': { opacity: '1' },
         },
+        // --- Кинематографичная презентация Фазы Событий (Шаг 9, визуал) ---
+        'modal-enter': {
+          '0%': { opacity: '0', transform: 'translateY(18px) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'step-enter': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'gauge-flash': {
+          '0%': { opacity: '0.2' },
+          '40%': { opacity: '1' },
+          '100%': { opacity: '1' },
+        },
+        'card-reveal': {
+          '0%': { opacity: '0', transform: 'translateY(14px) scale(0.92) rotate(-1.5deg)' },
+          '60%': { opacity: '1', transform: 'translateY(-3px) scale(1.02) rotate(0.5deg)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1) rotate(0)' },
+        },
+        'flame-flicker': {
+          '0%, 100%': { opacity: '0.95', transform: 'scale(1)' },
+          '30%': { opacity: '0.7', transform: 'scale(1.06)' },
+          '60%': { opacity: '1', transform: 'scale(0.97)' },
+        },
+        'token-pop': {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '60%': { opacity: '1', transform: 'scale(1.18)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'door-shockwave': {
+          '0%': { opacity: '0.9', transform: 'scale(0.15)' },
+          '100%': { opacity: '0', transform: 'scale(2.4)' },
+        },
+        'door-spark': {
+          '0%': { opacity: '0', transform: 'scaleY(0.2)' },
+          '25%': { opacity: '1', transform: 'scaleY(1.1)' },
+          '100%': { opacity: '0', transform: 'scaleY(0.4)' },
+        },
+        'hub-ripple': {
+          '0%': { opacity: '0', transform: 'scale(0.25)' },
+          '35%': { opacity: '0.75', transform: 'scale(0.8)' },
+          '100%': { opacity: '0', transform: 'scale(1.7)' },
+        },
       },
       animation: {
         'contact-reveal': 'contact-reveal 800ms ease-out both',
@@ -73,6 +116,15 @@ export default {
         'vent-echo': 'vent-echo 2400ms ease-in-out both',
         'door-breach': 'door-breach 1s ease-out both',
         'token-fade': 'token-fade 700ms ease-out both',
+        'modal-enter': 'modal-enter 500ms cubic-bezier(0.22, 0.9, 0.3, 1) both',
+        'step-enter': 'step-enter 380ms ease-out both',
+        'gauge-flash': 'gauge-flash 900ms ease-out both',
+        'card-reveal': 'card-reveal 650ms cubic-bezier(0.3, 0.8, 0.3, 1) both',
+        'flame-flicker': 'flame-flicker 1.4s ease-in-out 3',
+        'token-pop': 'token-pop 700ms cubic-bezier(0.34, 1.4, 0.5, 1) both',
+        'door-shockwave': 'door-shockwave 900ms ease-out both',
+        'door-spark': 'door-spark 750ms ease-out both',
+        'hub-ripple': 'hub-ripple 1100ms ease-out 450ms both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

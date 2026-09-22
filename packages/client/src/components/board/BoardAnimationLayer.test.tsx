@@ -57,13 +57,18 @@ describe('BoardAnimationLayer: плавные перемещения повер�
     expect(html).toContain('aria-label="Чужой уходит в Технические Коридоры"');
     // Растворение после прибытия: задержанный переход прозрачности в стиле.
     expect(html).toContain('opacity 420ms ease-in');
+    // Узел расходится кругами по прибытии фигурки.
+    expect(html).toContain('aria-label="Прибытие в Технические Коридоры"');
+    expect(html).toContain('animate-hub-ripple');
   });
 
-  it('взлом Закрытой Двери: вспышка деформации металла в середине Коридора', () => {
+  it('взлом Закрытой Двери: ударная волна, искры и вспышка деформации металла', () => {
     const html = render([{ kind: 'DOOR_BREACHED', key: 'd1', corridorId: '6-11' }]);
 
     expect(html).toContain('aria-label="Взлом Закрытой Двери"');
     expect(html).toContain('animate-door-breach');
+    expect(html).toContain('animate-door-shockwave');
+    expect(html).toContain('animate-door-spark');
     const from = roomPoint(6);
     const to = roomPoint(11);
     expect(html).toContain(`translate(${(from.x + to.x) / 2}, ${(from.y + to.y) / 2})`);

@@ -15,6 +15,13 @@ import { LogLine } from '../log/GameLogPanel';
 import type { RoomId, SanitizedGameState } from '@nemesis/shared';
 
 import type { EventPhaseModalModel, EventPhaseStepModel } from './eventPhaseModalModel';
+import {
+  AttackCardVisual,
+  EventCardVisual,
+  FireStepVisual,
+  HiveTokenVisual,
+  TimeTrackGauge,
+} from './eventPhasePresentation';
 
 interface EventPhaseModalProps {
   view: SanitizedGameState;
@@ -43,6 +50,54 @@ function StepEntries({ entries }: { entries: FormattedGameLogEntry[] }) {
       ))}
     </ul>
   );
+}
+
+/** Кинематографичные виджеты шага: шкалы, карты, пламя, жетон Улья. */
+function StepVisuals({ view, step }: { view: SanitizedGameState; step: EventPhaseStepModel }) {
+  if (step.id === 'TIME') {
+    const timeEntry = step.entries.find((entry) => entry.event.type === 'TIME_TRACK_ADVANCED');
+    if (timeEntry && timeEntry.event.type === 'TIME_TRACK_ADVANCED') {
+      return <TimeTrackGauge event={timeEntry.event} />;
+    }
+    return null;
+  }
+
+  if (step.id === 'ATTACKS') {
+    const attacks = step.entries.filter((entry) => entry.event.type === 'EVENT_PHASE_ATTACK_RESOLVED');
+    return (
+      <div className="space-y-1.5">
+        {attacks.map((entry) =>
+          entry.event.type === 'EVENT_PHASE_ATTACK_RESOLVED' ? (
+            <AttackCardVisual key={entry.id} view={view} event={entry.event} />
+          ) : null,
+        )}
+      </div>
+    );
+  }
+
+  if (step.id === 'FIRE') {
+    const wounds = step.entries.filter((entry) => entry.event.type === 'FIRE_DAMAGE_TAKEN_BY_INTRUDER').length;
+    const eggsDestroyed = step.entries.filter((entry) => entry.event.type === 'EGG_DESTROYED_BY_FIRE').length;
+    return <FireStepVisual wounds={wounds} eggsDestroyed={eggsDestroyed} />;
+  }
+
+  if (step.id === 'EVENT_CARD') {
+    const drawn = step.entries.find((entry) => entry.event.type === 'EVENT_CARD_DRAWN');
+    if (drawn && drawn.event.type === 'EVENT_CARD_DRAWN') {
+      return <EventCardVisual card={drawn.event.card} />;
+    }
+    return null;
+  }
+
+  if (step.id === 'HIVE') {
+    const hiveEntry = step.entries.find((entry) => entry.event.type === 'HIVE_DEVELOPMENT_RESOLVED');
+    if (hiveEntry && hiveEntry.event.type === 'HIVE_DEVELOPMENT_RESOLVED') {
+      return <HiveTokenVisual event={hiveEntry.event} />;
+    }
+    return null;
+  }
+
+  return null;
 }
 
 export const EventPhaseModal: React.FC<EventPhaseModalProps> = ({ view, model, onClose, onStepChange }) => {
@@ -88,7 +143,9 @@ export const EventPhaseModal: React.FC<EventPhaseModalProps> = ({ view, model, o
       aria-label={`Фаза Событий, раунд ${model.round}`}
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
     >
-      <div className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-cyan-800/70 bg-slate-950 shadow-[0_0_60px_rgba(0,240,255,0.15)]">
+      <div className="motion-safe:animate-modal-enter flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-cyan-800/70 bg-slate-950 shadow-[0_0_60px_rgba(0,240,255,0.15)]">
+        {/* Кинематографичные «шторки» кадра: чисто декоративны. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-transparent via-cyan-500/60 to-transparent" />
         <header className="flex items-center justify-between gap-3 border-b border-cyan-900/60 bg-gradient-to-r from-slate-950 via-cyan-950/40 to-slate-950 px-4 py-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold tracking-[0.35em] text-cyan-500">НЕУМОЛИМОЕ ПРИБЛИЖЕНИЕ</p>
@@ -134,13 +191,17 @@ export const EventPhaseModal: React.FC<EventPhaseModalProps> = ({ view, model, o
           <h3 className="mb-2 text-sm font-bold tracking-[0.18em] text-cyan-300">
             ШАГ {stepIndex + 1} ИЗ {stepCount}: {step.title.toUpperCase()}
           </h3>
-          {step.entries.length === 0 ? (
-            <p className="rounded border border-dashed border-slate-700 px-3 py-2 text-xs text-slate-400">
-              {EMPTY_STEP_HINTS[step.id]}
-            </p>
-          ) : (
-            <StepEntries entries={formattedEntries} />
-          )}
+          {/* Контент шага перемонтируется при смене — анимация входа шага. */}
+          <div key={step.id} className="motion-safe:animate-step-enter space-y-3">
+            <StepVisuals view={view} step={step} />
+            {step.entries.length === 0 ? (
+              <p className="rounded border border-dashed border-slate-700 px-3 py-2 text-xs text-slate-400">
+                {EMPTY_STEP_HINTS[step.id]}
+              </p>
+            ) : (
+              <StepEntries entries={formattedEntries} />
+            )}
+          </div>
           {step.highlightRoomIds.length > 0 && (
             <p className="mt-3 text-[11px] text-amber-300/90">Затронутые отсеки подсвечены на карте корабля.</p>
           )}

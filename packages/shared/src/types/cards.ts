@@ -1,4 +1,4 @@
-import type { CharacterClass } from './entities.js';
+import type { CharacterClass, IntruderType } from './entities.js';
 
 /**
  * Карты, колоды и компоненты крафта.
@@ -136,8 +136,38 @@ export interface ObjectiveCard extends CardDefinition {
 /** Карта Событий: сдвигает Чужих по номерам коридоров и разыгрывает текст (стр. 10). */
 export type EventCard = CardDefinition;
 
-/** Карта Атаки Чужих: стойкость Чужого — сумма двух таких карт (стр. 20). */
-export type IntruderAttackCard = CardDefinition;
+/**
+ * Карта Атаки Чужих: стойкость Чужого — сумма двух таких карт (стр. 20).
+ * Расширенная версия включает дополнительные поля для логики боя.
+ */
+export interface IntruderAttackCard extends CardDefinition {
+  /** Число стойкости: суммарные раны, которые нужно нанести для убийства Чужого. */
+  toughness?: number;
+  /** Флаг отступления: если true, Чужой отступает в соседний отсек при гибели. */
+  hasRetreat?: boolean;
+  /** Типы Чужих, к которым применима карта (для проверки стойкости). */
+  applicableTypes?: readonly IntruderType[];
+  /** Название эффекта атаки. */
+  effectName?: string;
+  /** Описание эффекта атаки на персонажа. */
+  effectDescription?: string;
+}
+
+/** Расширенное определение карты Атаки Чужих с обязательными полями для данных. */
+export interface IntruderAttackCardDef extends Omit<IntruderAttackCard, 'description'> {
+  /** Число стойкости: суммарные раны, которые нужно нанести для убийства Чужого. */
+  toughness: number;
+  /** Флаг отступления: если true, Чужой отступает в соседний отсек при гибели. */
+  hasRetreat: boolean;
+  /** Типы Чужих, к которым применима карта (для проверки стойкости). */
+  applicableTypes: readonly IntruderType[];
+  /** Название эффекта атаки. */
+  effectName: string;
+  /** Описание эффекта атаки на персонажа. */
+  effectDescription: string;
+  /** Базовое описание карты (наследуется от CardDefinition, может быть пустым). */
+  description?: string;
+}
 
 /**
  * Карта Слабости Чужих. Всего их 8, в партию попадают 3 случайные и лежат

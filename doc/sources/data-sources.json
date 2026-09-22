@@ -21,6 +21,11 @@
         "title": "Ответы владельца проекта на вопросы о физических компонентах (ход работы над 0.1.10–0.1.11)",
         "location": "сессия разработки, 17.09.2026"
       },
+      "user-confirmed": {
+        "kind": "USER_CONFIRMED",
+        "title": "Подтверждено владельцем проекта (сокращённый ключ для таблиц v0.4.0)",
+        "location": "сессия разработки"
+      },
       "reddit-exploration-tokens": {
         "kind": "EXTERNAL_UNVERIFIED",
         "title": "Reddit r/NemesisCrew: «Need a list or picture of the exploration tokens!» (WasabiSubaru, 17.02.2020)",
@@ -551,6 +556,80 @@
         "contaminationCount": 27,
         "seriousWoundsCount": 16,
         "startingWeaponsCount": 6
+      }
+    },
+    "intruder-attacks": {
+      "file": "packages/shared/src/data/intruderAttacks.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "Колода Атак Чужих содержит 20 карт с эффектами атак и значениями стойкости",
+          "source": "rules-md",
+          "lines": "395-403"
+        },
+        {
+          "claim": "Карты делятся на группы по эффектам: Царапина, Укус, Атака когтями, Атака хвостом, Трансформация, Ярость, Слизь, Зов",
+          "source": "user-confirmed",
+          "lines": ""
+        },
+        {
+          "claim": "Некоторые карты имеют флаг отступления (retreat): при гибели Чужой отступает в соседний отсек",
+          "source": "rules-md",
+          "lines": "401"
+        }
+      ],
+      "expectation": {
+        "cardCount": 20,
+        "byEffect": {
+          "ЦАРАПИНА": 4,
+          "УКУС": 4,
+          "АТАКА КОГТЯМИ": 4,
+          "АТАКА ХВОСТОМ": 2,
+          "ТРАНСФОРМАЦИЯ": 2,
+          "ЯРОСТЬ": 2,
+          "СЛИЗЬ": 1,
+          "ЗОВ": 1
+        },
+        "retreatCount": 5
+      },
+      "unverified": [
+        "Точный состав карт и распределение эффектов по типам Чужих требует сверки с физическими компонентами"
+      ]
+    },
+    "combat-die": {
+      "file": "packages/shared/src/data/combatDie.ts",
+      "status": "USER_CONFIRMED",
+      "facts": [
+        {
+          "claim": "Кубик Боя (d6) имеет 6 граней: 2×Промах, 1×Хвост, 1×Силуэт, 1×1 Рана, 1×2 Раны",
+          "source": "user-confirmed",
+          "lines": ""
+        },
+        {
+          "claim": "Грань Хвост ранит только Личинку или Крипера",
+          "source": "rules-md",
+          "lines": "388"
+        },
+        {
+          "claim": "Грань Силуэт ранит Личинку, Крипера или Взрослую Особь",
+          "source": "rules-md",
+          "lines": "389"
+        },
+        {
+          "claim": "Грани 1 Рана и 2 Раны наносят прямой урон любому типу Чужого",
+          "source": "rules-md",
+          "lines": "390"
+        }
+      ],
+      "expectation": {
+        "faceCount": 6,
+        "byKind": {
+          "MISS": 2,
+          "CLAW_HIT": 1,
+          "ALIEN_HIT": 1,
+          "ONE_HIT": 1,
+          "TWO_HITS": 1
+        }
       }
     }
   }

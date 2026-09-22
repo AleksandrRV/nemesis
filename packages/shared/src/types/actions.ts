@@ -35,6 +35,18 @@ export type UseItemActionPayload = {
   targetCorridorId?: string;
 };
 
+/** Данные для действия «Стрельба»: выбор оружия, цели и бросок кубика */
+export type ShootActionPayload = {
+  /** ID оружия в руках персонажа (тяжёлый предмет) */
+  weaponHandSlotIndex: number;
+  /** ID жетона Чужого для атаки */
+  targetIntruderId: string;
+  /** Результат броска кубика Боя (индекс грани 0-5) */
+  combatDieRoll: number;
+  /** Карты действий для оплаты (минимум 1 карта) */
+  discardCardIds: string[];
+};
+
 export type GameAction =
   | { type: 'ACTION_MOVE'; payload: { targetRoomId: RoomId; discardCardIds: string[] } }
   /**
@@ -51,6 +63,7 @@ export type GameAction =
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }
   | { type: 'ACTION_USE_ITEM'; payload: UseItemActionPayload }
+  | { type: 'ACTION_SHOOT'; payload: ShootActionPayload }
   | { type: 'ACTION_PASS'; payload: { discardCardIds?: string[] } }
   | {
       type: 'ACTION_RESOLVE_DECISION';

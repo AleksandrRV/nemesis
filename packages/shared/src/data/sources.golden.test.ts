@@ -14,6 +14,8 @@ import {
   createIntruderSupply,
   splitIntruderBag,
 } from './intruderPool.js';
+import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
+import { COMBAT_DIE_FACES } from './combatDie.js';
 import { NOISE_DIE_FACES } from './noiseDie.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from './roomDefinitions.js';
 import {
@@ -123,6 +125,8 @@ describe('Пакет источника: структура и статусы (�
       'setup-plan',
       'crafting-recipes',
       'deck-composition',
+      'intruder-attacks',
+      'combat-die',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -421,5 +425,45 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(expectation.contaminationCount).toBe(27);
     expect(expectation.seriousWoundsCount).toBe(16);
     expect(expectation.startingWeaponsCount).toBe(6);
+  });
+});
+
+describe('Golden: колода Атак Чужих и кубик Боя (v0.4.0 Шаг 1)', () => {
+  it('совпадает с источником по составу колоды Атак Чужих: 20 карт', () => {
+    const expectation = table('intruder-attacks').expectation as {
+      cardCount: number;
+      byEffect: Record<string, number>;
+      retreatCount: number;
+    };
+
+    expect(INTRUDER_ATTACK_CARDS).toHaveLength(expectation.cardCount);
+
+    const byEffect: Record<string, number> = {};
+    let retreatCount = 0;
+
+    for (const card of INTRUDER_ATTACK_CARDS) {
+      byEffect[card.effectName] = (byEffect[card.effectName] ?? 0) + 1;
+      if (card.hasRetreat) retreatCount++;
+    }
+
+    expect(byEffect).toEqual(expectation.byEffect);
+    expect(retreatCount).toBe(expectation.retreatCount);
+  });
+
+  it('совпадает с источником по составу граней кубика Боя: 6 граней', () => {
+    const expectation = table('combat-die').expectation as {
+      faceCount: number;
+      byKind: Record<string, number>;
+    };
+
+    expect(COMBAT_DIE_FACES).toHaveLength(expectation.faceCount);
+
+    const byKind: Record<string, number> = {};
+
+    for (const face of COMBAT_DIE_FACES) {
+      byKind[face.kind] = (byKind[face.kind] ?? 0) + 1;
+    }
+
+    expect(byKind).toEqual(expectation.byKind);
   });
 });

@@ -318,6 +318,81 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: `Коридоре ${corridorLabel(event.corridorId)}`, tone: 'corridor', strong: true },
         { text: '.' },
       ];
+
+    case 'CONTACT_OCCURRED':
+      return [
+        { text: 'КОНТАКТ!', tone: 'danger', strong: true },
+        { text: ` Персонаж ${getPlayerName(view, event.playerId)} встретил ` },
+        { text: getIntruderName(event.intruderType), tone: 'intruder', strong: true },
+        { text: ' в отсеке ' },
+        { text: getRoomName(view, event.roomId), tone: 'room', strong: true },
+        { text: '. ' },
+        { text: event.isSurpriseAttack ? 'ВНЕЗАПНАЯ АТАКА!' : 'Начинается бой.', tone: event.isSurpriseAttack ? 'danger' : 'system', strong: event.isSurpriseAttack },
+        { text: '.' },
+      ];
+
+    case 'COMBAT_ROUND_RESOLVED':
+      return [
+        { text: `Бой: ${getIntruderName(event.intruderType)}` },
+        { text: ` получил ${event.damageDealt} рану(ы).` },
+        { text: ` Бросок кубика: ${event.combatDieResult}.` },
+        { text: event.attackCardId ? ` Карта атаки: ${event.attackCardId}.` : '' },
+      ];
+
+    case 'INTRUDER_FLED':
+      return [
+        { text: getIntruderName(event.intruderType), tone: 'intruder', strong: true },
+        { text: ' отступил из отсека ' },
+        { text: getRoomName(view, event.fromRoomId), tone: 'room' },
+        { text: ' в отсек ' },
+        { text: getRoomName(view, event.toRoomId), tone: 'room', strong: true },
+        { text: '.' },
+      ];
+
+    case 'INTRUDER_KILLED':
+      return [
+        { text: getIntruderName(event.intruderType), tone: 'intruder', strong: true },
+        { text: ' уничтожен персонажем ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: '.' },
+      ];
+
+    case 'PLAYER_WOUND_RECEIVED':
+      return [
+        { text: 'Персонаж ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` получил ${event.isSerious ? 'Тяжелую Травму' : 'Легкую Травму'}.` },
+      ];
+
+    case 'PLAYER_PANIC_STARTED':
+      return [
+        { text: 'Персонаж ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' впал в ПАНИКУ' },
+        { text: event.reason === 'INJURY' ? ' из-за раны' : event.reason === 'ATTACK' ? ' из-за атаки' : '' },
+        { text: '.' },
+      ];
+
+    case 'PLAYER_PANIC_ENDED':
+      return [
+        { text: 'Персонаж ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' взял себя в руки.' },
+      ];
+
+    case 'PLAYER_SHOCK_STARTED':
+      return [
+        { text: 'Персонаж ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ` получил ШОК уровня ${event.shockLevel}.` },
+      ];
+
+    case 'PLAYER_SHOCK_ENDED':
+      return [
+        { text: 'Персонаж ' },
+        { text: getPlayerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' пришёл в себя после шока.' },
+      ];
   }
 }
 

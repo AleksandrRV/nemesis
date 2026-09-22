@@ -1,6 +1,8 @@
 import type { NoiseDieFace } from '../data/noiseDie.js';
+import type { CombatDieFace } from '../data/combatDie.js';
 import type { GameOverReason } from './state.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
+import type { IntruderType } from './entities.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
@@ -133,6 +135,60 @@ export type GameLogEvent =
       target: 'DOOR' | 'NOISE';
       corridorId: string;
       value: string | boolean;
+    }
+  | {
+      type: 'CONTACT_OCCURRED';
+      playerId: string;
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+      isSurpriseAttack: boolean;
+    }
+  | {
+      type: 'COMBAT_ROUND_RESOLVED';
+      playerId: string;
+      intruderId: string;
+      intruderType: IntruderType;
+      damageDealt: number;
+      combatDieResult: CombatDieFace['kind'];
+      attackCardId?: string;
+    }
+  | {
+      type: 'INTRUDER_FLED';
+      intruderId: string;
+      intruderType: IntruderType;
+      fromRoomId: RoomId;
+      toRoomId: RoomId;
+    }
+  | {
+      type: 'INTRUDER_KILLED';
+      playerId: string;
+      intruderId: string;
+      intruderType: IntruderType;
+    }
+  | {
+      type: 'PLAYER_WOUND_RECEIVED';
+      playerId: string;
+      woundCardId: string;
+      isSerious: boolean;
+    }
+  | {
+      type: 'PLAYER_PANIC_STARTED';
+      playerId: string;
+      reason: 'INJURY' | 'ATTACK' | 'EFFECT';
+    }
+  | {
+      type: 'PLAYER_PANIC_ENDED';
+      playerId: string;
+    }
+  | {
+      type: 'PLAYER_SHOCK_STARTED';
+      playerId: string;
+      shockLevel: number;
+    }
+  | {
+      type: 'PLAYER_SHOCK_ENDED';
+      playerId: string;
     };
 
 export interface GameLogEntry {

@@ -8,18 +8,26 @@ import { TechCorridorHub } from './TechCorridorHub';
 import { VentShaftTraces } from './VentShaftTraces';
 import { groupIntrudersByRoom } from './intruderMapModel';
 import { lastLogSequence, newVentRetreats, type VentEcho } from './techCorridorModel';
+import { BoardAnimationLayer } from './BoardAnimationLayer';
+import { useBoardAnimations, usePrefersReducedMotion } from './useBoardAnimations';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
-export const ShipMapSVG: React.FC = () => {
+export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({ highlightRoomIds = [] }) => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
   const selectRoom = useGameStore((state) => state.selectRoom);
   const technicalCorridorsOpen = useGameStore((state) => state.technicalCorridorsOpen);
   const openTechnicalCorridors = useGameStore((state) => state.openTechnicalCorridors);
+  const reducedMotion = usePrefersReducedMotion();
+  const { animations, inTransitPlayerIds, inTransitIntruderIds } = useBoardAnimations(view);
 
+  // Фишки, скользящие по анимационному слою, на статичных гексах не дублируются.
   const intrudersByRoom = React.useMemo(
-    () => (view ? groupIntrudersByRoom(view.intrudersPool.boardTokens) : new Map()),
-    [view],
+    () =>
+      view
+        ? groupIntrudersByRoom(view.intrudersPool.boardTokens.filter((token) => !inTransitIntruderIds.has(token.id)))
+        : new Map(),
+    [view, inTransitIntruderIds],
   );
 
   const coordsMap = React.useMemo(() => {
@@ -150,10 +158,15 @@ export const ShipMapSVG: React.FC = () => {
                         isSelected={selectedRoomId === room.id}
                         onSelect={selectRoom}
                         technicalNoise={technicalNoise}
+                        hiddenPlayerIds={inTransitPlayerIds}
+                        isHighlighted={highlightRoomIds.includes(room.id)}
                       />
                     );
                   })}
                 </g>
+
+                {/* 2.5. Слой плавных перемещений: скольжение фишек вместо мгновенных скачков (Шаг 9) */}
+                <BoardAnimationLayer view={view} animations={animations} reducedMotion={reducedMotion} />
 
                 {/* 3. Поле Технических Коридоров: обособленная локация вентиляции (стр. 9, 16) */}
                 <TechCorridorHub

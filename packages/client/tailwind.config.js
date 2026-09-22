@@ -50,6 +50,18 @@ export default {
           '65%': { opacity: '0.5', transform: 'translateY(-3px) scale(0.92)' },
           '100%': { opacity: '0', transform: 'translateY(9px) scale(0.4)' },
         },
+        'door-breach': {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '18%': { opacity: '1', transform: 'scale(1.25)' },
+          '38%': { opacity: '0.9', transform: 'scale(0.92)' },
+          '55%': { opacity: '1', transform: 'scale(1.12)' },
+          '100%': { opacity: '0', transform: 'scale(1.6)' },
+        },
+        'token-fade': {
+          '0%': { opacity: '0' },
+          '30%': { opacity: '1' },
+          '100%': { opacity: '1' },
+        },
       },
       animation: {
         'contact-reveal': 'contact-reveal 800ms ease-out both',
@@ -59,6 +71,8 @@ export default {
         'vent-alarm': 'vent-alarm 1.1s ease-in-out infinite',
         'vent-flow': 'vent-flow 1.6s linear infinite',
         'vent-echo': 'vent-echo 2400ms ease-in-out both',
+        'door-breach': 'door-breach 1s ease-out both',
+        'token-fade': 'token-fade 700ms ease-out both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

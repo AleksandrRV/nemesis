@@ -15,6 +15,10 @@ interface RoomHexProps {
   onSelect: (roomId: number) => void;
   /** Шум на поле Технических Коридоров считается на всех входах вентиляции (стр. 15–16). */
   technicalNoise?: boolean;
+  /** Персонажи, скользящие по анимационному слою: статический чип не дублируется (Шаг 9). */
+  hiddenPlayerIds?: ReadonlySet<string>;
+  /** Подсветка затронутых отсеков интерфейсом Фазы Событий (Шаг 9). */
+  isHighlighted?: boolean;
 }
 
 const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
@@ -45,8 +49,21 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelected, onSelect, technicalNoise }) => {
+export const RoomHex: React.FC<RoomHexProps> = ({
+  room,
+  intruders,
+  x,
+  y,
+  isSelected,
+  onSelect,
+  technicalNoise,
+  hiddenPlayerIds,
+  isHighlighted = false,
+}) => {
   const radius = 45;
+  const visibleOccupantCount = hiddenPlayerIds
+    ? room.occupantPlayerIds.filter((playerId) => !hiddenPlayerIds.has(playerId)).length
+    : room.occupantPlayerIds.length;
 
   const points = React.useMemo(() => {
     const pts: string[] = [];
@@ -218,8 +235,21 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
         {room.hasComputer && room.isExplored && <Laptop size={12} className="text-cyan-400" x={24} y={0} />}
       </g>
 
-      {/* Персонажи */}
-      {room.occupantPlayerIds.length > 0 && (
+      {/* Подсветка отсека интерфейсом Фазы Событий (Шаг 9) */}
+      {isHighlighted && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke="#ffb700"
+          strokeWidth="5"
+          strokeOpacity="0.75"
+          className="pointer-events-none animate-pulse motion-reduce:animate-none"
+          aria-label="Отсек подсвечен"
+        />
+      )}
+
+      {/* Персонажи (скрыты, пока скользят по анимационному слою) */}
+      {visibleOccupantCount > 0 && (
         <g transform={`translate(${x - 10}, ${y - 34})`} className="pointer-events-none">
           <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
 

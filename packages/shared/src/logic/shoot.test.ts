@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
+import { EVENT_CARDS } from '../data/eventCards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import type { IntruderAttackCard, ItemCard } from '../types/cards.js';
 import type { IntruderType } from '../types/entities.js';
@@ -78,6 +79,13 @@ function deckTop(state: GameState, cards: IntruderAttackCard[]): void {
   const ids = new Set(cards.map((card) => card.id));
   const rest = INTRUDER_ATTACK_CARDS.filter((card) => !ids.has(card.id));
   state.decks.intruderAttacks = { drawPile: [...cards.map((card) => structuredClone(card)), ...rest], discard: [] };
+}
+
+/** Ставит карту Событий на верх колоды — её вытянет Отступление (стр. 20). */
+function eventDeckTop(state: GameState, cardId: string): void {
+  const cards = structuredClone(EVENT_CARDS);
+  const first = cards.find((card) => card.id === cardId)!;
+  state.decks.events = { drawPile: [first, ...cards.filter((card) => card.id !== cardId)], discard: [] };
 }
 
 function shootLog(state: GameState): Extract<GameState['gameLog'][number]['event'], { type: 'SHOOT_RESOLVED' }> {
@@ -238,17 +246,48 @@ describe('Стрельба: оплата, боезапас и бросок (ст
   });
 });
 
-describe('Отступление: только карта События (стр. 20; ревью 0.4.0)', () => {
-  it('стрелка Отступления на карте Стойкости отклоняет выстрел целиком (EMPTY_EVENT_DECK)', () => {
+describe('Отступление по колоде Событий (стр. 20; Шаг 2 этапа 0.5.0)', () => {
+  it('стрелка Отступления у выжившего: выстрел фиксируется, Чужой уходит по карте События', () => {
     const state = combatReady('shoot-retreat');
     forceCombatDie('ONE_WOUND');
     deckTop(state, [INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_1')!]); // Стойкость 2, Отступление
-    const snapshot = structuredClone(state);
+    eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3 — отсек 8 из отсека 11
+    const intruderId = state.intrudersPool.boardTokens[0]!.id;
 
-    expectEngineError(() => shoot(state), 'EMPTY_EVENT_DECK');
+    const next = shoot(state);
 
-    // Транзакция откатывается: состояние битом выстрела не искажается.
-    expect(state).toEqual(snapshot);
+    const event = shootLog(next);
+    expect(event.killed).toBe(false);
+    expect(event.retreat).toMatchObject({
+      eventCardId: 'EVT_HUNT_2',
+      corridorNumber: 3,
+      outcome: 'MOVED',
+      toRoomId: 8,
+      corridorId: '8-11',
+    });
+    const intruder = next.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!;
+    expect(intruder.roomId).toBe(8);
+    expect(intruder.woundsCount).toBe(1);
+    // Карта События уходит в сброс без розыгрыша эффекта (стр. 20).
+    expect(next.decks.events.discard.map((card) => card.id)).toContain('EVT_HUNT_2');
+    expect(next.gameLog.some((entry) => entry.event.type === 'INTRUDER_RETREATED')).toBe(true);
+  });
+
+  it('Закрытая Дверь направления разрушается, Чужой остаётся в отсеке (FAQ Rules 8)', () => {
+    const state = combatReady('shoot-retreat-door');
+    forceCombatDie('ONE_WOUND');
+    deckTop(state, [INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_1')!]);
+    eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3 — Коридор 8-11
+    state.ship.corridors['8-11']!.doorState = 'CLOSED';
+    const intruderId = state.intrudersPool.boardTokens[0]!.id;
+
+    const next = shoot(state);
+
+    expect(shootLog(next).retreat).toMatchObject({ outcome: 'DOOR_DESTROYED', corridorId: '8-11', toRoomId: null });
+    expect(next.ship.corridors['8-11']!.doorState).toBe('DESTROYED');
+    expect(next.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.roomId).toBe(
+      state.players['player-1']!.roomId,
+    );
   });
 });
 

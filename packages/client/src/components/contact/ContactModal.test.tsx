@@ -189,6 +189,78 @@ describe('Окно выстрела (SHOOT_RESOLVED)', () => {
     expect(html).toContain('Чужой выжил');
     expect(html).not.toContain('ЧУЖОЙ УБИТ!');
   });
+
+  const RETREAT_SURVIVOR: ContactPresentationEvent = {
+    ...SHOT_KILL,
+    injuries: 1,
+    woundsTotal: 1,
+    toughnessCards: [
+      {
+        id: 'IAT_SCRATCH_1',
+        name: 'Царапание',
+        description: '',
+        effect: 'SCRATCH',
+        toughness: 2,
+        hasRetreat: true,
+        attackerTypes: ['CREEPER', 'ADULT'],
+      },
+    ],
+    toughnessTotal: 2,
+    killed: false,
+  };
+
+  it('стрелка Отступления у выжившего: карта Событий и исход отступления', () => {
+    const html = render({
+      ...RETREAT_SURVIVOR,
+      retreat: {
+        eventCardId: 'EVT_HUNT_2',
+        eventCardName: 'Охота',
+        corridorNumber: 3,
+        outcome: 'MOVED',
+        toRoomId: 8,
+        corridorId: '8-11',
+      },
+    });
+    expect(html).toContain('Чужой выжил');
+    expect(html).toContain('Отступление Чужого');
+    expect(html).toContain('«Охота»');
+    expect(html).toContain('Коридор №3');
+    expect(html).toContain('отступает через Коридор 8-11 в отсек #8');
+  });
+
+  it('Отступление в Закрытую Дверь: Дверь разрушена, Чужой на месте (FAQ, правило 8)', () => {
+    const html = render({
+      ...RETREAT_SURVIVOR,
+      retreat: {
+        eventCardId: 'EVT_HUNT_2',
+        eventCardName: 'Охота',
+        corridorNumber: 3,
+        outcome: 'DOOR_DESTROYED',
+        toRoomId: null,
+        corridorId: '8-11',
+      },
+    });
+    expect(html).toContain('Отступление Чужого');
+    expect(html).toContain('Дверь Коридора 8-11 разрушена');
+    expect(html).toContain('FAQ, правило 8');
+  });
+
+  it('Отступление в вентиляцию: миниатюра снята, Раны сброшены (стр. 16)', () => {
+    const html = render({
+      ...RETREAT_SURVIVOR,
+      retreat: {
+        eventCardId: 'EVT_HUNT_2',
+        eventCardName: 'Охота',
+        corridorNumber: 3,
+        outcome: 'TECHNICAL_CORRIDORS',
+        toRoomId: null,
+        corridorId: null,
+      },
+    });
+    expect(html).toContain('Отступление Чужого');
+    expect(html).toContain('уходит в Технический Коридор');
+    expect(html).toContain('все Раны сброшены');
+  });
 });
 
 describe('Окно Контакта: заражение Личинкой', () => {

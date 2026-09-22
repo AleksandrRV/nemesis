@@ -1,7 +1,27 @@
-import type { IntruderAttackCard } from './cards.js';
+import type { EventCorridorNumber, IntruderAttackCard } from './cards.js';
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { IntruderToken, IntruderType } from './entities.js';
 import type { RoomId } from './rooms.js';
+
+/** Исход Отступления в бою: куда привёл номер Коридора с карты События (стр. 20). */
+export type IntruderRetreatOutcome = 'MOVED' | 'DOOR_DESTROYED' | 'TECHNICAL_CORRIDORS' | 'STAYED';
+
+/**
+ * Розыгрыш Отступления Чужого по колоде Событий (стр. 20): вытянутая карта
+ * сбрасывается без розыгрыша эффекта; Закрытая Дверь разрушается, а Чужой
+ * остаётся (FAQ Rules 8); номер входа в вентиляцию снимает миниатюру с поля
+ * и сбрасывает Раны (стр. 16).
+ */
+export interface IntruderRetreatRecord {
+  eventCardId: string;
+  eventCardName: string;
+  corridorNumber: EventCorridorNumber;
+  outcome: IntruderRetreatOutcome;
+  /** Отсек, куда ушла миниатюра (заполнен только при исходе MOVED). */
+  toRoomId: RoomId | null;
+  /** Коридор направления: переход или разрушенная Дверь (не заполнен для вентиляции). */
+  corridorId: string | null;
+}
 
 export interface AttackVictimStatus {
   playerId: string;
@@ -79,6 +99,8 @@ export type IntruderLogEvent =
       burstAmmoSpent?: number;
       /** Бонус Боевой винтовки: ≥1 Раны от выстрела — ещё 1 Рана. */
       rifleBonusApplied?: boolean;
+      /** Стрелка Отступления у выжившего: розыгрыш направления по колоде Событий (стр. 20). */
+      retreat?: IntruderRetreatRecord;
     }
   | {
       /** Базовое действие «Рукопашная атака» (стр. 19): публичный исход драки. */
@@ -102,6 +124,8 @@ export type IntruderLogEvent =
       seriousWoundTaken: boolean;
       /** Персонаж погиб от ответной Травмы (стр. 21). */
       attackerDied: boolean;
+      /** Стрелка Отступления у выжившего: розыгрыш направления по колоде Событий (стр. 20). */
+      retreat?: IntruderRetreatRecord;
     }
   | {
       /** Чужой убит (стр. 20): миниатюра снята, Останки на полу (кроме Личинки). */
@@ -115,6 +139,15 @@ export type IntruderLogEvent =
     }
   | { type: 'PLAYER_DIED'; playerId: string; roomId: RoomId }
   | { type: 'ESCAPE_PODS_UNLOCKED' }
+  | {
+      /** Отступление в бою (стр. 20): карта Событий задала направление Чужому. */
+      type: 'INTRUDER_RETREATED';
+      playerId: string;
+      roomId: RoomId;
+      intruderId: string;
+      intruderType: IntruderType;
+      retreat: IntruderRetreatRecord;
+    }
   | { type: 'INTRUDERS_WITHDRAWN'; intruderIds: string[] }
   | { type: 'INTRUDERS_MOVED'; intruderIds: string[]; fromRoomId: RoomId; toRoomId: RoomId }
   | { type: 'INTRUDERS_BLOCKED_BY_DOOR'; intruderIds: string[]; corridorId: string }

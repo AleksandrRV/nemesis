@@ -325,3 +325,92 @@ describe('Журнал: атаки при Побеге (Шаг 7)', () => {
     expect(messages[2]).toContain('Личинка удалена с поля');
   });
 });
+
+describe('Отступление Чужого в журнале (стр. 20)', () => {
+  function retreatView(events: GameLogEvent[]) {
+    const state = createInitialGameState('game-log-retreat');
+    const view = filterStateForPlayer(state, 'player-1');
+    view.gameLog = events.map((event, index) => eventEntry(index + 1, event));
+    return formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
+  }
+
+  it('переход в соседний отсек: карта Событий, номер Коридора и направление', () => {
+    const [message] = retreatView([
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-1',
+        intruderType: 'ADULT',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'MOVED',
+          toRoomId: 8,
+          corridorId: '8-11',
+        },
+      },
+    ]);
+
+    expect(message).toContain('Отступление: карта Событий «Охота» указывает Коридор №3');
+    expect(message).toContain('отступает через Коридор 8-11 в отсек #8');
+  });
+
+  it('Закрытая Дверь разрушена, вентиляция и «Подготовка» без номера', () => {
+    const messages = retreatView([
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-1',
+        intruderType: 'ADULT',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'DOOR_DESTROYED',
+          toRoomId: null,
+          corridorId: '8-11',
+        },
+      },
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 14,
+        intruderId: 'intruder-2',
+        intruderType: 'CREEPER',
+        retreat: {
+          eventCardId: 'EVT_HUNT_2',
+          eventCardName: 'Охота',
+          corridorNumber: 3,
+          outcome: 'TECHNICAL_CORRIDORS',
+          toRoomId: null,
+          corridorId: null,
+        },
+      },
+      {
+        type: 'INTRUDER_RETREATED',
+        playerId: 'player-1',
+        roomId: 11,
+        intruderId: 'intruder-3',
+        intruderType: 'QUEEN',
+        retreat: {
+          eventCardId: 'EVT_PREPARATION',
+          eventCardName: 'Подготовка',
+          corridorNumber: 'ANY',
+          outcome: 'STAYED',
+          toRoomId: null,
+          corridorId: null,
+        },
+      },
+    ]);
+
+    expect(messages[0]).toContain('Дверь Коридора 8-11 разрушена');
+    expect(messages[0]).toContain('остаётся в отсеке');
+    expect(messages[1]).toContain('уходит в Технический Коридор');
+    expect(messages[1]).toContain('все Раны сброшены');
+    expect(messages[2]).toContain('любой Коридор');
+    expect(messages[2]).toContain('Карта не указывает номер Коридора');
+  });
+});

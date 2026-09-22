@@ -11,8 +11,10 @@ import { appendGameLog } from './gameLog.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { placeIntruderRemains, removeIntruder, requireIntruder } from './intruderPlacement.js';
 import { isWeaknessRevealed } from './weaknesses.js';
+import { resolveIntruderRetreat } from './intruderRetreat.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
+import type { IntruderRetreatRecord } from '../types/contact.js';
 
 /**
  * Базовое действие «Стрельба» [1] (стр. 19; символ действия на стр. 714
@@ -76,12 +78,22 @@ function requireHandWeapon(
   return { name: weapon.name, ammoLeft: weapon.ammo, isEnergy: weapon.isEnergyWeapon ?? false };
 }
 
+/** Итог проверки Результата Атаки (стр. 20): карты Стойкости, гибель или Отступление. */
+export interface InjuryCheckResult {
+  toughnessCards: IntruderAttackCard[];
+  toughnessTotal: number;
+  killed: boolean;
+  /** Стрелка Отступления у выжившего: разыгранное направление по колоде Событий. */
+  retreat?: IntruderRetreatRecord;
+}
+
 /**
  * Проверка Результата Атаки (стр. 20): Личинке и Яйцу хватает 1 Раны (без
  * карты), Криперу и Взрослой Особи вытягивается 1 карта Атаки, Трутню и
  * Королеве — 2 карты с суммированием Стойкости. Чужой убит, когда суммарные
- * Раны равны Стойкости или превышают её. Стрелка Отступления на вытянутой
- * карте заставляет Чужого бежать, направление определяет карта События.
+ * Раны равны Стойкости или превышают её. Стрелка Отступления хотя бы на
+ * одной вытянутой карте заставляет выжившего Чужого бежать: направление
+ * разыгрывается по верхней карте колоды Событий (стр. 20).
  * Общая процедура для Стрельбы и Рукопашной атаки (стр. 19–20).
  */
 export function checkInjuryResult(
@@ -90,7 +102,7 @@ export function checkInjuryResult(
   targetType: IntruderType,
   injuries: number,
   attackerId: string,
-): { toughnessCards: IntruderAttackCard[]; toughnessTotal: number; killed: boolean } {
+): InjuryCheckResult {
   if (targetType === 'LARVA') {
     // Личинка: 1 Раны достаточно, «удалите их миниатюры с поля» — без
     // Останков и без карты Атаки (стр. 20, 22; вердикт ревью 0.4.0).
@@ -147,16 +159,11 @@ export function checkInjuryResult(
   }
 
   if (toughnessCards.some((card) => card.hasRetreat)) {
-    // Направление Отступления определяет карта События (стр. 20; замечание
-    // ревью 0.4.0: подмена карты События соседним отсеком, d4 или броском
-    // не завершает процедуру). Розыгрыш Отступления по колоде Событий —
-    // Шаг 2 этапа 0.5.0, поэтому выстрел, требующий Отступления, пока
-    // отклоняется целиком: Immer откатывает всю транзакцию — Боезапас,
-    // оплата, Раны и чтение колод не сохраняются, выдуманного исхода нет.
-    throw new EngineError(
-      'EMPTY_EVENT_DECK',
-      'Отступление Чужого требует карту События для направления (стр. 20). Розыгрыш Отступления появится в Шаге 2 этапа 0.5.0. Действие отменено целиком.',
-    );
+    // Направление Отступления определяет карта События (стр. 20): верхняя
+    // карта вытягивается, Чужой двигается к Коридору её номера, карта уходит
+    // в сброс без розыгрыша эффекта.
+    const retreat = resolveIntruderRetreat(state, intruderId, attackerId);
+    return { toughnessCards, toughnessTotal, killed: false, retreat };
   }
 
   return { toughnessCards, toughnessTotal, killed: false };
@@ -241,10 +248,10 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     return;
   }
 
-  const result =
+  const result: InjuryCheckResult =
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, actorId)
-      : { toughnessCards: [] as IntruderAttackCard[], toughnessTotal: 0, killed: false };
+      : { toughnessCards: [], toughnessTotal: 0, killed: false };
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -263,6 +270,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     killed: result.killed,
     ...(burstAmmoSpent > 0 ? { burstAmmoSpent } : {}),
     ...(bonus > 0 ? { rifleBonusApplied: weapon.name === ASSAULT_RIFLE_NAME } : {}),
+    ...(result.retreat ? { retreat: result.retreat } : {}),
   });
 }
 

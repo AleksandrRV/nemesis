@@ -1,5 +1,6 @@
 import type { IntruderLogEvent, IntruderToken, SanitizedGameState } from '@nemesis/shared';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
+import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
 import type { GameLogSegment } from './gameLogModel';
 
 const NAMES: Record<IntruderToken['type'], string> = {
@@ -71,6 +72,7 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
           ? 'Без ран.'
           : `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
       text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
+      if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       break;
     }
     case 'MELEE_RESOLVED': {
@@ -80,10 +82,17 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       if (event.injuries > 0) {
         text += `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
         text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
+        if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       } else {
         text += 'Промах: Персонаж получает Тяжёлую Травму.';
         if (event.attackerDied) text += ' Персонаж мёртв!';
       }
+      break;
+    }
+    case 'INTRUDER_RETREATED': {
+      text =
+        `Отступление: карта Событий «${event.retreat.eventCardName}» указывает ${retreatNumberLabel(event.retreat)}. ` +
+        retreatOutcomeText(event.retreat);
       break;
     }
     case 'CONTAMINATION_RECEIVED':

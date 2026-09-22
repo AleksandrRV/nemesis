@@ -190,12 +190,15 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
   });
 
   describe('Затаившиеся', () => {
-    it('все Чужие вне Боя сняты с поля, Чужие в Бою остаются', () => {
+    it('все Чужие вне Боя сняты с поля, их жетоны возвращаются в Пул, Чужие в Бою остаются', () => {
       const state = freshState('dump');
       putPlayer(state, 'player-1', 11);
       const hiddenId = putIntruder(state, 'ADULT', 6);
       const hiddenCreeper = putIntruder(state, 'CREEPER', 13);
       const engagedId = putIntruder(state, 'ADULT', 11);
+      const bagCount = (type: string) => state.intrudersPool.bag.filter((token) => token.type === type).length;
+      const adultsBefore = bagCount('ADULT');
+      const creepersBefore = bagCount('CREEPER');
 
       const result = outcome(state, 'EVT_HIDDEN');
 
@@ -203,6 +206,8 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
       expect(state.intrudersPool.boardTokens.map((token) => token.id)).toEqual([engagedId]);
       expect(state.ship.rooms[6]!.occupantIntruderIds).toHaveLength(0);
       expect(state.ship.rooms[13]!.occupantIntruderIds).toHaveLength(0);
+      expect(bagCount('ADULT')).toBe(adultsBefore + 1);
+      expect(bagCount('CREEPER')).toBe(creepersBefore + 1);
     });
   });
 

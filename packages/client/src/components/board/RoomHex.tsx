@@ -2,7 +2,7 @@ import React from 'react';
 import { SHIP_ROOM_NODES, type IntruderEntity, type SanitizedRoomState } from '@nemesis/shared';
 import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
 import { IntruderBadge } from './IntruderBadge';
-import { groupIntrudersByRoom, layoutIntruderBadges } from './intruderMapModel';
+import { INTRUDER_BADGE_SCALE, groupIntrudersByRoom, layoutIntruderGrid } from './intruderMapModel';
 
 interface RoomHexProps {
   /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
@@ -62,8 +62,10 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
 
   const intruderBadges = React.useMemo(() => groupIntrudersByRoom(intruders).get(room.id) ?? [], [intruders, room.id]);
 
-  const layout = React.useMemo(() => layoutIntruderBadges(intruderBadges), [intruderBadges]);
-  const layoutScale = layout.scale;
+  const gridRows = React.useMemo(() => layoutIntruderGrid(intruderBadges), [intruderBadges]);
+
+  /** Статус Боя (стр. 18): Персонаж и Чужой в одном отсеке — тревожная рамка. */
+  const inCombat = room.occupantPlayerIds.length > 0 && intruderBadges.length > 0;
 
   const nodeData = React.useMemo(() => SHIP_ROOM_NODES.find((node) => node.id === room.id), [room.id]);
 
@@ -110,6 +112,19 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
           strokeWidth="6"
           strokeOpacity="0.4"
           className="animate-pulse"
+        />
+      )}
+
+      {/* Статус «В Бою»: контрастная пульсирующая рамка вокруг гекса (стр. 18) */}
+      {inCombat && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke="#ff4d00"
+          strokeWidth="4.5"
+          strokeOpacity="0.85"
+          className="animate-pulse"
+          aria-label="Отсек в Бою"
         />
       )}
 
@@ -212,16 +227,28 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelec
         </g>
       )}
 
-      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19) */}
-      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19).
-          Строка центрирована по гексу и сжимается целиком при переполнении. */}
-      {intruderBadges.length > 0 && (
-        <g transform={`translate(${x - (layout.width * layoutScale) / 2}, ${y + 22}) scale(${layoutScale})`}>
-          {layout.items.map((item) => (
-            <IntruderBadge key={item.badge.type} badge={item.badge} x={item.x} y={0} />
-          ))}
-        </g>
-      )}
+      {/* Чужие в отсеке: силуэты классов с индивидуальным масштабом, счётчики
+          и шкалы ран (стр. 19). Один-два типа — строка, три и больше —
+          адаптивная сетка из двух стопок без перекрытия текста отсека. */}
+      {gridRows.map((row, rowIndex) => {
+        const rowY = gridRows.length === 1 ? y + 22 : y + 13 + rowIndex * 17;
+        return (
+          <g
+            key={`intruder-row-${rowIndex}`}
+            transform={`translate(${x - (row.width * row.scale) / 2}, ${rowY}) scale(${row.scale})`}
+          >
+            {row.items.map((item) => (
+              <IntruderBadge
+                key={item.badge.type}
+                badge={item.badge}
+                x={item.x}
+                y={0}
+                scale={INTRUDER_BADGE_SCALE[item.badge.type]}
+              />
+            ))}
+          </g>
+        );
+      })}
 
       {/* Объекты на полу: Труп, Яйцо, Останки (стр. 22) */}
       {room.objects.map((object, index) => {

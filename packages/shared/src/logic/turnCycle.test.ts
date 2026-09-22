@@ -144,14 +144,13 @@ describe('Цикл микроходов и порядок игроков (Фаз
     expect(s1.meta.phase).toBe('PLAYER_PHASE');
 
     const s2 = engine.processAction(s1, { type: 'ACTION_PASS', payload: {} });
-    // Оркестратор Шагов Фазы Событий: счётчики, честные пропуски 5/7/8, огонь, новый раунд
+    // Оркестратор Шагов Фазы Событий: счётчики, атаки, карта Событий, Развитие Улья, новый раунд
     expect(s2.meta.phase).toBe('PLAYER_PHASE');
     expect(s2.meta.currentRound).toBe(2);
     expect(s2.meta.timeTrackPosition).toBe(1);
     expect(s2.gameLog.some((e) => e.event.type === 'TIME_TRACK_ADVANCED')).toBe(true);
     expect(s2.gameLog.some((e) => e.event.type === 'EVENT_CARD_DRAWN')).toBe(true);
-    // Шаги 5 (Атаки) и 7 (Движение) исполняются движком: пропуск остался у Шага 8
-    expect(s2.gameLog.filter((e) => e.event.type === 'EVENT_PHASE_STEP_SKIPPED')).toHaveLength(1);
+    expect(s2.gameLog.some((e) => e.event.type === 'HIVE_DEVELOPMENT_RESOLVED')).toBe(true);
     expect(s2.gameLog.some((e) => e.event.type === 'ROUND_STARTED')).toBe(true);
   });
 

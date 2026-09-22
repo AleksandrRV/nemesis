@@ -7,11 +7,11 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Совместимость сохранений: Фаза Событий исполняет Шаг 7б книги правил —
-// текстовые эффекты 19 карт Событий (события `EVENT_EFFECT_RESOLVED`,
-// `EVENT_CARD_CHOSEN`, решение `CHOOSE_EVENT_CARD`, уничтожение Капсул) —
-// сохранения схемы 17 не восстанавливаются.
-export const GAME_STATE_SCHEMA_VERSION = 18;
+// Совместимость сохранений: Фаза Событий исполняет Шаг 8 книги правил —
+// Развитие Улья (события `HIVE_DEVELOPMENT_RESOLVED`, `HIVE_DEVELOPMENT_SKIPPED`)
+// и возврат жетонов Чужих в Пул при уходе в Технические Коридоры —
+// сохранения схемы 18 не восстанавливаются.
+export const GAME_STATE_SCHEMA_VERSION = 19;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

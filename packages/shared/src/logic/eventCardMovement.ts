@@ -5,7 +5,7 @@ import type { GameState } from '../types/state.js';
 import { drawSharedCard } from './cardPiles.js';
 import { disposeEventCard, resolveEventCardEffect } from './eventEffects.js';
 import { appendGameLog } from './gameLog.js';
-import { livingPlayersInRoom, removeIntruder } from './intruderPlacement.js';
+import { livingPlayersInRoom, removeIntruder, returnTokenToBag } from './intruderPlacement.js';
 import { findNoiseTarget } from './shipGraphQueries.js';
 
 /**
@@ -98,6 +98,9 @@ function moveIntrudersByCard(
 
     if (target.kind === 'TECHNICAL_CORRIDOR') {
       removeIntruder(state, intruder.id);
+      // Жетон спрятавшегося Чужого возвращается в Пул (стр. 18: «отложите
+      // вытянутый жетон — он может вернуться в пул, если Чужой спрячется»).
+      returnTokenToBag(state, intruder.type);
       appendGameLog(state, {
         type: 'INTRUDER_MOVED',
         intruderId: intruder.id,

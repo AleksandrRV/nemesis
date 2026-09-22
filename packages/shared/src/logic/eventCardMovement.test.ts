@@ -112,12 +112,15 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     const state = freshState('move-tech');
     const adultId = putIntruder(state, 'ADULT', 5);
     state.intrudersPool.boardTokens.find((token) => token.id === adultId)!.woundsCount = 2;
+    const adultsInBagBefore = state.intrudersPool.bag.filter((token) => token.type === 'ADULT').length;
     eventDeckTop(state, 'EVT_HIDDEN'); // Коридор 4: у отсека 5 это вход вентиляции
 
     resolveEventCardMovement(state);
 
     expect(state.intrudersPool.boardTokens.find((token) => token.id === adultId)).toBeUndefined();
     expect(state.ship.rooms[5]!.occupantIntruderIds).toHaveLength(0);
+    // Жетон спрятавшегося Чужого возвращается в мешок Пула Чужих (стр. 18).
+    expect(state.intrudersPool.bag.filter((token) => token.type === 'ADULT')).toHaveLength(adultsInBagBefore + 1);
     expect(movedEvents(state)[0]).toMatchObject({
       intruderId: adultId,
       fromRoomId: 5,

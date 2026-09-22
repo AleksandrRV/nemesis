@@ -33,6 +33,7 @@ import {
   CHARACTERS,
 } from './setup.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from './shipGraph.js';
+import { HIVE_EGG_CAPACITY } from '../logic/hiveDevelopment.js';
 import {
   DOOR_TOKEN_SUPPLY,
   FIRE_MARKER_SUPPLY,
@@ -118,6 +119,7 @@ describe('Пакет источника: структура и статусы (�
       'intruder-supply',
       'intruder-miniatures',
       'intruder-bag',
+      'hive-egg-capacity',
       'escape-numbers',
       'marker-supply',
       'door-rules',
@@ -224,6 +226,12 @@ describe('Golden: Пул Чужих (Э2-1)', () => {
     for (const [playerCount, composition] of Object.entries(expectation.bagByPlayerCount)) {
       expect(bagComposition(Number(playerCount)), `мешок на ${playerCount} игроков`).toEqual(composition);
     }
+  });
+
+  it('совпадает с источником по вместимости Планшета Яиц', () => {
+    const expectation = table('hive-egg-capacity').expectation as { hiveEggCapacity: number };
+
+    expect(HIVE_EGG_CAPACITY).toBe(expectation.hiveEggCapacity);
   });
 
   it('совпадает с источником по числам Внезапной атаки, включая пометку о несверенном', () => {

@@ -5,6 +5,8 @@ import { resolveEventCardMovement } from './eventCardMovement.js';
 import { resolveEventPhaseAttacks } from './eventsPhaseAttacks.js';
 import { endGame } from './gameEnd.js';
 import { appendGameLog } from './gameLog.js';
+import { resolveHiveDevelopment } from './hiveDevelopment.js';
+import { drainInterrupts } from './interrupts.js';
 import { checkInjuryResult } from './shoot.js';
 import { getOrderedPlayers, startNewRound } from './turnCycle.js';
 
@@ -15,11 +17,10 @@ import { getOrderedPlayers, startNewRound } from './turnCycle.js';
  * - Шаг 4: Счётчик Времени и Самоуничтожения — реализован;
  * - Шаг 5: Атаки Чужих — реализован (`resolveEventPhaseAttacks`);
  * - Шаг 6: Урон от огня — реализован;
- * - Шаг 7: карта События — Движение Чужих реализовано
- *   (`resolveEventCardMovement`); текстовый эффект карты (нижний блок) —
- *   следующий шаг этапа 0.5.0;
- * - Шаг 8: Развитие Улья — следующий шаг этапа, пропуск фиксируется
- *   в журнале явно;
+ * - Шаг 7: карта События — Движение Чужих и текстовый эффект
+ *   (`resolveEventCardMovement`);
+ * - Шаг 8: Развитие Улья — реализован (`resolveHiveDevelopment`); каскады
+ *   Шума и Контактов разыгрываются до перехода к новому раунду (шаг 9);
  * - Шаг 9: конец раунда — `startNewRound`.
  *
  * Аварийные исходы Шага 4 (гиперпрыжок, взрыв) немедленно завершают партию:
@@ -27,7 +28,7 @@ import { getOrderedPlayers, startNewRound } from './turnCycle.js';
  */
 export function runEventPhase(state: GameState): void {
   advanceTimeAndSelfDestruct(state);
-  if (state.meta.phase === 'GAME_OVER') return;
+  if (isGameOver(state)) return;
 
   resolveEventPhaseAttacks(state);
   if (endIfNoActiveCharacters(state)) return;
@@ -35,10 +36,21 @@ export function runEventPhase(state: GameState): void {
   resolveFireDamage(state);
 
   resolveEventCardMovement(state);
+  if (isGameOver(state)) return;
 
-  appendGameLog(state, { type: 'EVENT_PHASE_STEP_SKIPPED', round: state.meta.currentRound, step: 8 });
+  resolveHiveDevelopment(state);
+
+  // Каскадные эффекты Шага 8 (повторный Шум, Контакты с Внезапными атаками)
+  // разыгрываются движком до перехода к новому раунду (стр. 10, шаг 9).
+  drainInterrupts(state);
+  if (isGameOver(state)) return;
 
   startNewRound(state);
+}
+
+/** Фаза может завершить партию в любом шаге: проверка отдельной функцией. */
+function isGameOver(state: GameState): boolean {
+  return state.meta.phase === 'GAME_OVER';
 }
 
 /**

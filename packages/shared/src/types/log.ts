@@ -2,7 +2,7 @@ import type { IntruderLogEvent } from './contact.js';
 import type { EventCard, EventEffect } from './cards.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
-import type { IntruderType } from './entities.js';
+import type { IntruderToken, IntruderType } from './entities.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
@@ -41,6 +41,26 @@ export type EventEffectOutcome =
   | { kind: 'LIFE_SUPPORT_MALFUNCTION'; malfunctionRoomIds: RoomId[] }
   | { kind: 'MALFUNCTION'; targetRoomId: RoomId | null }
   | { kind: 'OPEN_COMPARTMENTS'; openedCorridorIds: string[] };
+
+/**
+ * Итог Развития Улья (стр. 10, шаг 8; стр. 31): по одному варианту на тип
+ * вытянутого жетона Пула Чужих.
+ */
+export type HiveDevelopmentOutcome =
+  | { kind: 'LARVA'; adultAdded: boolean }
+  | { kind: 'CREEPER'; breederAdded: boolean }
+  | { kind: 'ADULT'; rolledPlayerIds: string[] }
+  | { kind: 'BREEDER'; rolledPlayerIds: string[] }
+  | {
+      kind: 'QUEEN';
+      /** Миниатюра Королевы выставлена в Улей и разыгран Контакт. */
+      queenPlaced: boolean;
+      intruderId: string | null;
+      contactPlayerIds: string[];
+      /** Яйцо добавлено на Планшет Чужих (вместо Контакта). */
+      eggAdded: boolean;
+    }
+  | { kind: 'BLANK'; adultAdded: boolean };
 
 export type GameLogNoiseSkippedReason = 'COMPANION' | 'EXPLORATION_SILENCE' | 'NOISE_SILENCE' | 'UNMAPPED_EXIT';
 
@@ -180,12 +200,6 @@ export type GameLogEvent =
       selfDestructTrackPosition: number | null;
     }
   | {
-      /** Шаг Фазы Событий ещё не реализован движком и честно пропущен (этап 0.5.0 в разработке). */
-      type: 'EVENT_PHASE_STEP_SKIPPED';
-      round: number;
-      step: 8;
-    }
-  | {
       /** Шаг 7 Фазы Событий (стр. 10): верхняя карта Событий вытянута лицом вверх. */
       type: 'EVENT_CARD_DRAWN';
       round: number;
@@ -205,6 +219,19 @@ export type GameLogEvent =
       playerId: string;
       chosenCardId: string;
       discardedCardIds: string[];
+    }
+  | {
+      /** Развитие Улья исполнено (стр. 10, шаг 8; стр. 31): жетон вытянут и разыгран. */
+      type: 'HIVE_DEVELOPMENT_RESOLVED';
+      round: number;
+      tokenType: IntruderToken['type'];
+      outcome: HiveDevelopmentOutcome;
+    }
+  | {
+      /** Развитие Улья пропущено по честной причине (стр. 10, шаг 8). */
+      type: 'HIVE_DEVELOPMENT_SKIPPED';
+      round: number;
+      reason: 'EMPTY_BAG';
     }
   | {
       /** Урон от огня (стр. 10, шаг 6): Чужой в горящем отсеке получил 1 Рану. */

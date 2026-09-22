@@ -270,13 +270,17 @@ function resolveRegeneration(state: GameState): EventEffectOutcome {
   return { kind: 'REGENERATION', healedIntruderIds, woundsRemoved };
 }
 
-/** «Затаившиеся»: все Чужие вне Боя сняты с поля, жетоны остаются в Пуле рядом с полем. */
+/** «Затаившиеся»: все Чужие вне Боя сняты с поля, их жетоны возвращаются в Пул. */
 function resolveHidden(state: GameState): EventEffectOutcome {
   const withdrawnIntruderIds: string[] = [];
   for (const room of sortedRooms(state)) {
     if (livingPlayersInRoom(state, room.id).length > 0) continue;
     for (const intruderId of [...room.occupantIntruderIds]) {
+      const intruder = state.intrudersPool.boardTokens.find((token) => token.id === intruderId);
+      if (!intruder) continue;
+      const intruderType = intruder.type;
       removeIntruder(state, intruderId);
+      returnTokenToBag(state, intruderType);
       withdrawnIntruderIds.push(intruderId);
     }
   }

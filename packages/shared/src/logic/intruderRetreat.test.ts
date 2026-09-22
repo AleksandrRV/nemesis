@@ -76,11 +76,11 @@ describe('Отступление Чужого в бою (стр. 20)', () => {
     expect(state.ship.rooms[11]!.occupantIntruderIds).toContain(intruderId);
   });
 
-  it('номер входа в вентиляцию: миниатюра снята, Раны сброшены, пул жетонов не меняется (стр. 16)', () => {
+  it('номер входа в вентиляцию: миниатюра снята, Раны сброшены, жетон возвращается в Пул (стр. 16, 18)', () => {
     const state = retreatState('retreat-vents');
     const intruderId = putIntruder(state, 'ADULT', 14); // tech-вход №3 в отсеке 14
     state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.woundsCount = 2;
-    const bagBefore = structuredClone(state.intrudersPool.bag);
+    const adultsInBagBefore = state.intrudersPool.bag.filter((token) => token.type === 'ADULT').length;
     const supplyBefore = state.intrudersPool.supply.length;
     eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3 из отсека 14 — вход в Технические Коридоры
 
@@ -89,9 +89,9 @@ describe('Отступление Чужого в бою (стр. 20)', () => {
     expect(record).toMatchObject({ outcome: 'TECHNICAL_CORRIDORS', toRoomId: null, corridorId: null });
     expect(state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)).toBeUndefined();
     expect(state.ship.rooms[14]!.occupantIntruderIds).not.toContain(intruderId);
-    // Жетон уже в пуле рядом с полем (вытянут при появлении, FAQ Rules 19).
-    expect(state.intrudersPool.bag).toEqual(bagBefore);
-    expect(state.intrudersPool.supply.length).toBe(supplyBefore);
+    // Жетон спрятавшегося Чужого возвращается в мешок Пула Чужих (стр. 18).
+    expect(state.intrudersPool.bag.filter((token) => token.type === 'ADULT')).toHaveLength(adultsInBagBefore + 1);
+    expect(state.intrudersPool.supply.length).toBe(supplyBefore - 1);
     expect(retreatLog(state).retreat.outcome).toBe('TECHNICAL_CORRIDORS');
   });
 

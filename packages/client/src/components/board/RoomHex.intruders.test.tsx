@@ -71,4 +71,40 @@ describe('RoomHex: бейджи Чужих на карте', () => {
     expect(html).not.toContain('aria-label="Личинка');
     expect(html).not.toContain('aria-label="Взрослая особь');
   });
+
+  it('статус «В Бою»: Персонаж и Чужой в одном отсеке дают тревожную рамку', () => {
+    // В стартовом состоянии Персонаж стоит в отсеке 11 — Чужой там же даёт Бой.
+    const html = renderHex(11, [{ id: 'adult-1', type: 'ADULT', roomId: 0, woundsCount: 0 }]);
+
+    expect(html).toContain('aria-label="Отсек в Бою"');
+    expect(html).toContain('#ff4d00');
+  });
+
+  it('без Персонажа рамки Боя нет', () => {
+    const html = renderHex(12, [{ id: 'adult-1', type: 'ADULT', roomId: 0, woundsCount: 0 }]);
+
+    expect(html).not.toContain('Отсек в Бою');
+  });
+
+  it('доминантные классы получают ауру биоугрозы, обычные — нет', () => {
+    const html = renderHex(12, [
+      { id: 'queen-1', type: 'QUEEN', roomId: 0, woundsCount: 0 },
+      { id: 'breeder-1', type: 'BREEDER', roomId: 0, woundsCount: 0 },
+      { id: 'adult-1', type: 'ADULT', roomId: 0, woundsCount: 0 },
+    ]);
+
+    expect(html.match(/fill-opacity="0\.16"/g)).toHaveLength(2); // Королева и Трутень
+  });
+
+  it('три и больше типов складываются в две строки сетки', () => {
+    const html = renderHex(12, [
+      { id: 'larva-1', type: 'LARVA', roomId: 0, woundsCount: 0 },
+      { id: 'adult-1', type: 'ADULT', roomId: 0, woundsCount: 0 },
+      { id: 'queen-1', type: 'QUEEN', roomId: 0, woundsCount: 0 },
+    ]);
+
+    expect(html).toContain('aria-label="Личинка: 1 шт., ран 0"');
+    expect(html).toContain('aria-label="Взрослая особь: 1 шт., ран 0"');
+    expect(html).toContain('aria-label="Королева: 1 шт., ран 0"');
+  });
 });

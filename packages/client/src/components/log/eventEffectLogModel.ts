@@ -1,4 +1,4 @@
-import type { EventEffectOutcome, SanitizedGameState } from '@nemesis/shared';
+import type { EventEffectOutcome, HiveDevelopmentOutcome, SanitizedGameState } from '@nemesis/shared';
 import { EVENT_CARDS } from '@nemesis/shared';
 import type { GameLogSegment } from './gameLogModel';
 import { playerName, roomLabel } from './gameLogModel';
@@ -190,5 +190,74 @@ export function formatEventEffectOutcome(outcome: EventEffectOutcome, view: Sani
             { text: `${outcome.openedCorridorIds.length} Закрытых Дверей открыты.` },
           ]
         : [{ text: 'Открытие отсеков: Закрытых Дверей на корабле нет.' }];
+  }
+}
+
+/** Русские итоги Развития Улья (стр. 10, шаг 8; стр. 31). */
+export function formatHiveDevelopmentOutcome(
+  outcome: HiveDevelopmentOutcome,
+  view: SanitizedGameState,
+): GameLogSegment[] {
+  switch (outcome.kind) {
+    case 'LARVA':
+      return [
+        { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+        { text: 'жетон Личинки удалён из Пула' },
+        ...(outcome.adultAdded
+          ? [{ text: ', в мешок добавлен жетон Взрослой Особи.', tone: 'danger' as const }]
+          : [{ text: ', свободных жетонов Взрослых Особей нет.', tone: 'silence' as const }]),
+      ];
+    case 'CREEPER':
+      return [
+        { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+        { text: 'жетон Крипера удалён из Пула' },
+        ...(outcome.breederAdded
+          ? [{ text: ', в мешок добавлен жетон Трутня.', tone: 'danger' as const }]
+          : [{ text: ', свободных жетонов Трутней нет.', tone: 'silence' as const }]),
+      ];
+    case 'ADULT':
+    case 'BREEDER': {
+      const tokenLabel = outcome.kind === 'ADULT' ? 'Взрослой Особи' : 'Трутня';
+      if (outcome.rolledPlayerIds.length === 0) {
+        return [
+          { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+          { text: `жетон ${tokenLabel} — все Персонажи в Бою, кубик Шума никто не бросает.` },
+        ];
+      }
+      return [
+        { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+        { text: `жетон ${tokenLabel} — кубик Шума бросают ` },
+        { text: outcome.rolledPlayerIds.map((playerId) => playerName(view, playerId)).join(', '), tone: 'player' },
+        { text: '.' },
+      ];
+    }
+    case 'QUEEN':
+      if (outcome.queenPlaced) {
+        return [
+          { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+          {
+            text: `Королева появляется в Улье — ${outcome.contactPlayerIds
+              .map((playerId) => playerName(view, playerId))
+              .join(', ')} вступают в Контакт!`,
+          },
+        ];
+      }
+      return [
+        { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+        {
+          text: outcome.eggAdded
+            ? 'Королева откладывает 1 жетон Яйца на Планшет Чужих.'
+            : 'Планшет Чужих заполнен — новое Яйцо не помещается.',
+        },
+      ];
+    case 'BLANK':
+      return [
+        { text: 'Развитие Улья: ', tone: 'danger', strong: true },
+        {
+          text: outcome.adultAdded
+            ? 'Пустой жетон — в мешок добавлен жетон Взрослой Особи.'
+            : 'Пустой жетон — свободных жетонов Взрослых Особей нет.',
+        },
+      ];
   }
 }

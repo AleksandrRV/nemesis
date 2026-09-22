@@ -1,5 +1,5 @@
 import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
-import { eventCardName, formatEventEffectOutcome } from './eventEffectLogModel';
+import { eventCardName, formatEventEffectOutcome, formatHiveDevelopmentOutcome } from './eventEffectLogModel';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
@@ -334,14 +334,6 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
           : []),
       ];
 
-    case 'EVENT_PHASE_STEP_SKIPPED':
-      return [
-        {
-          text: 'Шаг Фазы Событий «Развитие Улья» ещё в разработке (этап 0.5.0) и пропущен.',
-          tone: 'warning',
-        },
-      ];
-
     case 'EVENT_CARD_DRAWN': {
       const direction = event.card.corridorNumber === 'ANY' ? 'любое' : `Коридор ${event.card.corridorNumber}`;
       const symbols = event.card.intruderTypes.map((type) => INTRUDER_TYPE_NAMES[type]).join(', ');
@@ -381,6 +373,10 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
     }
     case 'EVENT_EFFECT_RESOLVED':
       return formatEventEffectOutcome(event.outcome, view);
+    case 'HIVE_DEVELOPMENT_RESOLVED':
+      return formatHiveDevelopmentOutcome(event.outcome, view);
+    case 'HIVE_DEVELOPMENT_SKIPPED':
+      return [{ text: 'Развитие Улья: Пул Чужих пуст — вытягивать нечего.', tone: 'silence' }];
     case 'EVENT_CARD_CHOSEN':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

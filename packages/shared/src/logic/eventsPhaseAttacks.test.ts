@@ -204,12 +204,9 @@ describe('Шаг 5 Фазы Событий: Атаки Чужих (стр. 10, 2
     runEventPhase(state);
 
     const types = state.gameLog.map((entry) => entry.event.type);
-    const skipped = state.gameLog.flatMap((entry) =>
-      entry.event.type === 'EVENT_PHASE_STEP_SKIPPED' ? [entry.event.step] : [],
-    );
     expect(state.meta.phase).toBe('PLAYER_PHASE');
     expect(types).toContain('EVENT_PHASE_ATTACK_RESOLVED');
-    expect(skipped).toEqual([8]);
+    expect(types).toContain('HIVE_DEVELOPMENT_RESOLVED');
     expect(types.indexOf('EVENT_PHASE_ATTACK_RESOLVED')).toBeLessThan(types.indexOf('ROUND_STARTED'));
   });
 });

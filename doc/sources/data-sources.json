@@ -2,7 +2,7 @@
   "meta": {
     "version": 2,
     "updated": "2026-09-22",
-    "updatedFor": "0.4.1",
+    "updatedFor": "0.4.8",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
@@ -211,6 +211,20 @@
             "BREEDER": 0
           }
         }
+      }
+    },
+    "hive-egg-capacity": {
+      "file": "packages/shared/src/logic/hiveDevelopment.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Планшет Чужих вмещает не более 8 жетонов Яиц — физически в комплекте ровно 8 жетонов Яиц, Королева добавляет по одному, пока есть место",
+          "source": "rules-md",
+          "lines": "100, 514"
+        }
+      ],
+      "expectation": {
+        "hiveEggCapacity": 8
       }
     },
     "escape-numbers": {

@@ -5,6 +5,7 @@ import {
   intrudersInRoom,
   isActivePlayerInCombat,
   layoutIntruderBadges,
+  layoutIntruderGrid,
 } from './intruderMapModel';
 
 function intruder(id: string, type: IntruderEntity['type'], roomId: number, woundsCount = 0): IntruderEntity {
@@ -71,15 +72,25 @@ describe('Статус Боя по публичному состоянию (ст
 });
 
 describe('Раскладка строки бейджей', () => {
-  it('короткая строка масштаба 1 с правильными сдвигами', () => {
+  it('короткая строка масштаба 1 с правильными сдвигами (масштаб класса учтён)', () => {
     const layout = layoutIntruderBadges([
       { type: 'LARVA', count: 1, wounds: 0 },
       { type: 'ADULT', count: 1, wounds: 2 },
     ]);
 
     expect(layout.scale).toBe(1);
-    expect(layout.width).toBe(26 + 4 + 40);
-    expect(layout.items.map((item) => item.x)).toEqual([0, 30]);
+    // Личинка 26 × 0.9 = 23.4, Взрослая с ранами 40 × 1 = 40, зазор 4.
+    expect(layout.width).toBeCloseTo(23.4 + 4 + 40, 10);
+    expect(layout.items[0]!.x).toBe(0);
+    expect(layout.items[1]!.x).toBeCloseTo(27.4, 10);
+  });
+
+  it('доминантные классы шире: Трутень и Королева получают увеличенный масштаб', () => {
+    const queen = layoutIntruderBadges([{ type: 'QUEEN', count: 1, wounds: 0 }]);
+    const adult = layoutIntruderBadges([{ type: 'ADULT', count: 1, wounds: 0 }]);
+
+    expect(queen.width).toBeCloseTo(26 * 1.3, 10);
+    expect(adult.width).toBeCloseTo(26, 10);
   });
 
   it('при переполнении сжимается целиком до максимальной ширины', () => {
@@ -97,5 +108,47 @@ describe('Раскладка строки бейджей', () => {
     expect(layout.width).toBeGreaterThan(88);
     expect(layout.scale).toBeCloseTo(88 / layout.width, 10);
     expect(layout.items).toHaveLength(5);
+  });
+});
+
+describe('Адаптивная сетка миниатюр (Шаг 8)', () => {
+  it('один-два типа — одна строка', () => {
+    const rows = layoutIntruderGrid([
+      { type: 'ADULT', count: 1, wounds: 0 },
+      { type: 'QUEEN', count: 1, wounds: 1 },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.items).toHaveLength(2);
+  });
+
+  it('три и больше типов — стопка из двух строк без потери бейджей', () => {
+    const rows = layoutIntruderGrid([
+      { type: 'LARVA', count: 1, wounds: 0 },
+      { type: 'CREEPER', count: 1, wounds: 0 },
+      { type: 'ADULT', count: 2, wounds: 0 },
+      { type: 'BREEDER', count: 1, wounds: 1 },
+      { type: 'QUEEN', count: 1, wounds: 0 },
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.items.map((item) => item.badge.type)).toEqual(['LARVA', 'CREEPER']);
+    expect(rows[1]!.items.map((item) => item.badge.type)).toEqual(['ADULT', 'BREEDER', 'QUEEN']);
+    expect(rows.every((row) => row.scale <= 1)).toBe(true);
+  });
+
+  it('каждая строка сетки сжимается независимо', () => {
+    const rows = layoutIntruderGrid(
+      [
+        { type: 'ADULT', count: 1, wounds: 3 },
+        { type: 'BREEDER', count: 1, wounds: 2 },
+        { type: 'QUEEN', count: 1, wounds: 1 },
+      ],
+      60,
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.scale).toBeLessThan(1);
+    expect(rows[1]!.scale).toBe(1);
   });
 });

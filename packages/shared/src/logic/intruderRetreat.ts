@@ -3,7 +3,7 @@ import type { RoomId } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import { drawSharedCard } from './cardPiles.js';
 import { appendGameLog } from './gameLog.js';
-import { removeIntruder, requireIntruder } from './intruderPlacement.js';
+import { removeIntruder, requireIntruder, returnTokenToBag } from './intruderPlacement.js';
 import { findNoiseTarget } from './shipGraphQueries.js';
 
 /**
@@ -18,9 +18,9 @@ import { findNoiseTarget } from './shipGraphQueries.js';
  * - Закрытая Дверь — Дверь становится Разрушенной, Чужой остаётся в отсеке
  *   (FAQ Rules 8);
  * - номер входа в Технические Коридоры — миниатюра снимается с поля, все
- *   Раны сброшены (стр. 16, 20); жетон Чужого уже находится в пуле рядом
- *   с полем (вытянут при появлении, стр. 18; FAQ Rules 19), поэтому
- *   перекладывать его не нужно;
+ *   Раны сброшены (стр. 16, 20); отложенный при появлении жетон Чужого
+ *   возвращается в Пул (стр. 18: «он может вернуться в пул, если Чужой
+ *   этого типа спрячется»);
  * - такого номера среди выходов отсека нет — Чужой остаётся на месте.
  *
  * «Подготовка» не печатает номер Коридора (направление «Любое»): двигаться
@@ -55,6 +55,7 @@ export function resolveIntruderRetreat(
 
     if (target.kind === 'TECHNICAL_CORRIDOR') {
       removeIntruder(state, intruderId);
+      returnTokenToBag(state, intruderType);
       record.outcome = 'TECHNICAL_CORRIDORS';
     } else if (target.kind === 'CORRIDOR') {
       const corridor = target.corridor;

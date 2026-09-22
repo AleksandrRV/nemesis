@@ -209,7 +209,7 @@ describe('Шаг 6 Фазы Событий: Урон от огня (стр. 10, 
 });
 
 describe('Оркестратор Фазы Событий: порядок Шагов книги правил (стр. 10)', () => {
-  it('полный цикл: счётчики, атаки, пропуски 7/8, огонь и новый раунд без застревания фазы', () => {
+  it('полный цикл: счётчики, атаки, карта Событий, Развитие Улья и новый раунд без застревания фазы', () => {
     const state = freshState('evp-orchestrator');
     const intruderId = putIntruder(state, 'ADULT', 11);
     state.ship.rooms[11]!.hasFire = true;
@@ -222,15 +222,12 @@ describe('Оркестратор Фазы Событий: порядок Шаг�
     runEventPhase(state);
 
     const types = lastEvents(state).map((event) => event.type);
-    const skipped = lastEvents(state).flatMap((event) =>
-      event.type === 'EVENT_PHASE_STEP_SKIPPED' ? [event.step] : [],
-    );
     expect(state.meta.phase).toBe('PLAYER_PHASE');
     expect(state.meta.currentRound).toBe(2);
     expect(state.meta.timeTrackPosition).toBe(1);
-    expect(types.indexOf('TIME_TRACK_ADVANCED')).toBeLessThan(types.indexOf('EVENT_PHASE_STEP_SKIPPED'));
-    // Шаги 5 (Атаки) и 7 (Движение по карте События) исполняются: пропуск остался у Шага 8
-    expect(skipped).toEqual([8]);
+    expect(types.indexOf('TIME_TRACK_ADVANCED')).toBeLessThan(types.indexOf('HIVE_DEVELOPMENT_RESOLVED'));
+    expect(types.indexOf('EVENT_CARD_DRAWN')).toBeLessThan(types.indexOf('HIVE_DEVELOPMENT_RESOLVED'));
+    expect(types.indexOf('HIVE_DEVELOPMENT_RESOLVED')).toBeLessThan(types.indexOf('ROUND_STARTED'));
     expect(types).toContain('FIRE_DAMAGE_TAKEN_BY_INTRUDER');
     expect(types).toContain('EVENT_CARD_DRAWN');
     expect(types).toContain('ROUND_STARTED');
@@ -248,7 +245,23 @@ describe('Оркестратор Фазы Событий: порядок Шаг�
     expect(state.meta.gameOverReason).toBe('SHIP_EXPLODED');
     const types = lastEvents(state).map((event) => event.type);
     expect(types).toContain('TIME_TRACK_ADVANCED');
-    expect(types).not.toContain('EVENT_PHASE_STEP_SKIPPED');
+    expect(types).not.toContain('HIVE_DEVELOPMENT_RESOLVED');
+    expect(types).not.toContain('ROUND_STARTED');
+  });
+
+  it('эффект карты Событий, уничтожающий корабль, останавливает фазу до Развития Улья', () => {
+    const state = freshState('evp-orchestrator-burn');
+    stackEvents(state, 'EVT_DESTRUCTIVE_FLAME');
+    // Восемь маркеров Пожара — весь запас: распространение огня взрывает корабль.
+    for (const roomId of [2, 3, 4, 5, 6, 7, 8, 9]) state.ship.rooms[roomId]!.hasFire = true;
+    state.meta.phase = 'EVENT_PHASE';
+
+    runEventPhase(state);
+
+    expect(state.meta.phase).toBe('GAME_OVER');
+    const types = lastEvents(state).map((event) => event.type);
+    expect(types).toContain('EVENT_CARD_DRAWN');
+    expect(types).not.toContain('HIVE_DEVELOPMENT_RESOLVED');
     expect(types).not.toContain('ROUND_STARTED');
   });
 });

@@ -119,8 +119,18 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text = `Опасность: ${event.intruderIds.length} Чужих перемещаются из отсека #${event.fromRoomId} в #${event.toRoomId}, без Контакта.`;
       break;
     case 'INTRUDERS_BLOCKED_BY_DOOR':
-      text = `Опасность: Чужие разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`;
+      text =
+        event.source === 'EVENT_PHASE'
+          ? `Фаза Событий: ${event.intruderIds.length} Чужих разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`
+          : `Опасность: Чужие разрушили Дверь в Коридоре ${event.corridorId} и остались на месте.`;
       break;
+    case 'INTRUDER_MOVED': {
+      const mover = INTRUDER_TYPE_NAMES[event.intruderType];
+      text = event.technicalCorridors
+        ? `Фаза Событий: ${mover} уходит в Технические Коридоры через вход ${event.corridorNumber} из отсека #${event.fromRoomId} — миниатюра снята, Раны сброшены.`
+        : `Фаза Событий: ${mover} перемещается из отсека #${event.fromRoomId} в #${event.toRoomId} через Коридор ${event.corridorId}.`;
+      break;
+    }
     case 'INTRUDER_KILLED': {
       const killer = event.playerId === null ? 'Пожар' : name;
       text = event.remainsObjectId

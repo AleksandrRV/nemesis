@@ -1,4 +1,5 @@
 import type { IntruderLogEvent } from './contact.js';
+import type { EventCard } from './cards.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
 import type { IntruderType } from './entities.js';
@@ -150,7 +151,13 @@ export type GameLogEvent =
       /** Шаг Фазы Событий ещё не реализован движком и честно пропущен (этап 0.5.0 в разработке). */
       type: 'EVENT_PHASE_STEP_SKIPPED';
       round: number;
-      step: 5 | 7 | 8;
+      step: 8;
+    }
+  | {
+      /** Шаг 7 Фазы Событий (стр. 10): верхняя карта Событий вытянута лицом вверх. */
+      type: 'EVENT_CARD_DRAWN';
+      round: number;
+      card: EventCard;
     }
   | {
       /** Урон от огня (стр. 10, шаг 6): Чужой в горящем отсеке получил 1 Рану. */

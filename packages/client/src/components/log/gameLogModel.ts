@@ -332,9 +332,21 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
           : []),
       ];
 
-    case 'EVENT_PHASE_STEP_SKIPPED': {
-      const stepLabel = event.step === 5 ? 'Атаки Чужих' : event.step === 7 ? 'Карта События' : 'Развитие Улья';
-      return [{ text: `Шаг Фазы Событий «${stepLabel}» ещё в разработке (этап 0.5.0) и пропущен.`, tone: 'warning' }];
+    case 'EVENT_PHASE_STEP_SKIPPED':
+      return [
+        {
+          text: 'Шаг Фазы Событий «Развитие Улья» ещё в разработке (этап 0.5.0) и пропущен.',
+          tone: 'warning',
+        },
+      ];
+
+    case 'EVENT_CARD_DRAWN': {
+      const direction = event.card.corridorNumber === 'ANY' ? 'любое' : `Коридор ${event.card.corridorNumber}`;
+      const symbols = event.card.intruderTypes.map((type) => INTRUDER_TYPE_NAMES[type]).join(', ');
+      return [
+        { text: `Фаза Событий: карта Событий «${event.card.name}»`, tone: 'warning', strong: true },
+        { text: ` — направление ${direction}, двигаются: ${symbols}.` },
+      ];
     }
 
     case 'FIRE_DAMAGE_TAKEN_BY_INTRUDER':

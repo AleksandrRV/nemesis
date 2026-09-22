@@ -149,8 +149,9 @@ describe('Цикл микроходов и порядок игроков (Фаз
     expect(s2.meta.currentRound).toBe(2);
     expect(s2.meta.timeTrackPosition).toBe(1);
     expect(s2.gameLog.some((e) => e.event.type === 'TIME_TRACK_ADVANCED')).toBe(true);
-    // Шаг 5 (Атаки Чужих) исполняется движком: пропускаются только Шаги 7 и 8
-    expect(s2.gameLog.filter((e) => e.event.type === 'EVENT_PHASE_STEP_SKIPPED')).toHaveLength(2);
+    expect(s2.gameLog.some((e) => e.event.type === 'EVENT_CARD_DRAWN')).toBe(true);
+    // Шаги 5 (Атаки) и 7 (Движение) исполняются движком: пропуск остался у Шага 8
+    expect(s2.gameLog.filter((e) => e.event.type === 'EVENT_PHASE_STEP_SKIPPED')).toHaveLength(1);
     expect(s2.gameLog.some((e) => e.event.type === 'ROUND_STARTED')).toBe(true);
   });
 

@@ -1,6 +1,7 @@
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import type { GameState } from '../types/state.js';
 import { killPlayer } from './characterDamage.js';
+import { resolveEventCardMovement } from './eventCardMovement.js';
 import { resolveEventPhaseAttacks } from './eventsPhaseAttacks.js';
 import { endGame } from './gameEnd.js';
 import { appendGameLog } from './gameLog.js';
@@ -14,8 +15,11 @@ import { getOrderedPlayers, startNewRound } from './turnCycle.js';
  * - Шаг 4: Счётчик Времени и Самоуничтожения — реализован;
  * - Шаг 5: Атаки Чужих — реализован (`resolveEventPhaseAttacks`);
  * - Шаг 6: Урон от огня — реализован;
- * - Шаг 7: карта События, Шаг 8: Развитие Улья — следующие шаги этапа,
- *   пропуски фиксируются в журнале явно;
+ * - Шаг 7: карта События — Движение Чужих реализовано
+ *   (`resolveEventCardMovement`); текстовый эффект карты (нижний блок) —
+ *   следующий шаг этапа 0.5.0;
+ * - Шаг 8: Развитие Улья — следующий шаг этапа, пропуск фиксируется
+ *   в журнале явно;
  * - Шаг 9: конец раунда — `startNewRound`.
  *
  * Аварийные исходы Шага 4 (гиперпрыжок, взрыв) немедленно завершают партию:
@@ -30,7 +34,8 @@ export function runEventPhase(state: GameState): void {
 
   resolveFireDamage(state);
 
-  appendGameLog(state, { type: 'EVENT_PHASE_STEP_SKIPPED', round: state.meta.currentRound, step: 7 });
+  resolveEventCardMovement(state);
+
   appendGameLog(state, { type: 'EVENT_PHASE_STEP_SKIPPED', round: state.meta.currentRound, step: 8 });
 
   startNewRound(state);

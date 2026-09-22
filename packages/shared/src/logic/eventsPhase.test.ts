@@ -229,9 +229,10 @@ describe('Оркестратор Фазы Событий: порядок Шаг�
     expect(state.meta.currentRound).toBe(2);
     expect(state.meta.timeTrackPosition).toBe(1);
     expect(types.indexOf('TIME_TRACK_ADVANCED')).toBeLessThan(types.indexOf('EVENT_PHASE_STEP_SKIPPED'));
-    // Шаг 5 (Атаки Чужих) исполняется: остаются честные пропуски Шагов 7 и 8
-    expect(skipped).toEqual([7, 8]);
+    // Шаги 5 (Атаки) и 7 (Движение по карте События) исполняются: пропуск остался у Шага 8
+    expect(skipped).toEqual([8]);
     expect(types).toContain('FIRE_DAMAGE_TAKEN_BY_INTRUDER');
+    expect(types).toContain('EVENT_CARD_DRAWN');
     expect(types).toContain('ROUND_STARTED');
     expect(state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.woundsCount).toBe(1);
   });

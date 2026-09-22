@@ -1,7 +1,7 @@
 import type { EventCorridorNumber, IntruderAttackCard } from './cards.js';
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { IntruderToken, IntruderType } from './entities.js';
-import type { RoomId } from './rooms.js';
+import type { CorridorNumber, RoomId } from './rooms.js';
 
 /** Исход Отступления в бою: куда привёл номер Коридора с карты События (стр. 20). */
 export type IntruderRetreatOutcome = 'MOVED' | 'DOOR_DESTROYED' | 'TECHNICAL_CORRIDORS' | 'STAYED';
@@ -163,7 +163,27 @@ export type IntruderLogEvent =
     }
   | { type: 'INTRUDERS_WITHDRAWN'; intruderIds: string[] }
   | { type: 'INTRUDERS_MOVED'; intruderIds: string[]; fromRoomId: RoomId; toRoomId: RoomId }
-  | { type: 'INTRUDERS_BLOCKED_BY_DOOR'; intruderIds: string[]; corridorId: string }
+  | {
+      /** Дверь разрушена Чужими и они остались в отсеке (стр. 17). */
+      type: 'INTRUDERS_BLOCKED_BY_DOOR';
+      intruderIds: string[];
+      corridorId: string;
+      /** Источник: Опасность от Шума или Шаг 7 Фазы Событий. */
+      source: 'DANGER' | 'EVENT_PHASE';
+    }
+  | {
+      /** Автономное Движение Чужого в Фазе Событий (стр. 10, 15): направление задала карта События. */
+      type: 'INTRUDER_MOVED';
+      intruderId: string;
+      intruderType: IntruderType;
+      fromRoomId: RoomId;
+      /** null — Чужой ушёл в Технические Коридоры: миниатюра снята с поля. */
+      toRoomId: RoomId | null;
+      /** null — переход через Вход в Технические Коридоры, а не через Коридор. */
+      corridorId: string | null;
+      corridorNumber: CorridorNumber;
+      technicalCorridors: boolean;
+    }
   | { type: 'INTRUDER_TRANSFORMED'; intruderId: string; roomId: RoomId };
 
 export type ContactPresentationEvent = Extract<

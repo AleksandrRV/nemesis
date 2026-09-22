@@ -209,7 +209,7 @@ describe('Шаг 5 Фазы Событий: Атаки Чужих (стр. 10, 2
     );
     expect(state.meta.phase).toBe('PLAYER_PHASE');
     expect(types).toContain('EVENT_PHASE_ATTACK_RESOLVED');
-    expect(skipped).toEqual([7, 8]);
+    expect(skipped).toEqual([8]);
     expect(types.indexOf('EVENT_PHASE_ATTACK_RESOLVED')).toBeLessThan(types.indexOf('ROUND_STARTED'));
   });
 });

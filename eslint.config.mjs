@@ -126,7 +126,7 @@ const MESSAGES = {
 export default tseslint.config(
   {
     name: 'nemesis/ignores',
-    ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/*.d.ts'],
+    ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/*.d.ts', '.arena-smoke/**'],
   },
 
   // Базовый набор для любого JavaScript в репозитории (конфиги Vite/PostCSS/Tailwind).

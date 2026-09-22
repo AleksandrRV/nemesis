@@ -1,3 +1,4 @@
+import { formatIntruderLogEvent } from './intruderLogModel';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
@@ -117,6 +118,7 @@ function targetLabel(target: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED'
 function reasonLabel(reason: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['reason']): string {
   if (reason === 'CAREFUL') return 'Осторожное движение';
   if (reason === 'DANGER') return 'Опасность';
+  if (reason === 'BLANK') return 'Пустой жетон';
 
   return 'бросок Шума';
 }
@@ -198,6 +200,12 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: ' разыгрывает карту действия «' },
         { text: event.cardName, tone: 'system', strong: true },
         { text: '».' },
+      ];
+
+    case 'ACTION_CARD_DRAWN':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' берёт карту Действия в руку (эффект карты).' },
       ];
 
     case 'ITEM_USED':
@@ -289,7 +297,14 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
     case 'GAME_OVER':
       return [
         { text: 'ПАРТИЯ ЗАВЕРШЕНА', tone: 'error', strong: true },
-        { text: event.reason === 'SHIP_EXPLODED' ? ': корабль взорвался.' : ': произошёл разрыв обшивки.' },
+        {
+          text:
+            event.reason === 'SHIP_EXPLODED'
+              ? ': корабль взорвался.'
+              : event.reason === 'HULL_BREACH'
+                ? ': произошёл разрыв обшивки.'
+                : ': на корабле не осталось активных персонажей.',
+        },
       ];
 
     case 'PLAYER_PASSED':
@@ -311,6 +326,20 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         },
       ];
 
+    case 'OBJECT_PICKED_UP': {
+      const kindLabel =
+        event.objectKind === 'CORPSE'
+          ? 'Труп члена экипажа'
+          : event.objectKind === 'EGG'
+            ? 'Яйцо Чужих'
+            : 'Останки Чужого';
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' поднимает Тяжёлый объект «' },
+        { text: kindLabel, tone: 'warning', strong: true },
+        { text: ` в ${roomLabel(view, event.roomId)}.` },
+      ];
+    }
     case 'DEV_STATE_CHANGED':
       return [
         { text: 'Dev-переключатель', tone: 'warning', strong: true },
@@ -318,6 +347,8 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: `Коридоре ${corridorLabel(event.corridorId)}`, tone: 'corridor', strong: true },
         { text: '.' },
       ];
+    default:
+      return formatIntruderLogEvent(event, view);
   }
 }
 

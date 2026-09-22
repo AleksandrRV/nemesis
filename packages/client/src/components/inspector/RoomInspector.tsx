@@ -1,29 +1,33 @@
 import React from 'react';
-import type { BoardObject, CarefulMoveChosenCorridor, CorridorNumber, SanitizedRoomState } from '@nemesis/shared';
+import type { CarefulMoveChosenCorridor, SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { X, Flame, Wrench, Laptop, Package, User, Footprints, AlertCircle, Ban, ShieldAlert } from 'lucide-react';
+import { intrudersInRoom } from '../board/intruderMapModel';
+import { LaboratoryActions, WeaknessSlotsPanel } from './LaboratoryPanel';
+import { EscapeConfirmDialog } from './EscapeConfirmDialog';
+import { CarefulMovePanel } from './CarefulMovePanel';
+import { DisengagePanel } from './DisengagePanel';
+import { FloorObjectsPanel } from './FloorObjectsPanel';
+import { carefulMoveChoices } from './carefulMoveModel';
+import { RoomStatusGrid } from './RoomStatusGrid';
+import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
+import { X, Package, User, Footprints, Ban, ShieldAlert, Bug, Droplets, Crosshair, Hand } from 'lucide-react';
 
 /** Подписи Тяжёлых объектов на полу отсека (стр. 22). */
-const BOARD_OBJECT_LABELS: Record<BoardObject['kind'], string> = {
-  CORPSE: 'Труп члена экипажа',
-  EGG: 'Яйцо Чужих',
-  INTRUDER_REMAINS: 'Останки Чужого',
-};
-
 const CATEGORY_LABELS: Record<SanitizedRoomState['category'], string> = {
   SPECIAL: 'ОСОБАЯ',
   ROOM_1: 'ОСНОВНАЯ «1»',
   ROOM_2: 'ДОП. «2»',
 };
 
-/** Скрытое значение показываем честно: игрок не знает ответа, а не «нет». */
-function unknown(value: string | number | boolean | null): string {
-  if (value === null) return '?';
-  if (typeof value === 'boolean') return value ? 'ДА' : 'НЕТ';
-
-  return String(value);
-}
+/** Русские названия типов Чужих для инспектора. */
+const INTRUDER_NAMES_RU: Record<string, string> = {
+  LARVA: 'Личинка',
+  CREEPER: 'Крипер',
+  ADULT: 'Взрослая особь',
+  BREEDER: 'Трутень',
+  QUEEN: 'Королева',
+};
 
 export const RoomInspector: React.FC = () => {
   const view = useGameStore((state) => state.view);
@@ -32,8 +36,14 @@ export const RoomInspector: React.FC = () => {
   const dispatch = useGameStore((state) => state.dispatch);
   const rejection = useGameStore((state) => state.rejection);
   const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
+  const selectedCardIds = useGameStore((state) => state.selectedCardIds);
+  const convertedCardIds = useGameStore((state) => state.convertedCardIds);
+  const setShootModalOpen = useGameStore((state) => state.setShootModalOpen);
+  const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
 
   const [isCarefulSelecting, setIsCarefulSelecting] = React.useState(false);
+  const [escapePromptOpen, setEscapePromptOpen] = React.useState(false);
+  const [disengageOpen, setDisengageOpen] = React.useState(false);
 
   if (!view || !selectedRoomId) return null;
 
@@ -51,46 +61,123 @@ export const RoomInspector: React.FC = () => {
   const isPlayerHere = room.occupantPlayerIds.includes(activePlayerId);
   const occupantNames = room.occupantPlayerIds.map((playerId) => view.players[playerId]?.name ?? playerId);
 
+  // Чужие в выбранном отсеке и статус Боя (стр. 18): блокируют Поиск,
+  // Осторожное движение и Действие Комнаты — движок проверит то же самое.
+  const roomIntruders = intrudersInRoom(view.intrudersPool.boardTokens, room.id);
+  const isActiveInCombat = isPlayerHere && roomIntruders.length > 0;
+
   // Переходить можно только в соседний отсек через открытую Дверь (стр. 14):
   const reachableRoomIds = activePlayer ? findAdjacentOpenRoomIds(view, activePlayer.roomId) : [];
   const canMoveHere = !isPlayerHere && reachableRoomIds.includes(room.id);
-
-  // Коридоры, ведущие в целевой отсек (для выбора коридора при осторожном движении)
-  const corridorsIntoTarget = Object.values(view.ship.corridors).filter(
-    (c) => c.fromRoomId === room.id || c.toRoomId === room.id,
+  // Шаг 7: Движение из отсека с Чужими — Побег (стр. 19); важен отсек ПЕРСОНАЖА,
+  // а не просматриваемый соседний.
+  const movingFromCombat = Boolean(
+    activePlayer && intrudersInRoom(view.intrudersPool.boardTokens, activePlayer.roomId).length > 0,
   );
+  const escapeIntruders = activePlayer ? intrudersInRoom(view.intrudersPool.boardTokens, activePlayer.roomId) : [];
 
-  // Получаем уникальные номера коридоров со стороны целевого отсека (1..4)
-  const availableNumbersSet = new Set<number>();
-  for (const c of corridorsIntoTarget) {
-    const nums = c.fromRoomId === room.id ? c.fromNumbers : c.toNumbers;
-    for (const n of nums) {
-      availableNumbersSet.add(n);
-    }
-  }
+  // Шаг 8: классовые боевые карты в руке и параметры для их панелей.
+  const handCardIds = (activePlayer?.actionDeck.hand.map((card) => card.id) ?? []) as string[];
+  const disengageCardId = handCardIds.includes('ACT_SOL_SUPPRESSIVE_FIRE')
+    ? ('ACT_SOL_SUPPRESSIVE_FIRE' as const)
+    : handCardIds.includes('ACT_CAP_SUPPRESSIVE_FIRE')
+      ? ('ACT_CAP_SUPPRESSIVE_FIRE' as const)
+      : null;
+  const disengageCardName =
+    disengageCardId === 'ACT_SOL_SUPPRESSIVE_FIRE' ? 'Заградительный огонь' : 'Огонь на подавление';
+  const adrenalineAvailable = handCardIds.includes('ACT_SCO_ADRENALINE');
+  const handWeapons = (activePlayer?.handSlots ?? [])
+    .filter((slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM' && slot.card.isWeapon)
+    .map((slot) => ({ id: slot.card.id, name: slot.card.name, ammo: slot.card.ammo ?? 0 }));
+  const companionsHere = isPlayerHere
+    ? room.occupantPlayerIds
+        .filter((playerId) => playerId !== activePlayerId)
+        .map((playerId) => ({ playerId, name: view.players[playerId]?.name ?? playerId }))
+    : [];
+  const destinationsFromHome = activePlayer ? findAdjacentOpenRoomIds(view, activePlayer.roomId) : [];
 
-  // Проверяем доступность каждого номера (хотя бы один коридор с этим номером не должен иметь шума)
-  const availableCorridorNumbers = Array.from(availableNumbersSet)
-    .sort((a, b) => a - b)
-    .map((num) => {
-      const corridorNumber = num as CorridorNumber;
-      const corridorsWithNum = corridorsIntoTarget.filter((c) => {
-        const nums = c.fromRoomId === room.id ? c.fromNumbers : c.toNumbers;
-        return nums.includes(corridorNumber);
-      });
-      const isFree = corridorsWithNum.some((c) => !c.hasNoise);
-      return { number: corridorNumber, isFree, count: corridorsWithNum.length };
-    });
+  // Шаг 6: подбор Тяжёлых объектов [1] (стр. 13, 22) — свободный слот Рук
+  // и выделенная карта цены; движение в Бою не запрещает базовые действия.
+  const paymentReady = selectedCardIds.length + convertedCardIds.length >= 1;
+  const hasFreeHandSlot = (activePlayer?.handSlots.length ?? 2) < 2;
 
-  const hasFreeTechnical = room.hasTechnicalCorridorEntrance && !view.ship.technicalCorridorNoise;
+  // Шаг 6: Лаборатория [2] (стр. 16) — изучение объекта с пола или из рук.
+  const isLaboratory = room.definitionId === 'LABORATORY';
+  const floorKinds = [...new Set(room.objects.map((object) => object.kind))];
+  const handKinds = isPlayerHere
+    ? [
+        ...new Set(
+          activePlayer?.handSlots
+            .filter((slot): slot is Extract<typeof slot, { source: 'OBJECT' }> => slot.source === 'OBJECT')
+            .map((slot) => slot.object.kind) ?? [],
+        ),
+      ]
+    : [];
+  const studyKinds = [...new Set([...floorKinds, ...handKinds])].filter((kind) => {
+    const slot = view.intrudersPool.weaknessSlots.find((entry) => entry.objectKind === kind);
+    return slot ? slot.visibility === 'FACE_DOWN' : false;
+  });
+
+  // Раскладка «Осторожного движения» (стр. 13) — чистая модель (Шаг 8).
+  const { choices: availableCorridorNumbers, hasFreeTechnical } = carefulMoveChoices(view, room.id);
 
   const handleNormalMove = () => {
+    // Движение из отсека с Чужими — это Побег (стр. 19): подтверждаем отдельно.
+    if (movingFromCombat) {
+      setEscapePromptOpen(true);
+      return;
+    }
     const discardCardIds = consumePaymentCards(1);
     dispatch({
       type: 'ACTION_MOVE',
       payload: {
         targetRoomId: room.id,
         discardCardIds,
+      },
+    });
+  };
+
+  const confirmEscape = () => {
+    setEscapePromptOpen(false);
+    const discardCardIds = consumePaymentCards(1);
+    dispatch({
+      type: 'ACTION_MOVE',
+      payload: {
+        targetRoomId: room.id,
+        discardCardIds,
+      },
+    });
+  };
+
+  // «Адреналин» (Шаг 8): тот же Побег, но действием играется карта Скаута —
+  // после атак и Шума персонаж берёт карту Действия.
+  const adrenalineEscape = () => {
+    setEscapePromptOpen(false);
+    const discardCardIds = consumePaymentCards(1);
+    dispatch({
+      type: 'ACTION_PLAY_CARD',
+      payload: {
+        cardId: 'ACT_SCO_ADRENALINE',
+        discardCardIds,
+        combat: { kind: 'ADRENALINE_ESCAPE', targetRoomId: room.id },
+      },
+    });
+  };
+
+  const dispatchDisengage = (
+    weaponId: string,
+    selfTo: number | null,
+    companionTo: { playerId: string; roomId: number } | null,
+  ) => {
+    setDisengageOpen(false);
+    const moves: { playerId: string; targetRoomId: number }[] = [];
+    if (selfTo !== null) moves.push({ playerId: activePlayerId, targetRoomId: selfTo });
+    if (companionTo) moves.push({ playerId: companionTo.playerId, targetRoomId: companionTo.roomId });
+    dispatch({
+      type: 'ACTION_PLAY_CARD',
+      payload: {
+        cardId: disengageCardId!,
+        combat: { kind: 'REPOSITION', weaponItemId: weaponId, moves },
       },
     });
   };
@@ -152,33 +239,7 @@ export const RoomInspector: React.FC = () => {
 
       {/* Тело инспектора */}
       <div className="py-3 space-y-3 max-h-[60vh] md:max-h-96 overflow-y-auto pr-1">
-        {/* Статусы отсека */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
-            <Package size={14} className="text-cyan-400" />
-            <span className="text-slate-300">
-              Предметов: <b className="text-white">{unknown(room.itemsCount)}</b>
-            </span>
-          </div>
-          <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
-            <Laptop size={14} className={room.hasComputer ? 'text-cyan-400' : 'text-slate-600'} />
-            <span className="text-slate-300">
-              Компьютер: <b className="text-white">{unknown(room.hasComputer)}</b>
-            </span>
-          </div>
-          <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
-            <Flame size={14} className={room.hasFire ? 'text-orange-500' : 'text-slate-600'} />
-            <span className="text-slate-300">
-              Пожар: <b className="text-white">{unknown(room.hasFire)}</b>
-            </span>
-          </div>
-          <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded border border-slate-800/80">
-            <Wrench size={14} className={room.hasMalfunction ? 'text-amber-400' : 'text-slate-600'} />
-            <span className="text-slate-300">
-              Поломка: <b className="text-white">{unknown(room.hasMalfunction)}</b>
-            </span>
-          </div>
-        </div>
+        <RoomStatusGrid room={room} />
 
         {/* Описание свойства комнаты: только у вскрытого тайла */}
         {room.isExplored && roomDef && (
@@ -200,17 +261,142 @@ export const RoomInspector: React.FC = () => {
           </div>
         )}
 
-        {room.objects.map((object) => (
+        {/* Чужие в отсеке: миниатюры и раны публичны (стр. 19) */}
+        {roomIntruders.length > 0 && (
+          <div className="bg-red-950/30 border border-red-900/50 p-2.5 rounded space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-red-300">
+              <Bug size={13} aria-hidden="true" /> Чужие в отсеке
+            </div>
+            {roomIntruders.map((intruder) => (
+              <div
+                key={intruder.id}
+                className="flex items-center justify-between gap-2 bg-slate-950/60 rounded px-2 py-1.5 text-xs"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <svg
+                    viewBox="0 0 96 96"
+                    className="h-4 w-4 shrink-0"
+                    role="img"
+                    aria-label={INTRUDER_NAMES_RU[intruder.type]}
+                  >
+                    <path d={INTRUDER_SHAPES[intruder.type]} fill={INTRUDER_COLORS[intruder.type]} />
+                  </svg>
+                  <span className="text-slate-200 font-semibold">{INTRUDER_NAMES_RU[intruder.type]}</span>
+                </span>
+                <span
+                  className="flex items-center gap-1 shrink-0"
+                  aria-label={intruder.woundsCount > 0 ? `Ран: ${intruder.woundsCount}` : 'Без ран'}
+                >
+                  {intruder.woundsCount === 0 ? (
+                    <span className="text-[10px] text-slate-500">без ран</span>
+                  ) : (
+                    <>
+                      <Droplets size={12} className="text-red-400" aria-hidden="true" />
+                      {Array.from({ length: Math.min(intruder.woundsCount, 5) }, (_, woundIndex) => (
+                        <span
+                          key={woundIndex}
+                          className="inline-block h-2 w-2 rounded-full bg-red-500 border border-red-300/70"
+                          aria-hidden="true"
+                        />
+                      ))}
+                      {intruder.woundsCount > 5 && (
+                        <span className="font-mono text-red-300 font-bold">×{intruder.woundsCount}</span>
+                      )}
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            <p className="text-[10px] text-red-200/80 leading-snug">
+              Стойкость Чужого неизвестна, пока не вытянута карта Атаки (стр. 19): показаны только выставленные Раны.
+            </p>
+          </div>
+        )}
+
+        {/* Статус Боя активного персонажа */}
+        {isActiveInCombat && (
           <div
-            key={object.id}
-            className="text-xs bg-red-950/30 border border-red-900/50 p-2 rounded flex items-center gap-2 text-rose-300"
+            role="alert"
+            className="bg-red-950/50 border border-red-500/60 p-2.5 rounded flex items-start gap-2 text-xs text-red-100"
           >
-            <AlertCircle size={14} />
+            <ShieldAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
             <span>
-              На полу: <b>{BOARD_OBJECT_LABELS[object.kind]}</b>
+              <b>ВЫ В БОЮ.</b> Поиск, Осторожное движение и Действия Комнат запрещены (стр. 18). Доступны Стрельба,
+              Рукопашная атака (стр. 19) и Побег: обычное Движение из отсека, перед шагом каждый Чужой атакует в спину
+              (стр. 19).
             </span>
           </div>
-        ))}
+        )}
+
+        {/* Отход без атак классовой картой (стр. 19; Шаг 8) */}
+        {isActiveInCombat && isPlayerHere && disengageCardId && !disengageOpen && (
+          <button
+            type="button"
+            onClick={() => setDisengageOpen(true)}
+            className="w-full rounded-lg border border-emerald-600/60 bg-emerald-950/40 px-3 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-900/60"
+          >
+            Отход без атак: {disengageCardName} [карта + 1 Боезапас]
+          </button>
+        )}
+        {isActiveInCombat && disengageOpen && disengageCardId && (
+          <DisengagePanel
+            cardId={disengageCardId}
+            cardName={disengageCardName}
+            weapons={handWeapons}
+            destinations={destinationsFromHome.map((roomId) => ({ roomId }))}
+            companions={companionsHere}
+            onDispatch={dispatchDisengage}
+            onCancel={() => setDisengageOpen(false)}
+          />
+        )}
+
+        {/* Стрельба и Рукопашная в Бою (стр. 19): цель выбирается в боевой панели */}
+        {isActiveInCombat && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setShootModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500 active:scale-95"
+            >
+              <Crosshair size={14} /> Стрелять
+            </button>
+            <button
+              type="button"
+              onClick={() => setMeleeModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-orange-500 active:scale-95"
+            >
+              <Hand size={14} /> Рукопашная
+            </button>
+          </div>
+        )}
+
+        <FloorObjectsPanel
+          objects={room.objects}
+          isPlayerHere={isPlayerHere}
+          hasFreeHandSlot={hasFreeHandSlot}
+          paymentReady={paymentReady}
+          onPickUp={(objectId) =>
+            dispatch({
+              type: 'ACTION_PICK_UP_OBJECT',
+              payload: { objectId, discardCardIds: consumePaymentCards(1) },
+            })
+          }
+        />
+
+        {/* Лаборатория [2] (стр. 16) и слоты Слабостей (стр. 21) */}
+        {isLaboratory && isPlayerHere && !isActiveInCombat && (
+          <LaboratoryActions
+            studyKinds={studyKinds}
+            paymentReady={paymentReady}
+            onStudy={(kind) =>
+              dispatch({
+                type: 'ACTION_ROOM_ABILITY',
+                payload: { discardCardIds: consumePaymentCards(2), targetObjectKind: kind },
+              })
+            }
+          />
+        )}
+        <WeaknessSlotsPanel slots={view.intrudersPool.weaknessSlots} />
 
         {/* Отказ движка: игрок должен понимать, почему действие не прошло */}
         {rejection && (
@@ -223,85 +409,47 @@ export const RoomInspector: React.FC = () => {
 
       {/* Панель выбора коридора для Осторожного движения */}
       {isCarefulSelecting && canMoveHere && (
-        <div className="p-3 bg-slate-900 border border-amber-500/50 rounded-lg mb-2 space-y-2">
-          <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
-            <span>Выберите номер коридора для шума:</span>
-            <button
-              type="button"
-              onClick={() => setIsCarefulSelecting(false)}
-              className="text-slate-400 hover:text-white"
-            >
-              Отмена
-            </button>
-          </div>
-          <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-            {availableCorridorNumbers.map((entry) => (
-              <button
-                key={entry.number}
-                type="button"
-                disabled={!entry.isFree}
-                onClick={() =>
-                  handleCarefulMove({
-                    kind: 'CORRIDOR_NUMBER',
-                    corridorNumber: entry.number,
-                  })
-                }
-                className={`w-full text-left px-2.5 py-1.5 rounded border text-xs flex justify-between items-center transition ${
-                  entry.isFree
-                    ? 'bg-slate-950 hover:bg-slate-800 border-slate-700 text-slate-200 cursor-pointer'
-                    : 'bg-slate-950/40 border-slate-800 text-slate-600 cursor-not-allowed'
-                }`}
-              >
-                <span>
-                  Коридор #{entry.number} {entry.count > 1 ? `(${entry.count} коридора)` : ''}
-                </span>
-                <span className={`text-[10px] ${entry.isFree ? 'text-emerald-400' : 'text-rose-500'}`}>
-                  {entry.isFree ? 'Свободен' : 'Шум уже есть'}
-                </span>
-              </button>
-            ))}
-            {hasFreeTechnical && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleCarefulMove({
-                    kind: 'TECHNICAL_CORRIDOR',
-                  })
-                }
-                className="w-full text-left px-2.5 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-amber-300 flex justify-between items-center"
-              >
-                <span>Технический коридор (вентиляция)</span>
-                <span className="text-[10px] text-emerald-400">Свободен</span>
-              </button>
-            )}
-            {availableCorridorNumbers.every((n) => !n.isFree) && !hasFreeTechnical && (
-              <div className="text-xs text-rose-400 py-1">Нет свободных номеров коридоров для шума</div>
-            )}
-          </div>
-        </div>
+        <CarefulMovePanel
+          choices={availableCorridorNumbers}
+          hasFreeTechnical={hasFreeTechnical}
+          onChoose={handleCarefulMove}
+          onCancel={() => setIsCarefulSelecting(false)}
+        />
       )}
 
       {/* Действия: только те, что разрешены правилами. */}
       <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
         {isPlayerHere && room.isExplored && (
           <div className="flex flex-col gap-1.5">
-            {/* Поиск в отсеке */}
+            {/* Поиск в отсеке: запрещён в Бою (стр. 18) */}
             {room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM' && (room.itemsCount ?? 0) > 0 && (
               <button
                 type="button"
                 onClick={handleSearch}
-                className="w-full min-h-[38px] bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+                disabled={isActiveInCombat}
+                title={isActiveInCombat ? 'В Бою поиск запрещён (стр. 18)' : undefined}
+                className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
+                  isActiveInCombat
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    : 'bg-amber-600 hover:bg-amber-500 text-slate-950 active:scale-95'
+                }`}
               >
                 <Package size={14} /> Обыскать отсек [цена: 1]
               </button>
             )}
 
-            {/* Действие комнаты */}
+            {/* Действие комнаты: запрещено в Бою и при Неисправности (стр. 18, 24) */}
             {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && (
               <button
                 type="button"
                 onClick={handleRoomAbility}
-                className="w-full min-h-[38px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+                disabled={isActiveInCombat}
+                title={isActiveInCombat ? 'В Бою Действия Комнат запрещены (стр. 18)' : undefined}
+                className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
+                  isActiveInCombat
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-slate-950 active:scale-95'
+                }`}
               >
                 <span>Использовать консоль отсека [цена: {roomDef.actionCost}]</span>
               </button>
@@ -313,13 +461,27 @@ export const RoomInspector: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <button
               onClick={handleNormalMove}
-              className="w-full min-h-[40px] bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              className={`w-full min-h-[40px] ${
+                movingFromCombat
+                  ? 'bg-red-600 hover:bg-red-500 text-white'
+                  : 'bg-cyan-600 hover:bg-cyan-500 text-slate-950'
+              } font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition`}
             >
-              <Footprints size={14} /> Движение [цена: 1]
+              <Footprints size={14} /> {movingFromCombat ? 'Побег [цена: 1]' : 'Движение [цена: 1]'}
             </button>
             <button
               onClick={() => setIsCarefulSelecting(true)}
-              className="w-full min-h-[36px] bg-slate-800 hover:bg-slate-700 border border-amber-600/60 text-amber-300 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition"
+              disabled={isActiveInCombat}
+              title={
+                isActiveInCombat
+                  ? 'Осторожное движение нельзя выполнять в Бою (стр. 13); выход из отсека — Побег (Шаг 7)'
+                  : undefined
+              }
+              className={`w-full min-h-[36px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
+                isActiveInCombat
+                  ? 'bg-slate-800/60 text-slate-500 border border-slate-800 cursor-not-allowed'
+                  : 'bg-slate-800 hover:bg-slate-700 border border-amber-600/60 text-amber-300 active:scale-95'
+              }`}
             >
               <ShieldAlert size={14} /> Осторожное движение [цена: 2]
             </button>
@@ -332,6 +494,17 @@ export const RoomInspector: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Подтверждение Побега (стр. 19): атаки в спину до шага */}
+      {escapePromptOpen && movingFromCombat && (
+        <EscapeConfirmDialog
+          intruderLabels={escapeIntruders.map((intruder) => INTRUDER_NAMES_RU[intruder.type] ?? intruder.type)}
+          onConfirm={confirmEscape}
+          onCancel={() => setEscapePromptOpen(false)}
+          adrenalineAvailable={adrenalineAvailable}
+          onAdrenalineEscape={adrenalineEscape}
+        />
+      )}
     </div>
   );
 };

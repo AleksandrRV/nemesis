@@ -1,13 +1,13 @@
 {
   "meta": {
     "version": 2,
-    "updated": "2026-09-18",
-    "updatedFor": "0.3.0",
+    "updated": "2026-09-22",
+    "updatedFor": "0.4.0",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
       "USER_CONFIRMED": "Считано владельцем проекта с физического компонента 17.09.2026; подтверждение получено в ходе работы, фото в репозитории нет.",
-      "EXTERNAL_UNVERIFIED": "Взято из внешнего открытого источника; требуется сверка с физическим компонентом.",
+      "EXTERNAL_UNVERIFIED": "Взято из транскрипта компонентов или внешнего источника; требуется сверка с оригинальным физическим компонентом.",
       "UNVERIFIED_BOARD": "Читается только с физического поля; сверки не было — расхождения фиксируются тестом-снимком, а не молчаливой правкой."
     },
     "sources": {
@@ -30,6 +30,21 @@
         "kind": "EXTERNAL_UNVERIFIED",
         "title": "UltraBoardGames: Nemesis — Movement and Exploration",
         "location": "https://www.ultraboardgames.com/nemesis/movement-and-exploration.php"
+      },
+      "intruders-transcript": {
+        "kind": "EXTERNAL_UNVERIFIED",
+        "title": "doc/data/INTRUDERS.md — предоставленный транскрипт граней кубика и карт Атак Чужих",
+        "location": "doc/data/INTRUDERS.md"
+      },
+      "nemesis-official-faq": {
+        "kind": "ORIGINAL_PUBLISHER",
+        "title": "Awaken Realms — Official Game FAQ v2.2 (16.04.2025), Rules 8/12/17/19/24 и Actions 4/11",
+        "location": "https://awakenrealms.com/images/download/Nemesis/ENG/Nemesis_FAQ_v2.1.pdf"
+      },
+      "weaknesses-transcript": {
+        "kind": "EXTERNAL_UNVERIFIED",
+        "title": "Проектный транскрипт карт Слабостей (8 карт, включая «Вид на грани вымирания»)",
+        "location": "doc/data/WEAKNESSES.md"
       }
     }
   },
@@ -552,6 +567,451 @@
         "seriousWoundsCount": 16,
         "startingWeaponsCount": 6
       }
+    },
+    "combat-die": {
+      "file": "packages/shared/src/data/combatDie.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "Кубик Боя — d6, то есть имеет шесть равновероятных физических граней.",
+          "source": "rules-md",
+          "lines": "70"
+        },
+        {
+          "claim": "Правила различают Промах, Хвост, три Силуэта, 1 Рану и 2 Раны; отдельного исхода «Лапа» нет.",
+          "source": "rules-md",
+          "lines": "1133-1140, 1157-1163"
+        },
+        {
+          "claim": "Транскрипт задаёт Промах дважды, а остальные четыре символа — по одному.",
+          "source": "intruders-transcript",
+          "lines": "14-20",
+          "note": "CLAW_HIT обозначен в API как TAIL, ALIEN_HIT — SILHOUETTES, ONE_HIT/TWO_HITS — ONE_WOUND/TWO_WOUNDS. Частоты не выводятся из числа перечисленных в книге исходов."
+        }
+      ],
+      "expectation": {
+        "faceCount": 6,
+        "faces": [
+          "MISS",
+          "MISS",
+          "TAIL",
+          "SILHOUETTES",
+          "ONE_WOUND",
+          "TWO_WOUNDS"
+        ]
+      },
+      "unverified": [
+        "Распределение символов на шести физических гранях взято из предоставленного транскрипта; независимой сверки кубика или оригинальных фотографий не было.",
+        "Пометка Verified в заголовке транскрипта не заменяет проверяемое подтверждение физических компонентов."
+      ]
+    },
+    "intruder-attacks": {
+      "file": "packages/shared/src/data/intruderAttacks.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "В базовой игре 20 карт Атак Чужих; при подготовке колоду перемешивают и кладут лицом вниз.",
+          "source": "rules-md",
+          "lines": "114, 296"
+        },
+        {
+          "claim": "Карта содержит стойкость, возможную стрелку Отступления, символы атакующих и эффект. Стойкость используется отдельно от эффекта атаки.",
+          "source": "rules-md",
+          "lines": "1200-1224, 1245-1257"
+        },
+        {
+          "claim": "Личинка атакует без карты Атаки Чужих, поэтому её нет среди символов атакующих на картах.",
+          "source": "rules-md",
+          "lines": "1261-1264"
+        },
+        {
+          "claim": "Зафиксирована матрица всех 20 карт: Царапина ×4, Укус ×4, Атака когтями ×4, Атака хвостом ×2, Трансформация ×2, Ярость ×2, Слизь ×1, Зов ×1.",
+          "source": "intruders-transcript",
+          "lines": "49-83",
+          "note": "Цифровые ID экземпляров стабильны. Машинный effect не зависит от русского названия; текст сохраняет смысл транскрипта, включая немедленную смерть от Укуса/Хвоста при указанном числе Тяжёлых Травм."
+        }
+      ],
+      "expectation": {
+        "cardCount": 20,
+        "byEffect": {
+          "SCRATCH": 4,
+          "BITE": 4,
+          "CLAW_ATTACK": 4,
+          "TAIL_ATTACK": 2,
+          "TRANSFORMATION": 2,
+          "FRENZY": 2,
+          "SLIME": 1,
+          "CALL": 1
+        },
+        "cards": [
+          {
+            "id": "IAT_SCRATCH_1",
+            "name": "Царапина",
+            "effect": "SCRATCH",
+            "toughness": 2,
+            "hasRetreat": true,
+            "attackerTypes": [
+              "CREEPER",
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 1 Легкую Травму и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_SCRATCH_2",
+            "name": "Царапина",
+            "effect": "SCRATCH",
+            "toughness": 3,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER",
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 1 Легкую Травму и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_SCRATCH_3",
+            "name": "Царапина",
+            "effect": "SCRATCH",
+            "toughness": 5,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER",
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 1 Легкую Травму и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_SCRATCH_4",
+            "name": "Царапина",
+            "effect": "SCRATCH",
+            "toughness": 6,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER",
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 1 Легкую Травму и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_BITE_1",
+            "name": "Укус",
+            "effect": "BITE",
+            "toughness": 2,
+            "hasRetreat": true,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 2 или более Тяжелые Травмы, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_BITE_2",
+            "name": "Укус",
+            "effect": "BITE",
+            "toughness": 4,
+            "hasRetreat": true,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 2 или более Тяжелые Травмы, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_BITE_3",
+            "name": "Укус",
+            "effect": "BITE",
+            "toughness": 4,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 2 или более Тяжелые Травмы, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_BITE_4",
+            "name": "Укус",
+            "effect": "BITE",
+            "toughness": 6,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 2 или более Тяжелые Травмы, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_CLAW_1",
+            "name": "Атака когтями",
+            "effect": "CLAW_ATTACK",
+            "toughness": 3,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 2 Легкие Травмы и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_CLAW_2",
+            "name": "Атака когтями",
+            "effect": "CLAW_ATTACK",
+            "toughness": 4,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 2 Легкие Травмы и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_CLAW_3",
+            "name": "Атака когтями",
+            "effect": "CLAW_ATTACK",
+            "toughness": 4,
+            "hasRetreat": true,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 2 Легкие Травмы и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_CLAW_4",
+            "name": "Атака когтями",
+            "effect": "CLAW_ATTACK",
+            "toughness": 5,
+            "hasRetreat": true,
+            "attackerTypes": [
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает 2 Легкие Травмы и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_TAIL_1",
+            "name": "Атака хвостом",
+            "effect": "TAIL_ATTACK",
+            "toughness": 2,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 1 или более Тяжелая Травма, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_TAIL_2",
+            "name": "Атака хвостом",
+            "effect": "TAIL_ATTACK",
+            "toughness": 5,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "QUEEN"
+            ],
+            "description": "Если у Персонажа есть 1 или более Тяжелая Травма, он умирает. Иначе получает 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_TRANSFORMATION_1",
+            "name": "Трансформация",
+            "effect": "TRANSFORMATION",
+            "toughness": 4,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER"
+            ],
+            "description": "Замените Крипера на Трутня. Если у Игрока нет карт на Руке, Трутень проводит Внезапную Атаку."
+          },
+          {
+            "id": "IAT_TRANSFORMATION_2",
+            "name": "Трансформация",
+            "effect": "TRANSFORMATION",
+            "toughness": 5,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER"
+            ],
+            "description": "Замените Крипера на Трутня. Если у Игрока нет карт на Руке, Трутень проводит Внезапную Атаку."
+          },
+          {
+            "id": "IAT_FRENZY_1",
+            "name": "Ярость",
+            "effect": "FRENZY",
+            "toughness": 3,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Каждый Персонаж в Комнате, у которого есть 2 или более Тяжелые Травмы, умирает. Остальные получают 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_FRENZY_2",
+            "name": "Ярость",
+            "effect": "FRENZY",
+            "toughness": 4,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Каждый Персонаж в Комнате, у которого есть 2 или более Тяжелые Травмы, умирает. Остальные получают 1 Тяжелую Травму."
+          },
+          {
+            "id": "IAT_SLIME",
+            "name": "Слизь",
+            "effect": "SLIME",
+            "toughness": 5,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER",
+              "ADULT",
+              "BREEDER",
+              "QUEEN"
+            ],
+            "description": "Атакованный Персонаж получает маркер Слизи и 1 карту Заражения."
+          },
+          {
+            "id": "IAT_CALL",
+            "name": "Зов",
+            "effect": "CALL",
+            "toughness": 3,
+            "hasRetreat": false,
+            "attackerTypes": [
+              "CREEPER",
+              "QUEEN"
+            ],
+            "description": "Вытяните 1 жетон из Пула Чужих и поместите его в эту Комнату. Он не проводит Внезапных Атак и не атакует в этой Фазе."
+          }
+        ]
+      },
+      "unverified": [
+        "Числа стойкости, стрелки Отступления, символы атакующих и тексты каждого экземпляра взяты из doc/data/INTRUDERS.md §4; оригинальных сканов карт в репозитории нет.",
+        "Golden-тест проверяет точное соответствие кода этому пакету источника, а не подтверждает достоверность физического транскрипта."
+      ]
+    },
+    "intruder-miniatures": {
+      "file": "packages/shared/src/data/intruderMiniatures.ts",
+      "status": "RULES_LOCAL",
+      "facts": [
+        {
+          "claim": "Миниатюр: 6 Личинок, 3 Крипера, 8 Взрослых, 2 Трутня, 1 Королева; это не числа жетонов.",
+          "source": "rules-md",
+          "lines": "74-80"
+        },
+        {
+          "claim": "При нехватке Взрослого снимаются все Взрослые вне Боя и доступные соответствующие жетоны возвращаются в мешок.",
+          "source": "rules-md",
+          "lines": "918-920"
+        },
+        {
+          "claim": "Отложенные жетоны доступны в общем запасе; повторная Личинка не убивает персонажа сама по себе.",
+          "source": "nemesis-official-faq",
+          "note": "Rules 12 и 19; короткие выдержки — doc/sources/nemesis-faq-extracts.md."
+        }
+      ],
+      "expectation": {
+        "LARVA": 6,
+        "CREEPER": 3,
+        "ADULT": 8,
+        "BREEDER": 2,
+        "QUEEN": 1
+      }
+    },
+    "weakness-cards": {
+      "file": "packages/shared/src/data/weaknesses.ts",
+      "status": "EXTERNAL_UNVERIFIED",
+      "facts": [
+        {
+          "claim": "В коробке 8 карт Слабостей Чужих; в партию попадают 3 случайные, рубашкой вверх в слоты Планшета Чужих (Труп, Яйцо, Останки), остальные — в коробку.",
+          "source": "rules-md",
+          "lines": "117, 288-289, 1353-1363"
+        },
+        {
+          "claim": "Изученная в Лаборатории Слабость переворачивается и меняет правила, касающиеся Чужих, до конца партии.",
+          "source": "rules-md",
+          "lines": "1357-1363, 1569-1576"
+        },
+        {
+          "claim": "Тексты эффектов 7 карт зафиксированы по транскрипту INTRUDERS.md; восьмая («Вид на грани вымирания») — из WEAKNESSES.md, поэтому полный состав — 8 карт.",
+          "source": "weaknesses-transcript",
+          "note": "Ревью 0.4.0: неполнота транскрипта INTRUDERS.md не оправдывает отсутствие карты при наличии её текста в другом предоставленном документе."
+        }
+      ],
+      "expectation": {
+        "cardCount": 8,
+        "byEffect": {
+          "VULNERABLE_SPOTS": 1,
+          "FIRE_WEAKNESS": 1,
+          "DANGER_REACTION": 1,
+          "ENERGY_WEAKNESS": 1,
+          "MOVEMENT_BEHAVIOR": 1,
+          "PHOSPHORUS_SUSCEPTIBILITY": 1,
+          "ATTACK_BEHAVIOR": 1,
+          "EDGE_OF_EXTINCTION": 1
+        },
+        "cards": [
+          {
+            "id": "WK_VULNERABLE_SPOTS",
+            "name": "Уязвимые места",
+            "effect": "VULNERABLE_SPOTS"
+          },
+          {
+            "id": "WK_FIRE_WEAKNESS",
+            "name": "Уязвимость к огню",
+            "effect": "FIRE_WEAKNESS"
+          },
+          {
+            "id": "WK_DANGER_REACTION",
+            "name": "Реакция на опасность",
+            "effect": "DANGER_REACTION"
+          },
+          {
+            "id": "WK_ENERGY_WEAKNESS",
+            "name": "Уязвимость к энергии",
+            "effect": "ENERGY_WEAKNESS"
+          },
+          {
+            "id": "WK_MOVEMENT_BEHAVIOR",
+            "name": "Повадки движения",
+            "effect": "MOVEMENT_BEHAVIOR"
+          },
+          {
+            "id": "WK_PHOSPHORUS_SUSCEPTIBILITY",
+            "name": "Восприимчивость к фосфатам",
+            "effect": "PHOSPHORUS_SUSCEPTIBILITY"
+          },
+          {
+            "id": "WK_ATTACK_BEHAVIOR",
+            "name": "Повадки атаки",
+            "effect": "ATTACK_BEHAVIOR"
+          },
+          {
+            "id": "WK_EDGE_OF_EXTINCTION",
+            "name": "Вид на грани вымирания",
+            "effect": "EDGE_OF_EXTINCTION"
+          }
+        ]
+      },
+      "unverified": [
+        "Тексты эффектов взяты из проектных транскриптов doc/data/INTRUDERS.md (7 карт) и doc/data/WEAKNESSES.md (8-я карта); оригинальных сканов карт в репозитории нет.",
+        "Golden-тест проверяет точное соответствие кода этому пакету источника, а не подтверждает достоверность физических карт."
+      ]
     }
   }
 }

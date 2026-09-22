@@ -21,6 +21,12 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'BASIC_ROOMS_1',
   'CABINS_HAND_SIZE',
   'CHARACTERS',
+  'COMBAT_DIE_FACES',
+  'COMBAT_ACTION_CARDS',
+  'resolveEscapeAttack',
+  'resolveRerollCombatDie',
+  'WEAKNESS_CARDS',
+  'WEAKNESS_CARDS_COUNT',
   'COMPONENT_FAMILY',
   'CONTAMINATION_CARDS',
   'CONTAMINATION_CARDS_COUNT',
@@ -30,6 +36,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'CRAFTED_ITEM_CARDS',
   'CRAFTING_RECIPES',
   'DEFAULT_SEED',
+  'drawOneActionCard',
   'DOOR_STATES',
   'ESCAPE_POD_CAPACITY',
   'ESCAPE_POD_NUMBERS',
@@ -39,11 +46,16 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'EXPLORATION_EFFECTS',
   'EXPLORATION_TOKENS',
   'EngineError',
+  'escapeAttackerIds',
+  'executeCombatCard',
   'FIRE_MARKER_SUPPLY',
   'GAME_STATE_SCHEMA_VERSION',
   'GREEN_ITEM_CARDS',
   'GameEngine',
   'HAND_SLOT_COUNT',
+  'INTRUDER_ATTACK_CARDS',
+  'isCombatActionCard',
+  'INTRUDER_MINIATURE_LIMITS',
   'INTRUDER_SUPPLY_COMPOSITION',
   'MALFUNCTION_FORBIDDEN_ROOM_DEFINITIONS',
   'MALFUNCTION_MARKER_SUPPLY',
@@ -82,9 +94,12 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'getPlayerHandLimit',
   'getOrderedPlayers',
   'getRoomDeckColor',
+  'isPlayerInCombat',
+  'isRoomInCombat',
   'isRngStream',
   'pickIndex',
   'placeItemToPlayer',
+  'rollCombatDie',
   'rollDie',
   'shuffle',
   'startNewRound',
@@ -128,6 +143,8 @@ describe('Публичное API ядра', () => {
     expect(core.ADDITIONAL_ROOMS_2.length).toBeGreaterThan(0);
     expect(core.SPECIAL_ROOMS.length).toBeGreaterThan(0);
     expect(core.CRAFTING_RECIPES.length).toBeGreaterThan(0);
+    expect(core.INTRUDER_ATTACK_CARDS).toHaveLength(20);
+    expect(core.COMBAT_DIE_FACES).toHaveLength(6);
   });
 
   it('объявляет версию контракта состояния', () => {

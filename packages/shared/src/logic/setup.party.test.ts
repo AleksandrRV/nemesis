@@ -82,10 +82,25 @@ describe('createInitialGameState: Планшет Чужих', () => {
     expect(new Set(slots.map((slot) => slot.objectKind)).size).toBe(3);
   });
 
-  it('оставляет слоты Слабостей пустыми до появления данных о картах', () => {
-    const slots = createInitialGameState('nemesis-alpha').intrudersPool.weaknessSlots;
+  it('раскладывает 3 случайные Слабости рубашкой вниз по слотам (стр. 6, шаг 9; стр. 21)', () => {
+    const state = createInitialGameState('nemesis-alpha');
+    const slots = state.intrudersPool.weaknessSlots;
 
-    expect(slots.every((slot) => slot.card === null)).toBe(true);
+    expect(slots.every((slot) => slot.card !== null)).toBe(true);
+    expect(new Set(slots.map((slot) => slot.card!.id)).size).toBe(3);
+    expect(slots.every((slot) => slot.card!.isRevealed === false)).toBe(true);
+    expect(state.decks.weaknesses.drawPile).toHaveLength(0); // остальные — «в коробку»
+  });
+
+  it('расклад Слабостей детерминирован сидом', () => {
+    const first = createInitialGameState('nemesis-alpha')
+      .intrudersPool.weaknessSlots.map((slot) => slot.card!.id)
+      .join(',');
+    const again = createInitialGameState('nemesis-alpha')
+      .intrudersPool.weaknessSlots.map((slot) => slot.card!.id)
+      .join(',');
+
+    expect(first).toBe(again);
   });
 });
 

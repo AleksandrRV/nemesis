@@ -1,4 +1,4 @@
-import { EngineError } from './fsm.js';
+import { EngineError } from './engineErrors.js';
 
 import type { ActionDeckCard, ActionDeckState, CardPile, ContaminationCard, GameDecksState } from '../types/cards.js';
 import type { IntruderToken, PlayerState, WeaknessSlotState } from '../types/entities.js';
@@ -42,6 +42,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   // Копия состояния, в которой скрытые поля заменяются на null/счётчики/FACE_DOWN.
   const sanitized = structuredClone(state) as unknown as SanitizedGameState;
 
+  sanitized.pendingDecisionPlayerId = state.pendingDecision?.playerId ?? null;
   sanitizeIntruderPool(sanitized);
   sanitizeShip(sanitized, viewer);
   sanitizePlayers(sanitized, viewingPlayerId);
@@ -105,9 +106,7 @@ function sanitizeShip(state: SanitizedGameState, viewer: PlayerState): void {
  * всё, что определяется самим тайлом — название, жетон Исследования,
  * компьютер и аварии, — игроку неизвестно и помечается как `null`, а не как
  * «нет»: показать «Пожара нет» о тайле, который ещё не перевёрнут, значило бы
- * сообщить знание, которого у персонажа нет. Объекты и Чужие на полу — не
- * свойство тайла: пока отсек не вскрыт, их там нет по правилам, поэтому списки
- * пусты.
+ * сообщить знание, которого у персонажа нет.
  */
 function sanitizeRoom(room: SanitizedRoomState): void {
   if (room.isExplored) return;
@@ -122,7 +121,6 @@ function sanitizeRoom(room: SanitizedRoomState): void {
   // и жетон лежат рубашкой вверх, игрок не знает ни числа предметов, ни эффекта.
   room.explorationEffect = null;
   room.objects = [];
-  room.occupantIntruderIds = [];
 }
 
 /**

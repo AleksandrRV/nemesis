@@ -5,6 +5,7 @@ import { GameEngine } from './fsm.js';
 import type { GameState } from '../types/state.js';
 import type { ItemCard } from '../types/cards.js';
 import { executeRoomAbility } from './roomAbilities.js';
+import { expectEngineError } from '../testing/contactFixtures.js';
 
 const SEED = 'room-ability-tests';
 
@@ -336,7 +337,7 @@ describe('Действия комнат (Room Abilities)', () => {
     expect(player.hasEscapedInPod).toBe(true);
   });
 
-  it('лаборатория (LABORATORY): изучает объект и раскрывает карту слабости', () => {
+  it('лаборатория (LABORATORY): изучает объект в руках, объект не удаляется (стр. 16)', () => {
     const state = setupState();
     const player = state.players['player-1']!;
     giveHand(state, 'player-1', 4);
@@ -346,6 +347,7 @@ describe('Действия комнат (Room Abilities)', () => {
     room.isExplored = true;
     room.definitionId = 'LABORATORY';
     room.hasMalfunction = false;
+    if (!room.occupantPlayerIds.includes('player-1')) room.occupantPlayerIds.push('player-1');
 
     player.handSlots = [
       {
@@ -361,6 +363,7 @@ describe('Действия комнат (Room Abilities)', () => {
           id: 'weakness-1',
           name: 'Слабость яиц',
           description: 'Слабость',
+          effect: 'DANGER_REACTION',
           isRevealed: false,
         },
       },
@@ -370,7 +373,115 @@ describe('Действия комнат (Room Abilities)', () => {
       targetObjectKind: 'EGG',
     });
 
+    // Объект остаётся в руке: «Объект не удаляется из игры после исследования».
+    expect(player.handSlots).toHaveLength(1);
+    expect(state.intrudersPool.weaknessSlots[0]!.card?.isRevealed).toBe(true);
+  });
+
+  it('лаборатория: изучает объект с пола, без объекта в руках (стр. 16; сценарий D8)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+    if (!room.occupantPlayerIds.includes('player-1')) room.occupantPlayerIds.push('player-1');
+    room.objects.push({ id: 'remains-floor', kind: 'INTRUDER_REMAINS', intruderType: 'ADULT' });
+
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'INTRUDER_REMAINS',
+        card: {
+          id: 'weakness-r',
+          name: 'Уязвимость к энергии',
+          description: 'Слабость',
+          effect: 'ENERGY_WEAKNESS',
+          isRevealed: false,
+        },
+      },
+    ];
+
+    executeRoomAbility(state, 'player-1', { targetObjectKind: 'INTRUDER_REMAINS' });
+
+    expect(room.objects).toHaveLength(1); // объект остался на полу
+    expect(state.intrudersPool.weaknessSlots[0]!.card?.isRevealed).toBe(true);
+  });
+
+  it('лаборатория: без объекта в отсеке и в руках — отказ (стр. 16)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+    if (!room.occupantPlayerIds.includes('player-1')) room.occupantPlayerIds.push('player-1');
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'EGG',
+        card: { id: 'weakness-e', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false },
+      },
+    ];
+
+    expectEngineError(
+      () => executeRoomAbility(state, 'player-1', { targetObjectKind: 'EGG' }),
+      'ROOM_ABILITY_NOT_ALLOWED',
+    );
+  });
+
+  it('лаборатория: уже изученная Слабость не раскрывается повторно', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+    if (!room.occupantPlayerIds.includes('player-1')) room.occupantPlayerIds.push('player-1');
+    player.handSlots = [{ source: 'OBJECT', object: { id: 'egg-2', kind: 'EGG' } }];
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'EGG',
+        card: { id: 'weakness-done', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: true },
+      },
+    ];
+
+    expectEngineError(
+      () => executeRoomAbility(state, 'player-1', { targetObjectKind: 'EGG' }),
+      'WEAKNESS_ALREADY_REVEALED',
+    );
+  });
+
+  it('лаборатория: discardObjectAfterStudy сбрасывает объект с руки на пол (стр. 16)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 9;
+    const room = state.ship.rooms[9]!;
+    room.isExplored = true;
+    room.definitionId = 'LABORATORY';
+    room.hasMalfunction = false;
+    if (!room.occupantPlayerIds.includes('player-1')) room.occupantPlayerIds.push('player-1');
+    player.handSlots = [{ source: 'OBJECT', object: { id: 'egg-3', kind: 'EGG' } }];
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'EGG',
+        card: { id: 'weakness-drop', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false },
+      },
+    ];
+
+    executeRoomAbility(state, 'player-1', { targetObjectKind: 'EGG', discardObjectAfterStudy: true });
+
     expect(player.handSlots).toHaveLength(0);
+    expect(room.objects.some((object) => object.id === 'egg-3')).toBe(true);
     expect(state.intrudersPool.weaknessSlots[0]!.card?.isRevealed).toBe(true);
   });
 

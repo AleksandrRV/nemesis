@@ -4,6 +4,8 @@ import type { EngineErrorCode } from './fsm.js';
 import { EngineError } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { createInitialGameState } from './setup.js';
+import type { WeaknessCard } from '../types/cards.js';
+import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 
 const SEED = 'sanitizer-test';
 const VIEWER = 'player-1';
@@ -78,7 +80,7 @@ describe('filterStateForPlayer: неисследованные отсеки (с�
     }
   });
 
-  it('не выдаёт аварии невскрытого отсека за «нет», а объекты и Чужих не показывает', () => {
+  it('скрывает тайл и аварии, но сохраняет публичные миниатюры в невскрытом отсеке (стр. 15)', () => {
     const state = freshState();
     const room = Object.values(state.ship.rooms).find((candidate) => !candidate.isExplored);
 
@@ -99,7 +101,43 @@ describe('filterStateForPlayer: неисследованные отсеки (с�
     expect(sanitizedRoom?.hasMalfunction).toBeNull();
     expect(sanitizedRoom?.hasDecompressionToken).toBeNull();
     expect(sanitizedRoom?.objects).toEqual([]);
-    expect(sanitizedRoom?.occupantIntruderIds).toEqual([]);
+    expect(sanitizedRoom?.occupantIntruderIds).toEqual(['adult-1']);
+  });
+
+  it('раны Чужих публичны: маркеры Ран лежат на виду у всех игроков (стр. 19)', () => {
+    const state = freshState();
+    state.intrudersPool.boardTokens = [{ id: 'adult-1', type: 'ADULT', roomId: 11, woundsCount: 2 }];
+    state.ship.rooms[11]!.isExplored = false;
+
+    const view = filterStateForPlayer(state, VIEWER);
+
+    expect(view.intrudersPool.boardTokens).toEqual([{ id: 'adult-1', type: 'ADULT', roomId: 11, woundsCount: 2 }]);
+  });
+
+  it('событие Контакта доходит с полем заражения Личинкой', () => {
+    const state = freshState();
+    state.gameLog.push({
+      id: 'log-1',
+      sequence: 1,
+      event: {
+        type: 'CONTACT_OCCURRED',
+        playerId: VIEWER,
+        roomId: 11,
+        tokenType: 'LARVA',
+        escapeNumber: 1,
+        handCount: 3,
+        intruderId: null,
+        firstEncounter: false,
+        surpriseAttack: false,
+        source: 'NOISE',
+        infestation: { alreadyInfested: false },
+      },
+    });
+
+    const view = filterStateForPlayer(state, VIEWER);
+    const contact = view.gameLog.find((entry) => entry.event.type === 'CONTACT_OCCURRED');
+
+    expect(contact?.event).toMatchObject({ infestation: { alreadyInfested: false } });
   });
 
   it('оставляет исследованные отсеки как есть', () => {
@@ -195,8 +233,14 @@ describe('filterStateForPlayer: Слабости Чужих (стр. 21)', () =>
     const state = freshState();
 
     state.intrudersPool.weaknessSlots = [
-      { objectKind: 'CORPSE', card: { id: 'w-1', name: 'Слабость 1', description: 'текст', isRevealed: false } },
-      { objectKind: 'EGG', card: { id: 'w-2', name: 'Слабость 2', description: 'текст', isRevealed: true } },
+      {
+        objectKind: 'CORPSE',
+        card: { id: 'w-1', name: 'Слабость 1', description: 'текст', effect: 'DANGER_REACTION', isRevealed: false },
+      },
+      {
+        objectKind: 'EGG',
+        card: { id: 'w-2', name: 'Слабость 2', description: 'текст', effect: 'EDGE_OF_EXTINCTION', isRevealed: true },
+      },
       { objectKind: 'INTRUDER_REMAINS', card: null },
     ];
 
@@ -353,7 +397,13 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     maxAmmo: null,
   });
 
-  const weaknessCard = (id: string) => ({ id, name: 'Слабость', description: '', isRevealed: false });
+  const weaknessCard = (id: string): WeaknessCard => ({
+    id,
+    name: 'Слабость',
+    description: '',
+    effect: 'DANGER_REACTION',
+    isRevealed: false,
+  });
 
   it('закрытую колоду отдаёт числом, а сброс Предметов оставляет открытым: он лежит лицом вверх', () => {
     const state = freshState();
@@ -433,6 +483,23 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     const revealed = filterStateForPlayer(state, VIEWER).intrudersPool.weaknessSlots[0]!;
 
     expect(revealed.visibility).toBe('REVEALED');
+  });
+
+  it('колода Атак Чужих: порядок закрыт числом, сброс — свершившиеся факты лицом вверх (стр. 9, 20)', () => {
+    const state = createInitialGameState('sanitizer-attacks');
+    const scratch = structuredClone(INTRUDER_ATTACK_CARDS[0]!);
+    state.decks.intruderAttacks = {
+      drawPile: [scratch, ...INTRUDER_ATTACK_CARDS.slice(1).map((card) => structuredClone(card))],
+      discard: [structuredClone(INTRUDER_ATTACK_CARDS[3]!)],
+    };
+
+    const view = filterStateForPlayer(state, 'player-1');
+    const deck = view.decks.intruderAttacks;
+
+    expect('drawPile' in deck).toBe(false);
+    expect(deck.drawPileCount).toBe(state.decks.intruderAttacks.drawPile.length);
+    expect(deck.discard).toHaveLength(1);
+    expect(deck.discard[0]).toMatchObject({ id: 'IAT_SCRATCH_4', toughness: 6 });
   });
 
   it('отдаёт состав мешка и запаса числами, не раскрывая порядок жетонов (стр. 6, шаг 10)', () => {

@@ -83,10 +83,11 @@ export interface PlayerState {
   /** Два квестовых предмета персонажа. */
   questItems: QuestItemState[];
   lightWounds: number; // 0..2, третья даёт Тяжёлую травму
-  seriousWounds: SeriousWoundCard[]; // максимум 3, четвёртая означает смерть
+  seriousWounds: SeriousWoundCard[];
   objectives: ObjectiveCard[]; // 1 личная и 1 корпоративная цель
   /** Маркер Слизи лежит на планшете Персонажа, а не в отсеке (стр. 15). */
   hasSlime: boolean;
+  hasLarva: boolean;
   hasSignalSent: boolean;
   isInHibernation: boolean;
   hasEscapedInPod: boolean;

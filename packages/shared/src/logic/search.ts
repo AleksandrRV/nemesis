@@ -1,9 +1,11 @@
 import type { GameState } from '../types/state.js';
 import type { ItemCard, ItemDeckColor } from '../types/cards.js';
 import { BASIC_ROOMS_1, ADDITIONAL_ROOMS_2, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
-import { EngineError } from './fsm.js';
+import { isPlayerInCombat } from './combatStatus.js';
+import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
-import { advanceTurn } from './turnCycle.js';
+import { queueActionCompletion } from './actionCompletion.js';
+import { allocateEntityId } from './stateIds.js';
 
 const ALL_ROOMS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
 
@@ -49,8 +51,8 @@ export function validateSearchConditions(
     throw new EngineError('NO_ITEMS_LEFT', 'В отсеке не осталось предметов для поиска (счётчик = 0)');
   }
 
-  if ((room.occupantIntruderIds?.length ?? 0) > 0) {
-    throw new EngineError('SEARCH_IN_COMBAT', 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 14)');
+  if (isPlayerInCombat(state, playerId)) {
+    throw new EngineError('SEARCH_IN_COMBAT', 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18).');
   }
 
   const color = getRoomDeckColor(room.definitionId);
@@ -93,7 +95,7 @@ export function placeItemToPlayer(state: GameState, playerId: string, item: Item
     }
     // Обе руки заняты: нужно решение о сбросе
     state.pendingDecision = {
-      id: `decision-${Date.now()}-${playerId}`,
+      id: allocateEntityId(state, 'item-choice'),
       playerId,
       type: 'DISCARD_HEAVY_ITEM_FOR_NEW',
       newItemId: item.id,
@@ -130,8 +132,5 @@ export function finishSearch(state: GameState, playerId: string): void {
     roomId: room.id,
   });
 
-  player.actionsPerformedThisRound += 1;
-  if (player.actionsPerformedThisRound >= 2) {
-    advanceTurn(state, playerId);
-  }
+  queueActionCompletion(state, playerId);
 }

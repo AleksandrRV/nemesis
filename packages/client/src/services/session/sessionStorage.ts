@@ -65,6 +65,8 @@ export function isGameState(value: unknown): value is GameState {
     isRecord(meta) &&
     meta.schemaVersion === SESSION_STORAGE_VERSION &&
     isRecord(meta.rngDraws) &&
+    Number.isSafeInteger(meta.nextEntitySequence) &&
+    Number(meta.nextEntitySequence) > 0 &&
     'gameOverReason' in meta &&
     isRecord(ship) &&
     isRecord(ship.rooms) &&
@@ -76,6 +78,9 @@ export function isGameState(value: unknown): value is GameState {
     isRecord(intrudersPool) &&
     Array.isArray(intrudersPool.bag) &&
     Array.isArray(intrudersPool.supply) &&
+    typeof intrudersPool.firstEncounterOccurred === 'boolean' &&
+    isRecord(intrudersPool.attackSuppression) &&
+    Object.values(players).every((player) => isRecord(player) && typeof player.hasLarva === 'boolean') &&
     isRecord(decks) &&
     Array.isArray(claimsLog) &&
     Array.isArray(gameLog) &&

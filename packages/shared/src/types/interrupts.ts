@@ -22,7 +22,10 @@ export type InterruptEvent =
    * в выбранный игроком Коридор (стр. 13).
    */
   | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode }
-  /** Контакт: вытянутый из мешка жетон Чужого появляется на поле. */
-  | { type: 'ENCOUNTER_INTERRUPT'; roomId: RoomId; intruderTokenId: string }
+  | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId; source: 'NOISE' | 'CALL' }
+  | { type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT'; playerId: string }
+  | { type: 'COMPLETE_ACTION_INTERRUPT'; playerId: string }
   /** Внезапная атака: карт на руке меньше числа на жетоне (стр. 18). */
-  | { type: 'SURPRISE_ATTACK_INTERRUPT'; playerId: string; intruderId: string };
+  | { type: 'SURPRISE_ATTACK_INTERRUPT'; playerId: string; intruderId: string }
+  /** «Адреналин» (Шаг 8): добор 1 карты Действия после Стрельбы или Побега. */
+  | { type: 'DRAW_ACTION_CARD_INTERRUPT'; playerId: string };

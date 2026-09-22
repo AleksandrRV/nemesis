@@ -1,10 +1,14 @@
 import React from 'react';
-import { SHIP_ROOM_NODES, type SanitizedRoomState } from '@nemesis/shared';
+import { SHIP_ROOM_NODES, type IntruderEntity, type SanitizedRoomState } from '@nemesis/shared';
 import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
+import { IntruderBadge } from './IntruderBadge';
+import { groupIntrudersByRoom, layoutIntruderBadges } from './intruderMapModel';
 
 interface RoomHexProps {
   /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
   room: SanitizedRoomState;
+  /** Чужие этого отсека: публичные миниатюры и их раны (стр. 19). */
+  intruders: IntruderEntity[];
   x: number;
   y: number;
   isSelected: boolean;
@@ -39,7 +43,7 @@ const CANONICAL_ROOM_NAMES: Record<string, [string, string]> = {
   SHOWER: ['ДУШЕВАЯ', 'ЭКИПАЖА'],
 };
 
-export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSelect }) => {
+export const RoomHex: React.FC<RoomHexProps> = ({ room, intruders, x, y, isSelected, onSelect }) => {
   const radius = 45;
 
   const points = React.useMemo(() => {
@@ -53,6 +57,11 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSele
 
     return pts.join(' ');
   }, [x, y, radius]);
+
+  const intruderBadges = React.useMemo(() => groupIntrudersByRoom(intruders).get(room.id) ?? [], [intruders, room.id]);
+
+  const layout = React.useMemo(() => layoutIntruderBadges(intruderBadges), [intruderBadges]);
+  const layoutScale = layout.scale;
 
   const nodeData = React.useMemo(() => SHIP_ROOM_NODES.find((node) => node.id === room.id), [room.id]);
 
@@ -185,6 +194,17 @@ export const RoomHex: React.FC<RoomHexProps> = ({ room, x, y, isSelected, onSele
           <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
 
           <User size={12} className="text-slate-950" x={4} y={4} />
+        </g>
+      )}
+
+      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19) */}
+      {/* Чужие в отсеке: цветной силуэт типа, число миниатюр и раны (стр. 19).
+          Строка центрирована по гексу и сжимается целиком при переполнении. */}
+      {intruderBadges.length > 0 && (
+        <g transform={`translate(${x - (layout.width * layoutScale) / 2}, ${y + 22}) scale(${layoutScale})`}>
+          {layout.items.map((item) => (
+            <IntruderBadge key={item.badge.type} badge={item.badge} x={item.x} y={0} />
+          ))}
         </g>
       )}
 

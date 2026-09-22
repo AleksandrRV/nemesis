@@ -1,15 +1,17 @@
+import { sufferLightWounds } from './characterDamage.js';
+import { endGame } from './gameEnd.js';
 import type { GameState } from '../types/state.js';
 import type { PlayerState } from '../types/entities.js';
 import { appendGameLog } from './gameLog.js';
 import { drawCardsToLimit } from './cardsPayment.js';
-import { EngineError } from './fsm.js';
+import { EngineError } from './engineErrors.js';
 
 /**
  * Возвращает отсортированный по orderNumber список живых игроков.
  */
 export function getOrderedPlayers(state: GameState): PlayerState[] {
   return Object.values(state.players)
-    .filter((p) => !p.isDead && !p.hasEscapedInPod)
+    .filter((p) => !p.isDead && !p.hasEscapedInPod && !p.isInHibernation)
     .sort((a, b) => a.orderNumber - b.orderNumber);
 }
 
@@ -21,14 +23,8 @@ export function findNextActivePlayer(state: GameState, currentActivePlayerId: st
   const activePlayers = getOrderedPlayers(state).filter((p) => !p.hasPassed);
   if (activePlayers.length === 0) return null;
 
-  const currentIndex = activePlayers.findIndex((p) => p.id === currentActivePlayerId);
-  if (currentIndex === -1) {
-    // Если текущий игрок не найден среди неспасовавших, берем первого доступного
-    return activePlayers[0] ?? null;
-  }
-
-  const nextIndex = (currentIndex + 1) % activePlayers.length;
-  return activePlayers[nextIndex] ?? null;
+  const currentOrder = state.players[currentActivePlayerId]?.orderNumber ?? 0;
+  return activePlayers.find((player) => player.orderNumber > currentOrder) ?? activePlayers[0]!;
 }
 
 /**
@@ -41,7 +37,7 @@ export function applyFireEndTurnEffect(state: GameState, playerId: string): bool
 
   const room = state.ship.rooms[player.roomId];
   if (room && room.hasFire) {
-    player.lightWounds += 1;
+    sufferLightWounds(state, playerId, 1);
     appendGameLog(state, {
       type: 'FIRE_DAMAGE_TAKEN',
       playerId,
@@ -69,6 +65,10 @@ export function advanceTurn(state: GameState, completedPlayerId: string): void {
 
   // Проверяем, все ли живые игроки спасовали
   const alivePlayers = getOrderedPlayers(state);
+  if (alivePlayers.length === 0) {
+    endGame(state, 'NO_ACTIVE_CHARACTERS');
+    return;
+  }
   const allPassed = alivePlayers.length > 0 && alivePlayers.every((p) => p.hasPassed);
 
   if (allPassed) {

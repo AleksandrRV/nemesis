@@ -20,6 +20,9 @@ export interface GameStoreState {
   /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
   rejection: string | null;
 
+  /** Открыта ли интерактивная панель выстрела (только состояние интерфейса). */
+  shootModalOpen: boolean;
+  meleeModalOpen: boolean;
   /** Выбранные в текущий момент карты на руке */
   selectedCardIds: string[];
   /** Конвертированные в очки действий ID карт (в резерве) */
@@ -30,6 +33,9 @@ export interface GameStoreState {
   convertToEnergy: () => void;
   refundConvertedCard: (cardId: string) => void;
   consumePaymentCards: (count: number) => string[];
+
+  setShootModalOpen: (open: boolean) => void;
+  setMeleeModalOpen: (open: boolean) => void;
 
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
@@ -54,6 +60,8 @@ export function createGameStore(createTransport: TransportFactory) {
     view: null,
     selectedRoomId: null,
     rejection: null,
+    shootModalOpen: false,
+    meleeModalOpen: false,
     selectedCardIds: [],
     convertedCardIds: [],
 
@@ -131,6 +139,14 @@ export function createGameStore(createTransport: TransportFactory) {
       transport.sendAction(action);
     },
 
+    setShootModalOpen: (open) => {
+      set({ shootModalOpen: open });
+    },
+
+    setMeleeModalOpen: (open) => {
+      set({ meleeModalOpen: open });
+    },
+
     selectRoom: (roomId) => {
       set({ selectedRoomId: roomId });
     },
@@ -143,6 +159,8 @@ export function createGameStore(createTransport: TransportFactory) {
         set({
           selectedRoomId: defaultRoomId(store.getState().view),
           rejection: null,
+          shootModalOpen: false,
+          meleeModalOpen: false,
           selectedCardIds: [],
           convertedCardIds: [],
         });
@@ -155,7 +173,15 @@ export function createGameStore(createTransport: TransportFactory) {
       transport = createTransport();
       attach(transport);
       void transport.init();
-      set({ view: null, selectedRoomId: null, rejection: null, selectedCardIds: [], convertedCardIds: [] });
+      set({
+        view: null,
+        selectedRoomId: null,
+        rejection: null,
+        shootModalOpen: false,
+        meleeModalOpen: false,
+        selectedCardIds: [],
+        convertedCardIds: [],
+      });
     },
   }));
 

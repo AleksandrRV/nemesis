@@ -1,7 +1,8 @@
 import React from 'react';
 import type { PendingDecision } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { Package, ArrowRight } from 'lucide-react';
+import { Package, ArrowRight, Dices } from 'lucide-react';
+import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 
 interface DecisionModalProps {
   decision: PendingDecision;
@@ -20,6 +21,41 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
       },
     });
   };
+
+  if (decision.type === 'CHOOSE_OBJECTIVE') {
+    const objectives = view?.players[decision.playerId]?.objectives ?? [];
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label="Первый Контакт: выбор Цели"
+          className="w-full max-w-lg space-y-4 rounded-xl border border-amber-500/60 bg-slate-900 p-5 shadow-2xl"
+        >
+          <h2 className="font-heading text-xl tracking-wider text-amber-200">ПЕРВЫЙ КОНТАКТ: ВЫБЕРИТЕ ЦЕЛЬ</h2>
+          <p className="text-sm leading-relaxed text-slate-300">
+            Оставьте одну Цель. Другая удалится из игры втайне от остальных. Контакт продолжится после решений всех
+            игроков.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {objectives
+              .filter((objective) => decision.objectiveIds.includes(objective.id))
+              .map((objective) => (
+                <button
+                  key={objective.id}
+                  onClick={() => handleSelect(objective.id)}
+                  className="rounded-lg border border-amber-700 bg-slate-950 p-4 text-left transition hover:border-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+                >
+                  <span className="block font-semibold text-amber-100">{objective.name}</span>
+                  <span className="mt-2 block text-sm leading-relaxed text-slate-300">{objective.description}</span>
+                  <span className="mt-3 block text-xs font-bold text-amber-300">Оставить эту Цель →</span>
+                </button>
+              ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (decision.type === 'CHOOSE_WHITE_ROOM_DECK') {
     return (
@@ -124,6 +160,45 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
                 </button>
               );
             })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (decision.type === 'REROLL_COMBAT_DIE') {
+    const face = COMBAT_DIE_PRESENTATION[decision.firstFace];
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 text-amber-400 border-b border-slate-800 pb-3">
+            <Dices size={20} />
+            <h3 className="text-lg font-heading tracking-wider text-white">ПРИЦЕЛЬНЫЙ ОГОНЬ: ПЕРЕБРОС?</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Кубик Боя показал грань — можно один раз перебросить её (стр. 24). Оружие: «{decision.weaponName}», цель уже
+            выбрана.
+          </p>
+          <div
+            role="img"
+            aria-label={`Выпавшая грань: ${face.label}`}
+            className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-amber-400/70 bg-slate-950 font-mono text-lg font-bold text-amber-300"
+          >
+            {face.label}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleSelect('REROLL')}
+              className="py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs uppercase transition"
+            >
+              Перебросить
+            </button>
+            <button
+              onClick={() => handleSelect('KEEP')}
+              className="py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs uppercase transition"
+            >
+              Оставить грань
+            </button>
           </div>
         </div>
       </div>

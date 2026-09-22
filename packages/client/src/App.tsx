@@ -10,6 +10,9 @@ import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
+import { ContactOverlay } from './components/contact/ContactOverlay';
+import { ShootModal } from './components/combat/ShootModal';
+import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
 import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
@@ -19,7 +22,7 @@ export const App: React.FC = () => {
   const startNewGame = useGameStore((state) => state.startNewGame);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
-    return !localStorage.getItem('nemesis_offline_session');
+    return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
   });
 
   const handleCharacterSelect = (characterClass: CharacterClass) => {
@@ -106,6 +109,21 @@ export const App: React.FC = () => {
           />
         )}
         {view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
+        {view.pendingDecisionPlayerId && !view.pendingDecision && (
+          <div
+            role="status"
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
+          >
+            <p className="max-w-md rounded-xl border border-amber-700 bg-slate-900 p-6 text-center text-amber-100">
+              Ожидается обязательное решение игрока{' '}
+              {view.players[view.pendingDecisionPlayerId]?.name ?? view.pendingDecisionPlayerId}.
+            </p>
+          </div>
+        )}
+        {!showCharacterSelect && <ContactOverlay view={view} />}
+        <ShootModal />
+        <MeleeModal />
+
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
     </div>

@@ -1,13 +1,4 @@
-import type { CharacterClass } from './entities.js';
-
-/**
- * Карты, колоды и компоненты крафта.
- *
- * Контракт v0 фиксирует структуру карт и колод, но не их состав: перечней
- * карт (предметы, события, травмы, цели, слабости) в репозитории нет
- * (этап 3 дорожной карты), поэтому колоды описаны типизированными «стопками»
- * и наполняются данными отдельным блоком работ.
- */
+import type { CharacterClass, IntruderType } from './entities.js';
 
 /** Семейство компонента крафта (GDD §2.4). */
 export type ComponentFamily = 'MEDICAL' | 'TECH';
@@ -136,8 +127,32 @@ export interface ObjectiveCard extends CardDefinition {
 /** Карта Событий: сдвигает Чужих по номерам коридоров и разыгрывает текст (стр. 10). */
 export type EventCard = CardDefinition;
 
-/** Карта Атаки Чужих: стойкость Чужого — сумма двух таких карт (стр. 20). */
-export type IntruderAttackCard = CardDefinition;
+export type IntruderAttackEffect =
+  'SCRATCH' | 'BITE' | 'CLAW_ATTACK' | 'TAIL_ATTACK' | 'TRANSFORMATION' | 'FRENZY' | 'SLIME' | 'CALL';
+
+export type IntruderAttackerType = Exclude<IntruderType, 'LARVA'>;
+
+export interface IntruderAttackCard extends CardDefinition {
+  effect: IntruderAttackEffect;
+  toughness: number;
+  hasRetreat: boolean;
+  attackerTypes: readonly IntruderAttackerType[];
+}
+
+/**
+ * Машинный эффект карты Слабости. Тексты эффектов — `doc/data/WEAKNESSES.md`;
+ * эффекты, относящиеся к реализованному бою, применяет движок (стр. 21:
+ * «Раскрытые Слабости изменяют правила, касающиеся Чужих»).
+ */
+export type WeaknessEffect =
+  | 'VULNERABLE_SPOTS'
+  | 'FIRE_WEAKNESS'
+  | 'DANGER_REACTION'
+  | 'ENERGY_WEAKNESS'
+  | 'MOVEMENT_BEHAVIOR'
+  | 'PHOSPHORUS_SUSCEPTIBILITY'
+  | 'ATTACK_BEHAVIOR'
+  | 'EDGE_OF_EXTINCTION';
 
 /**
  * Карта Слабости Чужих. Всего их 8, в партию попадают 3 случайные и лежат
@@ -145,6 +160,8 @@ export type IntruderAttackCard = CardDefinition;
  * и остаётся в своём слоте (стр. 21).
  */
 export interface WeaknessCard extends CardDefinition {
+  /** Машинный эффект: по нему движок применяет раскрытую Слабость. */
+  effect: WeaknessEffect;
   isRevealed: boolean;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GAME_STATE_SCHEMA_VERSION, createInitialGameState } from '@nemesis/shared';
+import { GAME_STATE_SCHEMA_VERSION, createInitialGameState, rollCombatDie } from '@nemesis/shared';
 
 import type { StorageLike } from './sessionStorage';
 import {
@@ -163,5 +163,39 @@ describe('Сохранение партии: хранилище', () => {
     createSessionStorage(storage).save(state);
 
     expect(createSessionStorage(storage).load()?.meta.seed).toBe('restart');
+  });
+});
+
+describe('Сохранение данных боя (v0.4.0, шаг 1)', () => {
+  it('сохраняет порядок Атак, открытый сброс и продолжение потока combat', () => {
+    const state = createInitialGameState('combat-session-step-1');
+    const pile = state.decks.intruderAttacks;
+    pile.discard.push(pile.drawPile.shift()!);
+    for (let draw = 0; draw < 7; draw++) rollCombatDie(state);
+
+    const restored = parseSession(serializeSession(state));
+    if (!restored) throw new Error('Совместимая партия не восстановилась');
+
+    expect(restored).toEqual(state);
+    expect(restored.decks.intruderAttacks.drawPile).toHaveLength(19);
+    expect(restored.decks.intruderAttacks.discard).toHaveLength(1);
+    expect(restored.meta.rngDraws.combat).toBe(7);
+    expect(Array.from({ length: 12 }, () => rollCombatDie(restored))).toEqual(
+      Array.from({ length: 12 }, () => rollCombatDie(state)),
+    );
+    expect(restored).toEqual(state);
+  });
+
+  it.each([4, SESSION_STORAGE_VERSION])('не восстанавливает состояние v4 даже в оболочке версии %i', (version) => {
+    const current = createInitialGameState(SEED);
+    const oldState = {
+      ...current,
+      meta: { ...current.meta, schemaVersion: 4 },
+      decks: { ...current.decks, intruderAttacks: { drawPile: [], discard: [] } },
+    };
+
+    expect(GAME_STATE_SCHEMA_VERSION).toBeGreaterThan(4);
+    expect(isGameState(oldState)).toBe(false);
+    expect(parseSession(JSON.stringify({ version, state: oldState }))).toBeNull();
   });
 });

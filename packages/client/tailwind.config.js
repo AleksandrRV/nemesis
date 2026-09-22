@@ -16,6 +16,33 @@ export default {
           warning: '#ffb700',
         },
       },
+      keyframes: {
+        'contact-reveal': {
+          '0%': { opacity: '0', transform: 'perspective(600px) translateY(48px) rotateY(180deg) scale(0.65)' },
+          '60%': { opacity: '1', transform: 'perspective(600px) translateY(-6px) rotateY(15deg) scale(1.05)' },
+          '100%': { opacity: '1', transform: 'perspective(600px) translateY(0) rotateY(0) scale(1)' },
+        },
+        'contact-warning': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.65' },
+        },
+        'contact-card': {
+          '0%': { opacity: '0', transform: 'translateY(18px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'die-roll': {
+          '0%': { transform: 'rotate(-160deg) scale(0.7)', opacity: '0' },
+          '55%': { transform: 'rotate(12deg) scale(1.08)', opacity: '1' },
+          '75%': { transform: 'rotate(-6deg) scale(0.98)' },
+          '100%': { transform: 'rotate(0deg) scale(1)', opacity: '1' },
+        },
+      },
+      animation: {
+        'contact-reveal': 'contact-reveal 800ms ease-out both',
+        'contact-warning': 'contact-warning 700ms ease-in-out 2',
+        'contact-card': 'contact-card 450ms ease-out both',
+        'die-roll': 'die-roll 900ms ease-out both',
+      },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',
         'neon-red': '0 0 15px rgba(255, 0, 60, 0.5)',

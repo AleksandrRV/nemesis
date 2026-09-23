@@ -6,21 +6,15 @@ import { IntruderBadge } from './IntruderBadge';
 import { INTRUDER_BADGE_SCALE, groupIntrudersByRoom, layoutIntruderGrid } from './intruderMapModel';
 
 interface RoomHexProps {
-  /** Отсек глазами игрока: невскрытый тайл приходит без названия и жетона (стр. 14). */
   room: SanitizedRoomState;
-  /** Чужие этого отсека: публичные миниатюры и их раны (стр. 19). */
   intruders: IntruderEntity[];
   x: number;
   y: number;
   isSelected: boolean;
   onSelect: (roomId: number) => void;
-  /** Шум на поле Технических Коридоров считается на всех входах вентиляции (стр. 15–16). */
   technicalNoise?: boolean;
-  /** Персонажи, скользящие по анимационному слою: статический чип не дублируется (Шаг 9). */
   hiddenPlayerIds?: ReadonlySet<string>;
-  /** Подсветка затронутых отсеков интерфейсом Фазы Событий (Шаг 9). */
   isHighlighted?: boolean;
-  /** Этап 2B: целевая комната для движения — пульсирует сильнее выбранной */
   isMoveTarget?: boolean;
 }
 
@@ -81,7 +75,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
   const intruderBadges = React.useMemo(() => groupIntrudersByRoom(intruders).get(room.id) ?? [], [intruders, room.id]);
   const gridRows = React.useMemo(() => layoutIntruderGrid(intruderBadges), [intruderBadges]);
 
-  /** Статус Боя (стр. 18): Персонаж и Чужой в одном отсеке — тревожная рамка. */
   const inCombat = room.occupantPlayerIds.length > 0 && intruderBadges.length > 0;
 
   const nodeData = React.useMemo(() => SHIP_ROOM_NODES.find((node) => node.id === room.id), [room.id]);
@@ -111,7 +104,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         ? '#071322'
         : '#050a14';
 
-  // --- Кинематографичность вскрытия: туман, переворот, typewriter ---
   const prevExploredRef = React.useRef(room.isExplored);
   const [isRevealing, setIsRevealing] = React.useState(false);
   const [typewriterActive, setTypewriterActive] = React.useState(false);
@@ -131,13 +123,11 @@ export const RoomHex: React.FC<RoomHexProps> = ({
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Обнаружение перехода !explored -> explored (вскрытие тайла)
   React.useEffect(() => {
     const wasExplored = prevExploredRef.current;
     let timeoutId: number | undefined;
 
     if (!wasExplored && room.isExplored) {
-      // Только что вскрыли — запускаем кинематографику
       setIsRevealing(true);
       if (!prefersReducedMotion) {
         setTypewriterActive(true);
@@ -150,7 +140,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
       if (wasExplored !== room.isExplored) {
         prevExploredRef.current = room.isExplored;
       }
-      // Если уже исследован и не в процессе typewriter — синхронизируем полное имя
       if (room.isExplored && !typewriterActive && !isRevealing) {
         setDisplayedLines(nameLines as [string, string]);
       }
@@ -165,7 +154,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
     };
   }, [room.isExplored, nameLines, prefersReducedMotion, typewriterActive, isRevealing]);
 
-  // Typewriter эффект: печать по буквам двух строк
   React.useEffect(() => {
     if (!typewriterActive) return;
     if (prefersReducedMotion) {
@@ -222,7 +210,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
       }}
       className="cursor-pointer transition-all duration-150 hover:brightness-125 select-none"
     >
-      {/* --- SVG defs для тумана и сканлайна (уникальные per room) --- */}
       <defs>
         <filter id={`fog-filter-${room.id}`} x="-22%" y="-22%" width="144%" height="144%">
           <feTurbulence type="fractalNoise" baseFrequency="0.085" numOctaves={2} seed={room.id % 97} result="turb" />
@@ -234,6 +221,19 @@ export const RoomHex: React.FC<RoomHexProps> = ({
           />
           <feGaussianBlur in="colored" stdDeviation="0.9" result="blurred" />
           <feComposite in="blurred" in2="SourceGraphic" operator="over" />
+        </filter>
+        {/* Этап E13: depth — drop shadow для исследованных */}
+        <filter id={`room-shadow-${room.id}`} x="-24%" y="-24%" width="148%" height="148%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.5" />
+        </filter>
+        {/* Этап E13: inner shadow для неизведанных */}
+        <filter id={`room-inner-shadow-${room.id}`} x="-20%" y="-20%" width="140%" height="140%">
+          <feOffset dx="0" dy="2" />
+          <feGaussianBlur stdDeviation="3.5" result="offset-blur" />
+          <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+          <feFlood floodColor="#000" floodOpacity="0.72" result="color" />
+          <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+          <feComposite operator="over" in="shadow" in2="SourceGraphic" />
         </filter>
         <clipPath id={`hex-clip-${room.id}`}>
           <polygon points={points} />
@@ -262,7 +262,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {/* Этап 2B: целевая комната для движения — неоновая подсветка пути + glow */}
       {isMoveTarget && (
         <>
           <polygon
@@ -285,7 +284,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </>
       )}
 
-      {/* Статус «В Бою»: контрастная пульсирующая рамка вокруг гекса (стр. 18) */}
       {inCombat && (
         <polygon
           points={points}
@@ -298,7 +296,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {/* --- Основной гекс с переворотом при вскрытии --- */}
       <g
         style={
           {
@@ -307,15 +304,24 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         }
         className={isRevealing ? 'motion-safe:animate-room-flip motion-reduce:animate-none' : undefined}
       >
-        <polygon points={points} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? 3 : 2} />
+        <polygon
+          points={points}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 3 : 2}
+          filter={room.isExplored ? `url(#room-shadow-${room.id})` : `url(#room-inner-shadow-${room.id})`}
+          style={
+            !room.isExplored
+              ? ({ filter: `url(#room-inner-shadow-${room.id}) brightness(0.6)` } as React.CSSProperties)
+              : undefined
+          }
+        />
 
-        {/* Внутренний блик для исследованных — лёгкая глубина */}
         {room.isExplored && (
           <polygon points={points} fill="url(#grid)" opacity="0.06" className="pointer-events-none" />
         )}
       </g>
 
-      {/* Вспышка вскрытия: яркий контур, гаснущий за 620мс */}
       {isRevealing && (
         <polygon
           points={points}
@@ -326,14 +332,10 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {/* --- Туман войны для неисследованных --- */}
       {!room.isExplored && !isRevealing && (
         <g className="pointer-events-none">
-          {/* Базовый тёмный фон */}
           <polygon points={points} fill="#050a14" opacity="0.96" />
-          {/* Шумовой туман */}
           <polygon points={points} fill="#0b1a2c" opacity="0.52" filter={`url(#fog-filter-${room.id})`} />
-          {/* Диагональная штриховка «неизвестно» */}
           <polygon
             points={points}
             fill="none"
@@ -342,9 +344,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
             strokeDasharray="4,3.5"
             opacity={0.45}
           />
-          {/* Виньетка */}
           <polygon points={points} fill={`url(#fog-vignette-${room.id})`} opacity="0.9" />
-          {/* Микро-точки как пыль */}
           <g opacity={0.18}>
             <circle cx={x - 12} cy={y - 8} r={0.9} fill="#38bdf8" />
             <circle cx={x + 10} cy={y + 6} r={0.7} fill="#38bdf8" />
@@ -353,7 +353,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </g>
       )}
 
-      {/* Dissolve тумана при вскрытии */}
       {isRevealing && (
         <g className="pointer-events-none">
           <polygon
@@ -362,7 +361,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
             filter={`url(#fog-filter-${room.id})`}
             className="motion-safe:animate-fog-dissolve motion-reduce:animate-none"
           />
-          {/* Сканлайн — яркая линия, пробегающая по гексу 600мс */}
           <g clipPath={`url(#hex-clip-${room.id})`}>
             <rect
               x={x - 70}
@@ -416,7 +414,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </g>
       )}
 
-      {/* Номер комнаты */}
       <text
         x={x}
         y={room.isExplored ? y - 18 : y - 6}
@@ -426,7 +423,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         {String(room.id).padStart(3, '0')}
       </text>
 
-      {/* Название — с typewriter при вскрытии */}
       {showQuestion && (
         <text
           x={x}
@@ -461,14 +457,12 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </text>
       )}
 
-      {/* Индикаторы аварий */}
       <g transform={`translate(${x - 18}, ${y + 19})`} className="pointer-events-none">
         {room.hasFire && <Flame size={12} className="text-orange-500 fill-orange-500" x={0} y={0} />}
         {room.hasMalfunction && <Wrench size={12} className="text-amber-400" x={12} y={0} />}
         {room.hasComputer && room.isExplored && <Laptop size={12} className="text-cyan-400" x={24} y={0} />}
       </g>
 
-      {/* Подсветка отсека интерфейсом Фазы Событий (Шаг 9) */}
       {isHighlighted && (
         <polygon
           points={points}
@@ -481,7 +475,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {/* Персонажи (скрыты, пока скользят по анимационному слою) */}
       {visibleOccupantCount > 0 && (
         <g transform={`translate(${x - 10}, ${y - 34})`} className="pointer-events-none">
           <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
@@ -489,7 +482,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </g>
       )}
 
-      {/* Чужие в отсеке */}
       {gridRows.map((row, rowIndex) => {
         const rowY = gridRows.length === 1 ? y + 22 : y + 13 + rowIndex * 17;
         return (
@@ -510,7 +502,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         );
       })}
 
-      {/* Объекты на полу */}
       {room.objects.map((object, index) => {
         const offset = 10 + index * 20;
         return (

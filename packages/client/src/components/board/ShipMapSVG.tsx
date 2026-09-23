@@ -251,9 +251,82 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(42, 59, 84, 0.12)" strokeWidth="1" />
                     </pattern>
+                    {/* Этап E12: hull texture — тонкие линии как vent-grid */}
+                    <pattern id="hull-plate" width="120" height="120" patternUnits="userSpaceOnUse">
+                      <path d="M 120 0 L 0 0 0 120" fill="none" stroke="rgba(42,59,84,0.18)" strokeWidth="1" />
+                      <path
+                        d="M 60 0 L 60 120 M 0 60 L 120 60"
+                        fill="none"
+                        stroke="rgba(42,59,84,0.08)"
+                        strokeWidth="0.8"
+                      />
+                      <circle cx="60" cy="60" r="1.2" fill="rgba(100,116,139,0.12)" />
+                    </pattern>
+                    {/* Этап E12: 2 слоя звезд 0.04 parallax */}
+                    <pattern id="stars-1" width="200" height="200" patternUnits="userSpaceOnUse">
+                      <circle cx="20" cy="30" r="0.7" fill="white" opacity="0.6" />
+                      <circle cx="80" cy="90" r="0.9" fill="white" opacity="0.5" />
+                      <circle cx="150" cy="40" r="0.6" fill="white" opacity="0.7" />
+                      <circle cx="110" cy="160" r="0.8" fill="white" opacity="0.55" />
+                      <circle cx="40" cy="130" r="0.5" fill="white" opacity="0.6" />
+                      <circle cx="170" cy="110" r="0.7" fill="white" opacity="0.5" />
+                      <circle cx="60" cy="10" r="0.6" fill="white" opacity="0.65" />
+                      <circle cx="130" cy="80" r="0.5" fill="white" opacity="0.6" />
+                    </pattern>
+                    <pattern
+                      id="stars-2"
+                      width="400"
+                      height="400"
+                      patternUnits="userSpaceOnUse"
+                      patternTransform="translate(30,20)"
+                    >
+                      <circle cx="50" cy="60" r="1.1" fill="white" opacity="0.45" />
+                      <circle cx="220" cy="140" r="0.9" fill="white" opacity="0.5" />
+                      <circle cx="320" cy="80" r="1.3" fill="white" opacity="0.4" />
+                      <circle cx="180" cy="300" r="1" fill="white" opacity="0.45" />
+                      <circle cx="360" cy="260" r="0.8" fill="white" opacity="0.5" />
+                      <circle cx="90" cy="200" r="1" fill="white" opacity="0.4" />
+                    </pattern>
+                    {/* Этап E12: vignette radialGradient */}
+                    <radialGradient id="map-vignette" cx="50%" cy="50%" r="78%">
+                      <stop offset="0%" stopColor="#000" stopOpacity="0" />
+                      <stop offset="68%" stopColor="#000" stopOpacity="0" />
+                      <stop offset="88%" stopColor="#000" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="#000" stopOpacity="0.62" />
+                    </radialGradient>
                   </defs>
 
+                  <rect x={-60} y={0} width={1140} height={1160} fill="#05070c" />
                   <rect x={-60} y={0} width={1140} height={1160} fill="url(#grid)" />
+                  {/* Hull texture overlay 0.12 */}
+                  <rect
+                    x={-60}
+                    y={0}
+                    width={1140}
+                    height={1160}
+                    fill="url(#hull-plate)"
+                    opacity={0.12}
+                    className="pointer-events-none"
+                  />
+                  {/* Stars parallax 0.04 */}
+                  <rect
+                    x={-60}
+                    y={0}
+                    width={1140}
+                    height={1160}
+                    fill="url(#stars-1)"
+                    opacity={0.04}
+                    className="pointer-events-none"
+                  />
+                  <rect
+                    x={-60}
+                    y={0}
+                    width={1140}
+                    height={1160}
+                    fill="url(#stars-2)"
+                    opacity={0.04}
+                    className="pointer-events-none"
+                  />
 
                   <VentShaftTraces hasNoise={technicalNoise} />
 
@@ -396,6 +469,16 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                           }
                         : undefined
                     }
+                  />
+
+                  {/* Этап E12: vignette overlay поверх всего */}
+                  <rect
+                    x={-60}
+                    y={0}
+                    width={1140}
+                    height={1160}
+                    fill="url(#map-vignette)"
+                    className="pointer-events-none"
                   />
                 </svg>
               </TransformComponent>

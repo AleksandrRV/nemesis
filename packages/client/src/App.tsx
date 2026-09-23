@@ -2,6 +2,7 @@ import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
 import type { CharacterClass, RoomId } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
+import { usePresentationStore } from './store/presentationStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
@@ -10,7 +11,6 @@ import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
-import { ContactOverlay } from './components/contact/ContactOverlay';
 import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
@@ -23,6 +23,7 @@ import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
+  const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
@@ -120,8 +121,8 @@ export const App: React.FC = () => {
         <RoomInspector />
         <PlayerHandPanel view={view} />
         <GameLogPanel view={view} />
-        {!eventPhaseModalOpen && <EventPhaseBanner view={view} />}
-        {eventPhaseModalOpen && eventPhaseModalModel && (
+        {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
+        {isPresentationIdle && eventPhaseModalOpen && eventPhaseModalModel && (
           <EventPhaseModal
             view={view}
             model={eventPhaseModalModel}
@@ -136,8 +137,8 @@ export const App: React.FC = () => {
             onClose={() => setShowCharacterSelect(false)}
           />
         )}
-        {view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
-        {view.pendingDecisionPlayerId && !view.pendingDecision && (
+        {isPresentationIdle && view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
+        {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && (
           <div
             role="status"
             className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
@@ -148,9 +149,8 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
-        {!showCharacterSelect && <ContactOverlay view={view} />}
-        <ShootModal />
-        <MeleeModal />
+        {isPresentationIdle && <ShootModal />}
+        {isPresentationIdle && <MeleeModal />}
 
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>

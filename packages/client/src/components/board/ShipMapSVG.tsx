@@ -1,5 +1,6 @@
 import React from 'react';
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { useTransformEffect } from 'react-zoom-pan-pinch';
 import { SHIP_ROOM_NODES, findAdjacentOpenRoomIds, type CorridorNumber } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { RoomHex } from './RoomHex';
@@ -10,10 +11,59 @@ import { groupIntrudersByRoom } from './intruderMapModel';
 import { lastLogSequence, newVentRetreats, type VentEcho } from './techCorridorModel';
 import { BoardAnimationLayer } from './BoardAnimationLayer';
 import { DieRollOverlay } from './DieRollOverlay';
-import { useBoardAnimations, usePrefersReducedMotion } from './useBoardAnimations';
+import { usePrefersReducedMotion } from './useBoardAnimations';
+import { usePresentationSequencer } from './usePresentationSequencer';
+import { ContactOverlay } from '../contact/ContactOverlay';
 import { carefulMoveChoices } from '../inspector/carefulMoveModel';
 import { CarefulMoveOverlay } from './CarefulMoveOverlay';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+function ParallaxStars({ layerRefs }: { layerRefs: { l1: React.RefObject<HTMLDivElement>; l2: React.RefObject<HTMLDivElement>; l3: React.RefObject<HTMLDivElement> } }) {
+  // This component lives inside TransformComponent and reports transform to stars layers outside via direct DOM manipulation
+  useTransformEffect(({ state }) => {
+    const { positionX, positionY, scale } = state;
+    // Parallax factors: distant moves slowest
+    const factors = [
+      { ref: layerRefs.l1, factor: 0.12 },
+      { ref: layerRefs.l2, factor: 0.32 },
+      { ref: layerRefs.l3, factor: 0.55 },
+    ];
+    for (const { ref, factor } of factors) {
+      if (!ref.current) continue;
+      // When map moves +X, stars move +X*factor (slower)
+      // Scale: stars scale less than map, so distant stars appear more distant
+      const s = 1 + (scale - 1) * factor * 0.6;
+      ref.current.style.transform = `translate3d(${positionX * factor}px, ${positionY * factor}px, 0) scale(${s})`;
+    }
+  });
+  return null;
+}
+
+function generateStars(count: number, seed: number) {
+  // Deterministic pseudo-random
+  const stars: Array<{ x: number; y: number; size: number; opacity: number; delay: number; color: string }> = [];
+  let s = seed;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+  const colors = ['#ffffff', '#c8d8ff', '#ffe8c8', '#d0e4ff', '#fff4e0'];
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      x: rnd() * 140 - 20, // -20% to 120%
+      y: rnd() * 140 - 20,
+      size: 0.4 + rnd() * 1.6,
+      opacity: 0.5 + rnd() * 0.5,
+      delay: rnd() * 5,
+      color: colors[Math.floor(rnd() * colors.length)]!,
+    });
+  }
+  return stars;
+}
+
+const STARS_L1 = generateStars(90, 123);
+const STARS_L2 = generateStars(55, 456);
+const STARS_L3 = generateStars(32, 789);
 
 export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({ highlightRoomIds = [] }) => {
   const view = useGameStore((state) => state.view);
@@ -30,14 +80,36 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
   const dispatch = useGameStore((state) => state.dispatch);
   const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
   const reducedMotion = usePrefersReducedMotion();
-  const { animations, inTransitPlayerIds, inTransitIntruderIds } = useBoardAnimations(view);
+
+  // --- Секвенсор презентаций: строгая последовательность анимаций ---
+  const {
+    activeBoardAnimations,
+    activeDieRoll,
+    activeContact,
+    renderView,
+    inTransitPlayerIds,
+    inTransitIntruderIds,
+    hasContactTease,
+    noisePopCorridorIds,
+    noiseRollCorridorIds,
+    hasTechnicalNoisePop,
+    dismissDieRoll,
+    dismissContact,
+  } = usePresentationSequencer(view);
+
+  const displayView = renderView ?? view;
+
+  // Parallax stars refs (outside TransformComponent, manipulated via useTransformEffect)
+  const starsL1Ref = React.useRef<HTMLDivElement>(null);
+  const starsL2Ref = React.useRef<HTMLDivElement>(null);
+  const starsL3Ref = React.useRef<HTMLDivElement>(null);
 
   const intrudersByRoom = React.useMemo(
     () =>
-      view
-        ? groupIntrudersByRoom(view.intrudersPool.boardTokens.filter((token) => !inTransitIntruderIds.has(token.id)))
+      displayView
+        ? groupIntrudersByRoom(displayView.intrudersPool.boardTokens.filter((token) => !inTransitIntruderIds.has(token.id)))
         : new Map(),
-    [view, inTransitIntruderIds],
+    [displayView, inTransitIntruderIds],
   );
 
   const coordsMap = React.useMemo(() => {
@@ -58,7 +130,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
       mountedRef.current = false;
     };
   }, []);
-  const gameLog = view?.gameLog;
+  const gameLog = displayView?.gameLog;
   React.useEffect(() => {
     if (!gameLog) return;
     if (seenSequenceRef.current === null) {
@@ -78,12 +150,12 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     }, 2600);
   }, [gameLog]);
 
-  // --- Этап 2B: Camera follow после PLAYER_MOVED ---
+  // --- Camera follow после PLAYER_MOVED ---
   const transformRef = React.useRef<ReactZoomPanPinchRef | null>(null);
   const lastMoveSequenceRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
-    if (!view || !gameLog || reducedMotion) return;
+    if (!displayView || !gameLog || reducedMotion) return;
     if (lastMoveSequenceRef.current === null) {
       lastMoveSequenceRef.current = lastLogSequence(gameLog);
       return;
@@ -91,7 +163,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     const prevSeq = lastMoveSequenceRef.current;
     lastMoveSequenceRef.current = lastLogSequence(gameLog);
 
-    const activeId = view.meta.activePlayerId;
+    const activeId = displayView.meta.activePlayerId;
     for (let i = gameLog.length - 1; i >= 0; i--) {
       const entry = gameLog[i]!;
       if (entry.sequence <= prevSeq) break;
@@ -116,15 +188,14 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
         break;
       }
     }
-  }, [gameLog, view, coordsMap, reducedMotion]);
+  }, [gameLog, displayView, coordsMap, reducedMotion]);
 
-  // --- Этап 2B: путь движения и осторожное превью — все хуки до early return ---
   const reachableRoomIds = React.useMemo(() => {
-    if (!view) return [] as number[];
-    const active = view.players[view.meta.activePlayerId];
+    if (!displayView) return [] as number[];
+    const active = displayView.players[displayView.meta.activePlayerId];
     if (!active) return [] as number[];
-    return findAdjacentOpenRoomIds(view, active.roomId);
-  }, [view]);
+    return findAdjacentOpenRoomIds(displayView, active.roomId);
+  }, [displayView]);
 
   const canMoveToSelected = React.useMemo(() => {
     if (selectedRoomId === null) return false;
@@ -132,26 +203,26 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
   }, [selectedRoomId, reachableRoomIds]);
 
   const activeRoomId = React.useMemo(() => {
-    if (!view) return null;
-    return view.players[view.meta.activePlayerId]?.roomId ?? null;
-  }, [view]);
+    if (!displayView) return null;
+    return displayView.players[displayView.meta.activePlayerId]?.roomId ?? null;
+  }, [displayView]);
 
   const pathActiveCorridorId = React.useMemo(() => {
-    if (!view || !activeRoomId || !selectedRoomId || !canMoveToSelected) return null;
+    if (!displayView || !activeRoomId || !selectedRoomId || !canMoveToSelected) return null;
     if (carefulTargetRoomId !== null) return null;
-    for (const corridor of Object.values(view.ship.corridors)) {
+    for (const corridor of Object.values(displayView.ship.corridors)) {
       const connects =
         (corridor.fromRoomId === activeRoomId && corridor.toRoomId === selectedRoomId) ||
         (corridor.fromRoomId === selectedRoomId && corridor.toRoomId === activeRoomId);
       if (connects && corridor.doorState !== 'CLOSED') return corridor.id;
     }
     return null;
-  }, [view, activeRoomId, selectedRoomId, canMoveToSelected, carefulTargetRoomId]);
+  }, [displayView, activeRoomId, selectedRoomId, canMoveToSelected, carefulTargetRoomId]);
 
   const carefulChoices = React.useMemo(() => {
-    if (!view || carefulTargetRoomId === null) return null;
-    return carefulMoveChoices(view, carefulTargetRoomId);
-  }, [view, carefulTargetRoomId]);
+    if (!displayView || carefulTargetRoomId === null) return null;
+    return carefulMoveChoices(displayView, carefulTargetRoomId);
+  }, [displayView, carefulTargetRoomId]);
 
   const numberFreeMap = React.useMemo(() => {
     const map = new Map<number, boolean>();
@@ -162,33 +233,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     return map;
   }, [carefulChoices]);
 
-  // --- Этап C: Шум и Контакт — pop и tease ---
-  const noisePopCorridorIds = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const anim of animations) {
-      if (anim.kind === 'NOISE_POP' && anim.corridorId) set.add(anim.corridorId);
-    }
-    return set;
-  }, [animations]);
-
-  const noiseRollCorridorIds = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const anim of animations) {
-      if (anim.kind === 'NOISE_ROLL' && anim.corridorId) set.add(anim.corridorId);
-    }
-    return set;
-  }, [animations]);
-
-  const hasContactTease = React.useMemo(() => animations.some((a) => a.kind === 'CONTACT_TEASE'), [animations]);
-
-  const hasTechnicalNoisePop = React.useMemo(
-    () => animations.some((a) => a.kind === 'NOISE_POP' && a.isTechnical),
-    [animations],
-  );
-
-  // --- Этап F15: diegetic CarefulMovePanel — коридоры для стрелок ---
   const carefulCorridorsForOverlay = React.useMemo(() => {
-    if (!view || carefulTargetRoomId === null) return [];
+    if (!displayView || carefulTargetRoomId === null) return [];
     const target = carefulTargetRoomId;
     const result: Array<{
       id: string;
@@ -202,7 +248,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
       noiseX: number;
       noiseY: number;
     }> = [];
-    for (const corridor of Object.values(view.ship.corridors)) {
+    for (const corridor of Object.values(displayView.ship.corridors)) {
       if (corridor.fromRoomId !== target && corridor.toRoomId !== target) continue;
       const c1 = coordsMap.get(corridor.fromRoomId);
       const c2 = coordsMap.get(corridor.toRoomId);
@@ -232,22 +278,89 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
       });
     }
     return result;
-  }, [view, carefulTargetRoomId, coordsMap]);
+  }, [displayView, carefulTargetRoomId, coordsMap]);
 
   const carefulTargetCoord = React.useMemo(() => {
     if (carefulTargetRoomId === null) return null;
     return coordsMap.get(carefulTargetRoomId) ?? null;
   }, [carefulTargetRoomId, coordsMap]);
 
-  if (!view) return null;
+  if (!displayView) return null;
 
-  const technicalNoise = view.ship.technicalCorridorNoise;
+  const technicalNoise = displayView.ship.technicalCorridorNoise;
 
   return (
     <div className="relative w-full h-full touch-none bg-nemesis-bg overflow-hidden">
-      <DieRollOverlay />
+      {/* --- Звёзды с параллаксом: 3 слоя, двигаются при движении камеры --- */}
+      <div className="absolute inset-0 z-0 overflow-hidden bg-[#05070c]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_38%,#0a1020_0%,#070b14_52%,#05070c_100%)]" />
+        {/* Layer 1 — дальний, медленный */}
+        <div ref={starsL1Ref} className="absolute -left-[20%] -top-[20%] h-[140%] w-[140%] will-change-transform">
+          {STARS_L1.map((s, i) => (
+            <div
+              key={`s1-${i}`}
+              className="absolute rounded-full motion-safe:animate-stars-twinkle-1"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                width: `${s.size}px`,
+                height: `${s.size}px`,
+                backgroundColor: s.color,
+                opacity: s.opacity,
+                animationDelay: `${s.delay}s`,
+                boxShadow: `0 0 ${s.size * 1.2}px ${s.color}`,
+              }}
+            />
+          ))}
+        </div>
+        {/* Layer 2 — средний */}
+        <div ref={starsL2Ref} className="absolute -left-[20%] -top-[20%] h-[140%] w-[140%] will-change-transform">
+          {STARS_L2.map((s, i) => (
+            <div
+              key={`s2-${i}`}
+              className="absolute rounded-full motion-safe:animate-stars-twinkle-2"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                width: `${s.size}px`,
+                height: `${s.size}px`,
+                backgroundColor: s.color,
+                opacity: s.opacity,
+                animationDelay: `${s.delay * 0.8}s`,
+                boxShadow: `0 0 ${s.size * 1.5}px ${s.color}`,
+              }}
+            />
+          ))}
+        </div>
+        {/* Layer 3 — ближний, быстрый, яркий */}
+        <div ref={starsL3Ref} className="absolute -left-[20%] -top-[20%] h-[140%] w-[140%] will-change-transform">
+          {STARS_L3.map((s, i) => (
+            <div
+              key={`s3-${i}`}
+              className="absolute rounded-full motion-safe:animate-stars-twinkle-3"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                width: `${s.size}px`,
+                height: `${s.size}px`,
+                backgroundColor: s.color,
+                opacity: s.opacity,
+                animationDelay: `${s.delay * 0.6}s`,
+                boxShadow: `0 0 ${s.size * 2.2}px ${s.color}, 0 0 ${s.size * 4}px ${s.color}66`,
+              }}
+            />
+          ))}
+        </div>
+        {/* Лёгкая туманность для глубины */}
+        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(ellipse_at_20%_30%,#1a2a44_0%,transparent_50%),radial-gradient(ellipse_at_80%_70%,#1a2333_0%,transparent_45%)] pointer-events-none" />
+      </div>
 
-      {/* Этап C9: красная виньетка при CONTACT_INTERRUPT / CONTACT_OCCURRED source NOISE */}
+      {/* Секвенсированные модалки — только одно окно за раз */}
+      <DieRollOverlay entry={activeDieRoll} onClose={dismissDieRoll} />
+      {activeContact && displayView && (
+        <ContactOverlay view={displayView} entry={activeContact} onClose={dismissContact} />
+      )}
+
       {hasContactTease && (
         <div
           className="pointer-events-none absolute inset-0 z-[30] motion-safe:animate-contact-vignette motion-reduce:opacity-60"
@@ -298,6 +411,9 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
               </div>
 
               <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full">
+                {/* Parallax controller inside TransformComponent */}
+                <ParallaxStars layerRefs={{ l1: starsL1Ref, l2: starsL2Ref, l3: starsL3Ref }} />
+
                 <svg
                   viewBox="-60 0 1140 1160"
                   className={`w-full h-full min-w-[800px] min-h-[600px] select-none ${hasContactTease ? 'motion-safe:animate-shake motion-reduce:animate-none' : ''}`}
@@ -307,7 +423,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(42, 59, 84, 0.12)" strokeWidth="1" />
                     </pattern>
-                    {/* hull texture */}
                     <pattern id="hull-plate" width="120" height="120" patternUnits="userSpaceOnUse">
                       <path d="M 120 0 L 0 0 0 120" fill="none" stroke="rgba(42,59,84,0.18)" strokeWidth="1" />
                       <path
@@ -318,54 +433,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       />
                       <circle cx="60" cy="60" r="1.2" fill="rgba(100,116,139,0.12)" />
                     </pattern>
-                    {/* --- Звёзды: 3 слоя параллакса, красивые, с мерцанием --- */}
-                    <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="0.8" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                    <pattern id="stars-1" width="180" height="180" patternUnits="userSpaceOnUse">
-                      {/* Дальний слой — мелкие, плотные, холодные */}
-                      <circle cx="18" cy="28" r="0.45" fill="#c8d8ff" opacity="0.85" />
-                      <circle cx="72" cy="84" r="0.55" fill="white" opacity="0.75" />
-                      <circle cx="132" cy="36" r="0.4" fill="#a8c0ff" opacity="0.8" />
-                      <circle cx="102" cy="148" r="0.5" fill="white" opacity="0.7" />
-                      <circle cx="36" cy="118" r="0.38" fill="#c8d8ff" opacity="0.75" />
-                      <circle cx="158" cy="102" r="0.48" fill="white" opacity="0.68" />
-                      <circle cx="54" cy="12" r="0.42" fill="#d0ddff" opacity="0.82" />
-                      <circle cx="118" cy="74" r="0.35" fill="white" opacity="0.72" />
-                      <circle cx="88" cy="132" r="0.4" fill="#b8ccff" opacity="0.78" />
-                      <circle cx="164" cy="24" r="0.36" fill="white" opacity="0.65" />
-                      <circle cx="24" cy="162" r="0.44" fill="#c8d8ff" opacity="0.7" />
-                      <circle cx="142" cy="158" r="0.38" fill="white" opacity="0.6" />
-                    </pattern>
-                    <pattern id="stars-2" width="340" height="340" patternUnits="userSpaceOnUse" patternTransform="translate(18,12)">
-                      {/* Средний слой — средние, тёплые оттенки */}
-                      <circle cx="42" cy="52" r="0.85" fill="white" opacity="0.82" />
-                      <circle cx="198" cy="126" r="0.72" fill="#ffe8c8" opacity="0.72" />
-                      <circle cx="284" cy="68" r="0.95" fill="white" opacity="0.68" />
-                      <circle cx="162" cy="268" r="0.78" fill="#c8d8ff" opacity="0.75" />
-                      <circle cx="318" cy="232" r="0.68" fill="white" opacity="0.7" />
-                      <circle cx="78" cy="182" r="0.82" fill="#d8e4ff" opacity="0.68" />
-                      <circle cx="228" cy="42" r="0.75" fill="white" opacity="0.6" />
-                      <circle cx="112" cy="298" r="0.7" fill="#ffe0b0" opacity="0.62" />
-                      <circle cx="268" cy="168" r="0.88" fill="white" opacity="0.66" />
-                    </pattern>
-                    <pattern id="stars-3" width="520" height="520" patternUnits="userSpaceOnUse" patternTransform="translate(40,30)">
-                      {/* Ближний слой — крупные, яркие, с лёгким свечением */}
-                      <circle cx="62" cy="78" r="1.25" fill="white" opacity="0.92" filter="url(#star-glow)" />
-                      <circle cx="312" cy="148" r="1.1" fill="#e0ecff" opacity="0.88" />
-                      <circle cx="428" cy="92" r="1.35" fill="white" opacity="0.78" filter="url(#star-glow)" />
-                      <circle cx="184" cy="384" r="1.05" fill="#fff4e0" opacity="0.82" />
-                      <circle cx="462" cy="332" r="0.95" fill="white" opacity="0.75" />
-                      <circle cx="94" cy="258" r="1.15" fill="#d0e4ff" opacity="0.8" filter="url(#star-glow)" />
-                      <circle cx="364" cy="412" r="1.2" fill="white" opacity="0.72" />
-                      <circle cx="208" cy="18" r="1.0" fill="#ffe8d0" opacity="0.7" />
-                    </pattern>
-                    <radialGradient id="space-gradient" cx="50%" cy="38%" r="85%">
-                      <stop offset="0%" stopColor="#0a1020" stopOpacity="1" />
-                      <stop offset="52%" stopColor="#070b14" stopOpacity="1" />
-                      <stop offset="100%" stopColor="#05070c" stopOpacity="1" />
-                    </radialGradient>
                     <radialGradient id="map-vignette" cx="50%" cy="50%" r="78%">
                       <stop offset="0%" stopColor="#000" stopOpacity="0" />
                       <stop offset="68%" stopColor="#000" stopOpacity="0" />
@@ -374,42 +441,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     </radialGradient>
                   </defs>
 
-                  {/* Космический фон с градиентом */}
-                  <rect x={-60} y={0} width={1140} height={1160} fill="url(#space-gradient)" />
-                  {/* Звёзды — 3 слоя параллакса с мерцанием */}
-                  <g className="pointer-events-none">
-                    <rect
-                      x={-60}
-                      y={0}
-                      width={1140}
-                      height={1160}
-                      fill="url(#stars-1)"
-                      opacity={0.38}
-                      className="motion-safe:animate-stars-twinkle-1 motion-safe:animate-stars-drift-1 motion-reduce:animate-none"
-                    />
-                    <rect
-                      x={-60}
-                      y={0}
-                      width={1140}
-                      height={1160}
-                      fill="url(#stars-2)"
-                      opacity={0.32}
-                      className="motion-safe:animate-stars-twinkle-2 motion-safe:animate-stars-drift-2 motion-reduce:animate-none"
-                      style={{ animationDelay: '0.8s' } as React.CSSProperties}
-                    />
-                    <rect
-                      x={-60}
-                      y={0}
-                      width={1140}
-                      height={1160}
-                      fill="url(#stars-3)"
-                      opacity={0.28}
-                      className="motion-safe:animate-stars-twinkle-3 motion-safe:animate-stars-drift-3 motion-reduce:animate-none"
-                      style={{ animationDelay: '1.6s' } as React.CSSProperties}
-                    />
-                  </g>
+                  <rect x={-60} y={0} width={1140} height={1160} fill="transparent" />
                   <rect x={-60} y={0} width={1140} height={1160} fill="url(#grid)" opacity={0.9} />
-                  {/* Hull texture overlay */}
                   <rect
                     x={-60}
                     y={0}
@@ -423,7 +456,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                   <VentShaftTraces hasNoise={technicalNoise} />
 
                   <g id="corridors-layer">
-                    {Object.values(view.ship.corridors).map((corridor) => {
+                    {Object.values(displayView.ship.corridors).map((corridor) => {
                       const c1 = coordsMap.get(corridor.fromRoomId);
                       const c2 = coordsMap.get(corridor.toRoomId);
                       if (!c1 || !c2) return null;
@@ -437,7 +470,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       let ghostFree = true;
                       let onCorridorClick: (() => void) | undefined;
 
-                      if (carefulTargetRoomId !== null && view.ship.rooms[carefulTargetRoomId]) {
+                      if (carefulTargetRoomId !== null && displayView.ship.rooms[carefulTargetRoomId]) {
                         const leadsIntoTarget =
                           corridor.fromRoomId === carefulTargetRoomId || corridor.toRoomId === carefulTargetRoomId;
                         if (leadsIntoTarget) {
@@ -501,7 +534,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                   </g>
 
                   <g id="rooms-layer">
-                    {Object.values(view.ship.rooms).map((room) => {
+                    {Object.values(displayView.ship.rooms).map((room) => {
                       const coord = coordsMap.get(room.id);
                       if (!coord) return null;
 
@@ -526,7 +559,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     })}
                   </g>
 
-                  <BoardAnimationLayer view={view} animations={animations} reducedMotion={reducedMotion} />
+                  <BoardAnimationLayer view={displayView} animations={activeBoardAnimations} reducedMotion={reducedMotion} />
 
                   <TechCorridorHub
                     hasNoise={technicalNoise}
@@ -534,7 +567,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     echoes={ventEchoes}
                     onSelect={openTechnicalCorridors}
                     carefulState={
-                      carefulTargetRoomId !== null && view.ship.rooms[carefulTargetRoomId]?.hasTechnicalCorridorEntrance
+                      carefulTargetRoomId !== null && displayView.ship.rooms[carefulTargetRoomId]?.hasTechnicalCorridorEntrance
                         ? carefulHoveredTechnical
                           ? 'hovered-free'
                           : technicalNoise
@@ -544,7 +577,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     }
                     isGhostNoise={carefulHoveredTechnical}
                     isNoisePop={hasTechnicalNoisePop}
-                    isNoiseRollTarget={animations.some((a) => a.kind === 'NOISE_ROLL' && a.isTechnical)}
+                    isNoiseRollTarget={activeBoardAnimations.some((a) => a.kind === 'NOISE_ROLL' && a.isTechnical)}
                     onCarefulSelect={
                       carefulTargetRoomId !== null && !technicalNoise
                         ? () => {
@@ -563,7 +596,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     }
                   />
 
-                  {/* Этап F15: diegetic CarefulMovePanel overlay рядом с целевым гексом */}
                   {carefulTargetRoomId !== null && carefulChoices && carefulTargetCoord && (
                     <CarefulMoveOverlay
                       targetRoomId={carefulTargetRoomId}
@@ -588,7 +620,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     />
                   )}
 
-                  {/* Этап E12: vignette overlay поверх всего */}
                   <rect
                     x={-60}
                     y={0}

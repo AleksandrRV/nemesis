@@ -252,6 +252,20 @@ export type GameLogEvent =
       target: 'DOOR' | 'NOISE';
       corridorId: string;
       value: string | boolean;
+    }
+  | {
+      type: 'OBJECT_DROPPED';
+      playerId: string;
+      roomId: RoomId;
+      objectId: string;
+      objectKind: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
+    }
+  | {
+      type: 'HEAVY_ITEM_DISCARDED';
+      playerId: string;
+      roomId: RoomId;
+      itemId: string;
+      itemName: string;
     };
 
 export interface GameLogEntry {

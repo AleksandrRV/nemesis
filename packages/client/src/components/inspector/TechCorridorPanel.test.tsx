@@ -70,7 +70,8 @@ describe('Панель Технических Коридоров', () => {
       name: 'Технические коридоры',
       playCost: 1,
       description: '',
-    });
+      effect: { kind: 'TECH_CORRIDORS' },
+    } as never);
     const view = filterStateForPlayer(raw, playerId);
     const html = renderPanel(view);
 

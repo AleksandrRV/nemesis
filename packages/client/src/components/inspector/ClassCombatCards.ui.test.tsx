@@ -39,7 +39,8 @@ function viewWithCombat(seed: string, handCardIds: string[]): SanitizedGameState
       name: 'Тестовая карта',
       playCost: 0,
       description: '',
-    });
+      effect: { kind: 'BURST_FIRE', variant: 'SOLDIER' },
+    } as never);
   }
   return filterStateForPlayer(raw, 'player-1');
 }

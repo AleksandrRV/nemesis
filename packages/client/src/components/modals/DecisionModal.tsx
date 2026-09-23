@@ -8,9 +8,54 @@ interface DecisionModalProps {
   decision: PendingDecision;
 }
 
+function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>) {
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const focusable = container.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            (last as HTMLElement)?.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            (first as HTMLElement)?.focus();
+          }
+        }
+      }
+      if (e.key === 'Escape') {
+        // Обязательные решения нельзя закрыть Esc — предотвращаем всплытие и сохраняем фокус внутри модалки
+        // (Шаг 7, долг 24: доступность модалок — Esc + фокус-трап)
+        e.preventDefault();
+        e.stopPropagation();
+        first?.focus();
+      }
+    };
+
+    container.addEventListener('keydown', handleKeyDown as never);
+    return () => container.removeEventListener('keydown', handleKeyDown as never);
+  }, [containerRef]);
+}
+
 export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   const dispatch = useGameStore((state) => state.dispatch);
   const view = useGameStore((state) => state.view);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  useFocusTrap(containerRef);
 
   const handleSelect = (selectedOption: string) => {
     dispatch({
@@ -22,15 +67,29 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
     });
   };
 
+  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      // Фокус остаётся в модалке, закрытие только выбором
+      containerRef.current?.focus();
+    }
+  };
+
   if (decision.type === 'CHOOSE_OBJECTIVE') {
     const objectives = view?.players[decision.playerId]?.objectives ?? [];
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        onKeyDown={handleOverlayKeyDown}
+      >
         <section
+          ref={containerRef as React.RefObject<HTMLElement>}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-label="Первый Контакт: выбор Цели"
-          className="w-full max-w-lg space-y-4 rounded-xl border border-amber-500/60 bg-slate-900 p-5 shadow-2xl"
+          className="w-full max-w-lg space-y-4 rounded-xl border border-amber-500/60 bg-slate-900 p-5 shadow-2xl outline-none"
         >
           <h2 className="font-heading text-xl tracking-wider text-amber-200">ПЕРВЫЙ КОНТАКТ: ВЫБЕРИТЕ ЦЕЛЬ</h2>
           <p className="text-sm leading-relaxed text-slate-300">
@@ -59,12 +118,17 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
 
   if (decision.type === 'CHOOSE_EVENT_CARD') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        onKeyDown={handleOverlayKeyDown}
+      >
         <section
+          ref={containerRef as React.RefObject<HTMLElement>}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-label="Подготовка: выбор карты Событий"
-          className="w-full max-w-2xl space-y-4 rounded-xl border border-violet-500/60 bg-slate-900 p-5 shadow-2xl"
+          className="w-full max-w-2xl space-y-4 rounded-xl border border-violet-500/60 bg-slate-900 p-5 shadow-2xl outline-none"
         >
           <h2 className="font-heading text-xl tracking-wider text-violet-200">ПОДГОТОВКА: ВЫБЕРИТЕ КАРТУ СОБЫТИЙ</h2>
           <p className="text-sm leading-relaxed text-slate-300">
@@ -96,8 +160,18 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
 
   if (decision.type === 'CHOOSE_WHITE_ROOM_DECK') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Выбор колоды для поиска"
+          className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
           <div className="flex items-center gap-2 text-cyan-400 border-b border-slate-800 pb-3">
             <Package size={20} />
             <h3 className="text-lg font-heading tracking-wider text-white">ВЫБОР КОЛОДЫ ДЛЯ ПОИСКА</h3>
@@ -108,21 +182,21 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
           <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => handleSelect('RED')}
-              className="py-3 px-2 rounded-lg bg-red-950/60 border border-red-600/60 hover:bg-red-900/80 text-red-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5"
+              className="py-3 px-2 rounded-lg bg-red-950/60 border border-red-600/60 hover:bg-red-900/80 text-red-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-300"
             >
               <div className="w-3 h-3 rounded-full bg-red-500" />
               Военная
             </button>
             <button
               onClick={() => handleSelect('YELLOW')}
-              className="py-3 px-2 rounded-lg bg-amber-950/60 border border-amber-500/60 hover:bg-amber-900/80 text-amber-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5"
+              className="py-3 px-2 rounded-lg bg-amber-950/60 border border-amber-500/60 hover:bg-amber-900/80 text-amber-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
             >
               <div className="w-3 h-3 rounded-full bg-amber-400" />
               Техническая
             </button>
             <button
               onClick={() => handleSelect('GREEN')}
-              className="py-3 px-2 rounded-lg bg-emerald-950/60 border border-emerald-600/60 hover:bg-emerald-900/80 text-emerald-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5"
+              className="py-3 px-2 rounded-lg bg-emerald-950/60 border border-emerald-600/60 hover:bg-emerald-900/80 text-emerald-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
             >
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
               Медицинская
@@ -136,8 +210,18 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   if (decision.type === 'CHOOSE_SEARCH_ITEM' || decision.type === 'CHOOSE_STORAGE_ITEM') {
     const isStorage = decision.type === 'CHOOSE_STORAGE_ITEM';
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-lg bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label={isStorage ? 'Склад: выбор найденного предмета' : 'Выбор найденного предмета'}
+          className="w-full max-w-lg bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
           <div className="flex items-center gap-2 text-cyan-400 border-b border-slate-800 pb-3">
             <Package size={20} />
             <h3 className="text-lg font-heading tracking-wider text-white">
@@ -153,7 +237,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
               <button
                 key={card.id}
                 onClick={() => handleSelect(card.id)}
-                className="p-3 text-left rounded-lg bg-slate-800/80 border border-cyan-600/40 hover:border-cyan-400 hover:bg-slate-800 text-white transition flex flex-col justify-between space-y-2 group"
+                className="p-3 text-left rounded-lg bg-slate-800/80 border border-cyan-600/40 hover:border-cyan-400 hover:bg-slate-800 text-white transition flex flex-col justify-between space-y-2 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -194,8 +278,18 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
       (s) => s.source === 'ITEM' && decision.weaponIds.includes(s.card.id),
     );
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Оружейная: выбор энергооружия"
+          className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
           <div className="flex items-center gap-2 text-cyan-400 border-b border-slate-800 pb-3">
             <Package size={20} />
             <h3 className="text-lg font-heading tracking-wider text-white">ОРУЖЕЙНАЯ: ВЫБЕРИТЕ ЭНЕРГООРУЖИЕ</h3>
@@ -210,7 +304,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
                 <button
                   key={slot.card.id}
                   onClick={() => handleSelect(slot.card.id)}
-                  className="w-full p-3 rounded-lg bg-slate-800 hover:bg-cyan-950/60 border border-slate-700 hover:border-cyan-500/50 text-left transition"
+                  className="w-full p-3 rounded-lg bg-slate-800 hover:bg-cyan-950/60 border border-slate-700 hover:border-cyan-500/50 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
                 >
                   <div className="text-xs font-bold text-cyan-200">{slot.card.name}</div>
                   <div className="text-[11px] text-slate-400">
@@ -228,8 +322,18 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   if (decision.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
     const activePlayer = view?.players[view.meta.activePlayerId];
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Руки заняты: выбор сброса"
+          className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
           <div className="flex items-center gap-2 text-amber-400 border-b border-slate-800 pb-3">
             <Package size={20} />
             <h3 className="text-lg font-heading tracking-wider text-white">РУКИ ЗАНЯТЫ: ВЫБЕРИТЕ СБРОС</h3>
@@ -246,7 +350,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
                 <button
                   key={index}
                   onClick={() => handleSelect(id)}
-                  className="w-full p-2.5 rounded-lg bg-slate-800 hover:bg-red-950/40 border border-slate-700 hover:border-red-600/50 text-left text-xs text-white transition flex items-center justify-between"
+                  className="w-full p-2.5 rounded-lg bg-slate-800 hover:bg-red-950/40 border border-slate-700 hover:border-red-600/50 text-left text-xs text-white transition flex items-center justify-between focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-300"
                 >
                   <span>{name}</span>
                   <span className="text-red-400 font-semibold text-[10px] uppercase">Сбросить</span>
@@ -262,8 +366,18 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   if (decision.type === 'REROLL_COMBAT_DIE') {
     const face = COMBAT_DIE_PRESENTATION[decision.firstFace];
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Прицельный огонь: переброс"
+          className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
           <div className="flex items-center gap-2 text-amber-400 border-b border-slate-800 pb-3">
             <Dices size={20} />
             <h3 className="text-lg font-heading tracking-wider text-white">ПРИЦЕЛЬНЫЙ ОГОНЬ: ПЕРЕБРОС?</h3>
@@ -282,13 +396,13 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleSelect('REROLL')}
-              className="py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs uppercase transition"
+              className="py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs uppercase transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
             >
               Перебросить
             </button>
             <button
               onClick={() => handleSelect('KEEP')}
-              className="py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs uppercase transition"
+              className="py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs uppercase transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-300"
             >
               Оставить грань
             </button>

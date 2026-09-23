@@ -426,22 +426,35 @@ export const RoomInspector: React.FC = () => {
       <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
         {isPlayerHere && room.isExplored && (
           <div className="flex flex-col gap-1.5">
-            {/* Поиск в отсеке: запрещён в Бою (стр. 18) */}
-            {room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM' && (room.itemsCount ?? 0) > 0 && (
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={isActiveInCombat}
-                title={isActiveInCombat ? 'В Бою поиск запрещён (стр. 18)' : undefined}
-                className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
-                  isActiveInCombat
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-amber-600 hover:bg-amber-500 text-slate-950 active:scale-95'
-                }`}
-              >
-                <Package size={14} /> Обыскать отсек [цена: 1]
-              </button>
-            )}
+            {/* Поиск в отсеке: причины запрета с tooltip (Шаг 7, долг 23) */}
+            {(() => {
+              const getSearchDisabledReason = (): string | null => {
+                if (!room.isExplored) return 'Нельзя искать в неисследованном отсеке (стр. 14) — SEARCH_NOT_ALLOWED';
+                if (room.definitionId === 'NEST' || room.definitionId === 'SLIME_ROOM')
+                  return `Поиск в этом отсеке запрещён правилами (${room.definitionId}) — SEARCH_NOT_ALLOWED`;
+                if ((room.itemsCount ?? 0) <= 0) return 'В отсеке не осталось предметов для поиска (счётчик = 0) — NO_ITEMS_LEFT';
+                if (isActiveInCombat) return 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18) — SEARCH_IN_COMBAT';
+                if (!room.definitionId) return 'Не удалось определить цвет колоды отсека — SEARCH_NOT_ALLOWED';
+                return null;
+              };
+              const searchDisabledReason = getSearchDisabledReason();
+              const isSearchDisabled = Boolean(searchDisabledReason);
+              return (
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={isSearchDisabled}
+                  title={searchDisabledReason ?? undefined}
+                  className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
+                    isSearchDisabled
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      : 'bg-amber-600 hover:bg-amber-500 text-slate-950 active:scale-95'
+                  }`}
+                >
+                  <Package size={14} /> Обыскать отсек [цена: 1]
+                </button>
+              );
+            })()}
 
             {/* Действие комнаты: запрещено в Бою и при Неисправности (стр. 18, 24) */}
             {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && (

@@ -373,6 +373,28 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: ` в ${roomLabel(view, event.roomId)}.` },
       ];
     }
+    case 'OBJECT_DROPPED': {
+      const kindLabel =
+        event.objectKind === 'CORPSE'
+          ? 'Труп члена экипажа'
+          : event.objectKind === 'EGG'
+            ? 'Яйцо Чужих'
+            : 'Останки Чужого';
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' сбрасывает Тяжёлый объект «' },
+        { text: kindLabel, tone: 'warning', strong: true },
+        { text: `» в ${roomLabel(view, event.roomId)}.` },
+      ];
+    }
+    case 'HEAVY_ITEM_DISCARDED': {
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' сбрасывает тяжёлый предмет «' },
+        { text: event.itemName, tone: 'warning', strong: true },
+        { text: `» в ${roomLabel(view, event.roomId)}.` },
+      ];
+    }
     case 'EVENT_EFFECT_RESOLVED':
       return formatEventEffectOutcome(event.outcome, view);
     case 'HIVE_DEVELOPMENT_RESOLVED':
@@ -394,7 +416,7 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
     default:
-      return formatIntruderLogEvent(event, view);
+      return formatIntruderLogEvent(event as never, view);
   }
 }
 

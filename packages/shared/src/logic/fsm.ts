@@ -11,7 +11,7 @@ import { movePlayer, requireCarefulMoveAllowed } from './movement.js';
 import { executePass, executePlayCard, executeUseItem } from './playerActions.js';
 import { executeShoot } from './shoot.js';
 import { executeMelee } from './melee.js';
-import { executePickUpObject } from './heavyObjects.js';
+import { executeDiscardHeavyItem, executePickUpObject } from './heavyObjects.js';
 import { executeCombatCard, isCombatActionCard } from './classCombatCards.js';
 import { executeRoomAbility } from './roomAbilities.js';
 import { executeDecision, executeSearch } from './searchActions.js';
@@ -102,6 +102,14 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
     case 'ACTION_PICK_UP_OBJECT':
       executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
       return executePickUpObject(state, action, actorId);
+    case 'ACTION_DISCARD_HEAVY_ITEM': {
+      // Сброс тяжёлого — без действия (0), но если переданы карты — списываем
+      const ids = action.payload.discardCardIds ?? [];
+      if (ids.length > 0) {
+        executeCardPayment(state, actorId, ids, ids.length);
+      }
+      return executeDiscardHeavyItem(state, action, actorId);
+    }
 
     case 'ACTION_SEARCH':
       return executeSearch(state, action, actorId);

@@ -140,8 +140,20 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             <Hand size={16} />
             <span className="text-xs font-bold tracking-wider uppercase">РУКА ИГРОКА</span>
           </div>
-          <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+          <span
+            title={
+              handLimit === 6
+                ? 'Каюты: лимит руки увеличен до 6 — исправные Каюты без Чужих и Пожара (стр. 10, 25)'
+                : 'Базовый лимит руки 5 карт (стр. 10)'
+            }
+            className={`text-xs font-mono px-2 py-0.5 rounded border transition ${
+              handLimit === 6
+                ? 'bg-emerald-950 border-emerald-500 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse'
+                : 'bg-slate-800 border-slate-700 text-slate-300'
+            }`}
+          >
             {handCards.length} / {handLimit}
+            {handLimit === 6 && <span className="ml-1 text-[10px]">CABINS</span>}
           </span>
           <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
             Колода: {player.actionDeck.drawPileCount} • Сброс: {player.actionDeck.discardCount}
@@ -225,10 +237,16 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             <div className="flex gap-2">
               {[0, 1].map((idx) => {
                 const slot = player.handSlots[idx];
+                const handleDiscardHeavy = () => {
+                  dispatch({
+                    type: 'ACTION_DISCARD_HEAVY_ITEM',
+                    payload: { handSlotIndex: idx },
+                  });
+                };
                 return (
                   <div
                     key={idx}
-                    className="w-48 h-16 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
+                    className="w-52 h-20 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
                   >
                     {slot ? (
                       slot.source === 'ITEM' ? (
@@ -250,25 +268,55 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                                 ? `Оружие • Патроны: ${slot.card.ammo}/${slot.card.maxAmmo}`
                                 : 'Тяжёлый предмет'}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleUseItem(slot.card.id, slot.card.actionCost)}
-                              className="text-cyan-400 hover:text-cyan-300 font-bold underline"
-                            >
-                              Исп. [{slot.card.actionCost}]
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleUseItem(slot.card.id, slot.card.actionCost)}
+                                className="text-cyan-400 hover:text-cyan-300 font-bold underline"
+                              >
+                                Исп. [{slot.card.actionCost}]
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDiscardHeavy}
+                                className="text-red-400 hover:text-red-300 font-bold underline"
+                                title="Сбросить тяжёлый предмет в комнату (без действия, стр. 22)"
+                              >
+                                Сброс
+                              </button>
+                            </div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="font-bold text-amber-300 truncate text-xs">
-                            {slot.object.kind === 'CORPSE'
-                              ? 'Труп'
-                              : slot.object.kind === 'EGG'
-                                ? 'Яйцо Чужих'
-                                : 'Останки'}
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold text-amber-300 truncate text-xs">
+                              {slot.object.kind === 'CORPSE'
+                                ? 'Труп'
+                                : slot.object.kind === 'EGG'
+                                  ? 'Яйцо Чужих'
+                                  : 'Останки'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setInspectCardTarget({ kind: 'OBJECT', object: slot.object } as never)}
+                              className="text-slate-400 hover:text-amber-300 p-0.5"
+                              title="Инфо об объекте"
+                            >
+                              <Info size={13} />
+                            </button>
                           </div>
-                          <div className="text-[10px] text-slate-400">Тяжёлый объект</div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>Тяжёлый объект • {slot.object.id.slice(0, 8)}</span>
+                            <button
+                              type="button"
+                              onClick={handleDiscardHeavy}
+                              className="text-red-400 hover:text-red-300 font-bold underline"
+                              title="Сбросить объект на пол комнаты без действия (стр. 22)"
+                            >
+                              Сброс
+                            </button>
+                          </div>
                         </>
                       )
                     ) : (

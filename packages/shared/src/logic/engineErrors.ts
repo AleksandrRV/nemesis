@@ -58,7 +58,8 @@ export type EngineErrorCode =
   /** Выбранная карта в слоте Руки — не Оружие либо Оружия там нет (стр. 19). */
   | 'WEAPON_NOT_AVAILABLE'
   /** На выбранном Оружии не осталось Боезапаса (стр. 19). */
-  | 'WEAPON_NO_AMMO';
+  | 'WEAPON_NO_AMMO'
+  | 'INVALID_HAND_SLOT';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;

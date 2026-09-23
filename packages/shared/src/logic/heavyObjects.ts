@@ -41,3 +41,62 @@ export function executePickUpObject(
   });
   queueActionCompletion(state, actorId);
 }
+
+/**
+ * Сброс тяжёлого предмета/объекта из руки (Шаг 7, долг 22):
+ * «Сброс — в любой момент хода без действия: объект — в комнату, предмет — теряется (в сброс колоды)» (ITEMS_AND_GEAR.md).
+ * Реализовано как действие без стоимости (0 карт), но допускает оплату если передана.
+ */
+export function executeDiscardHeavyItem(
+  state: GameState,
+  action: Extract<EngineAction, { type: 'ACTION_DISCARD_HEAVY_ITEM' }>,
+  actorId: string,
+): void {
+  const player = state.players[actorId];
+  if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
+
+  const slotIndex = action.payload.handSlotIndex;
+  if (slotIndex < 0 || slotIndex >= player.handSlots.length) {
+    throw new EngineError('INVALID_HAND_SLOT', `Слот руки ${slotIndex} пуст или не существует`);
+  }
+
+  const slot = player.handSlots[slotIndex]!;
+  const room = state.ship.rooms[player.roomId]!;
+
+  if (slot.source === 'OBJECT') {
+    // Объект возвращается на пол комнаты
+    room.objects.push(slot.object);
+    appendGameLog(state, {
+      type: 'OBJECT_DROPPED',
+      playerId: actorId,
+      roomId: room.id,
+      objectId: slot.object.id,
+      objectKind: slot.object.kind,
+    } as never);
+  } else {
+    // Тяжёлый предмет — в сброс соответствующей колоды (если не BLUE)
+    const card = slot.card;
+    if (card.color !== 'BLUE') {
+      const pile = state.decks.items[card.color];
+      if (pile) {
+        pile.discard.push(card);
+      }
+    } else {
+      // Синие (крафтовые) — в общий сброс? Для простоты — в дискард BLUE если есть, иначе в комнату как объект? Кладём в discard BLUE.
+      const bluePile = (state.decks.items as Record<string, { discard: typeof card[] }>).BLUE;
+      if (bluePile) {
+        bluePile.discard.push(card);
+      }
+    }
+    appendGameLog(state, {
+      type: 'HEAVY_ITEM_DISCARDED',
+      playerId: actorId,
+      roomId: room.id,
+      itemId: card.id,
+      itemName: card.name,
+    } as never);
+  }
+
+  player.handSlots.splice(slotIndex, 1);
+  queueActionCompletion(state, actorId);
+}

@@ -717,4 +717,53 @@ describe('Действия комнат (Room Abilities)', () => {
 
     expectEngineError(() => executeRoomAbility(state, 'player-1', {}), 'ROOM_ABILITY_NOT_ALLOWED');
   });
+
+  it('атомарность: при ROOM_ABILITY_NOT_ALLOWED состояние полностью откатывается (Шаг 8, долг 27)', () => {
+    const engine = new GameEngine();
+    const state = createInitialGameState('atomicity-room-test');
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    // Комната с неисправностью
+    player.roomId = 1;
+    const room = state.ship.rooms[1]!;
+    room.isExplored = true;
+    room.definitionId = 'ARMORY';
+    room.hasMalfunction = true;
+    room.hasFire = false;
+    room.occupantIntruderIds = [];
+
+    const snapshot = JSON.stringify(state);
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_ROOM_ABILITY',
+          payload: { discardCardIds: [player.actionDeck.hand[0]!.id, player.actionDeck.hand[1]!.id] },
+        }),
+      'ROOM_ABILITY_NOT_ALLOWED',
+    );
+
+    // Состояние не изменилось
+    expect(JSON.stringify(state)).toBe(snapshot);
+
+    // Теперь бой
+    room.hasMalfunction = false;
+    room.occupantIntruderIds = ['intruder-1'];
+    state.intrudersPool.boardTokens = [{ id: 'intruder-1', type: 'ADULT', roomId: 1, woundsCount: 0 }];
+
+    const snapshot2 = JSON.stringify(state);
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_ROOM_ABILITY',
+          payload: { discardCardIds: [player.actionDeck.hand[0]!.id, player.actionDeck.hand[1]!.id] },
+        }),
+      'ROOM_ABILITY_NOT_ALLOWED',
+    );
+
+    expect(JSON.stringify(state)).toBe(snapshot2);
+  });
+
 });

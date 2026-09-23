@@ -17,6 +17,7 @@ export * from './logic/turnCycle.js';
 export * from './logic/search.js';
 export * from './logic/searchActions.js';
 export * from './logic/roomAbilities.js';
+export * from './logic/heavyObjects.js';
 export * from './logic/combatDie.js';
 export * from './logic/combatStatus.js';
 export * from './logic/escape.js';

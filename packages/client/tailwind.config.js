@@ -105,6 +105,45 @@ export default {
           '35%': { opacity: '0.75', transform: 'scale(0.8)' },
           '100%': { opacity: '0', transform: 'scale(1.7)' },
         },
+        // --- Этап 2: туман, вскрытие, жетоны ---
+        'fog-dissolve': {
+          '0%': { opacity: '0.88' },
+          '35%': { opacity: '0.65' },
+          '100%': { opacity: '0' },
+        },
+        'scanline-sweep': {
+          '0%': { transform: 'translateX(-72px)', opacity: '0' },
+          '18%': { opacity: '1' },
+          '82%': { opacity: '1' },
+          '100%': { transform: 'translateX(72px)', opacity: '0' },
+        },
+        'room-flip': {
+          '0%': { transform: 'scaleY(1)' },
+          '42%': { transform: 'scaleY(0.06)' },
+          '58%': { transform: 'scaleY(0.06)' },
+          '100%': { transform: 'scaleY(1)' },
+        },
+        'room-flash': {
+          '0%': { strokeWidth: '2', strokeOpacity: '0.2', opacity: '0' },
+          '18%': { strokeWidth: '7', strokeOpacity: '1', opacity: '1' },
+          '52%': { strokeWidth: '6', strokeOpacity: '0.95', opacity: '1' },
+          '100%': { strokeWidth: '2', strokeOpacity: '0', opacity: '0' },
+        },
+        'typewriter-cursor': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
+        'exploration-reveal': {
+          '0%': { opacity: '0', transform: 'translateY(18px) scale(0.32) rotate(-3deg)' },
+          '22%': { opacity: '1', transform: 'translateY(-6px) scale(1.18) rotate(1deg)' },
+          '36%': { opacity: '1', transform: 'translateY(0) scale(1) rotate(0)' },
+          '78%': { opacity: '1', transform: 'translateY(0) scale(1) rotate(0)' },
+          '100%': { opacity: '0', transform: 'translateY(-14px) scale(0.88)' },
+        },
+        'exploration-settle': {
+          '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '100%': { opacity: '0', transform: 'translateY(10px) scale(0.82)' },
+        },
       },
       animation: {
         'contact-reveal': 'contact-reveal 800ms ease-out both',
@@ -125,6 +164,12 @@ export default {
         'door-shockwave': 'door-shockwave 900ms ease-out both',
         'door-spark': 'door-spark 750ms ease-out both',
         'hub-ripple': 'hub-ripple 1100ms ease-out 450ms both',
+        'fog-dissolve': 'fog-dissolve 620ms ease-out both',
+        'scanline-sweep': 'scanline-sweep 600ms cubic-bezier(0.22, 0.9, 0.3, 1) both',
+        'room-flip': 'room-flip 460ms cubic-bezier(0.6, 0, 0.4, 1) both',
+        'room-flash': 'room-flash 620ms ease-out both',
+        'typewriter-cursor': 'typewriter-cursor 750ms step-end infinite',
+        'exploration-reveal': 'exploration-reveal 1650ms cubic-bezier(0.34, 1.2, 0.5, 1) both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

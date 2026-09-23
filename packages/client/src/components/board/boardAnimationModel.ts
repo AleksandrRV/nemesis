@@ -1,10 +1,10 @@
+import type { ExplorationEffect } from '@nemesis/shared';
 import type { IntruderType, RoomId, SanitizedGameState } from '@nemesis/shared';
 
 /**
- * Модель анимационного слоя карты (Шаг 9 этапа 0.5.0): мгновенные скачки
- * фишек заменяются плавным скольжением по траектории Коридора. Модель
- * чистая и детерминированная: сравнивает два соседних среза состояния и
- * возвращает список анимируемых переходов.
+ * Модель анимационного слоя карты (Шаг 9 этапа 0.5.0 + Этап 2 вскрытие):
+ * мгновенные скачки фишек заменяются плавным скольжением, вскрытие тайлов
+ * и жетоны Исследования получают кинематографичную презентацию.
  *
  * Источники переходов:
  * - изменение `roomId` Персонажа — движение, Побег, уход в Капсулу;
@@ -12,7 +12,9 @@ import type { IntruderType, RoomId, SanitizedGameState } from '@nemesis/shared';
  *   Отступление по стрелке карты боя;
  * - `INTRUDER_MOVED` с `technicalCorridors` в новых записях журнала —
  *   затягивание в вентиляцию (миниатюра уже снята с поля);
- * - `INTRUDERS_BLOCKED_BY_DOOR` — совместный взлом Закрытой Двери.
+ * - `INTRUDERS_BLOCKED_BY_DOOR` — совместный взлом Закрытой Двери;
+ * - `ROOM_DISCOVERED` / `EXPLORATION_TOKEN_REVEALED` — туман, переворот,
+ *   жетон Исследования с иконкой эффекта (Этап 2).
  */
 export type BoardAnimation =
   | { kind: 'PLAYER_MOVE'; key: string; playerId: string; fromRoomId: RoomId; toRoomId: RoomId }
@@ -25,10 +27,21 @@ export type BoardAnimation =
       toRoomId: RoomId;
     }
   | { kind: 'INTRUDER_TO_TECH'; key: string; intruderId: string; intruderType: IntruderType; fromRoomId: RoomId }
-  | { kind: 'DOOR_BREACHED'; key: string; corridorId: string };
+  | { kind: 'DOOR_BREACHED'; key: string; corridorId: string }
+  | { kind: 'ROOM_REVEAL'; key: string; roomId: RoomId }
+  | {
+      kind: 'EXPLORATION_REVEAL';
+      key: string;
+      roomId: RoomId;
+      effect: ExplorationEffect;
+      itemsCount: number;
+    };
 
 /** Сколько миллисекунд живёт анимация на слое до удаления. */
-export const BOARD_ANIMATION_TTL_MS = 1400;
+export const BOARD_ANIMATION_TTL_MS = 1800;
+
+/** TTL для жетона Исследования — чуть дольше, чтобы успеть прочитать эффект. */
+export const EXPLORATION_ANIMATION_TTL_MS = 2100;
 
 function lastSequence(view: SanitizedGameState): number {
   return view.gameLog.length > 0 ? view.gameLog[view.gameLog.length - 1]!.sequence : 0;
@@ -90,6 +103,26 @@ export function diffBoardSnapshots(previous: SanitizedGameState | null, next: Sa
         kind: 'DOOR_BREACHED',
         key: `d-${event.corridorId}-${entry.sequence}`,
         corridorId: event.corridorId,
+      });
+      continue;
+    }
+    // Этап 2: вскрытие отсека — переворот тайла уже в RoomHex, но дублируем для слоя вспышки
+    if (event.type === 'ROOM_DISCOVERED') {
+      animations.push({
+        kind: 'ROOM_REVEAL',
+        key: `r-${event.roomId}-${entry.sequence}`,
+        roomId: event.roomId,
+      });
+      continue;
+    }
+    // Этап 2: жетон Исследования — мини-карта с эффектом
+    if (event.type === 'EXPLORATION_TOKEN_REVEALED') {
+      animations.push({
+        kind: 'EXPLORATION_REVEAL',
+        key: `e-${event.roomId}-${entry.sequence}`,
+        roomId: event.roomId,
+        effect: event.effect,
+        itemsCount: event.itemsCount,
       });
     }
   }

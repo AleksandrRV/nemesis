@@ -12,10 +12,19 @@ interface CarefulMovePanelProps {
   hasFreeTechnical: boolean;
   onChoose: (chosen: CarefulMoveChosenCorridor) => void;
   onCancel: () => void;
+  onHoverNumber?: (num: CorridorNumber | null) => void;
+  onHoverTechnical?: (hovered: boolean) => void;
 }
 
 /** Панель выбора Коридора для «Осторожного движения» — маркер Шума в выбранный Коридор (стр. 13). */
-export function CarefulMovePanel({ choices, hasFreeTechnical, onChoose, onCancel }: CarefulMovePanelProps) {
+export function CarefulMovePanel({
+  choices,
+  hasFreeTechnical,
+  onChoose,
+  onCancel,
+  onHoverNumber,
+  onHoverTechnical,
+}: CarefulMovePanelProps) {
   return (
     <div className="p-3 bg-slate-900 border border-amber-500/50 rounded-lg mb-2 space-y-2">
       <div className="flex items-center justify-between text-xs text-amber-300 font-bold">
@@ -31,6 +40,10 @@ export function CarefulMovePanel({ choices, hasFreeTechnical, onChoose, onCancel
             type="button"
             disabled={!entry.isFree}
             onClick={() => onChoose({ kind: 'CORRIDOR_NUMBER', corridorNumber: entry.number })}
+            onMouseEnter={() => onHoverNumber?.(entry.number)}
+            onMouseLeave={() => onHoverNumber?.(null)}
+            onFocus={() => onHoverNumber?.(entry.number)}
+            onBlur={() => onHoverNumber?.(null)}
             className={`w-full text-left px-2.5 py-1.5 rounded border text-xs flex justify-between items-center transition ${
               entry.isFree
                 ? 'bg-slate-950 hover:bg-slate-800 border-slate-700 text-slate-200 cursor-pointer'
@@ -49,6 +62,10 @@ export function CarefulMovePanel({ choices, hasFreeTechnical, onChoose, onCancel
           <button
             type="button"
             onClick={() => onChoose({ kind: 'TECHNICAL_CORRIDOR' })}
+            onMouseEnter={() => onHoverTechnical?.(true)}
+            onMouseLeave={() => onHoverTechnical?.(false)}
+            onFocus={() => onHoverTechnical?.(true)}
+            onBlur={() => onHoverTechnical?.(false)}
             className="w-full text-left px-2.5 py-1.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-amber-300 flex justify-between items-center"
           >
             <span>Технический коридор (вентиляция)</span>

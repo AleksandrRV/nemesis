@@ -1,6 +1,6 @@
 import React from 'react';
-import { SHIP_ROOM_NODES, type SanitizedGameState } from '@nemesis/shared';
-import { User } from 'lucide-react';
+import { SHIP_ROOM_NODES, type ExplorationEffect, type SanitizedGameState } from '@nemesis/shared';
+import { AlertTriangle, Droplet, Flame, Package, VolumeX, Wrench, DoorOpen, User, type LucideIcon } from 'lucide-react';
 import type { BoardAnimation } from './boardAnimationModel';
 import { TECH_HUB, TECH_HUB_RADIUS } from './techCorridorModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
@@ -90,7 +90,6 @@ function IntruderFigure({ type }: { type: keyof typeof INTRUDER_SHAPES }) {
 }
 
 /** Вспышка деформации и взлома металла на переборке разрушенной Двери. */
-/** Углы искр взлома: шесть лучей вокруг точки удара. */
 const SPARK_ANGLES = [8, 72, 140, 196, 262, 318] as const;
 
 function DoorBreachFx({ point }: { point: Point }) {
@@ -100,7 +99,6 @@ function DoorBreachFx({ point }: { point: Point }) {
       aria-label="Взлом Закрытой Двери"
       className="pointer-events-none"
     >
-      {/* Ударная волна: кольцо, расходящееся от точки взлома. */}
       <circle
         r={26}
         fill="none"
@@ -109,7 +107,6 @@ function DoorBreachFx({ point }: { point: Point }) {
         className="motion-safe:animate-door-shockwave motion-reduce:animate-none"
         style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
       />
-      {/* Искры деформации металла: разлёт по лучам. */}
       {SPARK_ANGLES.map((angle, index) => (
         <g key={angle} transform={`rotate(${angle})`}>
           <line
@@ -129,7 +126,6 @@ function DoorBreachFx({ point }: { point: Point }) {
           />
         </g>
       ))}
-      {/* Вспышка деформации переборки. */}
       <g
         className="motion-safe:animate-door-breach motion-reduce:animate-none"
         style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
@@ -147,7 +143,6 @@ function DoorBreachFx({ point }: { point: Point }) {
   );
 }
 
-/** Круги на «воде» узла вентиляции: Чужой растворился в Технических Коридорах. */
 function VentHubRipple({ animationKey }: { animationKey: string }) {
   return (
     <g key={`${animationKey}-ripple`} aria-label="Прибытие в Технические Коридоры" className="pointer-events-none">
@@ -165,11 +160,157 @@ function VentHubRipple({ animationKey }: { animationKey: string }) {
   );
 }
 
+// --- Этап 2: Жетон Исследования — мини-карта с эффектом ---
+
+interface EffectVisual {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  Icon: LucideIcon;
+  flicker?: boolean;
+}
+
+const EXPLORATION_VISUALS: Record<ExplorationEffect, EffectVisual> = {
+  FIRE: { label: 'ПОЖАР', color: '#ff7a18', bg: '#1e1210', border: '#ff5500', Icon: Flame, flicker: true },
+  MALFUNCTION: { label: 'ПОЛОМКА', color: '#ffbf1a', bg: '#1e1a0f', border: '#ffb700', Icon: Wrench },
+  SLIME: { label: 'СЛИЗЬ', color: '#34ff8a', bg: '#0d1e14', border: '#00ff66', Icon: Droplet },
+  DOORS: { label: 'ДВЕРИ', color: '#b8a6ff', bg: '#171222', border: '#8b6bff', Icon: DoorOpen },
+  DANGER: { label: 'ОПАСНОСТЬ', color: '#ff3b5c', bg: '#1e0f14', border: '#ff003c', Icon: AlertTriangle },
+  SILENCE: { label: 'ТИШИНА', color: '#94a3b8', bg: '#121a2a', border: '#334155', Icon: VolumeX },
+};
+
+function ExplorationRevealFx({
+  point,
+  effect,
+  itemsCount,
+  reducedMotion,
+}: {
+  point: Point;
+  effect: ExplorationEffect;
+  itemsCount: number;
+  reducedMotion: boolean;
+}) {
+  const visual = EXPLORATION_VISUALS[effect];
+  const Icon = visual.Icon;
+
+  return (
+    <g
+      transform={`translate(${point.x}, ${point.y})`}
+      aria-label={`Жетон Исследования: ${visual.label}`}
+      className={
+        reducedMotion
+          ? 'pointer-events-none'
+          : 'pointer-events-none motion-safe:animate-exploration-reveal motion-reduce:animate-none'
+      }
+      style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
+    >
+      {/* Свечение под картой */}
+      <circle
+        r={42}
+        fill={visual.border}
+        opacity={0.14}
+        className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined}
+      />
+
+      {/* Карта жетона */}
+      <g transform="translate(-46, -36)">
+        <rect
+          x={0}
+          y={0}
+          width={92}
+          height={60}
+          rx={9}
+          fill={visual.bg}
+          stroke={visual.border}
+          strokeWidth={1.6}
+          opacity={0.98}
+        />
+        {/* Внутренняя рамка */}
+        <rect
+          x={3}
+          y={3}
+          width={86}
+          height={54}
+          rx={6}
+          fill="none"
+          stroke={visual.border}
+          strokeOpacity={0.22}
+          strokeWidth={1}
+        />
+
+        {/* Иконка эффекта */}
+        <g transform="translate(36, 8)">
+          <circle cx={10} cy={10} r={12} fill="#05070c" stroke={visual.border} strokeWidth={1.2} opacity={0.9} />
+          <Icon size={14} x={3} y={3} className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined} />
+        </g>
+
+        {/* Лейбл эффекта */}
+        <text
+          x={46}
+          y={38}
+          textAnchor="middle"
+          className="font-bold tracking-wider"
+          style={{ fontSize: '7.5px', fill: visual.color, fontFamily: 'Share Tech Mono, monospace' }}
+        >
+          {visual.label}
+        </text>
+
+        {/* Счётчик предметов */}
+        <g transform="translate(46, 44)">
+          <rect x={-22} y={0} width={44} height={12} rx={6} fill="#05070c" stroke="#1e293b" strokeWidth={1} />
+          <g transform="translate(-14, 2)">
+            <Package size={8} className="text-slate-400" />
+          </g>
+          <text
+            x={6}
+            y={8.5}
+            textAnchor="middle"
+            style={{ fontSize: '7px', fill: '#cbd5e1', fontFamily: 'Share Tech Mono, monospace' }}
+            className="font-bold"
+          >
+            {itemsCount} ПРЕДМ.
+          </text>
+        </g>
+      </g>
+
+      {/* Дополнительный pop-эффект — маленькое кольцо */}
+      <circle
+        r={28}
+        fill="none"
+        stroke={visual.border}
+        strokeWidth={1.5}
+        opacity={0.55}
+        className="motion-safe:animate-token-pop motion-reduce:opacity-0"
+      />
+    </g>
+  );
+}
+
+function RoomRevealFx({ point, reducedMotion }: { point: Point; reducedMotion: boolean }) {
+  return (
+    <g transform={`translate(${point.x}, ${point.y})`} className="pointer-events-none" aria-label="Отсек вскрыт">
+      <circle
+        r={48}
+        fill="none"
+        stroke="#00f0ff"
+        strokeWidth={2.5}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-door-shockwave motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        r={8}
+        fill="#00f0ff"
+        opacity={0.9}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-token-pop'}
+      />
+    </g>
+  );
+}
+
 /**
- * Слой интерполяции поверх статических гексов (Шаг 9 этапа 0.5.0): фишки
- * Персонажей и фигурки Чужих скользят по траекториям Коридоров от центра
- * исходного отсека к центру целевого, затягиваются в маячок вентиляции,
- * разрушение Закрытых Дверей сопровождается вспышкой деформации металла.
+ * Слой интерполяции поверх статических гексов (Шаг 9 этапа 0.5.0 + Этап 2):
+ * фишки скользят, вскрытие тайлов и жетоны Исследования получают кинематографику.
  */
 export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, animations, reducedMotion }) => {
   const roomCoords = React.useMemo(() => {
@@ -234,8 +375,29 @@ export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, 
           );
         }
 
-        // INTRUDER_TO_TECH: фигурка стягивается к узлу Технических Коридоров,
-        // растворяется в нём, и узел расходится кругами по прибытии.
+        if (animation.kind === 'ROOM_REVEAL') {
+          const point = roomCoords.get(animation.roomId);
+          if (!point) return null;
+          return <RoomRevealFx key={animation.key} point={point} reducedMotion={reducedMotion} />;
+        }
+
+        if (animation.kind === 'EXPLORATION_REVEAL') {
+          const point = roomCoords.get(animation.roomId);
+          if (!point) return null;
+          // Чуть выше центра гекса, чтобы не перекрывать название
+          const shifted = { x: point.x, y: point.y - 2 };
+          return (
+            <ExplorationRevealFx
+              key={animation.key}
+              point={shifted}
+              effect={animation.effect}
+              itemsCount={animation.itemsCount}
+              reducedMotion={reducedMotion}
+            />
+          );
+        }
+
+        // INTRUDER_TO_TECH
         const from = roomCoords.get(animation.fromRoomId);
         if (!from) return null;
         return (

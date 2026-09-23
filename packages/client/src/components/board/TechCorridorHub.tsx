@@ -10,6 +10,10 @@ interface TechCorridorHubProps {
   /** Чужие, ушедшие в вентиляцию: временные силуэты перед сбросом в мешок. */
   echoes: VentEcho[];
   onSelect: () => void;
+  /** Этап 2B: осторожное движение — подсветка и ghost */
+  carefulState?: 'free' | 'busy' | 'hovered-free' | null;
+  isGhostNoise?: boolean;
+  onCarefulSelect?: () => void;
 }
 
 function hexPoints(x: number, y: number, radius: number): string {
@@ -25,19 +29,42 @@ function hexPoints(x: number, y: number, radius: number): string {
  * Узел локации «Технические Коридоры» (стр. 9, элемент 10; стр. 16):
  * индустриальный хаб вентиляции — решётка, датчик давления, аварийная
  * красно-жёлтая разметка; при Шуме пульсирует тревогой и звуковыми волнами.
+ * Этап 2B: поддержка осторожного движения — янтарное/красное свечение и ghost.
  */
-export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({ hasNoise, isSelected, echoes, onSelect }) => {
+export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
+  hasNoise,
+  isSelected,
+  echoes,
+  onSelect,
+  carefulState = null,
+  isGhostNoise = false,
+  onCarefulSelect,
+}) => {
   const { x, y } = TECH_HUB;
   const radius = TECH_HUB_RADIUS;
 
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (carefulState && onCarefulSelect) {
+      onCarefulSelect();
+    } else {
+      onSelect();
+    }
+  };
+
   return (
     <g
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
+      onClick={handleClick}
       className="cursor-pointer transition-all duration-150 hover:brightness-125 select-none"
-      aria-label={hasNoise ? 'Технические Коридоры: Шум в вентиляции' : 'Технические Коридоры'}
+      aria-label={
+        carefulState
+          ? carefulState.includes('free')
+            ? 'Технические Коридоры: выбор для Осторожного движения'
+            : 'Технические Коридоры: Шум уже есть'
+          : hasNoise
+            ? 'Технические Коридоры: Шум в вентиляции'
+            : 'Технические Коридоры'
+      }
     >
       <defs>
         <pattern id="vent-grid" width="11" height="11" patternUnits="userSpaceOnUse">
@@ -66,6 +93,53 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({ hasNoise, isSe
           strokeOpacity="0.55"
           className="motion-safe:animate-vent-alarm motion-reduce:opacity-60"
         />
+      )}
+
+      {/* Этап 2B: осторожное движение — янтарное свечение свободного, красное занятого */}
+      {carefulState && (
+        <>
+          <polygon
+            points={hexPoints(x, y, radius + 7)}
+            fill="none"
+            stroke={carefulState.includes('free') ? '#ffb700' : '#ff3b5c'}
+            strokeWidth={carefulState.includes('hovered') ? 6 : 4.5}
+            strokeOpacity={carefulState.includes('hovered') ? 0.88 : 0.56}
+            className="motion-safe:animate-pulse motion-reduce:animate-none"
+          />
+          <polygon
+            points={hexPoints(x, y, radius + 13)}
+            fill="none"
+            stroke={carefulState.includes('free') ? '#ffb700' : '#ff3b5c'}
+            strokeWidth={2}
+            strokeOpacity={carefulState.includes('hovered') ? 0.38 : 0.18}
+          />
+        </>
+      )}
+
+      {isGhostNoise && (
+        <g className="pointer-events-none">
+          <circle
+            cx={x - radius + 6}
+            cy={y - radius + 6}
+            r={11}
+            fill={carefulState?.includes('free') ? '#ffb700' : '#ff3b5c'}
+            opacity={0.18}
+            stroke={carefulState?.includes('free') ? '#ffb700' : '#ff3b5c'}
+            strokeWidth={1.6}
+            strokeDasharray="3,2"
+            className="motion-safe:animate-pulse"
+          />
+          <g transform={`translate(${x - radius + 6}, ${y - radius + 6})`}>
+            <circle
+              cx={0}
+              cy={0}
+              r={8.5}
+              fill={carefulState?.includes('free') ? '#ffb700' : '#ff3b5c'}
+              opacity={0.34}
+            />
+            <Volume2 size={11} className="text-white" x={-5.5} y={-5.5} opacity={0.9} />
+          </g>
+        </g>
       )}
 
       {/* Аварная разметка: красно-жёлтая полоса по контуру поля. */}

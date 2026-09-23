@@ -1,4 +1,4 @@
-import type { CharacterClass, EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
+import type { CharacterClass, CorridorNumber, EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
 import { create } from 'zustand';
 
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
@@ -30,6 +30,11 @@ export interface GameStoreState {
   /** Конвертированные в очки действий ID карт (в резерве) */
   convertedCardIds: string[];
 
+  /** Этап 2B: осторожное движение — выбор коридора на карте (приоритет 1) */
+  carefulMoveTargetRoomId: RoomId | null;
+  carefulHoveredNumber: CorridorNumber | null;
+  carefulHoveredTechnical: boolean;
+
   toggleSelectCard: (cardId: string) => void;
   clearSelection: () => void;
   convertToEnergy: () => void;
@@ -38,6 +43,10 @@ export interface GameStoreState {
 
   setShootModalOpen: (open: boolean) => void;
   setMeleeModalOpen: (open: boolean) => void;
+
+  setCarefulMoveTargetRoomId: (roomId: RoomId | null) => void;
+  setCarefulHoveredNumber: (num: CorridorNumber | null) => void;
+  setCarefulHoveredTechnical: (hovered: boolean) => void;
 
   dispatch: (action: EngineAction) => void;
   selectRoom: (roomId: RoomId | null) => void;
@@ -69,6 +78,9 @@ export function createGameStore(createTransport: TransportFactory) {
     meleeModalOpen: false,
     selectedCardIds: [],
     convertedCardIds: [],
+    carefulMoveTargetRoomId: null,
+    carefulHoveredNumber: null,
+    carefulHoveredTechnical: false,
 
     toggleSelectCard: (cardId) => {
       const { selectedCardIds, convertedCardIds } = get();
@@ -152,12 +164,40 @@ export function createGameStore(createTransport: TransportFactory) {
       set({ meleeModalOpen: open });
     },
 
+    setCarefulMoveTargetRoomId: (roomId) => {
+      set({
+        carefulMoveTargetRoomId: roomId,
+        carefulHoveredNumber: null,
+        carefulHoveredTechnical: false,
+      });
+    },
+
+    setCarefulHoveredNumber: (num) => {
+      set({ carefulHoveredNumber: num, carefulHoveredTechnical: false });
+    },
+
+    setCarefulHoveredTechnical: (hovered) => {
+      set({ carefulHoveredTechnical: hovered, carefulHoveredNumber: hovered ? null : get().carefulHoveredNumber });
+    },
+
     selectRoom: (roomId) => {
-      set({ selectedRoomId: roomId, technicalCorridorsOpen: false });
+      set({
+        selectedRoomId: roomId,
+        technicalCorridorsOpen: false,
+        carefulMoveTargetRoomId: null,
+        carefulHoveredNumber: null,
+        carefulHoveredTechnical: false,
+      });
     },
 
     openTechnicalCorridors: () => {
-      set({ technicalCorridorsOpen: true, selectedRoomId: null });
+      set({
+        technicalCorridorsOpen: true,
+        selectedRoomId: null,
+        carefulMoveTargetRoomId: null,
+        carefulHoveredNumber: null,
+        carefulHoveredTechnical: false,
+      });
     },
 
     closeTechnicalCorridors: () => {
@@ -177,6 +217,9 @@ export function createGameStore(createTransport: TransportFactory) {
           meleeModalOpen: false,
           selectedCardIds: [],
           convertedCardIds: [],
+          carefulMoveTargetRoomId: null,
+          carefulHoveredNumber: null,
+          carefulHoveredTechnical: false,
         });
         return;
       }
@@ -196,6 +239,9 @@ export function createGameStore(createTransport: TransportFactory) {
         meleeModalOpen: false,
         selectedCardIds: [],
         convertedCardIds: [],
+        carefulMoveTargetRoomId: null,
+        carefulHoveredNumber: null,
+        carefulHoveredTechnical: false,
       });
     },
   }));

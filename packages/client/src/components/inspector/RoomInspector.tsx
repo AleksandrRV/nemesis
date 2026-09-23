@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CarefulMoveChosenCorridor, SanitizedRoomState } from '@nemesis/shared';
+import type { CarefulMoveChosenCorridor, CorridorNumber, SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { intrudersInRoom } from '../board/intruderMapModel';
@@ -42,8 +42,11 @@ export const RoomInspector: React.FC = () => {
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
   const setShootModalOpen = useGameStore((state) => state.setShootModalOpen);
   const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
+  const carefulTargetRoomId = useGameStore((state) => state.carefulMoveTargetRoomId);
+  const setCarefulTargetRoomId = useGameStore((state) => state.setCarefulMoveTargetRoomId);
+  const setCarefulHoveredNumber = useGameStore((state) => state.setCarefulHoveredNumber);
+  const setCarefulHoveredTechnical = useGameStore((state) => state.setCarefulHoveredTechnical);
 
-  const [isCarefulSelecting, setIsCarefulSelecting] = React.useState(false);
   const [escapePromptOpen, setEscapePromptOpen] = React.useState(false);
   const [disengageOpen, setDisengageOpen] = React.useState(false);
 
@@ -128,6 +131,7 @@ export const RoomInspector: React.FC = () => {
 
   // Раскладка «Осторожного движения» (стр. 13) — чистая модель (Шаг 8).
   const { choices: availableCorridorNumbers, hasFreeTechnical } = carefulMoveChoices(view, room.id);
+  const isCarefulSelecting = carefulTargetRoomId === room.id;
 
   const handleNormalMove = () => {
     // Движение из отсека с Чужими — это Побег (стр. 19): подтверждаем отдельно.
@@ -200,7 +204,15 @@ export const RoomInspector: React.FC = () => {
         discardCardIds,
       },
     });
-    setIsCarefulSelecting(false);
+    setCarefulTargetRoomId(null);
+  };
+
+  const handleCarefulHoverNumber = (num: CorridorNumber | null) => {
+    setCarefulHoveredNumber(num);
+  };
+
+  const handleCarefulHoverTechnical = (hovered: boolean) => {
+    setCarefulHoveredTechnical(hovered);
   };
 
   const handleSearch = () => {
@@ -237,7 +249,7 @@ export const RoomInspector: React.FC = () => {
         <button
           onClick={() => {
             selectRoom(null);
-            setIsCarefulSelecting(false);
+            setCarefulTargetRoomId(null);
           }}
           className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
         >
@@ -421,7 +433,9 @@ export const RoomInspector: React.FC = () => {
           choices={availableCorridorNumbers}
           hasFreeTechnical={hasFreeTechnical}
           onChoose={handleCarefulMove}
-          onCancel={() => setIsCarefulSelecting(false)}
+          onCancel={() => setCarefulTargetRoomId(null)}
+          onHoverNumber={handleCarefulHoverNumber}
+          onHoverTechnical={handleCarefulHoverTechnical}
         />
       )}
 
@@ -478,7 +492,7 @@ export const RoomInspector: React.FC = () => {
               <Footprints size={14} /> {movingFromCombat ? 'Побег [цена: 1]' : 'Движение [цена: 1]'}
             </button>
             <button
-              onClick={() => setIsCarefulSelecting(true)}
+              onClick={() => setCarefulTargetRoomId(room.id)}
               disabled={isActiveInCombat}
               title={
                 isActiveInCombat

@@ -7,10 +7,32 @@ import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
 import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
-import type { ItemDeckColor } from '../types/cards.js';
+import { CRAFTED_ITEM_CARDS } from '../data/crafting.js';
+import type { ItemCard, ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
 import { EngineError } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
+
+/**
+ * Завершает поиск: уменьшает itemsCount в отсеке на 1,
+ * пишет в публичный журнал (без названия найденного предмета)
+ * и продвигает микроход.
+ * Единственная реализация — оставлена здесь (Шаг 5, долг 13: дублирование finishSearch удалено из search.ts).
+ */
+export function finishSearch(state: GameState, playerId: string, roomId: number): void {
+  const room = state.ship.rooms[roomId];
+  if (room && room.itemsCount > 0) {
+    room.itemsCount -= 1;
+  }
+
+  appendGameLog(state, {
+    type: 'SEARCH_PERFORMED',
+    playerId,
+    roomId,
+  });
+
+  queueActionCompletion(state, playerId);
+}
 
 export function executeSearch(
   state: GameState,
@@ -41,18 +63,21 @@ export function executeSearch(
   }
   if (drawn.length === 1) {
     const item = drawn[0]!;
-    placeItemToPlayer(state, actorId, item);
-    const currentRoom = state.ship.rooms[roomId]!;
-    if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
-    appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId });
-    queueActionCompletion(state, actorId);
+    const placed = placeItemToPlayer(state, actorId, item, roomId);
+    // Шаг 5, долг 12: если руки заняты тяжёлыми, placeItemToPlayer вернёт false и выставит DISCARD_HEAVY — карта не должна теряться
+    if (!placed) {
+      // Не завершаем поиск до разрешения DISCARD_HEAVY
+      return;
+    }
+    finishSearch(state, actorId, roomId);
     return;
   }
+  // Шаг 5, долг 11: приватное решение содержит полные карты, а не только ID — модалка показывает name/description/color
   state.pendingDecision = {
     id: `search-item-${allocateEntityId(state, 'decision')}-${actorId}`,
     playerId: actorId,
     type: 'CHOOSE_SEARCH_ITEM',
-    drawnCardIds: drawn.map((c) => c.id),
+    cards: drawn,
     sourceDeck: targetColor,
     roomId,
   };
@@ -119,19 +144,21 @@ export function executeDecision(
     }
     if (drawn.length === 1) {
       const item = drawn[0]!;
+      const placed = placeItemToPlayer(state, actorId, item, decision.roomId);
+      if (!placed) {
+        // Руки заняты — ждём DISCARD_HEAVY, но решение WHITE уже снято (DISCARD_HEAVY выставлен внутри placeItemToPlayer)
+        // Не завершаем поиск до разрешения тяжёлого
+        return;
+      }
       state.pendingDecision = null;
-      placeItemToPlayer(state, actorId, item);
-      const currentRoom = state.ship.rooms[decision.roomId]!;
-      if (currentRoom.itemsCount > 0) currentRoom.itemsCount -= 1;
-      appendGameLog(state, { type: 'SEARCH_PERFORMED', playerId: actorId, roomId: decision.roomId });
-      queueActionCompletion(state, actorId);
+      finishSearch(state, actorId, decision.roomId);
       return;
     }
     state.pendingDecision = {
       id: `search-item-${allocateEntityId(state, 'decision')}-${actorId}`,
       playerId: actorId,
       type: 'CHOOSE_SEARCH_ITEM',
-      drawnCardIds: drawn.map((c) => c.id),
+      cards: drawn,
       sourceDeck: chosenColor,
       roomId: decision.roomId,
     };
@@ -139,39 +166,81 @@ export function executeDecision(
   }
   if (decision.type === 'CHOOSE_SEARCH_ITEM') {
     const chosenCardId = action.payload.selectedOption;
-    if (!decision.drawnCardIds.includes(chosenCardId)) {
+    const chosenCard = decision.cards.find((c) => c.id === chosenCardId);
+    if (!chosenCard) {
       throw new EngineError('INVALID_DECISION_OPTION', 'Выбранной карты нет среди вытянутых');
     }
-    const unchosenCardId = decision.drawnCardIds.find((id) => id !== chosenCardId)!;
+    const unchosenCard = decision.cards.find((c) => c.id !== chosenCardId);
     const pile = state.decks.items[decision.sourceDeck];
 
-    const deckItems =
-      decision.sourceDeck === 'RED'
-        ? RED_ITEM_CARDS
-        : decision.sourceDeck === 'YELLOW'
-          ? YELLOW_ITEM_CARDS
-          : GREEN_ITEM_CARDS;
-
-    const chosenCard = deckItems.find((c) => c.id === chosenCardId);
-    const unchosenCard = deckItems.find((c) => c.id === unchosenCardId);
-
-    state.pendingDecision = null;
-    if (chosenCard) {
-      placeItemToPlayer(state, actorId, chosenCard);
-    }
+    // Шаг 5, долг 15: возврат второй карты вниз — drawPile использует shift() для верха, push() для низа.
+    // Комментарий фиксирует порядок: вытянутые карты берутся с верха (shift), невыбранная уходит под низ (push),
+    // чтобы следующий поиск не вытянул её снова. Тест проверяет что карта действительно внизу, а не сверху.
     if (unchosenCard) {
       pile.drawPile.push(unchosenCard);
     }
 
-    const currentRoom = state.ship.rooms[decision.roomId]!;
-    if (currentRoom.itemsCount > 0) {
-      currentRoom.itemsCount -= 1;
+    state.pendingDecision = null;
+    const placed = placeItemToPlayer(state, actorId, chosenCard, decision.roomId);
+    if (!placed) {
+      // Тяжёлый предмет при занятых руках — ждём DISCARD_HEAVY, поиск завершится после сброса
+      return;
     }
 
+    finishSearch(state, actorId, decision.roomId);
+    return;
+  }
+  if (decision.type === 'CHOOSE_STORAGE_ITEM') {
+    const chosenCardId = action.payload.selectedOption;
+    const chosenCard = decision.cards.find((c) => c.id === chosenCardId);
+    if (!chosenCard) {
+      throw new EngineError('INVALID_DECISION_OPTION', 'Выбранной карты нет среди вытянутых (Склад)');
+    }
+    const unchosenCard = decision.cards.find((c) => c.id !== chosenCardId);
+    const pile = state.decks.items[decision.sourceDeck];
+
+    if (unchosenCard) {
+      pile.drawPile.push(unchosenCard);
+    }
+
+    state.pendingDecision = null;
+    const placed = placeItemToPlayer(state, actorId, chosenCard);
+    if (!placed) {
+      return;
+    }
+
+    // Склад не уменьшает itemsCount (стр. 24, описание Склада) — в отличие от обычного поиска
     appendGameLog(state, {
       type: 'SEARCH_PERFORMED',
       playerId: actorId,
       roomId: decision.roomId,
+    });
+    queueActionCompletion(state, actorId);
+    return;
+  }
+  if (decision.type === 'CHOOSE_ENERGY_WEAPON') {
+    const chosenWeaponId = action.payload.selectedOption;
+    if (!decision.weaponIds.includes(chosenWeaponId)) {
+      throw new EngineError('INVALID_DECISION_OPTION', 'Выбранного энергооружия нет среди предложенных');
+    }
+    const slot = player.handSlots.find((s) => s.source === 'ITEM' && s.card.id === chosenWeaponId);
+    if (!slot || slot.source !== 'ITEM') {
+      throw new EngineError('INVALID_DECISION_OPTION', 'Энергооружие не найдено в руках');
+    }
+    const weapon = slot.card;
+    const maxAmmo = weapon.maxAmmo ?? 4;
+    const currentAmmo = weapon.ammo ?? 0;
+    const newAmmo = Math.min(maxAmmo, currentAmmo + 2);
+    weapon.ammo = newAmmo;
+
+    state.pendingDecision = null;
+
+    appendGameLog(state, {
+      type: 'ROOM_ABILITY_USED',
+      playerId: actorId,
+      roomId: decision.roomId,
+      roomDefinitionId: 'ARMORY',
+      detail: `Заряжено энергооружие «${weapon.name}»: ${newAmmo}/${maxAmmo} зарядов`,
     });
 
     queueActionCompletion(state, actorId);
@@ -191,13 +260,37 @@ export function executeDecision(
         state.decks.items[oldCard.color].discard.push(oldCard);
       }
     }
-    const allItems = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS];
-    const newCard = allItems.find((c) => c.id === decision.newItemId);
+
+    const allTemplates = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
+    const newCard = allTemplates.find((c) => c.id === decision.newItemId) as ItemCard | undefined;
+
     if (newCard) {
-      player.handSlots[slotIndex] = { source: 'ITEM', card: newCard };
+      player.handSlots[slotIndex] = { source: 'ITEM', card: { ...newCard } };
     }
+
+    const roomIdForFinish = decision.roomId ?? player.roomId;
+    const currentRoom = state.ship.rooms[roomIdForFinish];
+
     state.pendingDecision = null;
+
+    // Если это был поиск (roomId передан из placeItemToPlayer), завершаем его
+    if (currentRoom) {
+      // Для обычного поиска itemsCount уменьшается, для подбора с пола — нет.
+      // Если roomId был передан — это поиск, поэтому уменьшаем
+      if (decision.roomId !== undefined && currentRoom.itemsCount > 0) {
+        currentRoom.itemsCount -= 1;
+        appendGameLog(state, {
+          type: 'SEARCH_PERFORMED',
+          playerId: actorId,
+          roomId: currentRoom.id,
+        });
+        queueActionCompletion(state, actorId);
+      }
+      // Если roomId не передан — это подбор тяжёлого объекта с пола, поиск не завершаем
+    }
+
     return;
   }
   throw new EngineError('INVALID_DECISION', `Тип решения не поддерживается: ${(decision as PendingDecision).type}`);
 }
+

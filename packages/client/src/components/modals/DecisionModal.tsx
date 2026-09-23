@@ -133,29 +133,48 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
     );
   }
 
-  if (decision.type === 'CHOOSE_SEARCH_ITEM') {
-    // Карты из drawnCardIds
+  if (decision.type === 'CHOOSE_SEARCH_ITEM' || decision.type === 'CHOOSE_STORAGE_ITEM') {
+    const isStorage = decision.type === 'CHOOSE_STORAGE_ITEM';
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div className="w-full max-w-lg bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4">
           <div className="flex items-center gap-2 text-cyan-400 border-b border-slate-800 pb-3">
             <Package size={20} />
-            <h3 className="text-lg font-heading tracking-wider text-white">ВЫБОР НАЙДЕННОГО ПРЕДМЕТА</h3>
+            <h3 className="text-lg font-heading tracking-wider text-white">
+              {isStorage ? 'СКЛАД: ВЫБОР НАЙДЕННОГО ПРЕДМЕТА' : 'ВЫБОР НАЙДЕННОГО ПРЕДМЕТА'}
+            </h3>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
             Вы вытянули 2 карты предметов из колоды {decision.sourceDeck}. Выберите одну карту себе в инвентарь (вторая
-            вернётся под низ колоды):
+            вернётся под низ колоды — shift() верх, push() низ):
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {decision.drawnCardIds.map((cardId) => (
+            {decision.cards.map((card) => (
               <button
-                key={cardId}
-                onClick={() => handleSelect(cardId)}
+                key={card.id}
+                onClick={() => handleSelect(card.id)}
                 className="p-3 text-left rounded-lg bg-slate-800/80 border border-cyan-600/40 hover:border-cyan-400 hover:bg-slate-800 text-white transition flex flex-col justify-between space-y-2 group"
               >
                 <div>
-                  <div className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">{cardId}</div>
-                  <div className="text-[11px] text-slate-400">Нажмите, чтобы забрать этот предмет</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        card.color === 'RED'
+                          ? 'bg-red-500'
+                          : card.color === 'YELLOW'
+                            ? 'bg-amber-400'
+                            : card.color === 'GREEN'
+                              ? 'bg-emerald-500'
+                              : 'bg-cyan-400'
+                      }`}
+                    />
+                    <span className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200">{card.name}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 leading-snug line-clamp-3">{card.description}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">
+                    {card.isHeavy ? 'Тяжёлый' : 'Лёгкий'} • Цена: {card.actionCost} • {card.color}
+                    {card.componentSymbols.length > 0 ? ` • ${card.componentSymbols.join(', ')}` : ''}
+                  </div>
                 </div>
                 <div className="flex items-center text-xs text-cyan-400 font-semibold gap-1 pt-1 border-t border-slate-700/60">
                   <span>Выбрать</span>
@@ -163,6 +182,43 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (decision.type === 'CHOOSE_ENERGY_WEAPON') {
+    const activePlayer = view?.players[view.meta.activePlayerId];
+    const weaponSlots = activePlayer?.handSlots.filter(
+      (s) => s.source === 'ITEM' && decision.weaponIds.includes(s.card.id),
+    );
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-xl p-5 shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 text-cyan-400 border-b border-slate-800 pb-3">
+            <Package size={20} />
+            <h3 className="text-lg font-heading tracking-wider text-white">ОРУЖЕЙНАЯ: ВЫБЕРИТЕ ЭНЕРГООРУЖИЕ</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            У вас несколько энергооружий в руках. Выберите, какое зарядить (+2 патрона):
+          </p>
+          <div className="space-y-2">
+            {weaponSlots?.map((slot) => {
+              if (slot.source !== 'ITEM') return null;
+              return (
+                <button
+                  key={slot.card.id}
+                  onClick={() => handleSelect(slot.card.id)}
+                  className="w-full p-3 rounded-lg bg-slate-800 hover:bg-cyan-950/60 border border-slate-700 hover:border-cyan-500/50 text-left transition"
+                >
+                  <div className="text-xs font-bold text-cyan-200">{slot.card.name}</div>
+                  <div className="text-[11px] text-slate-400">
+                    Патроны: {slot.card.ammo}/{slot.card.maxAmmo} • {slot.card.description}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

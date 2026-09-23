@@ -41,13 +41,103 @@ describe('DecisionModal', () => {
       type: 'CHOOSE_SEARCH_ITEM' as const,
       roomId: 1,
       sourceDeck: 'YELLOW' as const,
-      drawnCardIds: ['ITEM_1', 'ITEM_2'],
-    };
+      cards: [
+        {
+          id: 'ITEM_1',
+          name: 'Аптечка',
+          description: 'Лечит раны',
+          color: 'GREEN',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: true,
+          componentSymbols: ['CHEMICALS'],
+          actionCost: 1,
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        },
+        {
+          id: 'ITEM_2',
+          name: 'Инструменты',
+          description: 'Чинит',
+          color: 'YELLOW',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: false,
+          componentSymbols: ['TOOLS'],
+          actionCost: 1,
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        },
+      ],
+    } as never;
 
     const html = renderToStaticMarkup(<DecisionModal decision={decision} />);
 
     expect(html).toContain('ВЫБОР НАЙДЕННОГО ПРЕДМЕТА');
-    expect(html).toContain('ITEM_1');
-    expect(html).toContain('ITEM_2');
+    expect(html).toContain('Аптечка');
+    expect(html).toContain('Инструменты');
+    expect(html).toContain('Лечит раны');
+  });
+
+  it('рендерит модалку склада с отдельным типом CHOOSE_STORAGE_ITEM', () => {
+    const decision = {
+      id: 'dec-3',
+      playerId: 'player-1',
+      type: 'CHOOSE_STORAGE_ITEM' as const,
+      roomId: 1,
+      sourceDeck: 'RED' as const,
+      cards: [
+        {
+          id: 'ITEM_RED_1',
+          name: 'Граната',
+          description: 'Взрыв',
+          color: 'RED',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: true,
+          componentSymbols: ['CHEMICALS'],
+          actionCost: 1,
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        },
+        {
+          id: 'ITEM_RED_2',
+          name: 'Энергозаряд',
+          description: 'Заряд',
+          color: 'RED',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: true,
+          componentSymbols: ['POWER_CELL'],
+          actionCost: 1,
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        },
+      ],
+    } as never;
+
+    const html = renderToStaticMarkup(<DecisionModal decision={decision} />);
+
+    expect(html).toContain('СКЛАД');
+    expect(html).toContain('Граната');
+  });
+
+  it('рендерит модалку выбора энергооружия в Оружейной', () => {
+    const decision = {
+      id: 'dec-4',
+      playerId: 'player-1',
+      type: 'CHOOSE_ENERGY_WEAPON' as const,
+      roomId: 1,
+      weaponIds: ['energy-1', 'energy-2'],
+    };
+
+    const html = renderToStaticMarkup(<DecisionModal decision={decision} />);
+
+    expect(html).toContain('ОРУЖЕЙНАЯ');
+    expect(html).toContain('ВЫБЕРИТЕ ЭНЕРГООРУЖИЕ');
   });
 });

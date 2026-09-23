@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CorridorConnection } from '@nemesis/shared';
-import { Volume2, ShieldAlert, X } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 
 interface CorridorEdgeProps {
   corridor: CorridorConnection;
@@ -8,26 +8,15 @@ interface CorridorEdgeProps {
   y1: number;
   x2: number;
   y2: number;
-  /** Этап 2B: подсветка пути движения — неон cyan + glow */
   isPathActive?: boolean;
-  /** Этап C8: только что поставленный Шум — pop + ripple */
   isNoisePop?: boolean;
-  /** Этап C7: цель броска Шума — вспышка на коридоре */
   isNoiseRollTarget?: boolean;
-  /** Этап 2B: состояние для осторожного движения */
   carefulState?: 'free' | 'busy' | 'hovered-free' | 'hovered-busy' | null;
-  /** Ghost-маркер шума при hover на выбор коридора */
   isGhostNoise?: boolean;
   ghostFree?: boolean;
-  /** Клик по коридору для выбора номера при осторожном движении */
   onClick?: () => void;
 }
 
-/**
- * Коридор на карте: линия связи, номера выходов, жетон Двери и маркер Шума.
- * Этап 2B: поддерживает подсветку пути и превью осторожного движения.
- * Этап C: pop + ripple для нового Шума, вспышка для броска d10.
- */
 export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
   corridor,
   x1,
@@ -54,8 +43,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
 
-  const doorX = mx + nx * 14;
-  const doorY = my + ny * 14;
   const noiseX = mx - nx * 14;
   const noiseY = my - ny * 14;
 
@@ -72,6 +59,15 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
 
   const isClickable = Boolean(onClick);
 
+  const doorState = corridor.doorState;
+
+  // Геометрия перемычки поперёк коридора для CLOSED/DESTROYED
+  const barrierHalf = 16;
+  const barrierX1 = mx + nx * barrierHalf;
+  const barrierY1 = my + ny * barrierHalf;
+  const barrierX2 = mx - nx * barrierHalf;
+  const barrierY2 = my - ny * barrierHalf;
+
   return (
     <g
       className={`select-none ${isClickable ? 'cursor-pointer' : ''}`}
@@ -84,7 +80,20 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
           : undefined
       }
     >
-      {/* --- Этап 2B: glow для пути движения --- */}
+      <defs>
+        <filter id={`door-shadow-${corridor.id}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="#000" floodOpacity="0.7" />
+        </filter>
+        <filter id={`door-inner-${corridor.id}`} x="-20%" y="-20%" width="140%" height="140%">
+          <feOffset dx="0" dy="0" />
+          <feGaussianBlur stdDeviation="1.5" result="offset-blur" />
+          <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+          <feFlood floodColor="#000" floodOpacity="0.65" result="color" />
+          <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+          <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+        </filter>
+      </defs>
+
       {isPathActive && (
         <>
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#00f0ff" strokeOpacity={0.22} strokeWidth={12} />
@@ -101,7 +110,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </>
       )}
 
-      {/* --- Этап C7: вспышка на целевом коридоре броска Шума --- */}
       {isNoiseRollTarget && (
         <>
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffb700" strokeOpacity={0.32} strokeWidth={13} />
@@ -118,7 +126,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </>
       )}
 
-      {/* --- Этап 2B: glow для осторожного движения --- */}
       {carefulState && (
         <>
           <line
@@ -144,7 +151,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </>
       )}
 
-      {/* --- Этап C8: pop + ripple для нового Шума --- */}
       {isNoisePop && (
         <g className="pointer-events-none">
           <circle
@@ -174,12 +180,10 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </g>
       )}
 
-      {/* Свечение для широких коридоров (базовое) */}
       {isWide && !isPathActive && !carefulState && !isNoisePop && !isNoiseRollTarget && (
         <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#38bdf8" strokeOpacity={0.15} strokeWidth={10} />
       )}
 
-      {/* Основная линия */}
       <line
         x1={x1}
         y1={y1}
@@ -201,11 +205,11 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
                     : '#1e293b'
         }
         strokeWidth={isPathActive || carefulState || isNoiseRollTarget ? 3.2 : corridor.hasNoise ? 3 : isWide ? 2.5 : 2}
-        strokeDasharray={corridor.doorState === 'DESTROYED' ? '4,4' : undefined}
+        strokeDasharray={doorState === 'DESTROYED' ? '4,4' : undefined}
         className={isClickable ? 'transition-all duration-150' : undefined}
       />
 
-      {/* Плашка цифр первой комнаты */}
+      {/* Плашка цифр */}
       <g className="pointer-events-none">
         <rect
           x={num1X - (textFrom.length > 1 ? 9 : 6)}
@@ -234,7 +238,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </text>
       </g>
 
-      {/* Плашка цифр второй комнаты */}
       <g className="pointer-events-none">
         <rect
           x={num2X - (textTo.length > 1 ? 9 : 6)}
@@ -263,46 +266,121 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </text>
       </g>
 
-      {/* Дверь */}
-      <g
-        transform={`translate(${doorX}, ${doorY})`}
-        aria-label={
-          corridor.doorState === 'OPEN'
-            ? 'Дверь открыта'
-            : corridor.doorState === 'CLOSED'
-              ? 'Дверь закрыта'
-              : 'Дверь разрушена'
-        }
-        className={isClickable ? 'pointer-events-none' : undefined}
-      >
-        <rect
-          x={-16}
-          y={-16}
-          width={32}
-          height={32}
-          fill="transparent"
-          className={isClickable ? 'pointer-events-auto' : undefined}
-        />
-        <rect
-          x={-8}
-          y={-8}
-          width={16}
-          height={16}
-          rx={3}
-          fill={corridor.doorState === 'OPEN' ? '#0f172a' : corridor.doorState === 'CLOSED' ? '#ff003c' : '#334155'}
-          stroke={corridor.doorState === 'CLOSED' ? '#ff4d6d' : '#475569'}
-          strokeWidth={1.5}
-          className="group-hover:stroke-cyan-400 transition-colors"
-        />
-        {corridor.doorState === 'CLOSED' && (
-          <ShieldAlert size={10} className="text-white pointer-events-none" x={-5} y={-5} />
-        )}
-        {corridor.doorState === 'DESTROYED' && (
-          <X size={10} className="text-amber-400 pointer-events-none" x={-5} y={-5} />
-        )}
-      </g>
+      {/* Дверь как барьер — Этап D10 */}
+      {doorState === 'CLOSED' && (
+        <g className="pointer-events-none" aria-label="Дверь закрыта — барьер">
+          {/* Внешнее свечение */}
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#ff003c"
+            strokeOpacity={0.28}
+            strokeWidth={12}
+            strokeLinecap="round"
+          />
+          {/* Толстая перемычка поперёк коридора */}
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#ff003c"
+            strokeWidth={6}
+            strokeLinecap="round"
+            filter={`url(#door-shadow-${corridor.id})`}
+          />
+          {/* Inner shadow / блик */}
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#7a001a"
+            strokeOpacity={0.55}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            style={{ transform: 'translateY(1px)' } as React.CSSProperties}
+          />
+          {/* Заклёпки по краям перемычки */}
+          <circle cx={barrierX1} cy={barrierY1} r={2.2} fill="#ff4d6d" stroke="#05070c" strokeWidth={0.8} />
+          <circle cx={barrierX2} cy={barrierY2} r={2.2} fill="#ff4d6d" stroke="#05070c" strokeWidth={0.8} />
+        </g>
+      )}
 
-      {/* Шум — базовый */}
+      {doorState === 'DESTROYED' && (
+        <g className="pointer-events-none" aria-label="Дверь разрушена">
+          {/* Рваная линия — толстая с dash + искры */}
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#ff5500"
+            strokeWidth={5}
+            strokeLinecap="round"
+            strokeDasharray="4,4"
+            opacity={0.9}
+          />
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#ffb700"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray="2,5"
+            className="motion-safe:animate-door-spark motion-reduce:opacity-80"
+          />
+          {/* Искры по краям */}
+          <g className="motion-safe:animate-door-spark motion-reduce:animate-none">
+            <circle cx={barrierX1} cy={barrierY1} r={1.6} fill="#ffb700" />
+            <circle cx={barrierX2} cy={barrierY2} r={1.6} fill="#ffb700" />
+          </g>
+          {/* Тень обломков */}
+          <line
+            x1={barrierX1}
+            y1={barrierY1}
+            x2={barrierX2}
+            y2={barrierY2}
+            stroke="#000"
+            strokeOpacity={0.35}
+            strokeWidth={7}
+            strokeLinecap="round"
+            style={{ transform: 'translateY(2px)' } as React.CSSProperties}
+          />
+        </g>
+      )}
+
+      {doorState === 'OPEN' && (
+        <g className="pointer-events-none" aria-label="Дверь открыта">
+          {/* Открытая — тонкий разрыв, два маленьких штриха по краям */}
+          <line
+            x1={mx + nx * 6}
+            y1={my + ny * 6}
+            x2={mx + nx * 12}
+            y2={my + ny * 12}
+            stroke="#1e293b"
+            strokeWidth={2}
+            strokeLinecap="round"
+            opacity={0.9}
+          />
+          <line
+            x1={mx - nx * 6}
+            y1={my - ny * 6}
+            x2={mx - nx * 12}
+            y2={my - ny * 12}
+            stroke="#1e293b"
+            strokeWidth={2}
+            strokeLinecap="round"
+            opacity={0.9}
+          />
+        </g>
+      )}
+
+      {/* Шум */}
       <g
         transform={`translate(${noiseX}, ${noiseY})`}
         aria-label={corridor.hasNoise ? 'Маркер шума' : 'Шума нет'}
@@ -326,7 +404,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         />
       </g>
 
-      {/* Ghost-маркер шума при hover на выбор коридора */}
       {isGhostNoise && (
         <g transform={`translate(${noiseX}, ${noiseY})`} className="pointer-events-none">
           <circle

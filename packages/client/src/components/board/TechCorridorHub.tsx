@@ -225,14 +225,31 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
 
       <g className="pointer-events-none">
         <circle cx={x} cy={y - 6} r={16} fill="#05070c" stroke="#334155" strokeWidth={1.5} />
-        {[45, 135, 225, 315].map((angle) => (
-          <path
-            key={angle}
-            d="M 0 -3 C 6 -7 12 -5 13 0 C 9 2 4 2 0 -3 Z"
-            fill={hasNoise ? '#ff4d6d' : '#38bdf8'}
-            transform={`translate(${x}, ${y - 6}) rotate(${angle})`}
-          />
-        ))}
+        <g
+          className={
+            hasNoise
+              ? 'motion-safe:animate-spin motion-reduce:animate-none'
+              : 'motion-safe:animate-spin motion-reduce:animate-none'
+          }
+          style={
+            {
+              transformOrigin: `${x}px ${y - 6}px`,
+              animationDuration: hasNoise ? '1s' : '3s',
+            } as React.CSSProperties
+          }
+        >
+          <g transform={`translate(${x}, ${y - 6})`}>
+            {[45, 135, 225, 315].map((angle) => (
+              <path
+                key={angle}
+                d="M 0 -3 C 6 -7 12 -5 13 0 C 9 2 4 2 0 -3 Z"
+                fill={hasNoise ? '#ff4d6d' : '#38bdf8'}
+                transform={`rotate(${angle})`}
+                className={hasNoise ? 'motion-safe:animate-vent-alarm motion-reduce:opacity-80' : undefined}
+              />
+            ))}
+          </g>
+        </g>
         <circle cx={x} cy={y - 6} r={3} fill="#0e1420" stroke="#475569" strokeWidth={1} />
       </g>
 

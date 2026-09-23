@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- кинематографичный слой с множеством FX: дверь, шум, контакт, исследование */
 import React from 'react';
 import { SHIP_ROOM_NODES, type ExplorationEffect, type NoiseDieFace, type SanitizedGameState } from '@nemesis/shared';
 import { AlertTriangle, Droplet, Flame, Package, VolumeX, Wrench, DoorOpen, User, type LucideIcon } from 'lucide-react';

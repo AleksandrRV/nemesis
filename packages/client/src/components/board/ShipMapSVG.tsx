@@ -9,6 +9,7 @@ import { VentShaftTraces } from './VentShaftTraces';
 import { groupIntrudersByRoom } from './intruderMapModel';
 import { lastLogSequence, newVentRetreats, type VentEcho } from './techCorridorModel';
 import { BoardAnimationLayer } from './BoardAnimationLayer';
+import { DieRollOverlay } from './DieRollOverlay';
 import { useBoardAnimations, usePrefersReducedMotion } from './useBoardAnimations';
 import { carefulMoveChoices } from '../inspector/carefulMoveModel';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -87,24 +88,19 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     const prevSeq = lastMoveSequenceRef.current;
     lastMoveSequenceRef.current = lastLogSequence(gameLog);
 
-    // Находим свежие PLAYER_MOVED активного игрока
     const activeId = view.meta.activePlayerId;
     for (let i = gameLog.length - 1; i >= 0; i--) {
       const entry = gameLog[i]!;
       if (entry.sequence <= prevSeq) break;
       if (entry.event.type === 'PLAYER_MOVED' && entry.event.playerId === activeId) {
         const targetRoomId = entry.event.toRoomId;
-        // Плавно ведём камеру к целевой комнате, масштаб 1.4, 400мс
         const el = document.getElementById(`room-${targetRoomId}`);
         if (el && transformRef.current?.zoomToElement) {
           try {
             transformRef.current.zoomToElement(el, 1.4, 400);
           } catch {
-            // fallback: setTransform к центру комнаты
             const coord = coordsMap.get(targetRoomId);
             if (coord && transformRef.current?.setTransform) {
-              // Центрируем: viewBox центр 540,580, целевая координата coord
-              // setTransform ожидает translation, масштаб, длительность
               transformRef.current.setTransform(-coord.x + 540, -coord.y + 580, 1.4, 400, 'easeOut');
             }
           }
@@ -114,7 +110,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
             transformRef.current.setTransform(-coord.x + 540, -coord.y + 580, 1.4, 400, 'easeOut');
           }
         }
-        break; // только последний ход
+        break;
       }
     }
   }, [gameLog, view, coordsMap, reducedMotion]);
@@ -163,12 +159,47 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     return map;
   }, [carefulChoices]);
 
+  // --- Этап C: Шум и Контакт — pop и tease ---
+  const noisePopCorridorIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const anim of animations) {
+      if (anim.kind === 'NOISE_POP' && anim.corridorId) set.add(anim.corridorId);
+    }
+    return set;
+  }, [animations]);
+
+  const noiseRollCorridorIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const anim of animations) {
+      if (anim.kind === 'NOISE_ROLL' && anim.corridorId) set.add(anim.corridorId);
+    }
+    return set;
+  }, [animations]);
+
+  const hasContactTease = React.useMemo(() => animations.some((a) => a.kind === 'CONTACT_TEASE'), [animations]);
+
+  const hasTechnicalNoisePop = React.useMemo(
+    () => animations.some((a) => a.kind === 'NOISE_POP' && a.isTechnical),
+    [animations],
+  );
+
   if (!view) return null;
 
   const technicalNoise = view.ship.technicalCorridorNoise;
 
   return (
     <div className="relative w-full h-full touch-none bg-nemesis-bg overflow-hidden">
+      <DieRollOverlay />
+
+      {/* Этап C9: красная виньетка при CONTACT_INTERRUPT / CONTACT_OCCURRED source NOISE */}
+      {hasContactTease && (
+        <div
+          className="pointer-events-none absolute inset-0 z-[30] motion-safe:animate-contact-vignette motion-reduce:opacity-60"
+          style={{ boxShadow: 'inset 0 0 80px rgba(255,0,60,0.4)' }}
+          aria-hidden="true"
+        />
+      )}
+
       <TransformWrapper
         initialScale={1}
         minScale={0.7}
@@ -180,7 +211,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
         ref={transformRef}
       >
         {({ zoomIn, zoomOut, resetTransform, setTransform, zoomToElement }) => {
-          // Сохраняем актуальные функции в ref для camera follow
           if (transformRef.current) {
             transformRef.current.setTransform = setTransform;
             transformRef.current.zoomToElement = zoomToElement as unknown as ReactZoomPanPinchRef['zoomToElement'];
@@ -214,7 +244,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
               <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full">
                 <svg
                   viewBox="-60 0 1140 1160"
-                  className="w-full h-full min-w-[800px] min-h-[600px] select-none"
+                  className={`w-full h-full min-w-[800px] min-h-[600px] select-none ${hasContactTease ? 'motion-safe:animate-shake motion-reduce:animate-none' : ''}`}
                   onClick={() => selectRoom(null)}
                 >
                   <defs>
@@ -233,10 +263,10 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       const c2 = coordsMap.get(corridor.toRoomId);
                       if (!c1 || !c2) return null;
 
-                      // --- Path highlight ---
                       const isPathActive = corridor.id === pathActiveCorridorId;
+                      const isNoisePop = noisePopCorridorIds.has(corridor.id);
+                      const isNoiseRollTarget = noiseRollCorridorIds.has(corridor.id);
 
-                      // --- Careful preview ---
                       let carefulState: 'free' | 'busy' | 'hovered-free' | 'hovered-busy' | null = null;
                       let isGhostNoise = false;
                       let ghostFree = true;
@@ -257,11 +287,9 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                               ghostFree = isFree;
                             }
                           } else if (!carefulHoveredTechnical) {
-                            // Без hover — показываем свободные янтарным, занятые красным
                             carefulState = corridor.hasNoise ? 'busy' : 'free';
                           }
 
-                          // Клик по коридору выбирает его номер (первый свободный из релевантных)
                           if (!corridor.hasNoise) {
                             const freeNumbers = relevantNumbers.filter((n) => numberFreeMap.get(n));
                             if (freeNumbers.length > 0) {
@@ -296,6 +324,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                           x2={c2.x}
                           y2={c2.y}
                           isPathActive={isPathActive}
+                          isNoisePop={isNoisePop}
+                          isNoiseRollTarget={isNoiseRollTarget}
                           carefulState={carefulState}
                           isGhostNoise={isGhostNoise}
                           ghostFree={ghostFree}
@@ -348,6 +378,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                         : null
                     }
                     isGhostNoise={carefulHoveredTechnical}
+                    isNoisePop={hasTechnicalNoisePop}
+                    isNoiseRollTarget={animations.some((a) => a.kind === 'NOISE_ROLL' && a.isTechnical)}
                     onCarefulSelect={
                       carefulTargetRoomId !== null && !technicalNoise
                         ? () => {

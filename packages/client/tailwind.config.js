@@ -144,6 +144,28 @@ export default {
           '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
           '100%': { opacity: '0', transform: 'translateY(10px) scale(0.82)' },
         },
+        // --- Этап C: Шум и Напряжение (хоррор) ---
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '25%': { transform: 'translateX(-2px)' },
+          '75%': { transform: 'translateX(2px)' },
+        },
+        'noise-ripple': {
+          '0%': { opacity: '0', transform: 'scale(0.25)' },
+          '35%': { opacity: '0.75', transform: 'scale(0.8)' },
+          '100%': { opacity: '0', transform: 'scale(1.7)' },
+        },
+        'noise-flash': {
+          '0%': { opacity: '0.9', transform: 'scale(0.2)', strokeWidth: '2' },
+          '40%': { opacity: '0.85', transform: 'scale(1.15)', strokeWidth: '4.5' },
+          '100%': { opacity: '0', transform: 'scale(1.9)', strokeWidth: '1' },
+        },
+        'contact-vignette': {
+          '0%': { opacity: '0' },
+          '18%': { opacity: '1' },
+          '72%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'contact-reveal': 'contact-reveal 800ms ease-out both',
@@ -170,6 +192,10 @@ export default {
         'room-flash': 'room-flash 620ms ease-out both',
         'typewriter-cursor': 'typewriter-cursor 750ms step-end infinite',
         'exploration-reveal': 'exploration-reveal 1650ms cubic-bezier(0.34, 1.2, 0.5, 1) both',
+        shake: 'shake 0.4s ease-in-out both',
+        'noise-ripple': 'noise-ripple 900ms ease-out both',
+        'noise-flash': 'noise-flash 700ms ease-out both',
+        'contact-vignette': 'contact-vignette 1600ms ease-out both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

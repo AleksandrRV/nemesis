@@ -1,5 +1,5 @@
 import React from 'react';
-import { SHIP_ROOM_NODES, type ExplorationEffect, type SanitizedGameState } from '@nemesis/shared';
+import { SHIP_ROOM_NODES, type ExplorationEffect, type NoiseDieFace, type SanitizedGameState } from '@nemesis/shared';
 import { AlertTriangle, Droplet, Flame, Package, VolumeX, Wrench, DoorOpen, User, type LucideIcon } from 'lucide-react';
 import type { BoardAnimation } from './boardAnimationModel';
 import { TECH_HUB, TECH_HUB_RADIUS } from './techCorridorModel';
@@ -205,7 +205,6 @@ function ExplorationRevealFx({
       }
       style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
     >
-      {/* Свечение под картой */}
       <circle
         r={42}
         fill={visual.border}
@@ -213,7 +212,6 @@ function ExplorationRevealFx({
         className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined}
       />
 
-      {/* Карта жетона */}
       <g transform="translate(-46, -36)">
         <rect
           x={0}
@@ -226,7 +224,6 @@ function ExplorationRevealFx({
           strokeWidth={1.6}
           opacity={0.98}
         />
-        {/* Внутренняя рамка */}
         <rect
           x={3}
           y={3}
@@ -239,13 +236,11 @@ function ExplorationRevealFx({
           strokeWidth={1}
         />
 
-        {/* Иконка эффекта */}
         <g transform="translate(36, 8)">
           <circle cx={10} cy={10} r={12} fill="#05070c" stroke={visual.border} strokeWidth={1.2} opacity={0.9} />
           <Icon size={14} x={3} y={3} className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined} />
         </g>
 
-        {/* Лейбл эффекта */}
         <text
           x={46}
           y={38}
@@ -256,7 +251,6 @@ function ExplorationRevealFx({
           {visual.label}
         </text>
 
-        {/* Счётчик предметов */}
         <g transform="translate(46, 44)">
           <rect x={-22} y={0} width={44} height={12} rx={6} fill="#05070c" stroke="#1e293b" strokeWidth={1} />
           <g transform="translate(-14, 2)">
@@ -274,7 +268,6 @@ function ExplorationRevealFx({
         </g>
       </g>
 
-      {/* Дополнительный pop-эффект — маленькое кольцо */}
       <circle
         r={28}
         fill="none"
@@ -308,9 +301,126 @@ function RoomRevealFx({ point, reducedMotion }: { point: Point; reducedMotion: b
   );
 }
 
+function NoisePopFx({ point, reducedMotion }: { point: Point; reducedMotion: boolean }) {
+  return (
+    <g
+      transform={`translate(${point.x}, ${point.y})`}
+      className="pointer-events-none"
+      aria-label="Маркер Шума установлен"
+    >
+      {[20, 28, 36].map((waveRadius, index) => (
+        <circle
+          key={waveRadius}
+          r={waveRadius}
+          fill="none"
+          stroke="#ff5500"
+          strokeWidth={2}
+          strokeOpacity={0.8 - index * 0.22}
+          className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-vent-alarm motion-reduce:opacity-0'}
+          style={{ animationDelay: `${index * 140}ms` } as React.CSSProperties}
+        />
+      ))}
+      <circle
+        r={18}
+        fill="none"
+        stroke="#ffaa00"
+        strokeWidth={2.5}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-noise-ripple motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <g
+        className={reducedMotion ? '' : 'motion-safe:animate-token-pop motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
+      >
+        <circle r={11} fill="#ff5500" stroke="#05070c" strokeWidth={1.5} opacity={0.95} />
+        <circle r={8.5} fill="#ff5500" stroke="#ffaa00" strokeWidth={1.5} />
+      </g>
+    </g>
+  );
+}
+
+function NoiseRollFlashFx({
+  point,
+  face,
+  reducedMotion,
+}: {
+  point: Point;
+  face: NoiseDieFace;
+  reducedMotion: boolean;
+}) {
+  const isDanger = face.kind === 'DANGER';
+  const isSilence = face.kind === 'SILENCE';
+  const color = isDanger ? '#ff003c' : isSilence ? '#94a3b8' : '#ffb700';
+  return (
+    <g
+      transform={`translate(${point.x}, ${point.y})`}
+      className="pointer-events-none"
+      aria-label={`Бросок Шума: ${face.kind}`}
+    >
+      <circle
+        r={24}
+        fill="none"
+        stroke={color}
+        strokeWidth={3}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-noise-flash motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        r={14}
+        fill={color}
+        opacity={0.22}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-token-pop motion-reduce:opacity-0'}
+      />
+      <text
+        x={0}
+        y={4}
+        textAnchor="middle"
+        className="font-mono font-bold fill-white pointer-events-none"
+        style={{ fontSize: '10px' }}
+      >
+        {face.kind === 'CORRIDOR' ? String(face.number) : face.kind === 'DANGER' ? '!' : '—'}
+      </text>
+    </g>
+  );
+}
+
+function ContactTeaseFx({ point, reducedMotion }: { point: Point; reducedMotion: boolean }) {
+  return (
+    <g
+      transform={`translate(${point.x}, ${point.y})`}
+      className="pointer-events-none"
+      aria-label="Контакт! Дубликат Шума"
+    >
+      <circle
+        r={52}
+        fill="none"
+        stroke="#ff003c"
+        strokeWidth={3}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-door-shockwave motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        r={36}
+        fill="none"
+        stroke="#ff003c"
+        strokeWidth={2}
+        strokeOpacity={0.6}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-noise-ripple motion-reduce:animate-none'}
+      />
+      <circle
+        r={10}
+        fill="#ff003c"
+        opacity={0.85}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-token-pop'}
+      />
+    </g>
+  );
+}
+
 /**
- * Слой интерполяции поверх статических гексов (Шаг 9 этапа 0.5.0 + Этап 2):
- * фишки скользят, вскрытие тайлов и жетоны Исследования получают кинематографику.
+ * Слой интерполяции поверх статических гексов (Шаг 9 этапа 0.5.0 + Этап 2 + Этап C):
+ * фишки скользят, вскрытие тайлов и жетоны Исследования получают кинематографику,
+ * Шум — pop + ripple + вспышка броска, дубликат — контакт-тизер.
  */
 export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, animations, reducedMotion }) => {
   const roomCoords = React.useMemo(() => {
@@ -339,6 +449,34 @@ export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, 
           const midpoint = corridorMidpoints.get(animation.corridorId);
           if (!midpoint) return null;
           return <DoorBreachFx key={animation.key} point={midpoint} />;
+        }
+
+        if (animation.kind === 'NOISE_POP') {
+          const point = animation.isTechnical
+            ? { x: TECH_HUB.x, y: TECH_HUB.y }
+            : animation.corridorId
+              ? corridorMidpoints.get(animation.corridorId)
+              : null;
+          if (!point) return null;
+          return <NoisePopFx key={animation.key} point={point} reducedMotion={reducedMotion} />;
+        }
+
+        if (animation.kind === 'NOISE_ROLL') {
+          const point = animation.corridorId
+            ? corridorMidpoints.get(animation.corridorId)
+            : animation.isTechnical
+              ? { x: TECH_HUB.x, y: TECH_HUB.y }
+              : roomCoords.get(animation.roomId);
+          if (!point) return null;
+          return (
+            <NoiseRollFlashFx key={animation.key} point={point} face={animation.face} reducedMotion={reducedMotion} />
+          );
+        }
+
+        if (animation.kind === 'CONTACT_TEASE') {
+          const point = roomCoords.get(animation.roomId);
+          if (!point) return null;
+          return <ContactTeaseFx key={animation.key} point={point} reducedMotion={reducedMotion} />;
         }
 
         if (animation.kind === 'PLAYER_MOVE') {
@@ -384,7 +522,6 @@ export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, 
         if (animation.kind === 'EXPLORATION_REVEAL') {
           const point = roomCoords.get(animation.roomId);
           if (!point) return null;
-          // Чуть выше центра гекса, чтобы не перекрывать название
           const shifted = { x: point.x, y: point.y - 2 };
           return (
             <ExplorationRevealFx

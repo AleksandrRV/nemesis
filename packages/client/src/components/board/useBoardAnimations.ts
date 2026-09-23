@@ -2,7 +2,10 @@ import React from 'react';
 import type { SanitizedGameState } from '@nemesis/shared';
 import {
   BOARD_ANIMATION_TTL_MS,
+  CONTACT_TEASE_TTL_MS,
   EXPLORATION_ANIMATION_TTL_MS,
+  NOISE_POP_TTL_MS,
+  NOISE_ROLL_TTL_MS,
   diffBoardSnapshots,
   inTransitIds,
   type BoardAnimation,
@@ -42,7 +45,11 @@ export function useBoardAnimations(view: SanitizedGameState | null): {
 
     // Очистка по TTL: для жетонов Исследования — дольше, чтобы прочитать эффект
     for (const animation of fresh) {
-      const ttl = animation.kind === 'EXPLORATION_REVEAL' ? EXPLORATION_ANIMATION_TTL_MS : BOARD_ANIMATION_TTL_MS;
+      let ttl = BOARD_ANIMATION_TTL_MS;
+      if (animation.kind === 'EXPLORATION_REVEAL') ttl = EXPLORATION_ANIMATION_TTL_MS;
+      else if (animation.kind === 'NOISE_POP') ttl = NOISE_POP_TTL_MS;
+      else if (animation.kind === 'NOISE_ROLL') ttl = NOISE_ROLL_TTL_MS;
+      else if (animation.kind === 'CONTACT_TEASE') ttl = CONTACT_TEASE_TTL_MS;
       const key = animation.key;
       setTimeout(() => {
         if (!mountedRef.current) return;

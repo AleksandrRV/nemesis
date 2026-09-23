@@ -4,15 +4,14 @@ import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
 import { TECH_HUB, TECH_HUB_RADIUS, type VentEcho } from './techCorridorModel';
 
 interface TechCorridorHubProps {
-  /** Маркер Шума на поле Технических Коридоров (стр. 15–16). */
   hasNoise: boolean;
   isSelected: boolean;
-  /** Чужие, ушедшие в вентиляцию: временные силуэты перед сбросом в мешок. */
   echoes: VentEcho[];
   onSelect: () => void;
-  /** Этап 2B: осторожное движение — подсветка и ghost */
   carefulState?: 'free' | 'busy' | 'hovered-free' | null;
   isGhostNoise?: boolean;
+  isNoisePop?: boolean;
+  isNoiseRollTarget?: boolean;
   onCarefulSelect?: () => void;
 }
 
@@ -25,12 +24,6 @@ function hexPoints(x: number, y: number, radius: number): string {
   return pts.join(' ');
 }
 
-/**
- * Узел локации «Технические Коридоры» (стр. 9, элемент 10; стр. 16):
- * индустриальный хаб вентиляции — решётка, датчик давления, аварийная
- * красно-жёлтая разметка; при Шуме пульсирует тревогой и звуковыми волнами.
- * Этап 2B: поддержка осторожного движения — янтарное/красное свечение и ghost.
- */
 export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
   hasNoise,
   isSelected,
@@ -38,6 +31,8 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
   onSelect,
   carefulState = null,
   isGhostNoise = false,
+  isNoisePop = false,
+  isNoiseRollTarget = false,
   onCarefulSelect,
 }) => {
   const { x, y } = TECH_HUB;
@@ -95,7 +90,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         />
       )}
 
-      {/* Этап 2B: осторожное движение — янтарное свечение свободного, красное занятого */}
       {carefulState && (
         <>
           <polygon
@@ -142,7 +136,57 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         </g>
       )}
 
-      {/* Аварная разметка: красно-жёлтая полоса по контуру поля. */}
+      {/* Этап C8: pop + ripple для нового Шума в вентиляции */}
+      {isNoisePop && (
+        <g className="pointer-events-none">
+          <circle
+            cx={x}
+            cy={y}
+            r={22}
+            fill="none"
+            stroke="#ff5500"
+            strokeWidth={2.5}
+            className="motion-safe:animate-noise-ripple motion-reduce:animate-none"
+            style={{ transformBox: 'fill-box', transformOrigin: `${x}px ${y}px` } as React.CSSProperties}
+          />
+          {[24, 32, 40].map((r, idx) => (
+            <circle
+              key={r}
+              cx={x}
+              cy={y}
+              r={r}
+              fill="none"
+              stroke="#ff5500"
+              strokeWidth={1.6}
+              strokeOpacity={0.7 - idx * 0.18}
+              className="motion-safe:animate-vent-alarm motion-reduce:opacity-0"
+              style={{ animationDelay: `${idx * 120}ms` } as React.CSSProperties}
+            />
+          ))}
+          <g
+            transform={`translate(${x - radius + 6}, ${y - radius + 6})`}
+            className="motion-safe:animate-token-pop motion-reduce:animate-none"
+          >
+            <circle cx={0} cy={0} r={11} fill="#ff5500" stroke="#ffaa00" strokeWidth={1.6} />
+            <Volume2 size={11} className="text-white" x={-5.5} y={-5.5} />
+          </g>
+        </g>
+      )}
+
+      {/* Этап C7: вспышка при броске Шума в вентиляцию */}
+      {isNoiseRollTarget && (
+        <g className="pointer-events-none">
+          <polygon
+            points={hexPoints(x, y, radius + 8)}
+            fill="none"
+            stroke="#ffb700"
+            strokeWidth={4}
+            strokeOpacity={0.85}
+            className="motion-safe:animate-noise-flash motion-reduce:animate-none"
+          />
+        </g>
+      )}
+
       <polygon
         points={hexPoints(x, y, radius + 3)}
         fill="none"
@@ -159,7 +203,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         strokeWidth={isSelected ? 3 : 2}
       />
 
-      {/* Заклёпки по углам решётки. */}
       {hexPoints(x, y, radius)
         .split(' ')
         .map((point, index) => {
@@ -167,7 +210,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
           return <circle key={index} cx={cx} cy={cy} r={2.4} fill="#64748b" />;
         })}
 
-      {/* Датчик давления: шкала и стрелка. */}
       <g transform={`translate(${x + 32}, ${y - 30})`} className="pointer-events-none">
         <circle cx={0} cy={0} r={9} fill="#05070c" stroke="#475569" strokeWidth={1.5} />
         <path d="M -6 3 A 6.5 6.5 0 0 1 6 3" fill="none" stroke="#22d3ee" strokeWidth={1.6} />
@@ -181,7 +223,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         />
       </g>
 
-      {/* Ротор вентилятора в центре хаба. */}
       <g className="pointer-events-none">
         <circle cx={x} cy={y - 6} r={16} fill="#05070c" stroke="#334155" strokeWidth={1.5} />
         {[45, 135, 225, 315].map((angle) => (
@@ -215,7 +256,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         ПОЛЕ ВЕНТИЛЯЦИИ • НЕДОСТУПНО ЭКИПАЖУ
       </text>
 
-      {/* Тревога Шума: звуковые волны и статус (стр. 15–16). */}
       {hasNoise && (
         <g className="pointer-events-none">
           {[20, 28, 36].map((waveRadius, index) => (
@@ -240,7 +280,6 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
         </g>
       )}
 
-      {/* Силуэты Чужих, уходящих во тьму вентиляции (стр. 16). */}
       {echoes.map((echo, index) => (
         <g
           key={echo.key}

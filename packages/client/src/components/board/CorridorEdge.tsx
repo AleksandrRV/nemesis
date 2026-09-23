@@ -10,6 +10,10 @@ interface CorridorEdgeProps {
   y2: number;
   /** Этап 2B: подсветка пути движения — неон cyan + glow */
   isPathActive?: boolean;
+  /** Этап C8: только что поставленный Шум — pop + ripple */
+  isNoisePop?: boolean;
+  /** Этап C7: цель броска Шума — вспышка на коридоре */
+  isNoiseRollTarget?: boolean;
   /** Этап 2B: состояние для осторожного движения */
   carefulState?: 'free' | 'busy' | 'hovered-free' | 'hovered-busy' | null;
   /** Ghost-маркер шума при hover на выбор коридора */
@@ -22,6 +26,7 @@ interface CorridorEdgeProps {
 /**
  * Коридор на карте: линия связи, номера выходов, жетон Двери и маркер Шума.
  * Этап 2B: поддерживает подсветку пути и превью осторожного движения.
+ * Этап C: pop + ripple для нового Шума, вспышка для броска d10.
  */
 export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
   corridor,
@@ -30,6 +35,8 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
   x2,
   y2,
   isPathActive = false,
+  isNoisePop = false,
+  isNoiseRollTarget = false,
   carefulState = null,
   isGhostNoise = false,
   ghostFree = true,
@@ -94,10 +101,26 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </>
       )}
 
+      {/* --- Этап C7: вспышка на целевом коридоре броска Шума --- */}
+      {isNoiseRollTarget && (
+        <>
+          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffb700" strokeOpacity={0.32} strokeWidth={13} />
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="#ffb700"
+            strokeOpacity={0.85}
+            strokeWidth={4}
+            className="motion-safe:animate-noise-flash motion-reduce:animate-none"
+          />
+        </>
+      )}
+
       {/* --- Этап 2B: glow для осторожного движения --- */}
       {carefulState && (
         <>
-          {/* Внешнее свечение */}
           <line
             x1={x1}
             y1={y1}
@@ -107,7 +130,6 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
             strokeOpacity={carefulState.includes('hovered') ? 0.42 : 0.26}
             strokeWidth={carefulState.includes('hovered') ? 14 : 9}
           />
-          {/* Внутренняя линия */}
           <line
             x1={x1}
             y1={y1}
@@ -122,9 +144,39 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         </>
       )}
 
+      {/* --- Этап C8: pop + ripple для нового Шума --- */}
+      {isNoisePop && (
+        <g className="pointer-events-none">
+          <circle
+            cx={mx}
+            cy={my}
+            r={20}
+            fill="none"
+            stroke="#ff5500"
+            strokeWidth={2.5}
+            className="motion-safe:animate-noise-ripple motion-reduce:animate-none"
+            style={{ transformBox: 'fill-box', transformOrigin: `${mx}px ${my}px` } as React.CSSProperties}
+          />
+          {[18, 26, 34].map((r, idx) => (
+            <circle
+              key={r}
+              cx={mx}
+              cy={my}
+              r={r}
+              fill="none"
+              stroke="#ff5500"
+              strokeWidth={1.6}
+              strokeOpacity={0.7 - idx * 0.18}
+              className="motion-safe:animate-vent-alarm motion-reduce:opacity-0"
+              style={{ animationDelay: `${idx * 120}ms` } as React.CSSProperties}
+            />
+          ))}
+        </g>
+      )}
+
       {/* Свечение для широких коридоров (базовое) */}
-      {isWide && !isPathActive && !carefulState && (
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#38bdf8" strokeOpacity="0.15" strokeWidth={10} />
+      {isWide && !isPathActive && !carefulState && !isNoisePop && !isNoiseRollTarget && (
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#38bdf8" strokeOpacity={0.15} strokeWidth={10} />
       )}
 
       {/* Основная линия */}
@@ -136,17 +188,19 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
         stroke={
           isPathActive
             ? '#00f0ff'
-            : carefulState
-              ? carefulState.includes('free')
-                ? '#ffb700'
-                : '#ff3b5c'
-              : corridor.hasNoise
-                ? '#ff5500'
-                : isWide
-                  ? '#38bdf8'
-                  : '#1e293b'
+            : isNoiseRollTarget
+              ? '#ffb700'
+              : carefulState
+                ? carefulState.includes('free')
+                  ? '#ffb700'
+                  : '#ff3b5c'
+                : corridor.hasNoise
+                  ? '#ff5500'
+                  : isWide
+                    ? '#38bdf8'
+                    : '#1e293b'
         }
-        strokeWidth={isPathActive || carefulState ? 3.2 : corridor.hasNoise ? 3 : isWide ? 2.5 : 2}
+        strokeWidth={isPathActive || carefulState || isNoiseRollTarget ? 3.2 : corridor.hasNoise ? 3 : isWide ? 2.5 : 2}
         strokeDasharray={corridor.doorState === 'DESTROYED' ? '4,4' : undefined}
         className={isClickable ? 'transition-all duration-150' : undefined}
       />
@@ -163,13 +217,15 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
           stroke={
             isPathActive
               ? '#00f0ff'
-              : carefulState
-                ? carefulState.includes('free')
-                  ? '#ffb700'
-                  : '#ff3b5c'
-                : isWide
-                  ? '#38bdf8'
-                  : '#475569'
+              : isNoiseRollTarget
+                ? '#ffb700'
+                : carefulState
+                  ? carefulState.includes('free')
+                    ? '#ffb700'
+                    : '#ff3b5c'
+                  : isWide
+                    ? '#38bdf8'
+                    : '#475569'
           }
           strokeWidth={1}
         />
@@ -190,13 +246,15 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
           stroke={
             isPathActive
               ? '#00f0ff'
-              : carefulState
-                ? carefulState.includes('free')
-                  ? '#ffb700'
-                  : '#ff3b5c'
-                : isWide
-                  ? '#38bdf8'
-                  : '#475569'
+              : isNoiseRollTarget
+                ? '#ffb700'
+                : carefulState
+                  ? carefulState.includes('free')
+                    ? '#ffb700'
+                    : '#ff3b5c'
+                  : isWide
+                    ? '#38bdf8'
+                    : '#475569'
           }
           strokeWidth={1}
         />
@@ -258,11 +316,11 @@ export const CorridorEdge: React.FC<CorridorEdgeProps> = ({
           fill={corridor.hasNoise ? '#ff5500' : '#0f172a'}
           stroke={corridor.hasNoise ? '#ffaa00' : '#334155'}
           strokeWidth={1.5}
-          className="group-hover:stroke-cyan-400 transition-colors"
+          className={`${isNoisePop ? 'motion-safe:animate-token-pop' : 'group-hover:stroke-cyan-400'} transition-colors`}
         />
         <Volume2
           size={10}
-          className={`pointer-events-none ${corridor.hasNoise ? 'text-white' : 'text-slate-500'}`}
+          className={`pointer-events-none ${corridor.hasNoise ? 'text-white' : 'text-slate-500'} ${isNoisePop ? 'motion-safe:animate-token-pop' : ''}`}
           x={-5}
           y={-5}
         />

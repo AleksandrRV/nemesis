@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, ScrollText } from 'lucide-react';
-import type { SanitizedGameState } from '@nemesis/shared';
+import type { SanitizedGameState, GameLogEntry } from '@nemesis/shared';
 
 import { formatGameLog, type GameLogSegment, type GameLogTone } from './gameLogModel';
 
@@ -40,14 +40,42 @@ export function LogLine({ segments }: { segments: GameLogSegment[] }): React.Rea
   );
 }
 
+function isContactTeaseEntry(entry: GameLogEntry, log: readonly GameLogEntry[]): boolean {
+  if (entry.event.type === 'CONTACT_OCCURRED' && entry.event.source === 'NOISE') return true;
+  if (entry.event.type === 'NOISE_MARKER_PLACED' && entry.event.reason === 'ROLL') {
+    // Если в следующих 4 записях есть CONTACT_OCCURRED source NOISE в том же отсеке — это тизер дубликата
+    const idx = log.findIndex((e) => e.id === entry.id);
+    if (idx >= 0) {
+      for (let j = idx + 1; j < Math.min(log.length, idx + 5); j++) {
+        const next = log[j]!;
+        if (
+          next.event.type === 'CONTACT_OCCURRED' &&
+          next.event.source === 'NOISE' &&
+          next.event.roomId === entry.event.roomId
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function isRecentNoiseRoll(entry: GameLogEntry, log: readonly GameLogEntry[]): boolean {
+  if (entry.event.type !== 'NOISE_ROLLED') return false;
+  // Последний бросок Шума считается свежим для подсветки
+  const lastRoll = [...log].reverse().find((e) => e.event.type === 'NOISE_ROLLED');
+  return lastRoll?.id === entry.id;
+}
+
 export const GameLogPanel: React.FC<GameLogPanelProps> = ({ view }) => {
   const [isOpen, setIsOpen] = React.useState(true);
   const entries = React.useMemo(() => formatGameLog(view), [view]);
+  const rawLog = view.gameLog;
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!isOpen || !scrollContainerRef.current) return;
-
     scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
   }, [entries.length, isOpen]);
 
@@ -84,14 +112,22 @@ export const GameLogPanel: React.FC<GameLogPanelProps> = ({ view }) => {
           className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 py-2"
         >
           <ol className="space-y-1.5" aria-live="polite">
-            {entries.map((entry) => (
-              <li key={entry.id} className="flex gap-2 border-b border-slate-950 pb-1.5 last:border-b-0">
-                <span className="w-8 shrink-0 pt-0.5 text-right font-mono text-[10px] text-slate-500">
-                  #{String(entry.sequence).padStart(3, '0')}
-                </span>
-                <LogLine segments={entry.segments} />
-              </li>
-            ))}
+            {entries.map((entry) => {
+              const raw = rawLog.find((e) => e.sequence === entry.sequence);
+              const isTease = raw ? isContactTeaseEntry(raw, rawLog) : false;
+              const isRoll = raw ? isRecentNoiseRoll(raw, rawLog) : false;
+              return (
+                <li
+                  key={entry.id}
+                  className={`flex gap-2 border-b border-slate-950 pb-1.5 last:border-b-0 ${isTease ? 'motion-safe:animate-contact-warning motion-reduce:animate-none bg-red-950/20 rounded px-1 -mx-1' : ''} ${isRoll ? 'bg-amber-950/20 rounded px-1 -mx-1' : ''}`}
+                >
+                  <span className="w-8 shrink-0 pt-0.5 text-right font-mono text-[10px] text-slate-500">
+                    #{String(entry.sequence).padStart(3, '0')}
+                  </span>
+                  <LogLine segments={entry.segments} />
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

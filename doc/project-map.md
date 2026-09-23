@@ -81,7 +81,7 @@
 
 | Файл | Константы / Данные | Назначение |
 |---|---|---|
-| `shipGraph.ts` | `SHIP_ROOM_NODES`, `SHIP_CORRIDORS` | Геометрический и логический граф корабля: 21 отсек (16 неособых слотов + 5 напечатанных особых) и 25 коридоров с номерами дверей и связями с вентиляцией (`techNumbers`). |
+| `shipGraph.ts` | `SHIP_ROOM_NODES`, `SHIP_CORRIDORS` | Геометрический и логический граф корабля: 21 отсек (16 неособых слотов + 5 напечатанных особых) и 29 коридоров с номерами дверей и связями с вентиляцией (`techNumbers`, транскрипт — `doc/data/ROOMS.md`). |
 | `roomDefinitions.ts` | `BASIC_ROOMS_1`, `ADDITIONAL_ROOMS_2`, `SPECIAL_ROOMS` | Свойства комнат: тип, цвет колоды обыска, наличие компьютера, стоимость и текст действий. |
 | `actionCards.ts` | `ACTION_CARDS_BY_CHARACTER` | Все 60 карт действий персонажей (по 10 на каждый из 6 классов) со стоимостью и текстом. |
 | `itemCards.ts` | `RED_ITEM_CARDS`, `YELLOW_ITEM_CARDS`, `GREEN_ITEM_CARDS` | Колоды предметов стола: военные (30), технические (30), медицинские (30). |
@@ -110,7 +110,7 @@
 |---|---|---|
 | `App.tsx` | Корневой каркас UI, верхний HUD (раунд, фаза, активный игрок, трек времени, сид, dev-кнопка), сборка слоёв карты и панелей. | `App` |
 | `store/gameStore.ts` | Клиентский Zustand-стор: хранит отфильтрованное состояние `view`, выбранный отсек `selectedRoomId` и ошибки движка `rejection`. | `useGameStore` |
-| `services/transport/` | Транспортный слой изоляции: интерфейс `ITransport` отделяет UI от местоположения движка; `LocalInMemoryTransport` исполняет действия в `GameEngine` браузера и сохраняет снапшоты в `localStorage`. | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` |
+| `services/transport/` | Транспортный слой изоляции: интерфейс `ITransport` отделяет UI от местоположения движка; `LocalInMemoryTransport` исполняет действия в `GameEngine` браузера и сохраняет снапшоты в `sessionStorage` (`nemesis-session`, схема 19). | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` |
 | `services/session/` | Хранилище сессий (`sessionStorage.ts`) и генерация сида (`seed.ts`). | `createLocalSessionStorage`, `createSeed` |
 
 ### B. Компоненты интерфейса (`packages/client/src/components/`)

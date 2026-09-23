@@ -4,7 +4,7 @@ import type { ActionDeckCard, ItemCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
-import { advanceTurn } from './turnCycle.js';
+import { advanceTurnWithoutFire, applyFireEndTurnEffect } from './turnCycle.js';
 import { EngineError } from './engineErrors.js';
 
 export function executePass(
@@ -37,13 +37,21 @@ export function executePass(
     }
     player.actionDeck.hand = remainingHand;
   }
-  player.hasPassed = true;
+
+  // Шаг 4, долг 9: огонь на Пас — явно вызываем до блокировки, чтобы sufferLightWounds убил до смены activePlayerId
+  applyFireEndTurnEffect(state, actorId);
+
+  // Если игрок умер от огня, killPlayer уже выставил hasPassed=true
+  if (!player.isDead) {
+    player.hasPassed = true;
+  }
+
   appendGameLog(state, {
     type: 'PLAYER_PASSED',
     playerId: actorId,
     discardedCount: discardIds.length,
   });
-  advanceTurn(state, actorId);
+  advanceTurnWithoutFire(state, actorId);
   return;
 }
 

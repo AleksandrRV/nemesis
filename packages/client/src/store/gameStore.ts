@@ -65,6 +65,23 @@ function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
   return view?.players[view.meta.activePlayerId]?.roomId ?? null;
 }
 
+/**
+ * Маппинг технических причин отказа движка в понятные игроку сообщения.
+ * По требованию Шага 3: CONTAMINATION_CANNOT_PAY → "Заражение нельзя сбрасывать кроме Паса".
+ */
+export function mapRejectionReason(reason: string): string {
+  const lower = reason.toLowerCase();
+  if (
+    lower.includes('contamination_cannot') ||
+    lower.includes('contamination_cannot_be_discarded') ||
+    lower.includes('заражения запрещено использовать для оплаты') ||
+    lower.includes('карту заражения нельзя разыграть')
+  ) {
+    return 'Заражение нельзя сбрасывать кроме Паса';
+  }
+  return reason;
+}
+
 export function createGameStore(createTransport: TransportFactory) {
   let transport = createTransport();
   let detach = (): void => undefined;
@@ -254,7 +271,9 @@ export function createGameStore(createTransport: TransportFactory) {
     });
 
     const unsubscribeEvents = instance.subscribeToEvents((event) => {
-      store.setState(event.type === 'ACTION_REJECTED' ? { rejection: event.reason } : { rejection: null });
+      store.setState(
+        event.type === 'ACTION_REJECTED' ? { rejection: mapRejectionReason(event.reason) } : { rejection: null },
+      );
     });
 
     detach = () => {

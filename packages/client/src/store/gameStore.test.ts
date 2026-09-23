@@ -185,3 +185,29 @@ describe('Стор: новая партия', () => {
     expect(store.getState().view?.meta.seed).toBe('fixed-seed');
   });
 });
+
+describe('Стор: маппинг ошибок оплаты (Шаг 3, долг 7)', () => {
+  it('маппит CONTAMINATION_CANNOT_PAY в понятное сообщение', async () => {
+    const { mapRejectionReason } = await import('./gameStore.js');
+    expect(mapRejectionReason('Карты Заражения запрещено использовать для оплаты действий')).toBe(
+      'Заражение нельзя сбрасывать кроме Паса',
+    );
+    expect(mapRejectionReason('CONTAMINATION_CANNOT_BE_DISCARDED_AS_COST')).toBe(
+      'Заражение нельзя сбрасывать кроме Паса',
+    );
+  });
+
+  it('показывает маппированное сообщение в rejection при ACTION_REJECTED', () => {
+    const first = new FakeTransport();
+    const store = createGameStore(() => first);
+
+    first.emitState(filterStateForPlayer(createInitialGameState('test-rejection-map'), PLAYER));
+    first.emitEvent({
+      type: 'ACTION_REJECTED',
+      action: { type: 'ACTION_MOVE', payload: { targetRoomId: 11, discardCardIds: [] } },
+      reason: 'Карты Заражения запрещено использовать для оплаты действий',
+    });
+
+    expect(store.getState().rejection).toBe('Заражение нельзя сбрасывать кроме Паса');
+  });
+});

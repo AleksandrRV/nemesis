@@ -8,7 +8,7 @@ import { resolveEscapeAttack } from './escape.js';
 import { drawOneActionCard } from './classCombatCards.js';
 import { resolveNoiseRoll } from './noise.js';
 import { resolveExploreRoom } from './roomExploration.js';
-import { advanceTurn } from './turnCycle.js';
+import { advanceTurnWithoutFire } from './turnCycle.js';
 
 export function drainInterrupts(state: GameState): void {
   while (state.interruptQueue.length > 0) {
@@ -24,7 +24,7 @@ export function drainInterrupts(state: GameState): void {
     state.meta.phase === 'PLAYER_PHASE' &&
     state.players[state.meta.activePlayerId]?.isDead
   ) {
-    advanceTurn(state, state.meta.activePlayerId);
+    advanceTurnWithoutFire(state, state.meta.activePlayerId);
   }
 }
 

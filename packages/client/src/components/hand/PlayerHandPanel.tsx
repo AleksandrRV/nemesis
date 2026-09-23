@@ -57,7 +57,14 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   if (!player) return null;
 
   const handCards = player.actionDeck.hand;
-  const handLimit = 5; // базовый предел
+  // Лимит руки: берём из санитизированного состояния (вычислено в filterStateForPlayer) или считаем на клиенте
+  // по правилу CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0 (стр. 10, 25)
+  const currentRoom = view.ship.rooms[player.roomId];
+  const isCabinsRoom = currentRoom?.definitionId === 'CABINS';
+  const isWorkingRoom = currentRoom?.hasMalfunction === false && currentRoom?.hasFire === false;
+  const noIntrudersInRoom = (currentRoom?.occupantIntruderIds?.length ?? 0) === 0;
+  const computedHandLimit = isCabinsRoom && isWorkingRoom && noIntrudersInRoom ? 6 : 5;
+  const handLimit = (player as { handLimit?: number }).handLimit ?? computedHandLimit;
   const isMyTurn = view.meta.activePlayerId === player.id;
   const canAct = isMyTurn && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE';
 

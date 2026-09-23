@@ -5,7 +5,7 @@ import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { drawSearchCards } from './search.js';
-import { advanceTurn } from './turnCycle.js';
+import { advanceTurnWithoutFire, applyFireEndTurnEffect } from './turnCycle.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 import { sufferLightWounds } from './characterDamage.js';
@@ -348,7 +348,13 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       player.actionDeck.drawPile.push(...cleanCards);
       player.hasLarva = false;
       sufferLightWounds(state, actorId, 1);
-      player.hasPassed = true;
+
+      // Огонь наносится до блокировки паса (если в Операционной есть Пожар)
+      applyFireEndTurnEffect(state, actorId);
+
+      if (!player.isDead) {
+        player.hasPassed = true;
+      }
 
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
@@ -357,7 +363,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         roomDefinitionId: 'SURGERY',
         detail: `Хирургическая операция: удалено ${infectedCards.length} карт инфекции, получена 1 лёгкая травма, пас`,
       });
-      advanceTurn(state, actorId);
+      advanceTurnWithoutFire(state, actorId);
       return;
     }
 

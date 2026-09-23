@@ -141,6 +141,15 @@ function sanitizePlayers(state: SanitizedGameState, viewingPlayerId: string): vo
       player.actionDeck as unknown as ActionDeckState,
       playerId === viewingPlayerId,
     );
+
+    // Лимит руки с учётом Кают: 5 базовый, 6 в исправных Каютах без Чужих и Пожара (стр. 10, 25)
+    // Вычисляется на основе санитизированного состояния комнаты — игрок видит, есть ли Пожар/Неисправность/Чужие.
+    const room = state.ship.rooms[player.roomId];
+    const isCabins = room?.definitionId === 'CABINS';
+    const isWorking = room?.hasMalfunction === false && room?.hasFire === false;
+    const noIntruders = (room?.occupantIntruderIds?.length ?? 0) === 0;
+
+    (player as unknown as { handLimit: number }).handLimit = isCabins && isWorking && noIntruders ? 6 : 5;
   }
 }
 

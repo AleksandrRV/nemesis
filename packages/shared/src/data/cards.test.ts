@@ -21,6 +21,19 @@ describe('Колоды карт Действий (Action Cards)', () => {
       expect(deck.every((c) => c.name.length > 0)).toBe(true);
       expect(deck.every((c) => c.description.length > 0)).toBe(true);
       expect(deck.every((c) => c.playCost >= 0)).toBe(true);
+      expect(deck.every((c) => c.playCost <= 2)).toBe(true);
+    }
+  });
+
+  it('каждая карта имеет типизированный effect.kind и валидный playCost 0-2', () => {
+    for (const character of characters) {
+      const deck = ACTION_CARDS_BY_CHARACTER[character];
+      for (const card of deck) {
+        expect(card.effect, `${card.id}: effect`).toBeDefined();
+        expect(typeof card.effect.kind, `${card.id}: effect.kind`).toBe('string');
+        expect(card.playCost).toBeGreaterThanOrEqual(0);
+        expect(card.playCost).toBeLessThanOrEqual(2);
+      }
     }
   });
 
@@ -54,6 +67,31 @@ describe('Колоды Предметов (Item Cards)', () => {
     expect(CRAFTED_ITEM_CARDS).toHaveLength(12);
     expect(CRAFTED_ITEM_CARDS.every((c) => c.color === 'BLUE')).toBe(true);
     expect(CRAFTED_ITEM_CARDS.every((c) => c.origin === 'CRAFTED')).toBe(true);
+  });
+
+  it('все 90+12 карт имеют уникальные id и валидные свойства isHeavy/isWeapon/componentSymbols/actionCost', () => {
+    const all = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
+    const ids = new Set(all.map((c) => c.id));
+    expect(ids.size).toBe(all.length);
+
+    const allowedComponents = new Set(['CHEMICALS', 'ALCOHOL', 'FABRIC', 'ELECTRONICS', 'POWER_CELL', 'TOOLS']);
+
+    for (const card of all) {
+      expect(typeof card.isHeavy).toBe('boolean');
+      expect(typeof card.isWeapon).toBe('boolean');
+      expect(typeof card.isSingleUse).toBe('boolean');
+      expect(card.actionCost).toBeGreaterThanOrEqual(0);
+      expect(card.actionCost).toBeLessThanOrEqual(2);
+      expect(Array.isArray(card.componentSymbols)).toBe(true);
+      for (const sym of card.componentSymbols) {
+        expect(allowedComponents.has(sym as string)).toBe(true);
+      }
+    }
+
+    // RED/YELLOW/GREEN — лёгкие (кроме синего огнемёта)
+    expect(RED_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
+    expect(YELLOW_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
+    expect(GREEN_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
   });
 });
 

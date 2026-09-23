@@ -429,6 +429,8 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
       seriousWoundsCount: number;
       eventCardsCount: number;
       startingWeaponsCount: number;
+      actionCardEffectKinds: string[];
+      startingWeaponsAmmo: Record<string, { ammo: number; maxAmmo: number; isEnergy: boolean }>;
     };
 
     expect(expectation.actionsPerCharacter).toBe(10);
@@ -441,6 +443,112 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(expectation.eventCardsCount).toBe(20);
     expect(EVENT_CARDS).toHaveLength(expectation.eventCardsCount);
     expect(expectation.startingWeaponsCount).toBe(6);
+    expect(Array.isArray(expectation.actionCardEffectKinds)).toBe(true);
+    expect(expectation.actionCardEffectKinds.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('каждая карта Действия имеет машинный effect.kind из списка источника', async () => {
+    const expectation = table('deck-composition').expectation as {
+      actionCardEffectKinds: string[];
+    };
+    const { ACTION_CARDS } = await import('./actionCards.js');
+    const allowed = new Set(expectation.actionCardEffectKinds);
+
+    expect(ACTION_CARDS).toHaveLength(60);
+    for (const card of ACTION_CARDS) {
+      expect(card.effect?.kind, `${card.id}: effect.kind`).toBeDefined();
+      expect(allowed.has(card.effect.kind), `${card.id}: неизвестный effect.kind ${card.effect.kind}`).toBe(true);
+      expect(card.playCost).toBeGreaterThanOrEqual(0);
+      expect(card.playCost).toBeLessThanOrEqual(2);
+    }
+
+    // Проверяем что все kind из источника встречаются хотя бы раз
+    const seen = new Set(ACTION_CARDS.map((c) => c.effect.kind));
+    for (const kind of expectation.actionCardEffectKinds) {
+      expect(seen.has(kind), `effect.kind ${kind} не встречается ни в одной карте`).toBe(true);
+    }
+  });
+
+  it('стартовое оружие совпадает с источником по боезапасу и энерго-типу (SCOUT 4/4 энерго)', async () => {
+    const expectation = table('deck-composition').expectation as {
+      startingWeaponsAmmo: Record<string, { ammo: number; maxAmmo: number; isEnergy: boolean }>;
+    };
+    const { STARTING_WEAPONS } = await import('./startingItems.js');
+
+    for (const [charClass, ammoInfo] of Object.entries(expectation.startingWeaponsAmmo)) {
+      const weapon = STARTING_WEAPONS[charClass as keyof typeof STARTING_WEAPONS];
+      expect(weapon, `нет оружия для ${charClass}`).toBeDefined();
+      expect(weapon.ammo).toBe(ammoInfo.ammo);
+      expect(weapon.maxAmmo).toBe(ammoInfo.maxAmmo);
+      expect(weapon.isEnergyWeapon).toBe(ammoInfo.isEnergy);
+      expect(weapon.isWeapon).toBe(true);
+      expect(weapon.isHeavy).toBe(true);
+    }
+
+    // Отдельно проверяем критерий из задачи: Разведчик — 4/4 энерго
+    expect(STARTING_WEAPONS.SCOUT.ammo).toBe(4);
+    expect(STARTING_WEAPONS.SCOUT.maxAmmo).toBe(4);
+    expect(STARTING_WEAPONS.SCOUT.isEnergyWeapon).toBe(true);
+  });
+
+  it('карты Предметов имеют типизированные componentSymbols и валидные свойства isHeavy/isWeapon/actionCost', async () => {
+    const { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } = await import('./itemCards.js');
+    const { CRAFTED_ITEM_CARDS } = await import('./crafting.js');
+    const all = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
+    const allowedComponents = new Set(['CHEMICALS', 'ALCOHOL', 'FABRIC', 'ELECTRONICS', 'POWER_CELL', 'TOOLS']);
+
+    expect(RED_ITEM_CARDS).toHaveLength(30);
+    expect(YELLOW_ITEM_CARDS).toHaveLength(30);
+    expect(GREEN_ITEM_CARDS).toHaveLength(30);
+    expect(CRAFTED_ITEM_CARDS).toHaveLength(12);
+
+    const ids = new Set<string>();
+    for (const card of all) {
+      expect(card.id, 'дубликат id').toBeDefined();
+      expect(ids.has(card.id), `дубликат id ${card.id}`).toBe(false);
+      ids.add(card.id);
+
+      // isHeavy/isWeapon boolean, actionCost 0-2, isSingleUse boolean
+      expect(typeof card.isHeavy).toBe('boolean');
+      expect(typeof card.isWeapon).toBe('boolean');
+      expect(typeof card.isSingleUse).toBe('boolean');
+      expect(card.actionCost).toBeGreaterThanOrEqual(0);
+      expect(card.actionCost).toBeLessThanOrEqual(2);
+
+      // componentSymbols типизированы и содержат только известные символы
+      expect(Array.isArray(card.componentSymbols)).toBe(true);
+      for (const sym of card.componentSymbols) {
+        expect(allowedComponents.has(sym as string), `${card.id}: неизвестный componentSymbol ${sym}`).toBe(true);
+      }
+
+      // не-оружие не имеет ammo
+      if (!card.isWeapon) {
+        expect(card.ammo).toBeNull();
+        expect(card.maxAmmo).toBeNull();
+      } else {
+        expect(card.maxAmmo).toBeGreaterThan(0);
+      }
+    }
+
+    // Проверка что колоды Предметов — все лёгкие (isHeavy=false), кроме синего огнемёта
+    for (const card of [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS]) {
+      expect(card.isHeavy, `${card.id}: должен быть лёгким`).toBe(false);
+    }
+    // В синей колоде только огнемёт тяжёлый
+    for (const card of CRAFTED_ITEM_CARDS) {
+      if (card.recipeId === 'FLAMETHROWER') {
+        expect(card.isHeavy).toBe(true);
+      } else {
+        expect(card.isHeavy).toBe(false);
+      }
+    }
+  });
+
+  it('таблица deck-composition помечает непроверенные символы как UNVERIFIED', () => {
+    const entry = table('deck-composition');
+    expect(entry.unverified && entry.unverified.length > 0, 'нет списка unverified').toBe(true);
+    const joined = (entry.unverified ?? []).join(' ').toLowerCase();
+    expect(joined.includes('component')).toBe(true);
   });
 });
 

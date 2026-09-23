@@ -11,6 +11,7 @@ import * as core from './index.js';
  * а потеря любой таблицы данных должна ловиться тестом, а не баг-репортом.
  */
 const PUBLIC_RUNTIME_EXPORTS = [
+  'ACTION_CARDS',
   'ACTION_CARDS_BY_CHARACTER',
   'ADDITIONAL_ROOMS_2',
   'ADULT_ESCAPE_NUMBERS',

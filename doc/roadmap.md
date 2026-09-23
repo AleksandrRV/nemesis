@@ -109,30 +109,72 @@
 
 ## Этап 2 (v0.2.0) — Перемещение, Туман войны, Механика Шума и A*
 > **Срок:** Неделя 2  
-> **Фокус:** Физическое нахождение персонажа на поле, закрытые комнаты, броски кубика шума.
+> **Фокус:** Фишка персонажа на поле, открытие тайлов, жетоны Исследования 20/44, кубик Шума d10, Осторожное движение [2], маркеры 30, каскад прерываний, граф-запросы.  
+> **Статус на 18.09.2026 (версия 0.2.0):** перемещение, туман войны и Шум работают: `ACTION_MOVE` [1] и «Осторожное движение» [2] (маркер в выбранный Коридор вместо броска, выбор номера 1-4 и Технических Коридоров), вскрытие тайла и жетона Исследования со всеми эффектами (Пожар/Поломка/Слизь/Двери/Тишина/Опасность), кубик d10 (1,1,2,2,3,3,4,4,Тишина,Опасность) через поток `noise`, маркеры в Коридорах и на поле Технических Коридоров, Контакт отклоняется явной ошибкой до этапа 4. Ниже этап разделён на 6 последовательных шагов. **Не реализован собственный взвешенный A\***: доступные отсеки считаются прямым перебором Коридоров с открытой Дверью (`findAdjacentOpenRoomIds`), а полноценный A* с весами огонь/шум/бой — цель этапа 4/8 для ботов (GDD §5.2). Каждый шаг перечисляет файлы, контракты и тесты.
 
-> **Статус на 18.09.2026 (версия 0.2.0):** перемещение, туман войны и Шум работают:
-> `ACTION_MOVE` и «Осторожное движение» [1] (маркер в выбранный Коридор вместо броска),
-> вскрытие тайла и жетона Исследования со всеми эффектами, кубик d10 (1, 1, 2, 2, 3, 3, 4, 4,
-> Тишина, Опасность), маркеры в Коридорах и на поле Технических Коридоров, Контакт отклоняется
-> явной ошибкой до этапа 4. Из перечисленного ниже **не реализован собственный A\***: доступные
-> для перехода отсеки считаются прямым перебором Коридоров с открытой Дверью
-> (`findAdjacentOpenRoomIds`), а поиск пути понадобится вместе с планированием перемещения Чужих
-> на этапе 4 — тогда и появится взвешенный граф с огнём и опасными зонами.
+### Шаг 1. Контракт перемещения и базовое действие «Движение» [1] (Movement Contract) — ВЫПОЛНЕНО в 0.2.0
 
-### Задачи:
-1. **Перемещение и Исследование (`shared`):**
-   * Базовое действие `ACTION_MOVE` (стоимость: 1).
-   * Логика неисследованных комнат: тайлы лежат рубашкой вверх. При входе — переворот тайла и вскрытие жетона исследования (число предметов + спецэффект: Слизь, Огонь, Поломка, Двери, Опасность, Тишина).
-2. **Собственный алгоритм поиска пути (`pathfinding.ts`):**
-   * Реализация взвешенного A* на графе корабля с учетом запертых дверей (непроходимы) и опасных зон (огонь/чужие).
-3. **Механика Шума:**
-   * Бросок кубика Шума (d10) через детерминированный `seedrandom`.
-   * Размещение маркеров шума в коридоры (1, 2, 3, 4).
-   * Обработка результатов «Опасность» (звуки во всех коридорах / призыв чужих) и «Тишина» (учет статуса маркера Слизи).
+* **Типы действий:** `types/actions.ts` — `ACTION_MOVE {targetRoomId, discardCardIds}` стоимость [1], `ACTION_CAREFUL_MOVE {targetRoomId, chosenCorridor, discardCardIds}` стоимость [2] (стр.13). `types/rooms.ts` — `CarefulMoveChosenCorridor` discriminated union: `CORRIDOR {corridorId}`, `CORRIDOR_NUMBER {corridorNumber 1..4}`, `TECHNICAL_CORRIDOR`. `types/interrupts.ts` — `NoiseRollMode ROLL|CAREFUL`, `EXPLORE_ROOM_INTERRUPT {playerId, roomId, corridorId}`, `NOISE_ROLL_INTERRUPT {playerId, roomId, noise}`.
+* **Валидация пути:** `logic/shipGraphQueries.ts` — `findOpenCorridors(state, from, to)` (doorState !== CLOSED), `requireOpenPath` бросает `UNKNOWN_ROOM`, `MOVE_TARGET_IS_CURRENT_ROOM`, `NO_OPEN_DOOR_BETWEEN_ROOMS` (стр.14). `findAdjacentOpenRoomIds` — прямой перебор открытых коридоров, без A*.
+* **Статус Боя:** `logic/combatStatus.ts` — `isRoomInCombat(roomId)` по `occupantIntruderIds.length>0`, `isPlayerInCombat(playerId)` с проверкой жив/не в анабиозе/капсуле. В Бою движение = Побег (на этапе 2 отклоняется `ESCAPE_NOT_IMPLEMENTED`, с этапа 4 — атаки в спину).
+* **Исполнение:** `logic/movement.ts` — `movePlayer(state, playerId, targetRoomId, corridorId, noise)` — снимает игрока из `oldRoom.occupantPlayerIds`, добавляет в `targetRoom.occupantPlayerIds`, `player.roomId = targetRoomId`, `appendGameLog PLAYER_MOVED {from, to, corridorId, mode NORMAL|CAREFUL}`, формирует очередь прерываний: если `!isExplored` → `EXPLORE_ROOM_INTERRUPT` + всегда `NOISE_ROLL_INTERRUPT`. `fsm.ts` `handleAction` — `executeCardPayment` [1]/[2] до перемещения, `queueActionCompletion` после.
+* **Журнал:** `PLAYER_MOVED` — персонаж, исходный/целевой отсек, коридор ID, режим.
+* **Тесты:** `movement.test.ts` (открытый коридор → перемещение, закрытая дверь → `NO_OPEN_DOOR_BETWEEN_ROOMS`, цель = текущий → ошибка), `combatStatus.test.ts`, `shipGraphQueries.test.ts`.
+* *Результат:* фишка перемещается по открытым коридорам за карту действия, очередь прерываний запускается.
 
-**Результат этапа (Playable Demo v0.2.0):**  
-На поле появляется фишка персонажа. Можно перемещаться между смежными комнатами по открытым коридорам, открывать туман войны, автоматически крутить кубик шума, выставлять маркеры шума на ребра графа и наблюдать срабатывание эффектов жетонов исследования.
+### Шаг 2. Туман войны — вскрытие тайлов комнат (Fog of War & Room Reveal) — ВЫПОЛНЕНО в 0.2.0
+
+* **Состояние комнаты:** `types/rooms.ts` `RoomState` — `isExplored boolean`, `definitionId string|null`, `itemsCount number`, `explorationEffect ExplorationEffect|null`, `hasFire/hasMalfunction/hasSlime`. `SPECIAL_ROOMS` всегда `isExplored=true` (стр.5), неособые — рубашкой вверх.
+* **Логика вскрытия:** `logic/roomExploration.ts` — `resolveExploreRoom(state, EXPLORE_ROOM_INTERRUPT)` — `room.isExplored=true`, `appendGameLog ROOM_DISCOVERED {playerId, roomId, roomName из roomDefinitions, category}`. Если `explorationEffect != null` → `EXPLORATION_TOKEN_REVEALED {itemsCount, effect}`. Эффект разыгрывается сразу (см. шаг 3), но исходный `explorationEffect` тайла не затирается — нужен следующему прерыванию шума (`SILENCE`/`DANGER`).
+* **Определение имени:** `roomNameForLog` — берёт `name` из `SPECIAL_ROOMS|BASIC_ROOMS_1|ADDITIONAL_ROOMS_2` по `definitionId`, иначе `Отсек #id` — журнал не раскрывает скрытый тайл задним числом.
+* **Санитайзер:** `sanitizer.ts` — неисследованные комнаты → `definitionId=null`, `isExplored=false`, скрывает `explorationEffect` и `itemsCount` как «?» в `RoomStatusGrid`.
+* **Тесты:** `roomExploration.test.ts` 15 кейсов (вскрытие, лог ROOM_DISCOVERED, сохранение explorationEffect), `sanitizer.test.ts` (неисследованный отсек скрыт).
+* *Результат:* вход в неисследованный слот переворачивает тайл, показывает имя/категорию в журнале, готовит жетон.
+
+### Шаг 3. Жетоны Исследования — пул 20/44 и эффекты (Exploration Tokens) — ВЫПОЛНЕНО в 0.1.11→0.2.0
+
+* **Данные:** `data/explorationTokens.ts` — `EXPLORATION_TOKENS` 20 жетонов, 44 предмета: 8×MALFUNCTION (4,3,2,2,2,2,1,1), 2×FIRE (2,1), 2×SILENCE (1,1), 2×SLIME (4,3), 2×DANGER (3,2), 4×DOORS (4,3,2,1). Прованс `data-sources.json#exploration-tokens` — `EXTERNAL_UNVERIFIED` для состава (числа на картоне), `RULES_LOCAL` для правила 20→16 (стр.3 компоненты, стр.6 шаг4). `setup.ts` — `explorationPool = shuffle(rng layout, EXPLORATION_TOKENS)`, раздача по 1 на 16 неособых слотов через `explorationTokenAt(pool,index)` с явной ошибкой при нехватке.
+* **Исполнение эффектов:** `roomExploration.ts` switch `explorationEffect`:
+  - `FIRE` → `placeFireMarker` (лимит 8→`SHIP_EXPLODED` через `endGame`), лог `EXPLORATION_EFFECT_RESOLVED outcome FIRE_PLACED|FIRE_ALREADY_PRESENT|SHIP_EXPLODED`.
+  - `MALFUNCTION` → `placeMalfunctionMarker` (запрет NEST/SLIME_ROOM → `MALFUNCTION_FORBIDDEN`, лимит 8→`HULL_BREACH`), outcome `MALFUNCTION_PLACED|ALREADY_PRESENT|FORBIDDEN|HULL_BREACH`.
+  - `SLIME` → `player.hasSlime=true` (макс 1, стр.17), outcome `SLIME_APPLIED|ALREADY_PRESENT`.
+  - `DOORS` → `closeDoorOfEntry` → `placeDoorToken` (12 жетонов, при пустом — перестановка с поля, разрушенные не трогаются, стр.17), outcome `DOOR_CLOSED|ALREADY_CLOSED|DESTROYED|MOVED_FROM_BOARD`.
+  - `SILENCE`/`DANGER`/null — откладываются до броска шума (стр.14-15), не исполняются здесь.
+* **Маркеры:** `markers.ts` `FIRE_MARKER_SUPPLY 8`, `MALFUNCTION_MARKER_SUPPLY 8`, `DOOR_TOKEN_SUPPLY 12`, `MALFUNCTION_FORBIDDEN_ROOM_DEFINITIONS ['NEST','SLIME_ROOM']`, функции `countPlaced*`, `*InSupply`, `place*` с явными результатами.
+* **Тесты:** `explorationTokens` golden, `roomExploration.test.ts` (огонь→взрыв, поломка→разрыв, двери→перестановка, слизь→hasSlime), `markers.test.ts`.
+* *Результат:* каждый вход в новый отсек даёт предметы по числу жетона и один эффект по книге правил.
+
+### Шаг 4. Кубик Шума и маркеры — d10 и лимит 30 (Noise Die & Markers) — ВЫПОЛНЕНО в 0.2.0
+
+* **Кубик:** `data/noiseDie.ts` — `NoiseDieFace = {CORRIDOR number 1..4}|{SILENCE}|{DANGER}`, `NOISE_DIE_FACES` 10 граней: 1,1,2,2,3,3,4,4,SILENCE,DANGER. Прованс `data-sources.json#noise-die` — состав подтверждён владельцем по физическому кубику 17.09.2026 (`USER_CONFIRMED`), эффекты — `RULES_LOCAL` стр.15.
+* **RNG:** `logic/noise.ts` — `rollNoiseDie(state)` — `drawFromStream(seed, 'noise', rngDraws.noise)` → `faceIndex = floor(value*10)`, `rngDraws.noise++`, `appendGameLog NOISE_ROLLED {playerId, roomId, result}`. Поток `noise` изолирован от `layout/bag/cards/combat`.
+* **Маркеры:** `logic/noiseMarkers.ts` — `placeNoiseMarker(state, playerId, roomId, target, reason ROLL|CAREFUL|DANGER|BLANK|EVENT)` — если `target.hasNoise` → `CONTACT_INTERRUPT` в начало очереди (повторный шум = Контакт, стр.15), иначе `requireNoiseMarkerSupply` (30) → `hasNoise=true` + `NOISE_MARKER_PLACED {playerId, roomId, target CORRIDOR|TECHNICAL_CORRIDOR, reason}`. `placeCarefulNoiseMarker` — для `CORRIDOR_NUMBER` кладёт шум во все коридоры с этим номером без дублирования Контакта (стр.13). `clearRoomNoise` снимает шум вокруг комнаты, `fillRoomNoise` — для BLANK/DANGER заполняет все свободные коридоры + техкоридор, с проверкой запаса.
+* **Лимиты:** `markers.ts` `NOISE_MARKER_SUPPLY 30`, `countPlacedNoiseMarkers` (коридоры + `technicalCorridorNoise`), `noiseMarkersInSupply`, `requireNoiseMarkerSupply` → `MARKER_SUPPLY_EXHAUSTED` с явной ошибкой (книга не описывает исчерпание, но движок не молчит).
+* **Тесты:** `noise.test.ts` (бросок детерминирован, SILENCE/DANGER ветки), `noiseMarkers.test.ts` (размещение, повторный шум → CONTACT_INTERRUPT, лимит 30, careful number → все коридоры), `fsm.test.ts` (интеграция шума).
+* *Результат:* каждый вход в пустую комнату бросает d10 и ставит маркер по номеру или вызывает DANGER/SILENCE.
+
+### Шаг 5. Осторожное движение [2] и логика Тишины/Опасности/Компаньона (Careful Move & Danger/Silence) — ВЫПОЛНЕНО в 0.2.0
+
+* **Осторожное движение:** `logic/movement.ts` `requireCarefulMoveAllowed(state, playerId, targetRoomId, chosen)` — проверка: не в Бою (`CAREFUL_MOVE_IN_COMBAT`), `TECHNICAL_CORRIDOR` требует `roomHasTechnicalEntrance`, `CORRIDOR_NUMBER` требует наличия коридоров с номером, `CORRIDOR` требует `corridorsLeadingInto`. Свободный коридор: `freeCorridor = some(!hasNoise)` или `freeTechnical = hasEntrance && !technicalCorridorNoise`, иначе `CAREFUL_MOVE_NO_FREE_CORRIDOR` (стр.13). Выбранное место уже с шумом → та же ошибка. `fsm.ts` — оплата [2] через `executeCardPayment` до проверки.
+* **Тишина:** `logic/noise.ts` `resolveNoiseRoll` — если `explorationEffect SILENCE` или `result SILENCE`:
+  - при `player.hasSlime` → трактуется как DANGER (стр.15,17),
+  - иначе → `NOISE_SKIPPED reason EXPLORATION_SILENCE|NOISE_SILENCE`, без маркера, без Контакта.
+* **Опасность:** `resolveNoiseRoll` + `handleDanger` — `explorationEffect DANGER` или `result DANGER`:
+  - найти соседние комнаты через `corridorsLeadingInto` + `SHIP_ROOM_NODES techNumbers`,
+  - если есть Чужие вне Боя (`boardTokens` не в комнате игрока, `isRoomInCombat` false) → притянуть всех таких в комнату игрока: проверка дверей — CLOSED → `DESTROYED` + лог `INTRUDERS_BLOCKED_BY_DOOR source DANGER`, иначе перемещение `roomId` + `occupantIntruderIds` + лог `INTRUDERS_MOVED` (стр.15,18). Контакт не разыгрывается при притяжении.
+  - если Чужих рядом нет → `fillRoomNoise` с reason DANGER (шум во все пустые коридоры вокруг комнаты, включая техкоридор).
+* **Компаньон:** если в целевой комнате есть живой игрок (`livingPlayersInRoom`) или Чужой (`occupantIntruderIds`) — бросок Шума не делается, лог `NOISE_SKIPPED reason COMPANION` (стр.15 «если в отсеке есть персонаж/чужой — конец движения, бросок не нужен»).
+* **Несуществующий номер:** `findNoiseTarget` возвращает `UNMAPPED` если номера нет среди `corridorNumbersOf` и `techNumbers` — трактуется как Тишина `NOISE_SKIPPED UNMAPPED` (решение до физической сверки топологии, `UNVERIFIED_BOARD`).
+* **Тесты:** `carefulMovement.test.ts` 5 кейсов (выбор коридора/номера/техкоридора, занятый → ошибка, все заняты → ошибка), `roomExploration.test.ts` (SILENCE→DANGER при слизи), `noise.test.ts` (COMPANION→пропуск, DANGER→притяжение/заполнение), `fsm.test.ts` интеграция.
+* *Результат:* игрок может заплатить [2] и выбрать, куда положить шум, избежав броска; Тишина/Опасность/Компаньон работают по книге правил.
+
+### Шаг 6. Граф-запросы, UI перемещения и выпуск v0.2.0 (Graph Queries, Board UI & Release) — ВЫПОЛНЕНО в 0.2.0
+
+* **Запросы графа:** `shipGraphQueries.ts` — `findOpenCorridors` (doorState !== CLOSED), `findAdjacentOpenRoomIds` — прямой перебор открытых коридоров (без весов), `corridorsLeadingInto(roomId)` — все коридоры, ведущие в отсек, `roomHasTechnicalEntrance` по `SHIP_ROOM_NODES.techNumbers`, `corridorNumbersOf(corridor, roomId)` → `fromNumbers/toNumbers`, `findNoiseTarget(roomId, number)` → `TECHNICAL_CORRIDOR|CORRIDOR|UNMAPPED`. **A\* не реализован**: взвешенный A* с огнём +2, шумом +2, боем +10 (GDD §5.2) — цель этапа 8 для ботов, на этапе 2 достаточно `findAdjacentOpenRoomIds`. Задокументировано в статусе этапа как осознанное ограничение.
+* **UI перемещения:** `board/ShipMapSVG.tsx` — подсветка доступных для хода отсеков (соседние с открытой дверью) через `findAdjacentOpenRoomIds(view)`, `RoomHex.tsx` — кликабельность ≥44px, бейджи шума/дверей. `inspector/RoomInspector.tsx` — кнопки «Движение [1]» (обычное) и «Осторожное движение [2]» с `CarefulMovePanel.tsx` + `carefulMoveModel.ts` — выбор номера коридора 1-4 или техкоридора, валидация свободных коридоров. `RoomStatusGrid.tsx` — «?» для скрытого. `GameLogPanel` — форматирует `PLAYER_MOVED`, `ROOM_DISCOVERED`, `EXPLORATION_TOKEN_REVEALED`, `EXPLORATION_EFFECT_RESOLVED`, `NOISE_ROLLED`, `NOISE_MARKER_PLACED`, `NOISE_SKIPPED` с tone-классами.
+* **Санитайзер и честность:** `sanitizer.ts` скрывает неисследованные тайлы, `SanitizedGameState` наружу, `LocalInMemoryTransport` + `sessionStorage` сохранение после каждого действия, восстановление с проверкой схемы.
+* **Тесты и релиз:** `movement.test.ts`, `roomExploration.test.ts`, `noise.test.ts`, `noiseMarkers.test.ts`, `carefulMovement.test.ts`, `shipGraph.test.ts`, `markers.test.ts`, `gameLog.test.ts` (последовательность событий перемещения), `GameLogPanel.test.ts`, `ShipMapSVG.test.tsx`, `RoomInspector.test.tsx`. `npm run verify` зелёный, `npm run build` зелёный, `CHANGELOG.md` запись v0.2.0, `README.md` — что работает (движение, туман, шум, осторожное, жетоны 20/44, лимиты 8/8/30/12), ограничения (нет Контакта/Боя, нет A*, парные коридоры — одна связь, UNMAPPED→Тишина).
+* *Результат этапа (Playable Demo v0.2.0) — ДОСТИГНУТ:* фишка персонажа на поле 21/29, перемещение по открытым коридорам за [1]/[2], открытие тумана с жетонами 20/44 и эффектами Пожар/Поломка/Слизь/Двери/Тишина/Опасность, кубик Шума d10 детерминированный, маркеры 30 с лимитом, Осторожное движение с выбором коридора, логика Компаньона/Слизи/Опасности по книге правил, журнал действий, сохранение сессии, карта с зумом/паном. A* отложен до ботов.
 
 ---
 

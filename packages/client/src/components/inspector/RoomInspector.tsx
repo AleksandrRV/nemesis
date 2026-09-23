@@ -1,14 +1,12 @@
 import React from 'react';
-import type { CarefulMoveChosenCorridor, CorridorNumber, SanitizedRoomState } from '@nemesis/shared';
+import type { SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { intrudersInRoom } from '../board/intruderMapModel';
 import { LaboratoryActions, WeaknessSlotsPanel } from './LaboratoryPanel';
 import { EscapeConfirmDialog } from './EscapeConfirmDialog';
-import { CarefulMovePanel } from './CarefulMovePanel';
 import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
-import { carefulMoveChoices } from './carefulMoveModel';
 import { RoomStatusGrid } from './RoomStatusGrid';
 import { TechCorridorPanel } from './TechCorridorPanel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
@@ -44,8 +42,6 @@ export const RoomInspector: React.FC = () => {
   const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
   const carefulTargetRoomId = useGameStore((state) => state.carefulMoveTargetRoomId);
   const setCarefulTargetRoomId = useGameStore((state) => state.setCarefulMoveTargetRoomId);
-  const setCarefulHoveredNumber = useGameStore((state) => state.setCarefulHoveredNumber);
-  const setCarefulHoveredTechnical = useGameStore((state) => state.setCarefulHoveredTechnical);
 
   const [escapePromptOpen, setEscapePromptOpen] = React.useState(false);
   const [disengageOpen, setDisengageOpen] = React.useState(false);
@@ -129,8 +125,7 @@ export const RoomInspector: React.FC = () => {
     return slot ? slot.visibility === 'FACE_DOWN' : false;
   });
 
-  // Раскладка «Осторожного движения» (стр. 13) — чистая модель (Шаг 8).
-  const { choices: availableCorridorNumbers, hasFreeTechnical } = carefulMoveChoices(view, room.id);
+  // Раскладка «Осторожного движения» (стр. 13) — для статуса выбора (F15 diegetic на карте).
   const isCarefulSelecting = carefulTargetRoomId === room.id;
 
   const handleNormalMove = () => {
@@ -192,27 +187,6 @@ export const RoomInspector: React.FC = () => {
         combat: { kind: 'REPOSITION', weaponItemId: weaponId, moves },
       },
     });
-  };
-
-  const handleCarefulMove = (chosen: CarefulMoveChosenCorridor) => {
-    const discardCardIds = consumePaymentCards(2);
-    dispatch({
-      type: 'ACTION_CAREFUL_MOVE',
-      payload: {
-        targetRoomId: room.id,
-        chosenCorridor: chosen,
-        discardCardIds,
-      },
-    });
-    setCarefulTargetRoomId(null);
-  };
-
-  const handleCarefulHoverNumber = (num: CorridorNumber | null) => {
-    setCarefulHoveredNumber(num);
-  };
-
-  const handleCarefulHoverTechnical = (hovered: boolean) => {
-    setCarefulHoveredTechnical(hovered);
   };
 
   const handleSearch = () => {
@@ -427,16 +401,25 @@ export const RoomInspector: React.FC = () => {
         )}
       </div>
 
-      {/* Панель выбора коридора для Осторожного движения */}
+      {/* Панель выбора коридора для Осторожного движения — F15 diegetic overlay на карте */}
       {isCarefulSelecting && canMoveHere && (
-        <CarefulMovePanel
-          choices={availableCorridorNumbers}
-          hasFreeTechnical={hasFreeTechnical}
-          onChoose={handleCarefulMove}
-          onCancel={() => setCarefulTargetRoomId(null)}
-          onHoverNumber={handleCarefulHoverNumber}
-          onHoverTechnical={handleCarefulHoverTechnical}
-        />
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2.5 text-xs">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.14em] text-amber-400/80">
+            <span className="h-1 w-1 rounded-full bg-amber-400 animate-pulse" />
+            ВЫБОР КОРИДОРА → НА КАРТЕ
+          </div>
+          <p className="mt-1.5 leading-relaxed text-amber-100/70">
+            Наведи курсор на коридор у целевого гекса. Свободные — без маркера, занятые — с шумом. Клик на карту —
+            выбор. <span className="text-slate-400">Esc — отмена.</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setCarefulTargetRoomId(null)}
+            className="mt-2 w-full rounded-md border border-slate-700 bg-slate-900/60 px-2 py-1.5 font-mono text-[11px] text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
+          >
+            ОТМЕНИТЬ [Esc]
+          </button>
+        </div>
       )}
 
       {/* Действия: только те, что разрешены правилами. */}

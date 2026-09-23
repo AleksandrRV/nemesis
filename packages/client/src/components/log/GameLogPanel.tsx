@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronUp, ScrollText } from 'lucide-react';
 import type { SanitizedGameState, GameLogEntry } from '@nemesis/shared';
 
-import { formatGameLog, type GameLogSegment, type GameLogTone } from './gameLogModel';
+import { formatGameLog, groupFormattedLog, type GameLogSegment, type GameLogTone } from './gameLogModel';
 
 interface GameLogPanelProps {
   view: SanitizedGameState;
@@ -43,7 +43,6 @@ export function LogLine({ segments }: { segments: GameLogSegment[] }): React.Rea
 function isContactTeaseEntry(entry: GameLogEntry, log: readonly GameLogEntry[]): boolean {
   if (entry.event.type === 'CONTACT_OCCURRED' && entry.event.source === 'NOISE') return true;
   if (entry.event.type === 'NOISE_MARKER_PLACED' && entry.event.reason === 'ROLL') {
-    // Если в следующих 4 записях есть CONTACT_OCCURRED source NOISE в том же отсеке — это тизер дубликата
     const idx = log.findIndex((e) => e.id === entry.id);
     if (idx >= 0) {
       for (let j = idx + 1; j < Math.min(log.length, idx + 5); j++) {
@@ -63,21 +62,21 @@ function isContactTeaseEntry(entry: GameLogEntry, log: readonly GameLogEntry[]):
 
 function isRecentNoiseRoll(entry: GameLogEntry, log: readonly GameLogEntry[]): boolean {
   if (entry.event.type !== 'NOISE_ROLLED') return false;
-  // Последний бросок Шума считается свежим для подсветки
   const lastRoll = [...log].reverse().find((e) => e.event.type === 'NOISE_ROLLED');
   return lastRoll?.id === entry.id;
 }
 
 export const GameLogPanel: React.FC<GameLogPanelProps> = ({ view }) => {
   const [isOpen, setIsOpen] = React.useState(true);
-  const entries = React.useMemo(() => formatGameLog(view), [view]);
+  const formatted = React.useMemo(() => formatGameLog(view), [view]);
+  const grouped = React.useMemo(() => groupFormattedLog(formatted), [formatted]);
   const rawLog = view.gameLog;
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!isOpen || !scrollContainerRef.current) return;
     scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-  }, [entries.length, isOpen]);
+  }, [formatted.length, isOpen]);
 
   return (
     <aside
@@ -89,7 +88,7 @@ export const GameLogPanel: React.FC<GameLogPanelProps> = ({ view }) => {
           <ScrollText size={15} className="shrink-0 text-cyan-300" aria-hidden="true" />
           <h2 className="truncate text-xs font-bold tracking-[0.16em] text-white">ЖУРНАЛ ДЕЙСТВИЙ</h2>
           <span className="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
-            {entries.length}
+            {formatted.length}
           </span>
         </div>
         <button
@@ -111,22 +110,55 @@ export const GameLogPanel: React.FC<GameLogPanelProps> = ({ view }) => {
           ref={scrollContainerRef}
           className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 py-2"
         >
-          <ol className="space-y-1.5" aria-live="polite">
-            {entries.map((entry) => {
-              const raw = rawLog.find((e) => e.sequence === entry.sequence);
-              const isTease = raw ? isContactTeaseEntry(raw, rawLog) : false;
-              const isRoll = raw ? isRecentNoiseRoll(raw, rawLog) : false;
-              return (
-                <li
-                  key={entry.id}
-                  className={`flex gap-2 border-b border-slate-950 pb-1.5 last:border-b-0 ${isTease ? 'motion-safe:animate-contact-warning motion-reduce:animate-none bg-red-950/20 rounded px-1 -mx-1' : ''} ${isRoll ? 'bg-amber-950/20 rounded px-1 -mx-1' : ''}`}
-                >
-                  <span className="w-8 shrink-0 pt-0.5 text-right font-mono text-[10px] text-slate-500">
-                    #{String(entry.sequence).padStart(3, '0')}
-                  </span>
-                  <LogLine segments={entry.segments} />
-                </li>
-              );
+          <ol className="space-y-2" aria-live="polite">
+            {grouped.map((group) => {
+              if (group.isMovement && group.entries.length > 1) {
+                // Этап F14: Timeline движения — один визуальный стек
+                return (
+                  <li key={group.groupId} className="border-l-2 border-cyan-500/50 pl-3 py-1 bg-cyan-950/10 rounded-r">
+                    <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-cyan-400/70">
+                      Цепочка движения • {group.entries.length} событий
+                    </div>
+                    <ol className="space-y-1.5">
+                      {group.entries.map((entry, idx) => {
+                        const raw = rawLog.find((e) => e.sequence === entry.sequence);
+                        const isTease = raw ? isContactTeaseEntry(raw, rawLog) : false;
+                        const isRoll = raw ? isRecentNoiseRoll(raw, rawLog) : false;
+                        return (
+                          <li
+                            key={entry.id}
+                            className={`flex gap-2 border-b border-slate-900/60 pb-1 last:border-b-0 motion-safe:animate-step-enter motion-reduce:animate-none ${isTease ? 'motion-safe:animate-contact-warning bg-red-950/20 rounded px-1 -mx-1' : ''} ${isRoll ? 'bg-amber-950/20 rounded px-1 -mx-1' : ''}`}
+                            style={{ animationDelay: `${idx * 80}ms` } as React.CSSProperties}
+                          >
+                            <span className="w-8 shrink-0 pt-0.5 text-right font-mono text-[10px] text-slate-500">
+                              #{String(entry.sequence).padStart(3, '0')}
+                            </span>
+                            <LogLine segments={entry.segments} />
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </li>
+                );
+              }
+
+              // Одиночные записи
+              return group.entries.map((entry) => {
+                const raw = rawLog.find((e) => e.sequence === entry.sequence);
+                const isTease = raw ? isContactTeaseEntry(raw, rawLog) : false;
+                const isRoll = raw ? isRecentNoiseRoll(raw, rawLog) : false;
+                return (
+                  <li
+                    key={entry.id}
+                    className={`flex gap-2 border-b border-slate-950 pb-1.5 last:border-b-0 motion-safe:animate-step-enter motion-reduce:animate-none ${isTease ? 'motion-safe:animate-contact-warning bg-red-950/20 rounded px-1 -mx-1' : ''} ${isRoll ? 'bg-amber-950/20 rounded px-1 -mx-1' : ''}`}
+                  >
+                    <span className="w-8 shrink-0 pt-0.5 text-right font-mono text-[10px] text-slate-500">
+                      #{String(entry.sequence).padStart(3, '0')}
+                    </span>
+                    <LogLine segments={entry.segments} />
+                  </li>
+                );
+              });
             })}
           </ol>
         </div>

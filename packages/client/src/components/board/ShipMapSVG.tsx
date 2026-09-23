@@ -12,6 +12,7 @@ import { BoardAnimationLayer } from './BoardAnimationLayer';
 import { DieRollOverlay } from './DieRollOverlay';
 import { useBoardAnimations, usePrefersReducedMotion } from './useBoardAnimations';
 import { carefulMoveChoices } from '../inspector/carefulMoveModel';
+import { CarefulMoveOverlay } from './CarefulMoveOverlay';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({ highlightRoomIds = [] }) => {
@@ -24,6 +25,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
   const carefulHoveredNumber = useGameStore((state) => state.carefulHoveredNumber);
   const carefulHoveredTechnical = useGameStore((state) => state.carefulHoveredTechnical);
   const setCarefulTargetRoomId = useGameStore((state) => state.setCarefulMoveTargetRoomId);
+  const setCarefulHoveredNumber = useGameStore((state) => state.setCarefulHoveredNumber);
+  const setCarefulHoveredTechnical = useGameStore((state) => state.setCarefulHoveredTechnical);
   const dispatch = useGameStore((state) => state.dispatch);
   const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
   const reducedMotion = usePrefersReducedMotion();
@@ -182,6 +185,59 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     () => animations.some((a) => a.kind === 'NOISE_POP' && a.isTechnical),
     [animations],
   );
+
+  // --- Этап F15: diegetic CarefulMovePanel — коридоры для стрелок ---
+  const carefulCorridorsForOverlay = React.useMemo(() => {
+    if (!view || carefulTargetRoomId === null) return [];
+    const target = carefulTargetRoomId;
+    const result: Array<{
+      id: string;
+      fromRoomId: number;
+      toRoomId: number;
+      fromNumbers: readonly number[];
+      toNumbers: readonly number[];
+      hasNoise: boolean;
+      mx: number;
+      my: number;
+      noiseX: number;
+      noiseY: number;
+    }> = [];
+    for (const corridor of Object.values(view.ship.corridors)) {
+      if (corridor.fromRoomId !== target && corridor.toRoomId !== target) continue;
+      const c1 = coordsMap.get(corridor.fromRoomId);
+      const c2 = coordsMap.get(corridor.toRoomId);
+      if (!c1 || !c2) continue;
+      const dx = c2.x - c1.x;
+      const dy = c2.y - c1.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const nx = -uy;
+      const ny = ux;
+      const mx = (c1.x + c2.x) / 2;
+      const my = (c1.y + c2.y) / 2;
+      const noiseX = mx - nx * 14;
+      const noiseY = my - ny * 14;
+      result.push({
+        id: corridor.id,
+        fromRoomId: corridor.fromRoomId,
+        toRoomId: corridor.toRoomId,
+        fromNumbers: corridor.fromNumbers,
+        toNumbers: corridor.toNumbers,
+        hasNoise: corridor.hasNoise,
+        mx,
+        my,
+        noiseX,
+        noiseY,
+      });
+    }
+    return result;
+  }, [view, carefulTargetRoomId, coordsMap]);
+
+  const carefulTargetCoord = React.useMemo(() => {
+    if (carefulTargetRoomId === null) return null;
+    return coordsMap.get(carefulTargetRoomId) ?? null;
+  }, [carefulTargetRoomId, coordsMap]);
 
   if (!view) return null;
 
@@ -470,6 +526,31 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                         : undefined
                     }
                   />
+
+                  {/* Этап F15: diegetic CarefulMovePanel overlay рядом с целевым гексом */}
+                  {carefulTargetRoomId !== null && carefulChoices && carefulTargetCoord && (
+                    <CarefulMoveOverlay
+                      targetRoomId={carefulTargetRoomId}
+                      targetX={carefulTargetCoord.x}
+                      targetY={carefulTargetCoord.y}
+                      choices={carefulChoices.choices}
+                      hasFreeTechnical={carefulChoices.hasFreeTechnical && !technicalNoise}
+                      hoveredNumber={carefulHoveredNumber}
+                      hoveredTechnical={carefulHoveredTechnical}
+                      corridors={carefulCorridorsForOverlay}
+                      onChoose={(chosen) => {
+                        const discardCardIds = consumePaymentCards(2);
+                        dispatch({
+                          type: 'ACTION_CAREFUL_MOVE',
+                          payload: { targetRoomId: carefulTargetRoomId, chosenCorridor: chosen, discardCardIds },
+                        });
+                        setCarefulTargetRoomId(null);
+                      }}
+                      onCancel={() => setCarefulTargetRoomId(null)}
+                      onHoverNumber={(num) => setCarefulHoveredNumber(num)}
+                      onHoverTechnical={(h) => setCarefulHoveredTechnical(h)}
+                    />
+                  )}
 
                   {/* Этап E12: vignette overlay поверх всего */}
                   <rect

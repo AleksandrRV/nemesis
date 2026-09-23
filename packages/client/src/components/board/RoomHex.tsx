@@ -104,9 +104,15 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         ? '#071322'
         : '#050a14';
 
+  // --- Исправленная логика вскрытия: последовательная, без зацикливания ---
   const prevExploredRef = React.useRef(room.isExplored);
+  const timeoutsRef = React.useRef<number[]>([]);
+  const [revealStage, setRevealStage] = React.useState<'idle' | 'fog' | 'scan' | 'name' | 'icons' | 'done'>(() =>
+    room.isExplored ? 'done' : 'idle',
+  );
   const [isRevealing, setIsRevealing] = React.useState(false);
   const [typewriterActive, setTypewriterActive] = React.useState(false);
+  const [iconsVisible, setIconsVisible] = React.useState(room.isExplored);
   const [displayedLines, setDisplayedLines] = React.useState<[string, string]>(() =>
     room.isExplored ? (nameLines as [string, string]) : (['', ''] as [string, string]),
   );
@@ -123,42 +129,92 @@ export const RoomHex: React.FC<RoomHexProps> = ({
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // Основной триггер вскрытия — только при переходе false → true, без зацикливания
   React.useEffect(() => {
     const wasExplored = prevExploredRef.current;
-    let timeoutId: number | undefined;
+    const clearAll = (): void => {
+      timeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      timeoutsRef.current = [];
+    };
 
     if (!wasExplored && room.isExplored) {
+      prevExploredRef.current = true;
+      clearAll();
+
+      if (prefersReducedMotion) {
+        setDisplayedLines(nameLines as [string, string]);
+        setIconsVisible(true);
+        setRevealStage('done');
+        setIsRevealing(false);
+        setTypewriterActive(false);
+        return undefined;
+      }
+
+      // Старт последовательности: туман → скан → имя → иконки
       setIsRevealing(true);
-      if (!prefersReducedMotion) {
+      setRevealStage('fog');
+      setIconsVisible(false);
+      setDisplayedLines(['', '']);
+      setTypewriterActive(false);
+
+      const t1 = window.setTimeout(() => setRevealStage('scan'), 240);
+      const t2 = window.setTimeout(() => {
+        setRevealStage('name');
         setTypewriterActive(true);
-        setDisplayedLines(['', '']);
-      } else {
+      }, 780);
+
+      const t3 = window.setTimeout(() => {
+        setIsRevealing(false);
+        setRevealStage('done');
+        setIconsVisible(true);
         setDisplayedLines(nameLines as [string, string]);
-      }
-      timeoutId = window.setTimeout(() => setIsRevealing(false), 680);
-    } else {
-      if (wasExplored !== room.isExplored) {
-        prevExploredRef.current = room.isExplored;
-      }
-      if (room.isExplored && !typewriterActive && !isRevealing) {
-        setDisplayedLines(nameLines as [string, string]);
-      }
-      if (!room.isExplored) {
-        setDisplayedLines(['', '']);
-      }
-      prevExploredRef.current = room.isExplored;
+      }, 2600);
+
+      timeoutsRef.current = [t1, t2, t3];
+      return () => {
+        clearAll();
+      };
     }
 
-    return () => {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-    };
-  }, [room.isExplored, nameLines, prefersReducedMotion, typewriterActive, isRevealing]);
+    if (wasExplored && !room.isExplored) {
+      prevExploredRef.current = false;
+      clearAll();
+      setRevealStage('idle');
+      setIsRevealing(false);
+      setTypewriterActive(false);
+      setDisplayedLines(['', '']);
+      setIconsVisible(false);
+      return undefined;
+    }
 
+    if (room.isExplored && !isRevealing && !typewriterActive) {
+      if (revealStage === 'done' || revealStage === 'idle') {
+        setDisplayedLines(nameLines as [string, string]);
+        setIconsVisible(true);
+        if (revealStage === 'idle') setRevealStage('done');
+      }
+    }
+    if (!room.isExplored) {
+      setDisplayedLines(['', '']);
+      if (revealStage !== 'idle') setRevealStage('idle');
+    }
+    prevExploredRef.current = room.isExplored;
+    return undefined;
+  }, [room.isExplored, nameLines, prefersReducedMotion]);
+
+  // Typewriter — побуквенный показ
   React.useEffect(() => {
     if (!typewriterActive) return;
     if (prefersReducedMotion) {
       setDisplayedLines(nameLines as [string, string]);
       setTypewriterActive(false);
+      setIconsVisible(true);
+      setRevealStage('icons');
+      const t = window.setTimeout(() => {
+        setIsRevealing(false);
+        setRevealStage('done');
+      }, 300);
+      timeoutsRef.current.push(t);
       return;
     }
     const full0 = nameLines[0] ?? '';
@@ -186,20 +242,33 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         setDisplayedLines([l0, l1]);
         return true;
       }
-      setTypewriterActive(false);
       return false;
     };
 
     const interval = window.setInterval(() => {
       const cont = tick();
-      if (!cont) window.clearInterval(interval);
-    }, 36);
+      if (!cont) {
+        window.clearInterval(interval);
+        setTypewriterActive(false);
+        setIconsVisible(true);
+        setRevealStage('icons');
+        const t = window.setTimeout(() => {
+          setIsRevealing(false);
+          setRevealStage('done');
+        }, 420);
+        timeoutsRef.current.push(t);
+      }
+    }, 34);
 
     return () => window.clearInterval(interval);
   }, [typewriterActive, nameLines, prefersReducedMotion]);
 
-  const showQuestion = !room.isExplored && !isRevealing;
+  const showQuestion = !room.isExplored && revealStage === 'idle';
   const showName = room.isExplored;
+
+  // Уникальные сиды для шума тумана
+  const fogSeed1 = room.id % 97;
+  const fogSeed2 = (room.id * 37) % 97;
 
   return (
     <g
@@ -211,22 +280,34 @@ export const RoomHex: React.FC<RoomHexProps> = ({
       className="cursor-pointer transition-all duration-150 hover:brightness-125 select-none"
     >
       <defs>
-        <filter id={`fog-filter-${room.id}`} x="-22%" y="-22%" width="144%" height="144%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.085" numOctaves={2} seed={room.id % 97} result="turb" />
+        {/* --- Туман войны: органичный, точно по форме гекса, без квадратных границ --- */}
+        <filter id={`fog-noise-1-${room.id}`} x="-32%" y="-32%" width="164%" height="164%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.072 0.11" numOctaves={3} seed={fogSeed1} result="noise" />
           <feColorMatrix
             type="matrix"
-            values="0 0 0 0 0.06  0 0 0 0 0.12  0 0 0 0 0.22  0 0 0 0.62 0"
-            in="turb"
+            values="0 0 0 0 0.06  0 0 0 0 0.11  0 0 0 0 0.22  0 0 0 0.58 0"
+            in="noise"
+            result="colored"
+          />
+          <feGaussianBlur in="colored" stdDeviation="1.15" result="blurred" />
+          <feComposite in="blurred" in2="SourceAlpha" operator="in" result="masked" />
+        </filter>
+        <filter id={`fog-noise-2-${room.id}`} x="-28%" y="-28%" width="156%" height="156%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.11 0.065" numOctaves={2} seed={fogSeed2} result="noise" />
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0.09  0 0 0 0 0.18  0 0 0 0 0.32  0 0 0 0.38 0"
+            in="noise"
             result="colored"
           />
           <feGaussianBlur in="colored" stdDeviation="0.9" result="blurred" />
-          <feComposite in="blurred" in2="SourceGraphic" operator="over" />
+          <feComposite in="blurred" in2="SourceAlpha" operator="in" result="masked" />
         </filter>
-        {/* Этап E13: depth — drop shadow для исследованных */}
+        {/* Drop shadow для исследованных */}
         <filter id={`room-shadow-${room.id}`} x="-24%" y="-24%" width="148%" height="148%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.5" />
+          <feDropShadow dx="0" dy="2.5" stdDeviation="3.2" floodColor="#000" floodOpacity="0.55" />
         </filter>
-        {/* Этап E13: inner shadow для неизведанных */}
+        {/* Inner shadow для неизведанных */}
         <filter id={`room-inner-shadow-${room.id}`} x="-20%" y="-20%" width="140%" height="140%">
           <feOffset dx="0" dy="2" />
           <feGaussianBlur stdDeviation="3.5" result="offset-blur" />
@@ -240,14 +321,23 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </clipPath>
         <linearGradient id={`scan-grad-${room.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#00f0ff" stopOpacity="0" />
-          <stop offset="42%" stopColor="#00f0ff" stopOpacity="0.92" />
+          <stop offset="28%" stopColor="#00f0ff" stopOpacity="0.15" />
+          <stop offset="44%" stopColor="#00f0ff" stopOpacity="0.95" />
           <stop offset="52%" stopColor="#ffffff" stopOpacity="1" />
-          <stop offset="68%" stopColor="#00f0ff" stopOpacity="0.35" />
+          <stop offset="60%" stopColor="#00f0ff" stopOpacity="0.9" />
+          <stop offset="78%" stopColor="#00f0ff" stopOpacity="0.18" />
           <stop offset="100%" stopColor="#00f0ff" stopOpacity="0" />
         </linearGradient>
-        <radialGradient id={`fog-vignette-${room.id}`} cx="50%" cy="50%" r="68%">
-          <stop offset="62%" stopColor="#050a14" stopOpacity="0" />
-          <stop offset="100%" stopColor="#050a14" stopOpacity="0.85" />
+        <radialGradient id={`fog-vignette-${room.id}`} cx="50%" cy="50%" r="72%">
+          <stop offset="48%" stopColor="#050a14" stopOpacity="0" />
+          <stop offset="76%" stopColor="#050a14" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#050a14" stopOpacity="0.92" />
+        </radialGradient>
+        <radialGradient id={`fog-soft-edge-${room.id}`} cx="50%" cy="50%" r="68%">
+          <stop offset="0%" stopColor="#0b1a2c" stopOpacity="0.95" />
+          <stop offset="62%" stopColor="#0b1a2c" stopOpacity="0.82" />
+          <stop offset="84%" stopColor="#0b1a2c" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#0b1a2c" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -302,7 +392,9 @@ export const RoomHex: React.FC<RoomHexProps> = ({
             transformOrigin: `${x}px ${y}px`,
           } as React.CSSProperties
         }
-        className={isRevealing ? 'motion-safe:animate-room-flip motion-reduce:animate-none' : undefined}
+        className={
+          revealStage === 'fog' ? 'motion-safe:animate-room-flip motion-reduce:animate-none' : undefined
+        }
       >
         <polygon
           points={points}
@@ -322,7 +414,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         )}
       </g>
 
-      {isRevealing && (
+      {revealStage === 'fog' && (
         <polygon
           points={points}
           fill="none"
@@ -332,20 +424,75 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {!room.isExplored && !isRevealing && (
+      {/* --- Туман войны: кинематографичный, гекс-форма, мягкие края, лёгкая анимация --- */}
+      {!room.isExplored && revealStage === 'idle' && (
         <g className="pointer-events-none">
-          <polygon points={points} fill="#050a14" opacity="0.96" />
-          <polygon points={points} fill="#0b1a2c" opacity="0.52" filter={`url(#fog-filter-${room.id})`} />
+          <polygon points={points} fill="#050a14" opacity="0.98" />
+          <g clipPath={`url(#hex-clip-${room.id})`}>
+            <rect x={x - 60} y={y - 60} width={120} height={120} fill="#050a14" />
+            <g
+              className="motion-safe:animate-fog-drift motion-reduce:animate-none"
+              style={{ transformOrigin: `${x}px ${y}px` } as React.CSSProperties}
+            >
+              <rect
+                x={x - 62}
+                y={y - 62}
+                width={124}
+                height={124}
+                fill="#0b1a2c"
+                opacity={0.58}
+                filter={`url(#fog-noise-1-${room.id})`}
+                className="motion-safe:animate-fog-pulse"
+              />
+            </g>
+            <g
+              className="motion-safe:animate-fog-drift motion-reduce:animate-none"
+              style={
+                {
+                  transformOrigin: `${x}px ${y}px`,
+                  animationDelay: '1.3s',
+                  animationDuration: '7.8s',
+                } as React.CSSProperties
+              }
+            >
+              <rect
+                x={x - 60}
+                y={y - 60}
+                width={120}
+                height={120}
+                fill="#1a2a44"
+                opacity={0.32}
+                filter={`url(#fog-noise-2-${room.id})`}
+              />
+            </g>
+            <rect
+              x={x - 60}
+              y={y - 60}
+              width={120}
+              height={120}
+              fill={`url(#fog-vignette-${room.id})`}
+              opacity={0.9}
+            />
+            <rect
+              x={x - 60}
+              y={y - 60}
+              width={120}
+              height={120}
+              fill={`url(#fog-soft-edge-${room.id})`}
+              opacity={0.55}
+              style={{ mixBlendMode: 'soft-light' } as React.CSSProperties}
+            />
+          </g>
           <polygon
             points={points}
             fill="none"
             stroke="#1e293b"
-            strokeWidth={1.2}
+            strokeWidth={1.15}
             strokeDasharray="4,3.5"
-            opacity={0.45}
+            opacity={0.32}
+            className="motion-safe:animate-fog-idle"
           />
-          <polygon points={points} fill={`url(#fog-vignette-${room.id})`} opacity="0.9" />
-          <g opacity={0.18}>
+          <g opacity={0.24} className="motion-safe:animate-fog-idle motion-reduce:opacity-20">
             <circle cx={x - 12} cy={y - 8} r={0.9} fill="#38bdf8" />
             <circle cx={x + 10} cy={y + 6} r={0.7} fill="#38bdf8" />
             <circle cx={x - 4} cy={y + 14} r={0.6} fill="#475569" />
@@ -353,25 +500,56 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </g>
       )}
 
-      {isRevealing && (
+      {/* Фаза исчезания тумана — кинематографичное растворение */}
+      {revealStage === 'fog' && (
         <g className="pointer-events-none">
-          <polygon
-            points={points}
-            fill="#0b1a2c"
-            filter={`url(#fog-filter-${room.id})`}
-            className="motion-safe:animate-fog-dissolve motion-reduce:animate-none"
-          />
-          <g clipPath={`url(#hex-clip-${room.id})`}>
+          <g clipPath={`url(#hex-clip-${room.id})`} className="motion-safe:animate-fog-dissolve">
+            <rect x={x - 60} y={y - 60} width={120} height={120} fill="#050a14" />
             <rect
-              x={x - 70}
-              y={y - 52}
-              width={18}
-              height={104}
-              fill={`url(#scan-grad-${room.id})`}
-              className="motion-safe:animate-scanline-sweep motion-reduce:opacity-0"
-              style={{ mixBlendMode: 'screen' } as React.CSSProperties}
+              x={x - 62}
+              y={y - 62}
+              width={124}
+              height={124}
+              fill="#0b1a2c"
+              opacity={0.72}
+              filter={`url(#fog-noise-1-${room.id})`}
+            />
+            <rect
+              x={x - 60}
+              y={y - 60}
+              width={120}
+              height={120}
+              fill="#1a2a44"
+              opacity={0.42}
+              filter={`url(#fog-noise-2-${room.id})`}
             />
           </g>
+        </g>
+      )}
+
+      {/* Фаза сканирования — одиночный проход, без зацикливания */}
+      {revealStage === 'scan' && (
+        <g clipPath={`url(#hex-clip-${room.id})`} className="pointer-events-none">
+          <rect
+            x={x - 72}
+            y={y - 54}
+            width={22}
+            height={108}
+            fill={`url(#scan-grad-${room.id})`}
+            className="motion-safe:animate-scanline-sweep motion-reduce:opacity-0"
+            style={{ mixBlendMode: 'screen' } as React.CSSProperties}
+          />
+          {/* Дополнительный мягкий след сканирования */}
+          <rect
+            x={x - 72}
+            y={y - 54}
+            width={42}
+            height={108}
+            fill="#00f0ff"
+            opacity={0.06}
+            className="motion-safe:animate-scanline-sweep motion-reduce:opacity-0"
+            style={{ mixBlendMode: 'screen', animationDelay: '80ms', animationDuration: '820ms' } as React.CSSProperties}
+          />
         </g>
       )}
 
@@ -457,10 +635,50 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         </text>
       )}
 
+      {/* Иконки — анимированное появление после typewriter */}
       <g transform={`translate(${x - 18}, ${y + 19})`} className="pointer-events-none">
-        {room.hasFire && <Flame size={12} className="text-orange-500 fill-orange-500" x={0} y={0} />}
-        {room.hasMalfunction && <Wrench size={12} className="text-amber-400" x={12} y={0} />}
-        {room.hasComputer && room.isExplored && <Laptop size={12} className="text-cyan-400" x={24} y={0} />}
+        {room.hasFire && (
+          <g
+            className={
+              iconsVisible && (revealStage === 'icons' || revealStage === 'done')
+                ? 'motion-safe:animate-room-icon-pop'
+                : iconsVisible
+                  ? ''
+                  : 'opacity-0'
+            }
+            style={{ animationDelay: '0ms' } as React.CSSProperties}
+          >
+            <Flame size={12} className="text-orange-500 fill-orange-500" x={0} y={0} />
+          </g>
+        )}
+        {room.hasMalfunction && (
+          <g
+            className={
+              iconsVisible && (revealStage === 'icons' || revealStage === 'done')
+                ? 'motion-safe:animate-room-icon-pop'
+                : iconsVisible
+                  ? ''
+                  : 'opacity-0'
+            }
+            style={{ animationDelay: '90ms' } as React.CSSProperties}
+          >
+            <Wrench size={12} className="text-amber-400" x={12} y={0} />
+          </g>
+        )}
+        {room.hasComputer && room.isExplored && (
+          <g
+            className={
+              iconsVisible && (revealStage === 'icons' || revealStage === 'done')
+                ? 'motion-safe:animate-room-icon-pop'
+                : iconsVisible
+                  ? ''
+                  : 'opacity-0'
+            }
+            style={{ animationDelay: '180ms' } as React.CSSProperties}
+          >
+            <Laptop size={12} className="text-cyan-400" x={24} y={0} />
+          </g>
+        )}
       </g>
 
       {isHighlighted && (

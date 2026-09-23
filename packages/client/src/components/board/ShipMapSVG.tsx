@@ -307,7 +307,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(42, 59, 84, 0.12)" strokeWidth="1" />
                     </pattern>
-                    {/* Этап E12: hull texture — тонкие линии как vent-grid */}
+                    {/* hull texture */}
                     <pattern id="hull-plate" width="120" height="120" patternUnits="userSpaceOnUse">
                       <path d="M 120 0 L 0 0 0 120" fill="none" stroke="rgba(42,59,84,0.18)" strokeWidth="1" />
                       <path
@@ -318,32 +318,54 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       />
                       <circle cx="60" cy="60" r="1.2" fill="rgba(100,116,139,0.12)" />
                     </pattern>
-                    {/* Этап E12: 2 слоя звезд 0.04 parallax */}
-                    <pattern id="stars-1" width="200" height="200" patternUnits="userSpaceOnUse">
-                      <circle cx="20" cy="30" r="0.7" fill="white" opacity="0.6" />
-                      <circle cx="80" cy="90" r="0.9" fill="white" opacity="0.5" />
-                      <circle cx="150" cy="40" r="0.6" fill="white" opacity="0.7" />
-                      <circle cx="110" cy="160" r="0.8" fill="white" opacity="0.55" />
-                      <circle cx="40" cy="130" r="0.5" fill="white" opacity="0.6" />
-                      <circle cx="170" cy="110" r="0.7" fill="white" opacity="0.5" />
-                      <circle cx="60" cy="10" r="0.6" fill="white" opacity="0.65" />
-                      <circle cx="130" cy="80" r="0.5" fill="white" opacity="0.6" />
+                    {/* --- Звёзды: 3 слоя параллакса, красивые, с мерцанием --- */}
+                    <filter id="star-glow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="0.8" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <pattern id="stars-1" width="180" height="180" patternUnits="userSpaceOnUse">
+                      {/* Дальний слой — мелкие, плотные, холодные */}
+                      <circle cx="18" cy="28" r="0.45" fill="#c8d8ff" opacity="0.85" />
+                      <circle cx="72" cy="84" r="0.55" fill="white" opacity="0.75" />
+                      <circle cx="132" cy="36" r="0.4" fill="#a8c0ff" opacity="0.8" />
+                      <circle cx="102" cy="148" r="0.5" fill="white" opacity="0.7" />
+                      <circle cx="36" cy="118" r="0.38" fill="#c8d8ff" opacity="0.75" />
+                      <circle cx="158" cy="102" r="0.48" fill="white" opacity="0.68" />
+                      <circle cx="54" cy="12" r="0.42" fill="#d0ddff" opacity="0.82" />
+                      <circle cx="118" cy="74" r="0.35" fill="white" opacity="0.72" />
+                      <circle cx="88" cy="132" r="0.4" fill="#b8ccff" opacity="0.78" />
+                      <circle cx="164" cy="24" r="0.36" fill="white" opacity="0.65" />
+                      <circle cx="24" cy="162" r="0.44" fill="#c8d8ff" opacity="0.7" />
+                      <circle cx="142" cy="158" r="0.38" fill="white" opacity="0.6" />
                     </pattern>
-                    <pattern
-                      id="stars-2"
-                      width="400"
-                      height="400"
-                      patternUnits="userSpaceOnUse"
-                      patternTransform="translate(30,20)"
-                    >
-                      <circle cx="50" cy="60" r="1.1" fill="white" opacity="0.45" />
-                      <circle cx="220" cy="140" r="0.9" fill="white" opacity="0.5" />
-                      <circle cx="320" cy="80" r="1.3" fill="white" opacity="0.4" />
-                      <circle cx="180" cy="300" r="1" fill="white" opacity="0.45" />
-                      <circle cx="360" cy="260" r="0.8" fill="white" opacity="0.5" />
-                      <circle cx="90" cy="200" r="1" fill="white" opacity="0.4" />
+                    <pattern id="stars-2" width="340" height="340" patternUnits="userSpaceOnUse" patternTransform="translate(18,12)">
+                      {/* Средний слой — средние, тёплые оттенки */}
+                      <circle cx="42" cy="52" r="0.85" fill="white" opacity="0.82" />
+                      <circle cx="198" cy="126" r="0.72" fill="#ffe8c8" opacity="0.72" />
+                      <circle cx="284" cy="68" r="0.95" fill="white" opacity="0.68" />
+                      <circle cx="162" cy="268" r="0.78" fill="#c8d8ff" opacity="0.75" />
+                      <circle cx="318" cy="232" r="0.68" fill="white" opacity="0.7" />
+                      <circle cx="78" cy="182" r="0.82" fill="#d8e4ff" opacity="0.68" />
+                      <circle cx="228" cy="42" r="0.75" fill="white" opacity="0.6" />
+                      <circle cx="112" cy="298" r="0.7" fill="#ffe0b0" opacity="0.62" />
+                      <circle cx="268" cy="168" r="0.88" fill="white" opacity="0.66" />
                     </pattern>
-                    {/* Этап E12: vignette radialGradient */}
+                    <pattern id="stars-3" width="520" height="520" patternUnits="userSpaceOnUse" patternTransform="translate(40,30)">
+                      {/* Ближний слой — крупные, яркие, с лёгким свечением */}
+                      <circle cx="62" cy="78" r="1.25" fill="white" opacity="0.92" filter="url(#star-glow)" />
+                      <circle cx="312" cy="148" r="1.1" fill="#e0ecff" opacity="0.88" />
+                      <circle cx="428" cy="92" r="1.35" fill="white" opacity="0.78" filter="url(#star-glow)" />
+                      <circle cx="184" cy="384" r="1.05" fill="#fff4e0" opacity="0.82" />
+                      <circle cx="462" cy="332" r="0.95" fill="white" opacity="0.75" />
+                      <circle cx="94" cy="258" r="1.15" fill="#d0e4ff" opacity="0.8" filter="url(#star-glow)" />
+                      <circle cx="364" cy="412" r="1.2" fill="white" opacity="0.72" />
+                      <circle cx="208" cy="18" r="1.0" fill="#ffe8d0" opacity="0.7" />
+                    </pattern>
+                    <radialGradient id="space-gradient" cx="50%" cy="38%" r="85%">
+                      <stop offset="0%" stopColor="#0a1020" stopOpacity="1" />
+                      <stop offset="52%" stopColor="#070b14" stopOpacity="1" />
+                      <stop offset="100%" stopColor="#05070c" stopOpacity="1" />
+                    </radialGradient>
                     <radialGradient id="map-vignette" cx="50%" cy="50%" r="78%">
                       <stop offset="0%" stopColor="#000" stopOpacity="0" />
                       <stop offset="68%" stopColor="#000" stopOpacity="0" />
@@ -352,35 +374,49 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     </radialGradient>
                   </defs>
 
-                  <rect x={-60} y={0} width={1140} height={1160} fill="#05070c" />
-                  <rect x={-60} y={0} width={1140} height={1160} fill="url(#grid)" />
-                  {/* Hull texture overlay 0.12 */}
+                  {/* Космический фон с градиентом */}
+                  <rect x={-60} y={0} width={1140} height={1160} fill="url(#space-gradient)" />
+                  {/* Звёзды — 3 слоя параллакса с мерцанием */}
+                  <g className="pointer-events-none">
+                    <rect
+                      x={-60}
+                      y={0}
+                      width={1140}
+                      height={1160}
+                      fill="url(#stars-1)"
+                      opacity={0.38}
+                      className="motion-safe:animate-stars-twinkle-1 motion-safe:animate-stars-drift-1 motion-reduce:animate-none"
+                    />
+                    <rect
+                      x={-60}
+                      y={0}
+                      width={1140}
+                      height={1160}
+                      fill="url(#stars-2)"
+                      opacity={0.32}
+                      className="motion-safe:animate-stars-twinkle-2 motion-safe:animate-stars-drift-2 motion-reduce:animate-none"
+                      style={{ animationDelay: '0.8s' } as React.CSSProperties}
+                    />
+                    <rect
+                      x={-60}
+                      y={0}
+                      width={1140}
+                      height={1160}
+                      fill="url(#stars-3)"
+                      opacity={0.28}
+                      className="motion-safe:animate-stars-twinkle-3 motion-safe:animate-stars-drift-3 motion-reduce:animate-none"
+                      style={{ animationDelay: '1.6s' } as React.CSSProperties}
+                    />
+                  </g>
+                  <rect x={-60} y={0} width={1140} height={1160} fill="url(#grid)" opacity={0.9} />
+                  {/* Hull texture overlay */}
                   <rect
                     x={-60}
                     y={0}
                     width={1140}
                     height={1160}
                     fill="url(#hull-plate)"
-                    opacity={0.12}
-                    className="pointer-events-none"
-                  />
-                  {/* Stars parallax 0.04 */}
-                  <rect
-                    x={-60}
-                    y={0}
-                    width={1140}
-                    height={1160}
-                    fill="url(#stars-1)"
-                    opacity={0.04}
-                    className="pointer-events-none"
-                  />
-                  <rect
-                    x={-60}
-                    y={0}
-                    width={1140}
-                    height={1160}
-                    fill="url(#stars-2)"
-                    opacity={0.04}
+                    opacity={0.14}
                     className="pointer-events-none"
                   />
 

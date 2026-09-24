@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SanitizedGameState } from '@nemesis/shared';
+import type { CorridorConnection, SanitizedGameState } from '@nemesis/shared';
 import {
   diffBoardSnapshots,
   snapshotBatchBaseline,
@@ -214,6 +214,8 @@ export function usePresentationSequencer(
   hiddenNewIntruderIds: Set<string>;
   hasContactTease: boolean;
   noisePopCorridorIds: Set<string>;
+  /** Коридоры, чья дверь сменила состояние на этом снимке (переходная анимация). */
+  doorTransitionCorridorIds: Map<string, CorridorConnection['doorState']>;
   noiseRollCorridorIds: Set<string>;
   hasTechnicalNoisePop: boolean;
   dismissDieRoll: () => void;
@@ -406,6 +408,25 @@ export function usePresentationSequencer(
   // закрытия окна кубика): у активного NOISE_ROLL визуального слоя нет.
   const noiseRollCorridorIds = noisePopCorridorIds;
 
+  // Переходы дверей: сравниваем состояние двери с предыдущим снимком view.
+  const prevDoorStatesRef = React.useRef<Map<string, CorridorConnection['doorState']> | null>(null);
+  const doorTransitionCorridorIds = React.useMemo(() => {
+    const transitions = new Map<string, CorridorConnection['doorState']>();
+    if (view) {
+      const prev = prevDoorStatesRef.current;
+      if (prev) {
+        for (const corridor of Object.values(view.ship.corridors)) {
+          const before = prev.get(corridor.id);
+          if (before && before !== corridor.doorState) transitions.set(corridor.id, corridor.doorState);
+        }
+      }
+      prevDoorStatesRef.current = new Map(
+        Object.values(view.ship.corridors).map((corridor) => [corridor.id, corridor.doorState]),
+      );
+    }
+    return transitions;
+  }, [view]);
+
   const hasTechnicalNoisePop = React.useMemo(
     () => activeBoardAnimations.some((a) => a.kind === 'NOISE_POP' && a.isTechnical),
     [activeBoardAnimations],
@@ -422,6 +443,7 @@ export function usePresentationSequencer(
     hasContactTease,
     noisePopCorridorIds,
     noiseRollCorridorIds,
+    doorTransitionCorridorIds,
     hasTechnicalNoisePop,
     dismissDieRoll,
     dismissContact,

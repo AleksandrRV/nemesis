@@ -1,5 +1,4 @@
 import React from 'react';
-import { Volume2 } from 'lucide-react';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
 import { TECH_HUB, TECH_HUB_RADIUS, type VentEcho } from './techCorridorModel';
 
@@ -123,16 +122,13 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
             strokeDasharray="3,2"
             className="motion-safe:animate-pulse"
           />
-          <g transform={`translate(${x - radius + 6}, ${y - radius + 6})`}>
-            <circle
-              cx={0}
-              cy={0}
-              r={8.5}
-              fill={carefulState?.includes('free') ? '#ffb700' : '#ff3b5c'}
-              opacity={0.34}
-            />
-            <Volume2 size={11} className="text-white" x={-5.5} y={-5.5} opacity={0.9} />
-          </g>
+          <circle
+            cx={x - radius + 6}
+            cy={y - radius + 6}
+            r={8.5}
+            fill={carefulState?.includes('free') ? '#ffb700' : '#ff3b5c'}
+            opacity={0.34}
+          />
         </g>
       )}
 
@@ -163,13 +159,15 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
               style={{ animationDelay: `${idx * 120}ms` } as React.CSSProperties}
             />
           ))}
-          <g
-            transform={`translate(${x - radius + 6}, ${y - radius + 6})`}
+          <circle
+            cx={x - radius + 6}
+            cy={y - radius + 6}
+            r={11}
+            fill="#ff5500"
+            stroke="#ffaa00"
+            strokeWidth={1.6}
             className="motion-safe:animate-token-pop motion-reduce:animate-none"
-          >
-            <circle cx={0} cy={0} r={11} fill="#ff5500" stroke="#ffaa00" strokeWidth={1.6} />
-            <Volume2 size={11} className="text-white" x={-5.5} y={-5.5} />
-          </g>
+          />
         </g>
       )}
 
@@ -287,10 +285,15 @@ export const TechCorridorHub: React.FC<TechCorridorHubProps> = ({
               style={{ animationDelay: `${index * 180}ms` }}
             />
           ))}
-          <g transform={`translate(${x - radius + 6}, ${y - radius + 6})`}>
-            <circle cx={0} cy={0} r={9} fill="#ff003c" stroke="#05070c" strokeWidth={1.5} />
-            <Volume2 size={11} className="text-white" x={-5.5} y={-5.5} />
-          </g>
+          <circle
+            cx={x - radius + 6}
+            cy={y - radius + 6}
+            r={7}
+            fill="#ff003c"
+            stroke="#ff4d6d"
+            strokeWidth={1.5}
+            className="motion-safe:animate-noise-glow motion-reduce:animate-none"
+          />
           <text x={x} y={y - radius - 10} textAnchor="middle" className="text-[8px] font-mono fill-red-400 font-bold">
             ШУМ В ВЕНТИЛЯЦИИ
           </text>

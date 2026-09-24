@@ -17,6 +17,10 @@ export default {
         },
       },
       keyframes: {
+        'noise-glow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.45' },
+        },
         'board-scan': {
           '0%': { top: '0%', opacity: '0' },
           '8%': { opacity: '0.55' },
@@ -56,6 +60,7 @@ export default {
         },
       },
       animation: {
+        'noise-glow': 'noise-glow 2.4s ease-in-out infinite',
         'board-scan': 'board-scan 5.5s ease-in-out both',
         'board-breathe': 'board-breathe 6s ease-in-out infinite',
         'board-section-in': 'board-section-in 420ms ease-out both',

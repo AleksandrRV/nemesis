@@ -94,6 +94,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     hasContactTease,
     noisePopCorridorIds,
     noiseRollCorridorIds,
+    doorTransitionCorridorIds,
     hasTechnicalNoisePop,
     dismissDieRoll,
     dismissContact,
@@ -472,7 +473,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       const isNoiseRollTarget = noiseRollCorridorIds.has(corridor.id);
 
                       let carefulState: 'free' | 'busy' | 'hovered-free' | 'hovered-busy' | null = null;
-                      let isGhostNoise = false;
                       let ghostFree = true;
                       let onCorridorClick: (() => void) | undefined;
 
@@ -487,7 +487,6 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                             if (relevantNumbers.includes(carefulHoveredNumber)) {
                               const isFree = numberFreeMap.get(carefulHoveredNumber) ?? false;
                               carefulState = isFree ? 'hovered-free' : 'hovered-busy';
-                              isGhostNoise = true;
                               ghostFree = isFree;
                             }
                           } else if (!carefulHoveredTechnical) {
@@ -531,8 +530,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                           isNoisePop={isNoisePop}
                           isNoiseRollTarget={isNoiseRollTarget}
                           carefulState={carefulState}
-                          isGhostNoise={isGhostNoise}
                           ghostFree={ghostFree}
+                          doorTransition={doorTransitionCorridorIds.get(corridor.id) ?? null}
                           onClick={onCorridorClick}
                         />
                       );

@@ -1,8 +1,8 @@
 import React from 'react';
-import { X } from 'lucide-react';
-import type { SanitizedGameState } from '@nemesis/shared';
+import { Skull, X } from 'lucide-react';
+import type { BoardObjectKind, SanitizedGameState } from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { INTRUDER_COLORS } from '../board/intruderShapes';
+import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
 import { buildIntruderBoardModel } from './intruderBoardModel';
 
@@ -12,10 +12,10 @@ interface IntruderBoardModalProps {
 }
 
 /**
- * Планшет Чужих — цифровой аналог планшета рядом с полем (Шаг 3: каркас
- * окна и секции на данных модели; Шаги 4–6 доводят визуал секций).
- * Публичная информация только: составы Пула без порядка, кладка, Слабости,
- * лицевой сброс Атак, миниатюры на борту, хроника из журнала.
+ * Планшет Чужих — цифровой аналог планшета рядом с полем (Шаги 3–4 плана
+ * `doc/intruder-board-ui.md`). Публичная информация только: составы Пула
+ * без порядка, кладка, Слабости, лицевой сброс Атак, миниатюры на борту,
+ * хроника из журнала.
  *
  * z-[45]: решения движка (DecisionModal, z-50) всегда поверх планшета.
  * Открыт/закрыт — локальное состояние App: F5 не воспроизводит окно.
@@ -24,11 +24,6 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
   const containerRef = React.useRef<HTMLDivElement>(null);
   useFocusTrap(containerRef, { onEscape: onClose });
   const model = React.useMemo(() => buildIntruderBoardModel(view), [view]);
-
-  const bagTypes = (Object.keys(model.bagByType) as Array<keyof typeof model.bagByType>).filter(
-    (type) => model.bagByType[type] > 0,
-  );
-  const chanceByType = new Map(model.drawChances.map((chance) => [chance.type, chance]));
 
   return (
     <div
@@ -64,86 +59,8 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* A. Улей */}
-          <section aria-label="Улей" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Улей — Пул Чужих</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {bagTypes.map((type) => (
-                <span
-                  key={type}
-                  title={`${INTRUDER_NAMES_RU[type]} в мешке: ${model.bagByType[type]}${
-                    chanceByType.get(type) ? ` — шанс ${chanceByType.get(type)!.percent}%` : ''
-                  }`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold"
-                  style={{ borderColor: INTRUDER_COLORS[type], color: INTRUDER_COLORS[type] }}
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ background: INTRUDER_COLORS[type] }} />
-                  {INTRUDER_NAMES_RU[type]}: {model.bagByType[type]}
-                  {chanceByType.get(type) && (
-                    <span className="text-slate-400 font-mono">({chanceByType.get(type)!.percent}%)</span>
-                  )}
-                </span>
-              ))}
-              {bagTypes.length === 0 && <span className="text-xs text-slate-500 italic">Мешок пуст</span>}
-            </div>
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-400">
-              <dt>Запас рядом с полем:</dt>
-              <dd className="text-right text-slate-200 font-mono">
-                {model.supplyByType.LARVA + model.supplyByType.CREEPER + model.supplyByType.ADULT + model.supplyByType.BREEDER + model.supplyByType.QUEEN}
-              </dd>
-              <dt>Вышло из игры:</dt>
-              <dd className="text-right text-slate-200 font-mono">
-                {model.boxByType.LARVA + model.boxByType.CREEPER + model.boxByType.ADULT + model.boxByType.BREEDER + model.boxByType.QUEEN}
-              </dd>
-              <dt>Первый Контакт:</dt>
-              <dd className={`text-right font-bold ${model.firstEncounterOccurred ? 'text-red-300' : 'text-emerald-300'}`}>
-                {model.firstEncounterOccurred ? 'случился' : 'ещё не было'}
-              </dd>
-            </dl>
-          </section>
-
-          {/* B. Кладка + C. Слабости */}
-          <section aria-label="Кладка и Слабости" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-              Кладка: {model.eggsOnBoard}/8
-            </h3>
-            <div className="grid grid-cols-4 gap-1.5">
-              {Array.from({ length: 8 }, (_, index) => (
-                <div
-                  key={index}
-                  className={`aspect-square rounded-lg border flex items-center justify-center ${
-                    index < model.eggsOnBoard
-                      ? 'bg-amber-950/50 border-amber-500/70 text-amber-300'
-                      : 'bg-slate-900/60 border-slate-800'
-                  }`}
-                  aria-label={index < model.eggsOnBoard ? 'Яйцо' : 'Пустая ячейка кладки'}
-                >
-                  {index < model.eggsOnBoard && <span className="text-sm">🥚</span>}
-                </div>
-              ))}
-            </div>
-
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 pt-1">Слабости</h3>
-            <ul className="space-y-1.5">
-              {model.weaknesses.map((slot) => (
-                <li
-                  key={slot.objectKind}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/70 text-[11px] flex items-center justify-between gap-2"
-                >
-                  <span className="text-slate-400">
-                    {slot.objectKind === 'CORPSE' ? 'Труп Персонажа' : slot.objectKind === 'EGG' ? 'Яйцо Чужих' : 'Останки Чужого'}
-                  </span>
-                  {slot.visibility === 'REVEALED' ? (
-                    <span className="text-emerald-300 font-bold text-right">{slot.card?.name}</span>
-                  ) : slot.visibility === 'FACE_DOWN' ? (
-                    <span className="text-slate-500">рубашка</span>
-                  ) : (
-                    <span className="text-slate-600 italic">пусто</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <HiveSection model={model} />
+          <BroodSection model={model} />
 
           {/* D. Колода Атак */}
           <section aria-label="Колода Атак" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
@@ -191,7 +108,7 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-slate-200 font-bold">{room.roomLabel}</span>
                       {room.inCombat && (
-                        <span className="text-[10px] font-bold uppercase text-red-300 border border-red-700/70 rounded px-1.5 animate-pulse">
+                        <span className="text-[10px] font-bold uppercase text-red-300 border border-red-700/70 rounded px-1.5 animate-pulse motion-reduce:animate-none">
                           В Бою
                         </span>
                       )}
@@ -257,3 +174,253 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
     </div>
   );
 };
+
+/** Названия Объектов-слотов Слабостей (единый источник для секции и тестов). */
+export const WEAKNESS_OBJECT_LABELS: Record<BoardObjectKind, string> = {
+  CORPSE: 'Труп Персонажа',
+  EGG: 'Яйцо Чужих',
+  INTRUDER_REMAINS: 'Останки Чужого',
+};
+
+/** SVG-яйцо кладки: форма + янтарный градиент; размер задаётся контейнером. */
+function EggIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="nemesis-egg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="55%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2C8.6 2 5.4 8.2 5.4 13.2a6.6 6.6 0 0 0 13.2 0C18.6 8.2 15.4 2 12 2z"
+        fill="url(#nemesis-egg)"
+        stroke="#78350f"
+        strokeWidth="0.8"
+      />
+      <ellipse cx="9.6" cy="12" rx="1.3" ry="1.8" fill="#92400e" opacity="0.55" />
+      <ellipse cx="14.2" cy="15" rx="1" ry="1.4" fill="#92400e" opacity="0.45" />
+    </svg>
+  );
+}
+
+function TokenChips({
+  entries,
+  size = 'default',
+}: {
+  entries: Array<{ type: keyof typeof INTRUDER_COLORS; label?: string }>;
+  size?: 'default' | 'small';
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {entries.map(({ type, label }) => {
+        const color = INTRUDER_COLORS[type];
+        return (
+          <span
+            key={type}
+            className={`inline-flex items-center gap-1 rounded-full border font-bold ${size === 'small' ? 'px-1.5 py-0 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}
+            style={{ borderColor: `${color}99`, color, backgroundColor: `${color}14` }}
+          >
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+            {label ?? INTRUDER_NAMES_RU[type]}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A. Улей: мешок с шансами, полоса опустошения, запас, коробка, Первый Контакт. */
+function HiveSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+  const bagTypes = (Object.keys(model.bagByType) as Array<keyof typeof model.bagByType>).filter(
+    (type) => model.bagByType[type] > 0,
+  );
+  const chanceByType = new Map(model.drawChances.map((chance) => [chance.type, chance]));
+
+  const supplyTotal =
+    model.supplyByType.LARVA + model.supplyByType.CREEPER + model.supplyByType.ADULT + model.supplyByType.BREEDER + model.supplyByType.QUEEN;
+  const boxTotal = model.boxByType.LARVA + model.boxByType.CREEPER + model.boxByType.ADULT + model.boxByType.BREEDER + model.boxByType.QUEEN;
+  const poolTotal = model.bagTotal + supplyTotal + boxTotal;
+  const bagPercent = poolTotal > 0 ? Math.round((model.bagTotal / poolTotal) * 100) : 0;
+
+  const supplyTypes = (Object.keys(model.supplyByType) as Array<keyof typeof model.supplyByType>).filter(
+    (type) => model.supplyByType[type] > 0,
+  );
+  const boxTypes = (Object.keys(model.boxByType) as Array<keyof typeof model.boxByType>).filter(
+    (type) => model.boxByType[type] > 0,
+  );
+
+  return (
+    <section aria-label="Улей" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Улей — Пул Чужих</h3>
+        {model.bagTotal === 0 && (
+          <span className="text-[9px] font-bold uppercase text-amber-300 border border-amber-600/70 rounded px-1.5 py-0.5 bg-amber-950/50">
+            Мешок пуст
+          </span>
+        )}
+      </div>
+
+      {/* Мешок: фишки типов с шансом Развития Улья */}
+      {bagTypes.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {bagTypes.map((type) => {
+            const chance = chanceByType.get(type);
+            const color = INTRUDER_COLORS[type];
+            const label = `${INTRUDER_NAMES_RU[type]} в мешке: ${model.bagByType[type]}${
+              chance ? `, шанс в Развитии Улья ${chance.percent}%` : ''
+            }`;
+            return (
+              <span
+                key={type}
+                title={label}
+                aria-label={label}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-bold"
+                style={{ borderColor: `${color}99`, color, backgroundColor: `${color}14` }}
+              >
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+                {INTRUDER_NAMES_RU[type]}: {model.bagByType[type]}
+                {chance && <span className="text-slate-400 font-mono font-normal">({chance.percent}%)</span>}
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500 italic">Мешок пуст — Развитие Улья пропускается.</p>
+      )}
+
+      {/* Полоса опустошения мешка против всего живого Пула партии */}
+      <div>
+        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
+            style={{ width: `${bagPercent}%` }}
+          />
+        </div>
+        <p className="mt-1 text-[10px] text-slate-500">
+          В мешке <b className="text-slate-300 font-mono">{model.bagTotal}</b> из{' '}
+          <b className="text-slate-300 font-mono">{poolTotal}</b> жетонов Пула (запас {supplyTotal}, вышло из игры {boxTotal})
+        </p>
+      </div>
+
+      {/* Запас рядом с полем */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Запас рядом с полем</p>
+        {supplyTypes.length > 0 ? (
+          <TokenChips
+            size="small"
+            entries={supplyTypes.map((type) => ({ type, label: `${INTRUDER_NAMES_RU[type]}: ${model.supplyByType[type]}` }))}
+          />
+        ) : (
+          <p className="text-[11px] text-slate-600 italic">пусто</p>
+        )}
+      </div>
+
+      {/* Вышедшие из игры */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Вышло из игры</p>
+        {boxTypes.length > 0 ? (
+          <TokenChips
+            size="small"
+            entries={boxTypes.map((type) => ({ type, label: `${INTRUDER_NAMES_RU[type]}: ${model.boxByType[type]}` }))}
+          />
+        ) : (
+          <p className="text-[11px] text-slate-600 italic">ни одного</p>
+        )}
+      </div>
+
+      {/* Первый Контакт */}
+      <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+        Первый Контакт:
+        {model.firstEncounterOccurred ? (
+          <span className="font-bold text-red-300">случился</span>
+        ) : (
+          <span className="font-bold text-emerald-300">ещё не было</span>
+        )}
+      </p>
+    </section>
+  );
+}
+
+/** B. Кладка: 8 ячеек, занятые — живое пульсирующее яйцо. */
+function BroodSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+  return (
+    <section aria-label="Кладка и Слабости" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+      <h3 className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Кладка: {model.eggsOnBoard}/8</h3>
+      <div className="grid grid-cols-4 gap-1.5" role="img" aria-label={`Кладка: ${model.eggsOnBoard} из 8 яиц`}>
+        {Array.from({ length: 8 }, (_, index) => {
+          const filled = index < model.eggsOnBoard;
+          return (
+            <div
+              key={index}
+              className={`aspect-square rounded-lg border flex items-center justify-center ${
+                filled ? 'bg-amber-950/40 border-amber-500/70' : 'bg-slate-900/40 border-dashed border-slate-800'
+              }`}
+              aria-hidden="true"
+            >
+              {filled && (
+                <EggIcon className="w-6 h-6 animate-pulse motion-reduce:animate-none" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-slate-500 leading-snug">
+        Кладку пополняет Королева в Развитие Улья (стр. 10); яйца гибнут в Пожаре. Улей:{' '}
+        {model.hive.roomId === null ? 'не обнаружен' : model.hive.explored ? 'исследован' : 'тайл лицом вниз'}.
+      </p>
+
+      {/* C. Слабости */}
+      <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 pt-1">Слабости</h3>
+      <ul className="space-y-1.5">
+        {model.weaknesses.map((slot) => (
+          <li
+            key={slot.objectKind}
+            className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/70 text-[11px]"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-400 flex items-center gap-1.5 min-w-0">
+                {slot.objectKind === 'CORPSE' ? (
+                  <Skull size={12} className="shrink-0 text-slate-500" />
+                ) : slot.objectKind === 'EGG' ? (
+                  <EggIcon className="w-3 h-3 shrink-0" />
+                ) : (
+                  <svg viewBox="0 0 96 96" className="w-3 h-3 shrink-0" aria-hidden="true">
+                    <path d={INTRUDER_SHAPES.ADULT} fill="#94a3b8" />
+                  </svg>
+                )}
+                {WEAKNESS_OBJECT_LABELS[slot.objectKind]}
+              </span>
+              {slot.visibility === 'REVEALED' ? (
+                <span className="text-emerald-300 font-bold text-right truncate">{slot.card?.name}</span>
+              ) : slot.visibility === 'FACE_DOWN' ? (
+                <span className="text-slate-500 flex items-center gap-1.5 shrink-0">
+                  <span
+                    className="inline-block w-5 h-7 rounded-[3px] border border-emerald-800/80 align-middle"
+                    style={{
+                      background:
+                        'repeating-linear-gradient(45deg, rgba(16,185,129,0.16) 0 3px, rgba(5,7,12,0) 3px 6px), #05070c',
+                    }}
+                    aria-hidden="true"
+                  />
+                  не изучено
+                </span>
+              ) : (
+                <span className="text-slate-600 italic shrink-0">слот пуст</span>
+              )}
+            </div>
+            {slot.visibility === 'REVEALED' && slot.card && (
+              <p className="mt-1 text-[10px] leading-snug text-slate-500" title={slot.card.description}>
+                {slot.card.description}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10px] text-slate-500 leading-snug">
+        Изучение: Действие комнаты «Лаборатория» с соответствующим Объектом в руке раскрывает Слабость (стр. 21).
+      </p>
+    </section>
+  );
+}

@@ -40,6 +40,7 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('Улей — Пул Чужих');
     expect(html).toContain('Кладка: 5/8');
     expect(html).toContain('Слабости');
+    expect(html).toContain('Лаборатория');
     expect(html).toContain('Колода Атак');
     expect(html).toContain('Сброс пуст: Атак ещё не было');
     expect(html).toContain('На борту');
@@ -60,7 +61,51 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('Первый Контакт');
     expect(html).toContain('ещё не было');
     expect(html).toContain('Труп Персонажа');
-    expect(html).toContain('рубашка');
+    expect(html).toContain('не изучено');
+  });
+
+  it('секции Улей/Кладка/Слабости: полоса опустшения, коробка, пустые ячейки, раскрытая карта', () => {
+    const view = makeView();
+    view.intrudersPool.deadTokens.push({ id: 'd1', type: 'ADULT', escapeNumber: 2 });
+    view.intrudersPool.weaknessSlots[0] = {
+      objectKind: 'CORPSE',
+      visibility: 'REVEALED',
+      card: {
+        id: 'WK_T',
+        name: 'Уязвимые места',
+        description: 'Силуэты считаются за 1 Рану.',
+        effect: 'VULNERABLE_SPOTS',
+        isRevealed: true,
+      },
+    } as never;
+
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    // Полоса опустшения: мешок 11, запас 16, коробка 1 → всего 28
+    expect(html).toContain('В мешке');
+    expect(html).toContain('11</b> из');
+    expect(html).toContain('28</b> жетонов Пула');
+    expect(html).toContain('(запас 16, вышло из игры 1)');
+    // Коробка с разбивкой
+    expect(html).toContain('Взрослая особь: 1');
+    // Кладка: 5 занятых яиц + 3 пустых пунктирных ячейки
+    expect(html).toContain('Кладка: 5/8');
+    expect(html).toContain('border-dashed');
+    // Слабости: раскрытая карта с описанием, остальные рубашки
+    expect(html).toContain('Уязвимые места');
+    expect(html).toContain('Силуэты считаются за 1 Рану.');
+    expect(html).toContain('не изучено');
+    // Подсказка про Лабораторию
+    expect(html).toContain('«Лаборатория»');
+  });
+
+  it('пустой мешок: бейдж МЕШОК ПУСТ и честный текст пропуска Развития Улья', () => {
+    const view = makeView();
+    view.intrudersPool.bag = { BLANK: 0, LARVA: 0, CREEPER: 0, ADULT: 0, BREEDER: 0, QUEEN: 0 };
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    expect(html).toContain('Мешок пуст');
+    expect(html).toContain('Развитие Улья пропускается');
   });
 
   it('миниатюры на борту с Боем, ранами и подавлением', () => {

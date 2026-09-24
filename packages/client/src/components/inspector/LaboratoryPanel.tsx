@@ -44,30 +44,5 @@ export function LaboratoryActions({ studyKinds, paymentReady, onStudy }: Laborat
   );
 }
 
-interface WeaknessSlotsPanelProps {
-  slots: readonly SanitizedWeaknessSlotState[];
-}
-
-/** Планшет Чужих: слоты Слабостей (стр. 21) — рубашка анонимна, изученные открыты. */
-export function WeaknessSlotsPanel({ slots }: WeaknessSlotsPanelProps) {
-  return (
-    <div className="text-xs bg-slate-950/60 border border-slate-800 p-2 rounded space-y-1">
-      <div className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Слабости Чужих (Планшет)</div>
-      {slots.map((slot) => (
-        <div key={slot.objectKind} className="flex items-start justify-between gap-2">
-          <span className="shrink-0 text-slate-500">{OBJECT_KIND_LABELS[slot.objectKind]}:</span>
-          {slot.visibility === 'REVEALED' ? (
-            <span className="text-right text-emerald-300">
-              <b>{slot.card.name}</b>
-              <span className="block text-[10px] leading-snug text-slate-400">{slot.card.description}</span>
-            </span>
-          ) : slot.visibility === 'FACE_DOWN' ? (
-            <span className="text-slate-400">не изучено</span>
-          ) : (
-            <span className="text-slate-600">пусто</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+// Информационная панель Слабостей отсюда убрана: они показываются на Планшете
+// Чужих (intruders/IntruderBoardModal.tsx, секция «Слабости»).

@@ -3,7 +3,7 @@ import type { SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { intrudersInRoom } from '../board/intruderMapModel';
-import { LaboratoryActions, WeaknessSlotsPanel } from './LaboratoryPanel';
+import { LaboratoryActions } from './LaboratoryPanel';
 import { EscapeConfirmDialog } from './EscapeConfirmDialog';
 import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
@@ -377,7 +377,7 @@ export const RoomInspector: React.FC = () => {
           }
         />
 
-        {/* Лаборатория [2] (стр. 16) и слоты Слабостей (стр. 21) */}
+        {/* Лаборатория [2] (стр. 16): изучение объекта. Сами Слабости — на Планшете Чужих */}
         {isLaboratory && isPlayerHere && !isActiveInCombat && (
           <LaboratoryActions
             studyKinds={studyKinds}
@@ -390,8 +390,6 @@ export const RoomInspector: React.FC = () => {
             }
           />
         )}
-        <WeaknessSlotsPanel slots={view.intrudersPool.weaknessSlots} />
-
         {/* Отказ движка: игрок должен понимать, почему действие не прошло */}
         {rejection && (
           <div className="text-xs bg-amber-950/40 border border-amber-900/60 p-2 rounded flex items-start gap-2 text-amber-200">

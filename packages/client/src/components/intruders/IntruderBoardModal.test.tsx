@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createInitialGameState, filterStateForPlayer, type SanitizedGameState } from '@nemesis/shared';
+import { createInitialGameState, filterStateForPlayer, INTRUDER_ATTACK_CARDS, type SanitizedGameState } from '@nemesis/shared';
 import { IntruderBoardButton } from './IntruderBoardButton';
 import { IntruderBoardModal } from './IntruderBoardModal';
 
@@ -43,6 +43,7 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('Лаборатория');
     expect(html).toContain('Колода Атак');
     expect(html).toContain('Сброс пуст: Атак ещё не было');
+    expect(html).toContain('Анатомия угрозы: 20 из 20');
     expect(html).toContain('На борту');
     expect(html).toContain('На борту чисто');
     expect(html).toContain('Хроника улья');
@@ -106,6 +107,44 @@ describe('IntruderBoardModal', () => {
 
     expect(html).toContain('Мешок пуст');
     expect(html).toContain('Развитие Улья пропускается');
+  });
+
+  it('веер сброса: карты лицом вверх с стойкостью, классом и типами атакующих', () => {
+    const view = makeView();
+    const scratch = INTRUDER_ATTACK_CARDS.find((card) => card.effect === 'SCRATCH')!;
+    view.decks.intruderAttacks.discard.push(scratch);
+
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    expect(html).toContain('Сброс (лицом вверх)');
+    expect(html).toContain(scratch.name);
+    expect(html).toContain('Стойк.');
+    expect(html).toContain('Анатомия угрозы: 19 из 20');
+  });
+
+  it('перетасовка: бейдж в шапке секции при пустой колоде', () => {
+    const view = makeView();
+    view.decks.intruderAttacks.drawPileCount = 0;
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+    expect(html).toContain('Перетасовка');
+  });
+
+  it('анатомия в details: бары по типам атакующих и эффектам', () => {
+    const view = makeView();
+    const scratch = INTRUDER_ATTACK_CARDS.find((card) => card.effect === 'SCRATCH')!;
+    const call = INTRUDER_ATTACK_CARDS.find((card) => card.effect === 'CALL')!;
+    view.decks.intruderAttacks.discard.push(scratch, call);
+
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    // Анатомия видна в свёрнутом <details> (static markup рендерит содержимое)
+    expect(html).toContain('Анатомия угрозы: 18 из 20');
+    expect(html).toContain('По типам атакующих');
+    expect(html).toContain('По эффектам');
+    expect(html).toContain('Царапина');
+    expect(html).toContain('Зов');
+    // Состав после сброса: Царапина 3 из 4, Зов 0 из 1
+    expect(html).toContain('>3<');
   });
 
   it('миниатюры на борту с Боем, ранами и подавлением', () => {

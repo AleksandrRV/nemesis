@@ -4,6 +4,7 @@ import type { BoardObjectKind, SanitizedGameState } from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
+import { attackCardPopoverStyle } from './attackCardPresentation';
 import { buildIntruderBoardModel } from './intruderBoardModel';
 
 interface IntruderBoardModalProps {
@@ -62,37 +63,7 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
           <HiveSection model={model} />
           <BroodSection model={model} />
 
-          {/* D. Колода Атак */}
-          <section aria-label="Колода Атак" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">Колода Атак</h3>
-            <div className="flex items-center gap-4 text-[11px] text-slate-400">
-              <span>
-                Колода: <b className="text-slate-200 font-mono">{model.attackDeckCount}</b>
-              </span>
-              <span>
-                Сброс: <b className="text-slate-200 font-mono">{model.attackDiscardCount}</b>
-              </span>
-            </div>
-            {model.attackDiscardTop.length > 0 ? (
-              <ul className="space-y-1">
-                {model.attackDiscardTop.slice(0, 5).map((card) => (
-                  <li
-                    key={card.id}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/70 text-[11px] flex items-center gap-2"
-                  >
-                    <span className="font-mono font-bold text-red-300 border border-red-800/70 rounded px-1">{card.toughness}</span>
-                    <span className="text-slate-200 truncate">{card.name}</span>
-                    {card.hasRetreat && <span className="text-amber-400" title="Отступление">↩</span>}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-slate-500 italic">Сброс пуст: Атак ещё не было.</p>
-            )}
-            <p className="text-[10px] text-slate-500">
-              Могут выйти: <b className="text-slate-300 font-mono">{model.anatomy.remainingCount}</b> из {model.anatomy.totalCount}
-            </p>
-          </section>
+          <AttacksSection model={model} />
 
           {/* E. На борту */}
           <section aria-label="На борту" className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
@@ -422,5 +393,212 @@ function BroodSection({ model }: { model: ReturnType<typeof buildIntruderBoardMo
         Изучение: Действие комнаты «Лаборатория» с соответствующим Объектом в руке раскрывает Слабость (стр. 21).
       </p>
     </section>
+  );
+}
+
+/** Русские метки machine-эффектов карт Атаки (для баров анатомии). */
+export const ATTACK_EFFECT_LABELS: Record<string, string> = {
+  SCRATCH: 'Царапина',
+  BITE: 'Укус',
+  CLAW_ATTACK: 'Атака когтями',
+  TAIL_ATTACK: 'Атака хвостом',
+  TRANSFORMATION: 'Трансформация',
+  FRENZY: 'Ярость',
+  SLIME: 'Слизь',
+  CALL: 'Зов',
+};
+
+/** Цвета баров эффектов анатомии — те же, что на карточках классов. */
+const ATTACK_EFFECT_BAR_COLORS: Record<string, string> = {
+  SCRATCH: '#f87171',
+  BITE: '#fb923c',
+  CLAW_ATTACK: '#f472b6',
+  TAIL_ATTACK: '#c084fc',
+  TRANSFORMATION: '#facc15',
+  FRENZY: '#ef4444',
+  SLIME: '#38bdf8',
+  CALL: '#a855f7',
+};
+
+/** Метки типов атакующих с цветом (для баров анатомии). */
+const ANATOMY_ATTACKER_LABELS: Record<string, { label: string; color: string }> = {
+  CREEPER: { label: 'Крипер', color: INTRUDER_COLORS.CREEPER },
+  ADULT: { label: 'Взрослая', color: INTRUDER_COLORS.ADULT },
+  BREEDER: { label: 'Трутень', color: INTRUDER_COLORS.BREEDER },
+  QUEEN: { label: 'Королева', color: INTRUDER_COLORS.QUEEN },
+};
+
+/** D. Колода Атак: лицевой веер сброса + «анатомия угрозы». */
+function AttacksSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+  const [openCardId, setOpenCardId] = React.useState<string | null>(null);
+  const openCard = model.attackDiscardTop.find((card) => card.id === openCardId) ?? null;
+
+  return (
+    <section aria-label="Колода Атак" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">Колода Атак</h3>
+        {model.attackDeckCount === 0 && (
+          <span
+            className="text-[9px] font-bold uppercase text-amber-300 border border-amber-600/70 rounded px-1.5 py-0.5 bg-amber-950/50"
+            title="Следующая проверка Стойкости перетасует сброс в колоду"
+          >
+            Перетасовка
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-4 text-[11px] text-slate-400">
+        <span>
+          Колода: <b className="text-slate-200 font-mono">{model.attackDeckCount}</b>
+        </span>
+        <span>
+          Сброс: <b className="text-slate-200 font-mono">{model.attackDiscardCount}</b>
+        </span>
+      </div>
+
+      {/* Веер лицевого сброса: клик — поповер с полной карточкой */}
+      {model.attackDiscardTop.length > 0 ? (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Сброс (лицом вверх)</p>
+          <div className="relative h-24 pl-1" role="list" aria-label="Последние карты сброса">
+            {model.attackDiscardTop.map((card, index) => {
+              const style = attackCardPopoverStyle(card);
+              const stack = index * -54;
+              const tilt = (index % 2 === 0 ? 1 : -1) * (1.4 + (index % 3) * 0.5);
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  role="listitem"
+                  aria-label={`${card.name}, стойкость ${card.toughness}${card.hasRetreat ? ', есть Отступление' : ''}`}
+                  aria-expanded={openCardId === card.id}
+                  onClick={() => setOpenCardId((current) => (current === card.id ? null : card.id))}
+                  style={{ left: `${stack}px`, transform: `rotate(${tilt}deg)`, zIndex: 10 - index, borderColor: style.borderColor }}
+                  className={`absolute top-0 w-18 h-24 px-1.5 py-1 rounded-lg border text-left bg-slate-900 shadow-lg shadow-black/40 transition-transform duration-150 ${
+                    openCardId === card.id ? 'hover:-translate-y-1.5' : 'hover:-translate-y-2 hover:z-30'
+                  }`}
+                >
+                  <span className="block font-mono font-bold text-sm leading-none" style={{ color: style.color }}>
+                    {card.toughness}
+                    <span className="block text-[7px] uppercase tracking-wider opacity-70">Стойк.</span>
+                  </span>
+                  <span className="block mt-1 text-[8.5px] font-bold leading-tight text-slate-200">{card.name}</span>
+                  <span className="absolute bottom-1 left-1.5 flex gap-0.5" aria-hidden="true">
+                    {card.attackerTypes.map((attacker) => (
+                      <span key={attacker} className="h-1.5 w-1.5 rounded-full" style={{ background: INTRUDER_COLORS[attacker] }} />
+                    ))}
+                  </span>
+                  {card.hasRetreat && (
+                    <span className="absolute bottom-1 right-1 text-[10px] text-amber-400" title="Отступление">
+                      ↩
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Поповер полной карточки */}
+          {openCard && (
+            <div
+              className="mt-2 rounded-lg border bg-slate-900 p-2.5 space-y-1.5 relative"
+              style={{ borderColor: attackCardPopoverStyle(openCard).borderColor }}
+              role="status"
+              aria-label={`Карта Атаки: ${openCard.name}`}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenCardId(null)}
+                className="absolute top-1.5 right-1.5 text-slate-500 hover:text-slate-300 text-[10px] px-1"
+                aria-label="Закрыть карточку"
+              >
+                ✕
+              </button>
+              <div className="flex items-center gap-2 flex-wrap pr-5">
+                <span className="font-mono font-bold text-red-300 border border-red-800/70 rounded px-1.5">{openCard.toughness}</span>
+                <span className="text-xs font-bold text-slate-100">{openCard.name}</span>
+                <span className="text-[9px] font-bold uppercase rounded px-1.5 py-0.5" style={attackBadgeStyle(openCard)}>
+                  {attackCardPopoverStyle(openCard).classLabel}
+                </span>
+                {openCard.hasRetreat && <span className="text-[10px] text-amber-400">↩ Отступление</span>}
+              </div>
+              <p className="text-[10px] text-slate-300 leading-snug">{openCard.description}</p>
+              <p className="text-[10px] text-slate-500 flex items-center gap-1 flex-wrap">
+                Атакуют:
+                {openCard.attackerTypes.map((attacker) => (
+                  <span key={attacker} className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full" style={{ background: INTRUDER_COLORS[attacker] }} />
+                    {ANATOMY_ATTACKER_LABELS[attacker]!.label}
+                  </span>
+                ))}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500 italic">Сброс пуст: Атак ещё не было.</p>
+      )}
+
+      <details className="group rounded-lg border border-slate-800 bg-slate-900/70">
+        <summary className="flex items-center justify-between cursor-pointer list-none px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200">
+          <span title="Состав колоды известен (20 карт); минус видимый сброс — что ещё может выйти">
+            Анатомия угрозы: {model.anatomy.remainingCount} из {model.anatomy.totalCount}
+          </span>
+          <span className="group-open:rotate-180 transition-transform text-slate-500">▾</span>
+        </summary>
+        <div className="px-2.5 pb-2.5 pt-1 space-y-2">
+          <AnatomyBars
+            title="По типам атакующих"
+            entries={Object.entries(model.anatomy.byAttackerType).map(([type, count]) => ({
+              key: type,
+              count,
+              label: ANATOMY_ATTACKER_LABELS[type]!.label,
+              color: ANATOMY_ATTACKER_LABELS[type]!.color,
+            }))}
+          />
+          <AnatomyBars
+            title="По эффектам"
+            entries={Object.entries(model.anatomy.byEffect).map(([effect, count]) => ({
+              key: effect,
+              count,
+              label: ATTACK_EFFECT_LABELS[effect] ?? effect,
+              color: ATTACK_EFFECT_BAR_COLORS[effect] ?? '#94a3b8',
+            }))}
+          />
+        </div>
+      </details>
+    </section>
+  );
+}
+
+/** Стиль бейджа класса на поповер-карточке. */
+function attackBadgeStyle(card: Parameters<typeof attackCardPopoverStyle>[0]): React.CSSProperties {
+  const { color } = attackCardPopoverStyle(card);
+  return { color, border: `1px solid ${color}66`, backgroundColor: `${color}14` };
+}
+
+/** Один ряд баров анатомии: подпись, полоса, счёт. */
+function AnatomyBars({ title, entries }: { title: string; entries: Array<{ key: string; count: number; label: string; color: string }> }) {
+  const max = Math.max(1, ...entries.map((entry) => entry.count));
+  return (
+    <div>
+      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">{title}</p>
+      <ul className="space-y-0.5">
+        {entries.map(({ key, count, label, color }) => (
+          <li key={key} className="flex items-center gap-1.5 text-[10px]">
+            <span className="w-24 shrink-0 text-slate-400 truncate" title={label}>
+              {label}
+            </span>
+            <span className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden" aria-hidden="true">
+              <span
+                className="block h-full rounded-full transition-all duration-300"
+                style={{ width: `${(count / max) * 100}%`, background: color }}
+              />
+            </span>
+            <span className={`w-5 text-right font-mono ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}>{count}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

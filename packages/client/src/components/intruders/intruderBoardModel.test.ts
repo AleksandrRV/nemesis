@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialGameState, filterStateForPlayer, INTRUDER_ATTACK_CARDS, type SanitizedGameState } from '@nemesis/shared';
 import {
   ATTACK_DISCARD_FAN_SIZE,
+  boardChangeDelta,
   boardChangeKey,
   buildAttackAnatomy,
   buildIntruderBoardModel,
@@ -407,6 +408,48 @@ describe('Улей и дельта-ключ', () => {
     roomsWithinDistance(view, view.players['player-1']!.roomId, 2);
 
     expect(JSON.stringify(view)).toBe(before);
+  });
+});
+
+describe('boardChangeDelta: дельта между просмотрами', () => {
+  it('фиксирует Королеву, мешок, кладку и Первый Контакт', () => {
+    const view = makeView();
+    const before = buildIntruderBoardModel(view);
+
+    // После просмотра: из мешка вытянули Личинку, Королева встала в отсек, контакт случился
+    view.intrudersPool.bag = { ...view.intrudersPool.bag, LARVA: 3 };
+    view.intrudersPool.firstEncounterOccurred = true;
+    view.intrudersPool.eggsOnBoard = 6;
+    view.intrudersPool.boardTokens.push({ id: 'q1', type: 'QUEEN', roomId: 9, woundsCount: 0 });
+    const after = buildIntruderBoardModel(view);
+
+    const delta = boardChangeDelta(before, after);
+    expect(delta.bagChanged).toBe(true);
+    expect(delta.firstEncounterHappened).toBe(true);
+    expect(delta.eggsChanged).toBe(true);
+    expect(delta.queenArrived).toBe(true);
+    expect(delta.boardChanged).toBe(true);
+  });
+
+  it('без изменений — вся дельта ложна', () => {
+    const view = makeView();
+    const before = buildIntruderBoardModel(view);
+    const after = buildIntruderBoardModel(structuredClone(view));
+    const delta = boardChangeDelta(before, after);
+    expect(delta.bagChanged).toBe(false);
+    expect(delta.eggsChanged).toBe(false);
+    expect(delta.boardChanged).toBe(false);
+    expect(delta.queenArrived).toBe(false);
+    expect(delta.attackDeckChanged).toBe(false);
+    expect(delta.weaknessesRevealed).toBe(false);
+  });
+
+  it('Королева, уже бывшая на борту, не считается прибытием', () => {
+    const view = makeView();
+    view.intrudersPool.boardTokens.push({ id: 'q1', type: 'QUEEN', roomId: 9, woundsCount: 0 });
+    const before = buildIntruderBoardModel(view);
+    const after = buildIntruderBoardModel(structuredClone(view));
+    expect(boardChangeDelta(before, after).queenArrived).toBe(false);
   });
 });
 

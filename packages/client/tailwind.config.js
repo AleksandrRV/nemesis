@@ -17,6 +17,52 @@ export default {
         },
       },
       keyframes: {
+        'board-scan': {
+          '0%': { top: '0%', opacity: '0' },
+          '8%': { opacity: '0.55' },
+          '85%': { opacity: '0.5' },
+          '100%': { top: '100%', opacity: '0' },
+        },
+        'board-breathe': {
+          '0%, 100%': { opacity: '0.55' },
+          '50%': { opacity: '1' },
+        },
+        'board-section-in': {
+          '0%': { opacity: '0', transform: 'translateY(14px) scale(0.985)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'board-delta-added': {
+          '0%': { opacity: '0', transform: 'scale(0.94)' },
+          '30%': { opacity: '1', transform: 'scale(1.03)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'board-delta-removed': {
+          '0%': { opacity: '1' },
+          '25%': { opacity: '0.25' },
+          '70%': { opacity: '0.55' },
+          '100%': { opacity: '1' },
+        },
+        'board-heartbeat': {
+          '0%': { opacity: '0.15', transform: 'scaleX(0.12)' },
+          '12%': { opacity: '0.9', transform: 'scaleX(0.55)' },
+          '20%': { opacity: '0.3', transform: 'scaleX(0.65)' },
+          '30%': { opacity: '0.95', transform: 'scaleX(1)' },
+          '45%': { opacity: '0.25' },
+          '100%': { opacity: '0.15', transform: 'scaleX(1)' },
+        },
+        'board-egg-pulse': {
+          '0%, 100%': { transform: 'scale(1)', filter: 'brightness(1)' },
+          '50%': { transform: 'scale(1.07)', filter: 'brightness(1.35)' },
+        },
+      },
+      animation: {
+        'board-scan': 'board-scan 5.5s ease-in-out both',
+        'board-breathe': 'board-breathe 6s ease-in-out infinite',
+        'board-section-in': 'board-section-in 420ms ease-out both',
+        'board-delta-added': 'board-delta-added 900ms ease-out both',
+        'board-delta-removed': 'board-delta-removed 1200ms ease-out both',
+        'board-heartbeat': 'board-heartbeat 1.9s ease-in-out infinite',
+        'board-egg-pulse': 'board-egg-pulse 2.6s ease-in-out infinite',
         'contact-reveal': {
           '0%': { opacity: '0', transform: 'perspective(600px) translateY(48px) rotateY(180deg) scale(0.65)' },
           '60%': { opacity: '1', transform: 'perspective(600px) translateY(-6px) rotateY(15deg) scale(1.05)' },

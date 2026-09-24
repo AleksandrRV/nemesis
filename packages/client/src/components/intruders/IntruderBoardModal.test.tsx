@@ -167,6 +167,26 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('>3<');
   });
 
+  it('кинематографика: табы мобайл, скан-линия, кардиограмма Королевы', () => {
+    const view = makeView();
+    view.intrudersPool.boardTokens.push({ id: 'q1', type: 'QUEEN', roomId: 9, woundsCount: 0 });
+
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    // Мобайл-табы (role=tablist) с четырьмя разделами
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain('Атаки');
+    expect(html).toContain('На борту');
+    expect(html).toContain('Хроника');
+    expect(html).toContain('aria-selected');
+    // Скан-линия открытия (reduced-motion в тестовой среде выключен)
+    expect(html).toContain('animate-board-scan');
+    // Кардиограмма при Королеве на борту
+    expect(html).toContain('animate-board-heartbeat');
+    // Секции идут каскадом с задержкой
+    expect(html).toContain('board-section-in');
+  });
+
   it('миниатюры на борту с Боем, ранами и подавлением', () => {
     const view = makeView();
     const playerRoomId = view.players['player-1']!.roomId;

@@ -232,6 +232,49 @@ export function roomsWithinDistance(view: SanitizedGameState, fromRoomId: number
   return result;
 }
 
+/** Что изменилось в улье между двумя просмотрами (для дельта-подсветок). */
+export interface BoardChangeDelta {
+  bagChanged: boolean;
+  eggsChanged: boolean;
+  boardChanged: boolean;
+  /** На борту появилась Королева. */
+  queenArrived: boolean;
+  attackDeckChanged: boolean;
+  weaknessesRevealed: boolean;
+  firstEncounterHappened: boolean;
+}
+
+/** Дельта между снапшотами-«до» и «после» (ключи из boardChangeKeyData). */
+export function boardChangeDelta(before: IntruderBoardModel, after: IntruderBoardModel): BoardChangeDelta {
+  const queenArrived =
+    !before.boardByRoom.some((row) => row.tokens.some((token) => token.type === 'QUEEN')) &&
+    after.boardByRoom.some((row) => row.tokens.some((token) => token.type === 'QUEEN'));
+  return {
+    bagChanged: bagSignature(before) !== bagSignature(after),
+    eggsChanged: before.eggsOnBoard !== after.eggsOnBoard,
+    boardChanged:
+      boardSignature(before) !== boardSignature(after) || before.boardTotal !== after.boardTotal,
+    queenArrived,
+    attackDeckChanged: before.attackDeckCount !== after.attackDeckCount || before.attackDiscardCount !== after.attackDiscardCount,
+    weaknessesRevealed: weaknessesSignature(before) !== weaknessesSignature(after),
+    firstEncounterHappened: !before.firstEncounterOccurred && after.firstEncounterOccurred,
+  };
+}
+
+function bagSignature(model: IntruderBoardModel): string {
+  return BAG_TYPE_ORDER.map((type) => `${type}:${model.bagByType[type]}`).join(',');
+}
+
+function boardSignature(model: IntruderBoardModel): string {
+  return model.boardByRoom
+    .map((room) => `${room.roomId}:${room.tokens.map((token) => `${token.type[0]}${token.wounds}`).join('')}`)
+    .join('|');
+}
+
+function weaknessesSignature(model: IntruderBoardModel): string {
+  return model.weaknesses.map((slot) => slot.visibility[0]).join('');
+}
+
 /** Ключ-снапшот агрегатов: дельта-подсветки и янтарная точка на кнопке HUD. */
 export function boardChangeKey(model: IntruderBoardModel): string {
   const bag = BAG_TYPE_ORDER.map((type) => `${type}:${model.bagByType[type]}`).join(',');

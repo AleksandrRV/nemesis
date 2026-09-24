@@ -4,11 +4,15 @@ import type { BoardObjectKind, SanitizedGameState } from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
+import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { attackCardPopoverStyle } from './attackCardPresentation';
 import {
+  boardChangeDelta,
   buildIntruderBoardModel,
   filterBoardRooms,
+  type BoardChangeDelta,
   type BoardFilter,
+  type IntruderBoardModel,
 } from './intruderBoardModel';
 
 interface IntruderBoardModalProps {
@@ -27,10 +31,60 @@ interface IntruderBoardModalProps {
  * z-[45]: решения движка (DecisionModal, z-50) всегда поверх планшета.
  * Открыт/закрыт — локальное состояние App: F5 не воспроизводит окно.
  */
+/** Ключ снимка улья для дельта-подсветок между открытиями окна (сессия). */
+const SESSION_DELTA_KEY = 'nemesis:intruder-board-last-seen';
+
+/** Активные табы мобильной раскладки (<768px). */
+type MobileTab = 'HIVE' | 'ATTACKS' | 'BOARD' | 'CHRONICLE';
+
+const MOBILE_TABS: Array<{ id: MobileTab; label: string }> = [
+  { id: 'HIVE', label: 'Улей' },
+  { id: 'ATTACKS', label: 'Атаки' },
+  { id: 'BOARD', label: 'На борту' },
+  { id: 'CHRONICLE', label: 'Хроника' },
+];
+
 export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, onClose, onNavigate }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   useFocusTrap(containerRef, { onEscape: onClose });
   const model = React.useMemo(() => buildIntruderBoardModel(view), [view]);
+  const reducedMotion = usePrefersReducedMotion();
+
+  // Дельта с прошлого просмотра: подсветки секций при открытии окна.
+  const [delta, setDelta] = React.useState<BoardChangeDelta | null>(null);
+  React.useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = window.sessionStorage.getItem(SESSION_DELTA_KEY);
+    } catch {
+      stored = null;
+    }
+    if (stored) {
+      try {
+        setDelta(boardChangeDelta(JSON.parse(stored) as IntruderBoardModel, model));
+      } catch {
+        setDelta(null);
+      }
+    }
+    try {
+      window.sessionStorage.setItem(SESSION_DELTA_KEY, JSON.stringify(model));
+    } catch {
+      // Приватный режим без sessionStorage: дельты просто не показываются.
+    }
+  }, [model]);
+
+  const [mobileTab, setMobileTab] = React.useState<MobileTab>('HIVE');
+  const queenOnBoard = model.boardByRoom.some((row) => row.tokens.some((token) => token.type === 'QUEEN'));
+
+  // Каскад секций: i-я секция появляется с задержкой i*70мс (reduced-motion — без анимации).
+  const sectionClass = (index: number) =>
+    reducedMotion ? undefined : { animation: `board-section-in 420ms ease-out ${index * 70}ms both` };
+
+  const hiveSection = <HiveSection model={model} delta={delta} />;
+  const broodSection = <BroodSection model={model} delta={delta} reducedMotion={reducedMotion} />;
+  const attacksSection = <AttacksSection model={model} delta={delta} />;
+  const boardSection = <OnBoardSection model={model} view={view} onNavigate={onNavigate} delta={delta} />;
+  const chronicleSection = <ChronicleSection model={model} delta={delta} />;
 
   return (
     <div
@@ -43,9 +97,35 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
         role="dialog"
         aria-modal="true"
         aria-label="Планшет Чужих"
-        className="w-full max-w-5xl max-h-[88vh] overflow-y-auto bg-slate-900 border border-emerald-800/70 rounded-2xl p-5 shadow-[0_0_50px_rgba(16,185,129,0.15)] space-y-4 outline-none"
+        className={`relative w-full max-w-5xl max-h-[88vh] overflow-y-auto bg-slate-900 rounded-2xl p-5 space-y-4 outline-none border ${
+          queenOnBoard
+            ? 'border-rose-500/60 shadow-[0_0_50px_rgba(244,63,94,0.22)]'
+            : 'border-emerald-800/70 shadow-[0_0_50px_rgba(16,185,129,0.15)]'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Кардиограмма Королевы: красная пульс-строка по верхней кромке */}
+        {queenOnBoard && !reducedMotion && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 overflow-hidden rounded-t-2xl" aria-hidden="true">
+            <div className="h-full w-full origin-left bg-gradient-to-r from-transparent via-rose-500 to-transparent animate-board-heartbeat" />
+          </div>
+        )}
+        {/* Сканирующая линия: однократный проход сверху вниз при открытии */}
+        {!reducedMotion && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent animate-board-scan" />
+          </div>
+        )}
+        {/* «Дыхание» рамки: очень медленный пульс внутренней подсветки */}
+        {!reducedMotion && (
+          <div
+            className={`pointer-events-none absolute inset-0 rounded-2xl animate-board-breathe ${
+              queenOnBoard ? 'shadow-[inset_0_0_40px_rgba(244,63,94,0.06)]' : 'shadow-[inset_0_0_40px_rgba(16,185,129,0.06)]'
+            }`}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Шапка */}
         <header className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div>
@@ -65,15 +145,50 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
           </button>
         </header>
 
+        {/* Мобайл: табы вместо сетки */}
+        <div role="tablist" aria-label="Разделы планшета Чужих" className="grid grid-cols-4 gap-1 lg:hidden">
+          {MOBILE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === tab.id}
+              onClick={() => setMobileTab(tab.id)}
+              className={`px-1 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition ${
+                mobileTab === tab.id
+                  ? 'bg-emerald-950/80 border-emerald-600 text-emerald-200'
+                  : 'bg-slate-950 border-slate-800 text-slate-400'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <HiveSection model={model} />
-          <BroodSection model={model} />
-
-          <AttacksSection model={model} />
-
-          <OnBoardSection model={model} view={view} onNavigate={onNavigate} />
-
-          <ChronicleSection model={model} />
+          <div className={mobileTab === 'HIVE' ? 'contents lg:contents' : 'hidden lg:contents'}>
+            <div style={sectionClass(0)} className="lg:col-span-4 flex">
+              {hiveSection}
+            </div>
+            <div style={sectionClass(1)} className="lg:col-span-4 flex">
+              {broodSection}
+            </div>
+          </div>
+          <div className={mobileTab === 'ATTACKS' ? 'contents lg:contents' : 'hidden lg:contents'}>
+            <div style={sectionClass(2)} className="lg:col-span-4 flex">
+              {attacksSection}
+            </div>
+          </div>
+          <div className={mobileTab === 'BOARD' ? 'contents lg:contents' : 'hidden lg:contents'}>
+            <div style={sectionClass(3)} className="lg:col-span-8 flex">
+              {boardSection}
+            </div>
+          </div>
+          <div className={mobileTab === 'CHRONICLE' ? 'contents lg:contents' : 'hidden lg:contents'}>
+            <div style={sectionClass(4)} className="lg:col-span-4 flex">
+              {chronicleSection}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -137,7 +252,13 @@ function TokenChips({
 }
 
 /** A. Улей: мешок с шансами, полоса опустошения, запас, коробка, Первый Контакт. */
-function HiveSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+function HiveSection({
+  model,
+  delta,
+}: {
+  model: IntruderBoardModel;
+  delta: BoardChangeDelta | null;
+}) {
   const bagTypes = (Object.keys(model.bagByType) as Array<keyof typeof model.bagByType>).filter(
     (type) => model.bagByType[type] > 0,
   );
@@ -169,7 +290,7 @@ function HiveSection({ model }: { model: ReturnType<typeof buildIntruderBoardMod
 
       {/* Мешок: фишки типов с шансом Развития Улья */}
       {bagTypes.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" data-delta-flash={delta?.bagChanged ? 'bag' : undefined}>
           {bagTypes.map((type) => {
             const chance = chanceByType.get(type);
             const color = INTRUDER_COLORS[type];
@@ -236,7 +357,10 @@ function HiveSection({ model }: { model: ReturnType<typeof buildIntruderBoardMod
       </div>
 
       {/* Первый Контакт */}
-      <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+      <p
+        className={`text-[11px] flex items-center gap-1.5 ${delta?.firstEncounterHappened ? 'animate-board-delta-added motion-reduce:animate-none rounded-lg ring-1 ring-emerald-400/60 px-1 -mx-1' : ''}`}
+        data-delta-flash={delta?.firstEncounterHappened ? 'first-encounter' : undefined}
+      >
         Первый Контакт:
         {model.firstEncounterOccurred ? (
           <span className="font-bold text-red-300">случился</span>
@@ -248,11 +372,26 @@ function HiveSection({ model }: { model: ReturnType<typeof buildIntruderBoardMod
   );
 }
 
-/** B. Кладка: 8 ячеек, занятые — живое пульсирующее яйцо. */
-function BroodSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+/** B. Кладка: 8 ячеек, занятые — живые яйца с фазовым пульсом. */
+function BroodSection({
+  model,
+  delta,
+  reducedMotion,
+}: {
+  model: IntruderBoardModel;
+  delta: BoardChangeDelta | null;
+  reducedMotion: boolean;
+}) {
   return (
     <section aria-label="Кладка и Слабости" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Кладка: {model.eggsOnBoard}/8</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+        Кладка: {model.eggsOnBoard}/8
+        {delta?.eggsChanged && (
+          <span className="ml-2 normal-case text-[9px] font-normal text-amber-300 animate-board-delta-added motion-reduce:animate-none" data-delta-flash="eggs">
+            изменилась
+          </span>
+        )}
+      </h3>
       <div className="grid grid-cols-4 gap-1.5" role="img" aria-label={`Кладка: ${model.eggsOnBoard} из 8 яиц`}>
         {Array.from({ length: 8 }, (_, index) => {
           const filled = index < model.eggsOnBoard;
@@ -265,7 +404,12 @@ function BroodSection({ model }: { model: ReturnType<typeof buildIntruderBoardMo
               aria-hidden="true"
             >
               {filled && (
-                <EggIcon className="w-6 h-6 animate-pulse motion-reduce:animate-none" />
+                <span
+                  style={reducedMotion ? undefined : { animation: `board-egg-pulse 2.6s ease-in-out ${index * 0.42}s infinite` }}
+                  className="block"
+                >
+                  <EggIcon className="w-6 h-6" />
+                </span>
               )}
             </div>
           );
@@ -363,7 +507,7 @@ const ANATOMY_ATTACKER_LABELS: Record<string, { label: string; color: string }> 
 };
 
 /** D. Колода Атак: лицевой веер сброса + «анатомия угрозы». */
-function AttacksSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: BoardChangeDelta | null }) {
   const [openCardId, setOpenCardId] = React.useState<string | null>(null);
   const openCard = model.attackDiscardTop.find((card) => card.id === openCardId) ?? null;
 
@@ -381,7 +525,10 @@ function AttacksSection({ model }: { model: ReturnType<typeof buildIntruderBoard
         )}
       </div>
 
-      <div className="flex items-center gap-4 text-[11px] text-slate-400">
+      <div
+        className={`flex items-center gap-4 text-[11px] text-slate-400 rounded-lg px-1 -mx-1 ${delta?.attackDeckChanged ? 'animate-board-delta-added motion-reduce:animate-none ring-1 ring-amber-400/60' : ''}`}
+        data-delta-flash={delta?.attackDeckChanged ? 'attacks' : undefined}
+      >
         <span>
           Колода: <b className="text-slate-200 font-mono">{model.attackDeckCount}</b>
         </span>
@@ -552,10 +699,12 @@ function OnBoardSection({
   model,
   view,
   onNavigate,
+  delta,
 }: {
-  model: ReturnType<typeof buildIntruderBoardModel>;
+  model: IntruderBoardModel;
   view: SanitizedGameState;
   onNavigate?: (roomId: number) => void;
+  delta: BoardChangeDelta | null;
 }) {
   const [filter, setFilter] = React.useState<BoardFilter>('ALL');
   const rooms = filterBoardRooms(model, view, filter);
@@ -564,8 +713,16 @@ function OnBoardSection({
   return (
     <section aria-label="На борту" className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">
+        <h3
+          className={`text-[10px] font-bold uppercase tracking-wider text-red-400 ${delta?.boardChanged ? 'animate-board-delta-added motion-reduce:animate-none rounded-lg ring-1 ring-rose-400/60 px-1' : ''}`}
+          data-delta-flash={delta?.boardChanged ? 'board' : undefined}
+        >
           На борту: {model.boardTotal}
+          {delta?.queenArrived && (
+            <span className="ml-2 normal-case text-[9px] font-normal text-rose-300" data-delta-flash="queen">
+              Королева на борту!
+            </span>
+          )}
         </h3>
         <div role="group" aria-label="Фильтр отсеков" className="flex gap-1">
           {BOARD_FILTERS.map((entry) => {
@@ -679,7 +836,7 @@ const CHRONICLE_TONE_CLASSES: Record<string, string> = {
  * F. Хроника улья: последние intruder-события в тонах Журнала + счётчики.
  * Полная история — в панели Журнала (кнопка вместо дублирования).
  */
-function ChronicleSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+function ChronicleSection({ model, delta }: { model: IntruderBoardModel; delta: BoardChangeDelta | null }) {
   return (
     <section aria-label="Хроника улья" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
       <h3 className="text-[10px] font-bold uppercase tracking-wider text-violet-400">Хроника улья</h3>
@@ -712,7 +869,9 @@ function ChronicleSection({ model }: { model: ReturnType<typeof buildIntruderBoa
             ))}
         </ul>
       )}
-      <p className="text-[10px] text-slate-500">
+      <p
+        className={`text-[10px] text-slate-500 ${delta && (delta.bagChanged || delta.boardChanged) ? 'animate-board-delta-added motion-reduce:animate-none rounded-lg' : ''}`}
+      >
         Контактов: <b className="text-slate-300 font-mono">{model.counters.contacts}</b> • Убито:{' '}
         <b className="text-slate-300 font-mono">
           {model.counters.killed.LARVA + model.counters.killed.CREEPER + model.counters.killed.ADULT + model.counters.killed.BREEDER + model.counters.killed.QUEEN}

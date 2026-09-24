@@ -234,7 +234,11 @@ describe('DecisionModal — доступность Esc и фокус-трап (�
     expect(source).toContain('onKeyDown');
     expect(source).toContain('Escape');
     expect(source).toContain('useFocusTrap');
-    expect(source).toContain('Tab');
+    // Tab/Escape-логика переехала в общий хук useFocusTrap — проверяем её там.
+    const hookPath = path.resolve(process.cwd(), 'packages/client/src/hooks/useFocusTrap.ts');
+    const hookSource = fs.readFileSync(hookPath, 'utf8');
+    expect(hookSource).toContain("'Tab'");
+    expect(hookSource).toContain("'Escape'");
   });
 });
 

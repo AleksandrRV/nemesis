@@ -15,6 +15,8 @@ import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
 import { ShootModal } from './components/combat/ShootModal';
+import { IntruderBoardButton } from './components/intruders/IntruderBoardButton';
+import { IntruderBoardModal } from './components/intruders/IntruderBoardModal';
 import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
@@ -25,6 +27,8 @@ export const App: React.FC = () => {
   const startNewGame = useGameStore((state) => state.startNewGame);
   const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
+  // Планшет Чужих: открытие — только кликом по кнопке HUD, F5 окно закрывает.
+  const [intruderBoardOpen, setIntruderBoardOpen] = React.useState(false);
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
   });
@@ -121,6 +125,13 @@ export const App: React.FC = () => {
             </span>
           </div>
 
+          {/* Планшет Чужих: живой бейдж «на борту» + точка «улей шевелился» */}
+          <IntruderBoardButton
+            view={view}
+            open={intruderBoardOpen}
+            onOpen={() => setIntruderBoardOpen(true)}
+          />
+
           {/* Сид партии: виден игрокам, копируется по нажатию — по нему воспроизводится тот же стол */}
           <SeedChip seed={view.meta.seed} />
 
@@ -171,6 +182,7 @@ export const App: React.FC = () => {
             onClose={() => setShowCharacterSelect(false)}
           />
         )}
+        {intruderBoardOpen && <IntruderBoardModal view={view} onClose={() => setIntruderBoardOpen(false)} />}
         {isPresentationIdle && view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
         {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && (
           <div

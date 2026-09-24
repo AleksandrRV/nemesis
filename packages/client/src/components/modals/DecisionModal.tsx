@@ -3,52 +3,10 @@ import type { PendingDecision } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { Package, ArrowRight, Dices, Shield } from 'lucide-react';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface DecisionModalProps {
   decision: PendingDecision;
-}
-
-function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>) {
-  React.useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const focusable = container.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    first?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        if (focusable.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            (last as HTMLElement)?.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            (first as HTMLElement)?.focus();
-          }
-        }
-      }
-      if (e.key === 'Escape') {
-        // Обязательные решения нельзя закрыть Esc — предотвращаем всплытие и сохраняем фокус внутри модалки
-        // (Шаг 7, долг 24: доступность модалок — Esc + фокус-трап)
-        e.preventDefault();
-        e.stopPropagation();
-        first?.focus();
-      }
-    };
-
-    container.addEventListener('keydown', handleKeyDown as never);
-    return () => container.removeEventListener('keydown', handleKeyDown as never);
-  }, [containerRef]);
 }
 
 export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {

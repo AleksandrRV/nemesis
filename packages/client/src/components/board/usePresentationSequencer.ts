@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CorridorConnection, SanitizedGameState } from '@nemesis/shared';
+import type { SanitizedGameState } from '@nemesis/shared';
 import {
   diffBoardSnapshots,
   snapshotBatchBaseline,
@@ -11,7 +11,12 @@ import {
   ROOM_REVEAL_TTL_MS,
   ROOM_SETTLE_TTL_MS,
 } from './boardAnimationModel';
-import { initialContactSequence, nextContactPresentation, type ContactPresentationEntry } from '../contact/contactPresentationModel';
+import { DOOR_TRANSITION_DURATION_MS, heldDoorStates } from './doorTransitionModel';
+import {
+  initialContactSequence,
+  nextContactPresentation,
+  type ContactPresentationEntry,
+} from '../contact/contactPresentationModel';
 import { usePresentationStore, type SequencedDieRoll, type SequencedItem } from '../../store/presentationStore';
 
 function extractSequenceFromKey(key: string): number {
@@ -181,8 +186,9 @@ function ttlForItem(item: SequencedItem, reducedMotion: boolean): number | null 
     case 'PLAYER_MOVE':
     case 'INTRUDER_MOVE':
     case 'INTRUDER_TO_TECH':
-    case 'DOOR_BREACHED':
       return 900;
+    case 'DOOR_BREACHED':
+      return DOOR_TRANSITION_DURATION_MS.BREACH;
     case 'ROOM_REVEAL':
       return ROOM_REVEAL_TTL_MS;
     case 'REVEAL_SETTLE':
@@ -214,8 +220,6 @@ export function usePresentationSequencer(
   hiddenNewIntruderIds: Set<string>;
   hasContactTease: boolean;
   noisePopCorridorIds: Set<string>;
-  /** Коридоры, чья дверь сменила состояние на этом снимке (переходная анимация). */
-  doorTransitionCorridorIds: Map<string, CorridorConnection['doorState']>;
   noiseRollCorridorIds: Set<string>;
   hasTechnicalNoisePop: boolean;
   dismissDieRoll: () => void;
@@ -338,9 +342,15 @@ export function usePresentationSequencer(
       }
     }
 
-    if (pendingReveal.size === 0 && queuedNoise.size === 0 && !queuedTechNoise) return view;
+    const heldDoors = heldDoorStates(queue, batchBaseline, view.ship.corridors);
+
+    if (pendingReveal.size === 0 && queuedNoise.size === 0 && !queuedTechNoise && heldDoors.size === 0) return view;
 
     const cloned = cloneView(view);
+    for (const [corridorId, doorState] of heldDoors) {
+      const corridor = cloned.ship.corridors[corridorId];
+      if (corridor) corridor.doorState = doorState;
+    }
     for (const roomId of pendingReveal) {
       const room = cloned.ship.rooms[roomId];
       if (room) room.isExplored = false;
@@ -408,25 +418,6 @@ export function usePresentationSequencer(
   // закрытия окна кубика): у активного NOISE_ROLL визуального слоя нет.
   const noiseRollCorridorIds = noisePopCorridorIds;
 
-  // Переходы дверей: сравниваем состояние двери с предыдущим снимком view.
-  const prevDoorStatesRef = React.useRef<Map<string, CorridorConnection['doorState']> | null>(null);
-  const doorTransitionCorridorIds = React.useMemo(() => {
-    const transitions = new Map<string, CorridorConnection['doorState']>();
-    if (view) {
-      const prev = prevDoorStatesRef.current;
-      if (prev) {
-        for (const corridor of Object.values(view.ship.corridors)) {
-          const before = prev.get(corridor.id);
-          if (before && before !== corridor.doorState) transitions.set(corridor.id, corridor.doorState);
-        }
-      }
-      prevDoorStatesRef.current = new Map(
-        Object.values(view.ship.corridors).map((corridor) => [corridor.id, corridor.doorState]),
-      );
-    }
-    return transitions;
-  }, [view]);
-
   const hasTechnicalNoisePop = React.useMemo(
     () => activeBoardAnimations.some((a) => a.kind === 'NOISE_POP' && a.isTechnical),
     [activeBoardAnimations],
@@ -443,7 +434,6 @@ export function usePresentationSequencer(
     hasContactTease,
     noisePopCorridorIds,
     noiseRollCorridorIds,
-    doorTransitionCorridorIds,
     hasTechnicalNoisePop,
     dismissDieRoll,
     dismissContact,

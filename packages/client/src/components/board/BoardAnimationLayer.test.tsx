@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createInitialGameState, filterStateForPlayer, SHIP_ROOM_NODES } from '@nemesis/shared';
 import type { BoardAnimation } from './boardAnimationModel';
 import { BoardAnimationLayer } from './BoardAnimationLayer';
+import { ROOM_STRIP_OFFSET_Y } from './crewTokenModel';
 
 function mapView() {
   return filterStateForPlayer(createInitialGameState('anim-layer'), 'player-1');
@@ -25,17 +26,17 @@ describe('BoardAnimationLayer: плавные перемещения повер�
     expect(render([])).not.toContain('board-animation-layer');
   });
 
-  it('Персонаж скользит от исходного отсека к целевому с плавным замедлением', () => {
+  it('Персонаж скользит своей фишкой роли от ряда экипажа исходного отсека к целевому', () => {
     const from = roomPoint(11);
     const to = roomPoint(12);
     const html = render([{ kind: 'PLAYER_MOVE', key: 'p1', playerId: 'player-1', fromRoomId: 11, toRoomId: 12 }]);
 
     expect(html).toContain('board-animation-layer');
-    expect(html).toContain('aria-label="Персонаж перемещается"');
-    // Старт — в центре исходного отсека, кубическая кривая ускорения/замедления.
-    expect(html).toContain(`translate(${from.x}px, ${from.y}px)`);
+    expect(html).toContain('aria-label="Персонаж перемещается: Игрок 1');
+    expect(html).toContain('data-crew-number="1"');
+    expect(html).toContain(`translate(${from.x}px, ${from.y + ROOM_STRIP_OFFSET_Y}px)`);
     expect(html).toContain('cubic-bezier(0.45, 0.05, 0.25, 1)');
-    expect(html).not.toContain(`translate(${to.x}px, ${to.y}px)`);
+    expect(html).not.toContain(`translate(${to.x}px, ${to.y + ROOM_STRIP_OFFSET_Y}px)`);
   });
 
   it('Чужой скользит по траектории Коридора силуэтом своего типа', () => {
@@ -78,7 +79,7 @@ describe('BoardAnimationLayer: плавные перемещения повер�
     const to = roomPoint(12);
     const html = render([{ kind: 'PLAYER_MOVE', key: 'p1', playerId: 'player-1', fromRoomId: 11, toRoomId: 12 }], true);
 
-    expect(html).toContain(`translate(${to.x}px, ${to.y}px)`);
+    expect(html).toContain(`translate(${to.x}px, ${to.y + ROOM_STRIP_OFFSET_Y}px)`);
     expect(html).toContain('transition:none');
     expect(html).toContain('motion-reduce:animate-token-fade');
   });

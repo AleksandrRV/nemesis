@@ -1,8 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect -- кинематографичность вскрытия: typewriter и туман управляются эффектами перехода */
 import React from 'react';
 import { SHIP_ROOM_NODES, type IntruderEntity, type SanitizedRoomState } from '@nemesis/shared';
-import { Bone, Egg, Flame, Laptop, Skull, User, Wrench } from 'lucide-react';
+import { Flame, Laptop, Wrench } from 'lucide-react';
 import { IntruderBadge } from './IntruderBadge';
+import { RoomOccupantStrip } from './RoomOccupantStrip';
+import type { CrewTokenData } from './crewTokenModel';
 import { INTRUDER_BADGE_SCALE, groupIntrudersByRoom, layoutIntruderGrid } from './intruderMapModel';
 
 interface RoomHexProps {
@@ -13,7 +15,7 @@ interface RoomHexProps {
   isSelected: boolean;
   onSelect: (roomId: number) => void;
   technicalNoise?: boolean;
-  hiddenPlayerIds?: ReadonlySet<string>;
+  crew?: readonly CrewTokenData[];
   isHighlighted?: boolean;
   isMoveTarget?: boolean;
 }
@@ -54,15 +56,11 @@ export const RoomHex: React.FC<RoomHexProps> = ({
   isSelected,
   onSelect,
   technicalNoise,
-  hiddenPlayerIds,
+  crew = [],
   isHighlighted = false,
   isMoveTarget = false,
 }) => {
   const radius = 45;
-  const visibleOccupantCount = hiddenPlayerIds
-    ? room.occupantPlayerIds.filter((playerId) => !hiddenPlayerIds.has(playerId)).length
-    : room.occupantPlayerIds.length;
-
   const points = React.useMemo(() => {
     const pts: string[] = [];
     for (let i = 0; i < 6; i++) {
@@ -392,9 +390,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
             transformOrigin: `${x}px ${y}px`,
           } as React.CSSProperties
         }
-        className={
-          revealStage === 'fog' ? 'motion-safe:animate-room-flip motion-reduce:animate-none' : undefined
-        }
+        className={revealStage === 'fog' ? 'motion-safe:animate-room-flip motion-reduce:animate-none' : undefined}
       >
         <polygon
           points={points}
@@ -465,14 +461,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
                 filter={`url(#fog-noise-2-${room.id})`}
               />
             </g>
-            <rect
-              x={x - 60}
-              y={y - 60}
-              width={120}
-              height={120}
-              fill={`url(#fog-vignette-${room.id})`}
-              opacity={0.9}
-            />
+            <rect x={x - 60} y={y - 60} width={120} height={120} fill={`url(#fog-vignette-${room.id})`} opacity={0.9} />
             <rect
               x={x - 60}
               y={y - 60}
@@ -548,10 +537,14 @@ export const RoomHex: React.FC<RoomHexProps> = ({
             fill="#00f0ff"
             opacity={0.06}
             className="motion-safe:animate-scanline-sweep motion-reduce:opacity-0"
-            style={{ mixBlendMode: 'screen', animationDelay: '80ms', animationDuration: '820ms' } as React.CSSProperties}
+            style={
+              { mixBlendMode: 'screen', animationDelay: '80ms', animationDuration: '820ms' } as React.CSSProperties
+            }
           />
         </g>
       )}
+
+      <RoomOccupantStrip x={x} y={y} crew={crew} objects={room.objects} />
 
       {hasTechEntrance && (
         <g transform={`translate(${x}, ${y - radius + 3})`} className="pointer-events-none">
@@ -594,7 +587,7 @@ export const RoomHex: React.FC<RoomHexProps> = ({
 
       <text
         x={x}
-        y={room.isExplored ? y - 18 : y - 6}
+        y={room.isExplored ? y - 13 : y - 6}
         textAnchor="middle"
         className="text-[10px] font-mono fill-slate-400 font-bold pointer-events-none"
       >
@@ -693,13 +686,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
         />
       )}
 
-      {visibleOccupantCount > 0 && (
-        <g transform={`translate(${x - 10}, ${y - 34})`} className="pointer-events-none">
-          <circle cx={10} cy={10} r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
-          <User size={12} className="text-slate-950" x={4} y={4} />
-        </g>
-      )}
-
       {gridRows.map((row, rowIndex) => {
         const rowY = gridRows.length === 1 ? y + 22 : y + 13 + rowIndex * 17;
         return (
@@ -716,25 +702,6 @@ export const RoomHex: React.FC<RoomHexProps> = ({
                 scale={INTRUDER_BADGE_SCALE[item.badge.type]}
               />
             ))}
-          </g>
-        );
-      })}
-
-      {room.objects.map((object, index) => {
-        const offset = 10 + index * 20;
-        return (
-          <g key={object.id} transform={`translate(${x + offset}, ${y - 34})`} className="pointer-events-none">
-            <circle
-              cx={8}
-              cy={8}
-              r={8}
-              fill={object.kind === 'CORPSE' ? '#ff003c' : object.kind === 'EGG' ? '#00ff66' : '#334155'}
-              stroke="#05070c"
-              strokeWidth={1.5}
-            />
-            {object.kind === 'CORPSE' && <Skull size={10} className="text-white" x={3} y={3} />}
-            {object.kind === 'EGG' && <Egg size={10} className="text-slate-950" x={3} y={3} />}
-            {object.kind === 'INTRUDER_REMAINS' && <Bone size={10} className="text-white" x={3} y={3} />}
           </g>
         );
       })}

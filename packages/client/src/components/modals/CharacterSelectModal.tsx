@@ -1,7 +1,8 @@
 import React from 'react';
 import type { CharacterClass } from '@nemesis/shared';
 import { CHARACTERS } from '@nemesis/shared';
-import { User, Shield, Wrench, Crosshair, Search, FlaskConical, Play, X } from 'lucide-react';
+import { Play, X } from 'lucide-react';
+import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 
 interface CharacterSelectModalProps {
   onSelect: (characterClass: CharacterClass) => void;
@@ -9,14 +10,11 @@ interface CharacterSelectModalProps {
   onClose?: () => void;
 }
 
-const CLASS_ICONS: Record<CharacterClass, React.ReactNode> = {
-  CAPTAIN: <Shield size={20} className="text-cyan-400" />,
-  PILOT: <User size={20} className="text-sky-400" />,
-  SCIENTIST: <FlaskConical size={20} className="text-emerald-400" />,
-  SCOUT: <Search size={20} className="text-lime-400" />,
-  SOLDIER: <Crosshair size={20} className="text-red-400" />,
-  MECHANIC: <Wrench size={20} className="text-amber-400" />,
-};
+function ClassIcon({ characterClass }: { characterClass: CharacterClass }) {
+  const identity = CREW_IDENTITIES[characterClass];
+  const Icon = identity.Icon;
+  return <Icon size={20} color={identity.color} aria-hidden="true" />;
+}
 
 const CLASS_DESCRIPTIONS: Record<CharacterClass, string> = {
   CAPTAIN: 'Лидер экипажа. Вооружён надежным шестизарядным револьвером. Управляет приказами и тактикой.',
@@ -65,7 +63,7 @@ export const CharacterSelectModal: React.FC<CharacterSelectModalProps> = ({ onSe
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                    {CLASS_ICONS[char.characterClass]}
+                    <ClassIcon characterClass={char.characterClass} />
                   </div>
                   {isSelected && (
                     <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-900/60 px-2 py-0.5 rounded">

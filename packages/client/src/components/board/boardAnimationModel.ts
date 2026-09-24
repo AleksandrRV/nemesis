@@ -1,5 +1,6 @@
 import type { ExplorationEffect, GameLogEntry, GameLogEvent, IntruderLogEvent, NoiseDieFace } from '@nemesis/shared';
 import type { IntruderType, RoomId, SanitizedGameState } from '@nemesis/shared';
+import { changedDoorStates, type DoorState } from './doorTransitionModel';
 
 /**
  * Модель анимационного слоя карты (Шаг 9 этапа 0.5.0 + Этап 2 вскрытие):
@@ -266,6 +267,7 @@ export interface BatchBaseline {
   techNoise: boolean;
   /** Миниатюры Чужих, появившиеся на поле в этой пачке (Контакт). */
   newIntruderIds: ReadonlySet<string>;
+  doorStatesBefore: ReadonlyMap<string, DoorState>;
 }
 
 export function snapshotBatchBaseline(previous: SanitizedGameState | null, next: SanitizedGameState): BatchBaseline {
@@ -283,7 +285,8 @@ export function snapshotBatchBaseline(previous: SanitizedGameState | null, next:
       if (!known.has(token.id)) newIntruderIds.add(token.id);
     }
   }
-  return { noiseCorridorIds, techNoise, newIntruderIds };
+  const doorStatesBefore = previous ? changedDoorStates(previous, next) : new Map<string, DoorState>();
+  return { noiseCorridorIds, techNoise, newIntruderIds, doorStatesBefore };
 }
 
 /** Слияние базлайнов: новое действие может прийти, пока предыдущее ещё показывается. */
@@ -293,6 +296,7 @@ export function mergeBatchBaselines(base: BatchBaseline | null, next: BatchBasel
     noiseCorridorIds: new Set([...base.noiseCorridorIds, ...next.noiseCorridorIds]),
     techNoise: base.techNoise || next.techNoise,
     newIntruderIds: new Set([...base.newIntruderIds, ...next.newIntruderIds]),
+    doorStatesBefore: new Map([...next.doorStatesBefore, ...base.doorStatesBefore]),
   };
 }
 

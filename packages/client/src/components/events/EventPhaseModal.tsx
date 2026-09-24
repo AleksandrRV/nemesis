@@ -11,7 +11,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { formatGameLogEntry, type FormattedGameLogEntry } from '../log/gameLogModel';
-import { LogLine } from '../log/GameLogPanel';
+import { LogLine } from '../log/LogSegments';
 import type { RoomId, SanitizedGameState } from '@nemesis/shared';
 
 import type { EventPhaseModalModel, EventPhaseStepModel } from './eventPhaseModalModel';

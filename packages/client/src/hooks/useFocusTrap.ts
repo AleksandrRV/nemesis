@@ -20,10 +20,10 @@ export function useFocusTrap(
   options: UseFocusTrapOptions = {},
 ): void {
   const { onEscape } = options;
-  // Свежий колбэк без перезапуска эффекта: список фокусируемых элементов
-  // собирается один раз на монтирование контейнера.
   const onEscapeRef = React.useRef(onEscape);
-  onEscapeRef.current = onEscape;
+  React.useLayoutEffect(() => {
+    onEscapeRef.current = onEscape;
+  }, [onEscape]);
 
   React.useEffect(() => {
     const container = containerRef.current;

@@ -1,10 +1,14 @@
 /* eslint-disable max-lines -- кинематографичный слой с множеством FX: дверь, шум, контакт, исследование */
 import React from 'react';
 import { SHIP_ROOM_NODES, type ExplorationEffect, type NoiseDieFace, type SanitizedGameState } from '@nemesis/shared';
-import { AlertTriangle, Droplet, Flame, Package, VolumeX, Wrench, DoorOpen, User, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Droplet, Flame, Package, VolumeX, Wrench, DoorOpen, type LucideIcon } from 'lucide-react';
 import type { BoardAnimation } from './boardAnimationModel';
 import { TECH_HUB, TECH_HUB_RADIUS } from './techCorridorModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
+import { DOOR_BLAST_DELAY_MS } from './doorTransitionModel';
+import { CrewToken } from './CrewToken';
+import { crewTokenLabel, toCrewToken } from './crewTokenModel';
+import { ROOM_STRIP_OFFSET_Y } from './crewTokenModel';
 
 interface Point {
   x: number;
@@ -73,15 +77,6 @@ function GlideToken({
   );
 }
 
-function PlayerChip() {
-  return (
-    <>
-      <circle r={10} fill="#00f0ff" stroke="#05070c" strokeWidth={2} />
-      <User size={12} className="text-slate-950" x={-6} y={-6} />
-    </>
-  );
-}
-
 function IntruderFigure({ type }: { type: keyof typeof INTRUDER_SHAPES }) {
   return (
     <svg x={-11} y={-11} width={22} height={22} viewBox="0 0 96 96" role="img" aria-hidden="true">
@@ -92,6 +87,7 @@ function IntruderFigure({ type }: { type: keyof typeof INTRUDER_SHAPES }) {
 
 /** Вспышка деформации и взлома металла на переборке разрушенной Двери. */
 const SPARK_ANGLES = [8, 72, 140, 196, 262, 318] as const;
+const BREACH_FX_DELAY = `${DOOR_BLAST_DELAY_MS.BREACH}ms`;
 
 function DoorBreachFx({ point }: { point: Point }) {
   return (
@@ -100,45 +96,47 @@ function DoorBreachFx({ point }: { point: Point }) {
       aria-label="Взлом Закрытой Двери"
       className="pointer-events-none"
     >
-      <circle
-        r={26}
-        fill="none"
-        stroke="#ffb700"
-        strokeWidth={2.5}
-        className="motion-safe:animate-door-shockwave motion-reduce:animate-none"
-        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-      />
-      {SPARK_ANGLES.map((angle, index) => (
-        <g key={angle} transform={`rotate(${angle})`}>
-          <line
-            x1={0}
-            y1={-12}
-            x2={0}
-            y2={-24}
+      <g className="motion-safe:animate-door-fx-gate">
+        <circle
+          r={26}
+          fill="none"
+          stroke="#ffb700"
+          strokeWidth={2.5}
+          className="motion-safe:animate-door-shockwave motion-reduce:animate-none"
+          style={{ transformBox: 'fill-box', transformOrigin: 'center', animationDelay: BREACH_FX_DELAY }}
+        />
+        {SPARK_ANGLES.map((angle, index) => (
+          <g key={angle} transform={`rotate(${angle})`}>
+            <line
+              x1={0}
+              y1={-12}
+              x2={0}
+              y2={-24}
+              stroke="#ff5500"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              className="motion-safe:animate-door-spark motion-reduce:animate-none"
+              style={{
+                transformBox: 'fill-box',
+                transformOrigin: 'center bottom',
+                animationDelay: `${DOOR_BLAST_DELAY_MS.BREACH + (index % 3) * 90}ms`,
+              }}
+            />
+          </g>
+        ))}
+        <g
+          className="motion-safe:animate-door-breach motion-reduce:animate-none"
+          style={{ transformBox: 'fill-box', transformOrigin: 'center', animationDelay: BREACH_FX_DELAY }}
+        >
+          <circle r={11} fill="none" stroke="#ff5500" strokeWidth={3} />
+          <circle r={4.5} fill="#ffb700" />
+          <path
+            d="M -17 -6 L -9 -2 M 17 -6 L 9 -2 M -15 9 L -8 4 M 15 9 L 8 4"
             stroke="#ff5500"
-            strokeWidth={2.5}
+            strokeWidth={2}
             strokeLinecap="round"
-            className="motion-safe:animate-door-spark motion-reduce:animate-none"
-            style={{
-              transformBox: 'fill-box',
-              transformOrigin: 'center bottom',
-              animationDelay: `${(index % 3) * 90}ms`,
-            }}
           />
         </g>
-      ))}
-      <g
-        className="motion-safe:animate-door-breach motion-reduce:animate-none"
-        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-      >
-        <circle r={11} fill="none" stroke="#ff5500" strokeWidth={3} />
-        <circle r={4.5} fill="#ffb700" />
-        <path
-          d="M -17 -6 L -9 -2 M 17 -6 L 9 -2 M -15 9 L -8 4 M 15 9 L 8 4"
-          stroke="#ff5500"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
       </g>
     </g>
   );
@@ -212,9 +210,7 @@ function ExplorationRevealFx({
       />
 
       <g
-        className={
-          reducedMotion ? undefined : 'motion-safe:animate-exploration-reveal motion-reduce:animate-none'
-        }
+        className={reducedMotion ? undefined : 'motion-safe:animate-exploration-reveal motion-reduce:animate-none'}
         style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
       >
         <g transform="translate(-46, -30)">
@@ -499,16 +495,17 @@ export const BoardAnimationLayer: React.FC<BoardAnimationLayerProps> = ({ view, 
         if (animation.kind === 'PLAYER_MOVE') {
           const from = roomCoords.get(animation.fromRoomId);
           const to = roomCoords.get(animation.toRoomId);
-          if (!from || !to) return null;
+          const token = toCrewToken(view, animation.playerId);
+          if (!from || !to || !token) return null;
           return (
             <GlideToken
               key={animation.key}
-              from={from}
-              to={to}
+              from={{ x: from.x, y: from.y + ROOM_STRIP_OFFSET_Y }}
+              to={{ x: to.x, y: to.y + ROOM_STRIP_OFFSET_Y }}
               reducedMotion={reducedMotion}
-              ariaLabel="Персонаж перемещается"
+              ariaLabel={`Персонаж перемещается: ${crewTokenLabel(token)}`}
             >
-              <PlayerChip />
+              <CrewToken token={token} showActiveRing={false} />
             </GlideToken>
           );
         }

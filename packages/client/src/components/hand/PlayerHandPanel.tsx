@@ -1,5 +1,11 @@
 import React from 'react';
-import type { ActionCard, EngineAction, PlayCardActionPayload, SanitizedGameState, UseItemActionPayload } from '@nemesis/shared';
+import type {
+  ActionCard,
+  EngineAction,
+  PlayCardActionPayload,
+  SanitizedGameState,
+  UseItemActionPayload,
+} from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import {
   ChevronUp,
@@ -126,7 +132,9 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   React.useEffect(() => {
     if (!pendingResult) return;
     if (rejection) {
-      setUseResult(buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel, rejection));
+      setUseResult(
+        buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel, rejection),
+      );
       setPendingResult(null);
       return;
     }
@@ -151,7 +159,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   return (
     <aside
       aria-label="Панель руки игрока"
-      className="absolute bottom-10 left-0 right-0 z-40 flex flex-col bg-slate-950/95 border-t border-cyan-500/30 backdrop-blur-md shadow-2xl transition-all"
+      className="absolute bottom-0 left-0 right-0 z-40 flex flex-col bg-slate-950/95 border-t border-cyan-500/30 backdrop-blur-md shadow-2xl transition-all"
     >
       {/* Модальное окно полной информации о карте / предмете */}
       {inspectCardTarget && (

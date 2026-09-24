@@ -9,17 +9,28 @@ import { CorridorEdge } from './CorridorEdge';
 import { TechCorridorHub } from './TechCorridorHub';
 import { VentShaftTraces } from './VentShaftTraces';
 import { groupIntrudersByRoom } from './intruderMapModel';
+import { buildCrewByRoom } from './crewTokenModel';
 import { lastLogSequence, newVentRetreats, type VentEcho } from './techCorridorModel';
 import { BoardAnimationLayer } from './BoardAnimationLayer';
 import { DieRollOverlay } from './DieRollOverlay';
 import { usePrefersReducedMotion } from './useBoardAnimations';
 import { usePresentationSequencer } from './usePresentationSequencer';
+import { useDoorTransitions } from './useDoorTransitions';
+import { DoorDefs } from './CorridorDoor';
 import { ContactOverlay } from '../contact/ContactOverlay';
 import { carefulMoveChoices } from '../inspector/carefulMoveModel';
 import { CarefulMoveOverlay } from './CarefulMoveOverlay';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
-function ParallaxStars({ layerRefs }: { layerRefs: { l1: React.RefObject<HTMLDivElement>; l2: React.RefObject<HTMLDivElement>; l3: React.RefObject<HTMLDivElement> } }) {
+function ParallaxStars({
+  layerRefs,
+}: {
+  layerRefs: {
+    l1: React.RefObject<HTMLDivElement>;
+    l2: React.RefObject<HTMLDivElement>;
+    l3: React.RefObject<HTMLDivElement>;
+  };
+}) {
   // This component lives inside TransformComponent and reports transform to stars layers outside via direct DOM manipulation
   useTransformEffect(({ state }) => {
     const { positionX, positionY, scale } = state;
@@ -94,13 +105,13 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     hasContactTease,
     noisePopCorridorIds,
     noiseRollCorridorIds,
-    doorTransitionCorridorIds,
     hasTechnicalNoisePop,
     dismissDieRoll,
     dismissContact,
   } = usePresentationSequencer(view, { reducedMotion });
 
   const displayView = renderView ?? view;
+  const doorTransitions = useDoorTransitions(displayView, reducedMotion);
 
   // Parallax stars refs (outside TransformComponent, manipulated via useTransformEffect)
   const starsL1Ref = React.useRef<HTMLDivElement>(null);
@@ -117,6 +128,11 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
           )
         : new Map(),
     [displayView, inTransitIntruderIds, hiddenNewIntruderIds],
+  );
+
+  const crewByRoom = React.useMemo(
+    () => (displayView ? buildCrewByRoom(displayView, inTransitPlayerIds) : new Map()),
+    [displayView, inTransitPlayerIds],
   );
 
   const coordsMap = React.useMemo(() => {
@@ -440,6 +456,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       />
                       <circle cx="60" cy="60" r="1.2" fill="rgba(100,116,139,0.12)" />
                     </pattern>
+                    <DoorDefs />
                     <radialGradient id="map-vignette" cx="50%" cy="50%" r="78%">
                       <stop offset="0%" stopColor="#000" stopOpacity="0" />
                       <stop offset="68%" stopColor="#000" stopOpacity="0" />
@@ -531,7 +548,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                           isNoiseRollTarget={isNoiseRollTarget}
                           carefulState={carefulState}
                           ghostFree={ghostFree}
-                          doorTransition={doorTransitionCorridorIds.get(corridor.id) ?? null}
+                          doorTransition={doorTransitions.get(corridor.id) ?? null}
                           onClick={onCorridorClick}
                         />
                       );
@@ -557,14 +574,18 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                           isMoveTarget={isMoveTarget}
                           onSelect={selectRoom}
                           technicalNoise={technicalNoise}
-                          hiddenPlayerIds={inTransitPlayerIds}
+                          crew={crewByRoom.get(room.id) ?? []}
                           isHighlighted={highlightRoomIds.includes(room.id)}
                         />
                       );
                     })}
                   </g>
 
-                  <BoardAnimationLayer view={displayView} animations={activeBoardAnimations} reducedMotion={reducedMotion} />
+                  <BoardAnimationLayer
+                    view={displayView}
+                    animations={activeBoardAnimations}
+                    reducedMotion={reducedMotion}
+                  />
 
                   <TechCorridorHub
                     hasNoise={technicalNoise}
@@ -572,7 +593,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                     echoes={ventEchoes}
                     onSelect={openTechnicalCorridors}
                     carefulState={
-                      carefulTargetRoomId !== null && displayView.ship.rooms[carefulTargetRoomId]?.hasTechnicalCorridorEntrance
+                      carefulTargetRoomId !== null &&
+                      displayView.ship.rooms[carefulTargetRoomId]?.hasTechnicalCorridorEntrance
                         ? carefulHoveredTechnical
                           ? 'hovered-free'
                           : technicalNoise

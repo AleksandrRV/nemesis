@@ -6,6 +6,7 @@ import { usePresentationStore } from './store/presentationStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
+import { CrewRoster } from './components/hud/CrewRoster';
 import { DevPanel } from './components/dev/DevPanel';
 import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
@@ -127,11 +128,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Планшет Чужих: живой бейдж «на борту» + точка «улей шевелился» */}
-          <IntruderBoardButton
-            view={view}
-            open={intruderBoardOpen}
-            onOpen={() => setIntruderBoardOpen(true)}
-          />
+          <IntruderBoardButton view={view} open={intruderBoardOpen} onOpen={() => setIntruderBoardOpen(true)} />
 
           {/* Сид партии: виден игрокам, копируется по нажатию — по нему воспроизводится тот же стол */}
           <SeedChip seed={view.meta.seed} />
@@ -162,11 +159,11 @@ export const App: React.FC = () => {
       </header>
 
       {/* Основная зона карты */}
-      <main className="relative flex-1 w-full h-full overflow-hidden">
+      <main className="relative min-h-0 w-full flex-1 overflow-hidden">
         <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
+        <CrewRoster view={view} onSelectRoom={selectRoom} />
         <RoomInspector />
         <PlayerHandPanel view={view} />
-        <GameLogPanel view={view} />
         {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
         {isPresentationIdle && eventPhaseModalOpen && eventPhaseModalModel && (
           <EventPhaseModal
@@ -210,6 +207,8 @@ export const App: React.FC = () => {
 
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>
+
+      <GameLogPanel view={view} />
     </div>
   );
 };

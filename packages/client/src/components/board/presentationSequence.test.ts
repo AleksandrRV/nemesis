@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialGameState, filterStateForPlayer, type GameLogEntry, type SanitizedGameState } from '@nemesis/shared';
+import {
+  createInitialGameState,
+  filterStateForPlayer,
+  type GameLogEntry,
+  type SanitizedGameState,
+} from '@nemesis/shared';
 import { diffBoardSnapshots, snapshotBatchBaseline } from './boardAnimationModel';
 import { buildSequencedItems, getPresentationPriority } from './usePresentationSequencer';
 import { usePresentationStore } from '../../store/presentationStore';
@@ -136,10 +141,14 @@ describe('Последовательность презентации: прич�
       const startSequence = (draft.gameLog.at(-1)?.sequence ?? 0) + 1;
       draft.gameLog = [
         ...draft.gameLog,
-        ...log(
-          startSequence,
-          { type: 'PLAYER_MOVED', playerId: 'player-1', fromRoomId: 11, toRoomId: 12, corridorId: 'c', mode: 'NORMAL' },
-        ),
+        ...log(startSequence, {
+          type: 'PLAYER_MOVED',
+          playerId: 'player-1',
+          fromRoomId: 11,
+          toRoomId: 12,
+          corridorId: 'c',
+          mode: 'NORMAL',
+        }),
       ];
     });
 
@@ -203,8 +212,17 @@ describe('Хранилище презентации: окно кубика и о
       playerName: 'Капитан',
     };
 
-    store.getState().mergeBatchBaseline({ noiseCorridorIds: new Set(['c-1']), techNoise: false, newIntruderIds: new Set() });
-    store.getState().setQueue(() => [{ kind: 'NOISE_ROLL', key: rollAnimation.key, sequence: 5, dieRoll: roll, animation: rollAnimation }]);
+    store.getState().mergeBatchBaseline({
+      noiseCorridorIds: new Set(['c-1']),
+      techNoise: false,
+      newIntruderIds: new Set(),
+      doorStatesBefore: new Map(),
+    });
+    store
+      .getState()
+      .setQueue(() => [
+        { kind: 'NOISE_ROLL', key: rollAnimation.key, sequence: 5, dieRoll: roll, animation: rollAnimation },
+      ]);
 
     expect(store.getState().isIdle).toBe(false);
 

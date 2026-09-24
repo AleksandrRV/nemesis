@@ -514,15 +514,17 @@ export function formatGameLog(view: SanitizedGameState): FormattedGameLogEntry[]
   });
 }
 
-export interface GroupedGameLog {
+export interface GroupedGameLog<TEntry extends FormattedGameLogEntry = FormattedGameLogEntry> {
   groupId: string | null;
   isMovement: boolean;
-  entries: FormattedGameLogEntry[];
+  entries: TEntry[];
 }
 
-export function groupFormattedLog(entries: readonly FormattedGameLogEntry[]): GroupedGameLog[] {
-  const result: GroupedGameLog[] = [];
-  let current: GroupedGameLog | null = null;
+export function groupFormattedLog<TEntry extends FormattedGameLogEntry>(
+  entries: readonly TEntry[],
+): GroupedGameLog<TEntry>[] {
+  const result: GroupedGameLog<TEntry>[] = [];
+  let current: GroupedGameLog<TEntry> | null = null;
 
   for (const entry of entries) {
     if (entry.groupId && current && current.groupId === entry.groupId) {

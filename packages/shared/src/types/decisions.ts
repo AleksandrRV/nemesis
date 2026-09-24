@@ -84,4 +84,12 @@ export type PendingDecision =
       type: 'CHOOSE_EVENT_CARD';
       /** Три вытянутые карты — публичная информация: карты Событий вскрываются лицом вверх. */
       cards: EventCard[];
+    }
+  | {
+      /** «Стальные нервы»: сбросить карту, чтобы отменить Внезапную Атаку (стр. 25)? */
+      id: string;
+      playerId: string;
+      type: 'STEEL_NERVES_OFFER';
+      intruderId: string;
+      intruderType: string;
     };

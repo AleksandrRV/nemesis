@@ -39,7 +39,7 @@ export interface GameStoreState {
   clearSelection: () => void;
   convertToEnergy: () => void;
   refundConvertedCard: (cardId: string) => void;
-  consumePaymentCards: (count: number) => string[];
+  consumePaymentCards: (count: number, excludeCardId?: string) => string[];
 
   setShootModalOpen: (open: boolean) => void;
   setMeleeModalOpen: (open: boolean) => void;
@@ -140,18 +140,20 @@ export function createGameStore(createTransport: TransportFactory) {
       });
     },
 
-    consumePaymentCards: (count) => {
+    consumePaymentCards: (count, excludeCardId) => {
       const { convertedCardIds, selectedCardIds, view } = get();
       const hand = view?.players[view?.meta.activePlayerId ?? '']?.actionDeck.hand ?? [];
       const handCardIds = new Set(hand.map((c) => c.id));
 
       // Сначала берём из конвертированных карт, если они есть
-      const validConverted = convertedCardIds.filter((id) => handCardIds.has(id));
+      const validConverted = convertedCardIds.filter((id) => handCardIds.has(id) && id !== excludeCardId);
       const chosenFromConverted = validConverted.slice(0, count);
       const remainingNeeded = count - chosenFromConverted.length;
 
       // Если не хватает, берём из выделенных карт
-      const validSelected = selectedCardIds.filter((id) => handCardIds.has(id) && !chosenFromConverted.includes(id));
+      const validSelected = selectedCardIds.filter(
+        (id) => handCardIds.has(id) && !chosenFromConverted.includes(id) && id !== excludeCardId,
+      );
       const chosenFromSelected = validSelected.slice(0, remainingNeeded);
 
       const result = [...chosenFromConverted, ...chosenFromSelected];

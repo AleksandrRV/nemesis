@@ -1,7 +1,7 @@
 import React from 'react';
 import type { PendingDecision } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { Package, ArrowRight, Dices } from 'lucide-react';
+import { Package, ArrowRight, Dices, Shield } from 'lucide-react';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 
 interface DecisionModalProps {
@@ -154,6 +154,47 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
             ))}
           </div>
         </section>
+      </div>
+    );
+  }
+
+  if (decision.type === 'STEEL_NERVES_OFFER') {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onKeyDown={handleOverlayKeyDown}
+      >
+        <div
+          ref={containerRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Стальные нервы: внезапная атака"
+          className="w-full max-w-md bg-slate-900 border border-amber-500/60 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
+        >
+          <div className="flex items-center gap-2 text-amber-400 border-b border-slate-800 pb-3">
+            <Shield size={20} />
+            <h3 className="text-lg font-heading tracking-wider text-white">СТАЛЬНЫЕ НЕРВЫ</h3>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Внезапная Атака! В руке есть карта «Стальные нервы». Сбросьте её, чтобы атака не состоялась, — или
+            оставьте её и примите атаку.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => handleSelect('USE_STEEL_NERVES')}
+              className="py-3 px-3 rounded-lg bg-emerald-950/60 border border-emerald-600/60 hover:bg-emerald-900/80 text-emerald-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
+            >
+              Сбросить карту — атаки не будет
+            </button>
+            <button
+              onClick={() => handleSelect('KEEP')}
+              className="py-3 px-3 rounded-lg bg-red-950/60 border border-red-600/60 hover:bg-red-900/80 text-red-200 font-bold text-xs uppercase transition flex flex-col items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-300"
+            >
+              Оставить — атака состоится
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

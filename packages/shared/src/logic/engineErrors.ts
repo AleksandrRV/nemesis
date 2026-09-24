@@ -59,7 +59,24 @@ export type EngineErrorCode =
   | 'WEAPON_NOT_AVAILABLE'
   /** На выбранном Оружии не осталось Боезапаса (стр. 19). */
   | 'WEAPON_NO_AMMO'
-  | 'INVALID_HAND_SLOT';
+  | 'INVALID_HAND_SLOT'
+  /** Ошибки эффектов карт и Предметов (Этап «Карты работают») */
+  | 'CARD_NOT_USABLE_NOW'
+  | 'DOOR_DESTROYED'
+  | 'ENGINE_NOT_HERE'
+  | 'UNKNOWN_ENGINE'
+  | 'NO_MALFUNCTION'
+  | 'MALFUNCTION_PRESENT'
+  | 'ROOM_ALREADY_EXPLORED'
+  | 'NO_TECH_ENTRANCE'
+  | 'NO_COMPUTER'
+  | 'NO_FIRE'
+  | 'FIRE_PRESENT'
+  | 'NO_WOUNDS'
+  | 'NO_SLIME'
+  | 'NO_CONTAMINATION'
+  | 'WRONG_ROOM_COLOR'
+  | 'WEAPON_FULL';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;

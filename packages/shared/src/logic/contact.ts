@@ -136,6 +136,23 @@ export function resolveContact(
       }
     }
   }
-  if (surpriseAttack) following.push({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId, intruderId: intruder.id });
+  if (surpriseAttack) {
+    // «Стальные нервы»: сброс карты отменяет Внезапную Атаку (стр. 25).
+    // Есть карта — спрашиваем владельца решением; нет — атака состоится.
+    const nerves = player.actionDeck.hand.find(
+      (entry) => 'characterClass' in entry && entry.id === 'ACT_SOL_STEEL_NERVES',
+    );
+    if (nerves && 'characterClass' in nerves) {
+      state.pendingDecision = {
+        id: allocateEntityId(state, 'steel-nerves'),
+        playerId,
+        type: 'STEEL_NERVES_OFFER',
+        intruderId: intruder.id,
+        intruderType: intruder.type,
+      };
+    } else {
+      following.push({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId, intruderId: intruder.id });
+    }
+  }
   state.interruptQueue.unshift(...following);
 }

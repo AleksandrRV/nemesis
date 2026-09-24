@@ -3,6 +3,7 @@ import { endGame } from './gameEnd.js';
 import { runEventPhase } from './eventsPhase.js';
 import type { GameState } from '../types/state.js';
 import type { PlayerState } from '../types/entities.js';
+import type { ActionDeckCard } from '../types/cards.js';
 import { appendGameLog } from './gameLog.js';
 import { drawCardsToLimit } from './cardsPayment.js';
 import { EngineError } from './engineErrors.js';
@@ -48,6 +49,37 @@ export function applyFireEndTurnEffect(state: GameState, playerId: string): bool
     return true;
   }
   return false;
+}
+
+/**
+ * Немедленный Пас с необязательным сбросом карт (стр. 10, 28): огонь на Пасе
+ * применяется до блокировки, затем Пас и смена микротхода. Выделен для
+ * переиспользования эффектами карт («Технические коридоры» — «…и спасуйте»).
+ */
+export function performPass(state: GameState, playerId: string, discardCardIds: readonly string[] = []): void {
+  const player = state.players[playerId]!;
+  if (discardCardIds.length > 0) {
+    const uniqueIds = new Set(discardCardIds);
+    const remainingHand: ActionDeckCard[] = [];
+    for (const card of player.actionDeck.hand) {
+      if (uniqueIds.has(card.id)) {
+        player.actionDeck.discard.push(card);
+      } else {
+        remainingHand.push(card);
+      }
+    }
+    player.actionDeck.hand = remainingHand;
+  }
+  applyFireEndTurnEffect(state, playerId);
+  if (!player.isDead) {
+    player.hasPassed = true;
+  }
+  appendGameLog(state, {
+    type: 'PLAYER_PASSED',
+    playerId,
+    discardedCount: discardCardIds.length,
+  });
+  advanceTurnWithoutFire(state, playerId);
 }
 
 /**

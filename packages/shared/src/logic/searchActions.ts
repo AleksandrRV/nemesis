@@ -123,6 +123,26 @@ export function executeDecision(
     playEventCard(state, chosen);
     return;
   }
+  if (decision.type === 'STEEL_NERVES_OFFER') {
+    state.pendingDecision = null;
+    if (action.payload.selectedOption === 'USE_STEEL_NERVES') {
+      // Сброс «Стальных нервов» отменяет Внезапную Атаку (стр. 25):
+      // атака не ставится в очередь, drainInterrupts продолжит остальные прерывания.
+      const index = player.actionDeck.hand.findIndex(
+        (card) => 'characterClass' in card && card.id === 'ACT_SOL_STEEL_NERVES',
+      );
+      if (index > -1) {
+        const [card] = player.actionDeck.hand.splice(index, 1);
+        if (card && 'characterClass' in card) {
+          player.actionDeck.discard.push(card);
+          appendGameLog(state, { type: 'ACTION_CARD_PLAYED', playerId: actorId, cardId: card.id, cardName: card.name });
+        }
+      }
+      return;
+    }
+    state.interruptQueue.unshift({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId: actorId, intruderId: decision.intruderId });
+    return;
+  }
   if (decision.type === 'CHOOSE_OBJECTIVE') {
     const selected = player.objectives.find((objective) => objective.id === action.payload.selectedOption);
     if (!selected || !decision.objectiveIds.includes(selected.id)) {

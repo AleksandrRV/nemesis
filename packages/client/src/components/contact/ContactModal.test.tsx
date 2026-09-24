@@ -66,7 +66,9 @@ describe('Окно побега — атака в спину (ESCAPE_ATTACK_RESO
   it('запись побега входит в очередь боевых окон', () => {
     const entry = { id: 'log-9', sequence: 9, event: ESCAPE } as GameLogEntry;
     expect(nextContactPresentation([entry], 0)?.event.type).toBe('ESCAPE_ATTACK_RESOLVED');
-    expect(initialContactSequence([entry])).toBe(8);
+    // При загрузке страницы запись уже считается увиденной — окно не открывается.
+    expect(nextContactPresentation([entry], initialContactSequence([entry]))).toBeNull();
+    expect(initialContactSequence([entry])).toBe(9);
   });
 });
 
@@ -379,15 +381,17 @@ describe('Порядок публичных событий и перезагру
     expect(nextContactPresentation(log, 1)?.id).toBe('log-2');
     expect(nextContactPresentation(log, 2)?.id).toBe('log-4');
     expect(nextContactPresentation(log, 4)).toBeNull();
-    expect(initialContactSequence(log)).toBe(1);
+    // Инициализация после загрузки: всё, что уже в журнале, — увидено.
+    expect(initialContactSequence(log)).toBe(4);
   });
 
-  it('после загрузки показывает последний Контакт, а не всю старую историю', () => {
+  it('после загрузки страницы история Контактов не переигрывается', () => {
     const history = [...log, { id: 'log-5', sequence: 5, event: { ...CONTACT, firstEncounter: false } }];
-    expect(initialContactSequence(history)).toBe(4);
+    expect(initialContactSequence(history)).toBe(5);
     const state = view();
     state.gameLog = history;
-    expect(renderToStaticMarkup(<ContactOverlay view={state} />)).toContain('КОНТАКТ!');
+    // F5: ни старый, ни последний Контакт не открывает окно заново.
+    expect(renderToStaticMarkup(<ContactOverlay view={state} />)).not.toContain('КОНТАКТ!');
   });
 
   it('новая партия не показывает фиктивный Контакт', () => {

@@ -31,16 +31,50 @@ export const App: React.FC = () => {
 
   // Кинематографичная презентация Фазы Событий (Шаг 9): открывается один раз
   // на каждую Фазу (ключ — секвенс Сдвига Счётчиков Времени), повторные
-  // обновления снимка её уже не тревожат.
+  // обновления снимка её уже не тревожат. Закрытые фазы переживают F5:
+  // ключи хранятся в sessionStorage по идентификатору партии, иначе после
+  // обновления страницы модалка последней фазы открывалась заново.
   const eventPhaseModalModel = React.useMemo(() => (view ? buildEventPhaseModalModel(view) : null), [view]);
-  const [dismissedEventPhaseKeys, setDismissedEventPhaseKeys] = React.useState<number[]>([]);
+  const gameId = view?.meta.gameId ?? null;
+  // Закрытия текущей сессии поверх sessionStorage: состояние меняется только
+  // в обработчике закрытия, поэтому рендер остаётся чистым.
+  const [sessionDismissedPhases, setSessionDismissedPhases] = React.useState<Record<string, number[]>>({});
+  // null — партия ещё не загружена, модалки закрыты до первого снимка.
+  const dismissedEventPhaseKeys = React.useMemo(() => {
+    if (!gameId) return null;
+    let persisted: number[] = [];
+    try {
+      const raw = window.sessionStorage.getItem(`nemesis:event-phase-dismissed:${gameId}`);
+      if (raw) persisted = JSON.parse(raw) as number[];
+    } catch {
+      // Приватный режим без sessionStorage: держим закрытия только в памяти.
+    }
+    return [...new Set([...persisted, ...(sessionDismissedPhases[gameId] ?? [])])];
+  }, [gameId, sessionDismissedPhases]);
   const [eventPhaseHighlightRoomIds, setEventPhaseHighlightRoomIds] = React.useState<readonly RoomId[]>([]);
   const eventPhaseModalOpen =
-    eventPhaseModalModel !== null && !dismissedEventPhaseKeys.includes(eventPhaseModalModel.phaseKey);
+    dismissedEventPhaseKeys !== null &&
+    eventPhaseModalModel !== null &&
+    !dismissedEventPhaseKeys.includes(eventPhaseModalModel.phaseKey);
 
   const closeEventPhaseModal = () => {
-    if (eventPhaseModalModel) {
-      setDismissedEventPhaseKeys((keys) => [...keys, eventPhaseModalModel.phaseKey]);
+    if (eventPhaseModalModel && gameId) {
+      const phaseKey = eventPhaseModalModel.phaseKey;
+      setSessionDismissedPhases((phases) => ({
+        ...phases,
+        [gameId]: [...new Set([...(phases[gameId] ?? []), phaseKey])],
+      }));
+      try {
+        let persisted: number[] = [];
+        const raw = window.sessionStorage.getItem(`nemesis:event-phase-dismissed:${gameId}`);
+        if (raw) persisted = JSON.parse(raw) as number[];
+        window.sessionStorage.setItem(
+          `nemesis:event-phase-dismissed:${gameId}`,
+          JSON.stringify([...new Set([...persisted, phaseKey])]),
+        );
+      } catch {
+        // Игнорируем: воспроизведение фазы после F5 просто продолжится.
+      }
     }
     setEventPhaseHighlightRoomIds([]);
   };

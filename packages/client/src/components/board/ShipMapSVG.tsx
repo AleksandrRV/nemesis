@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- карта корабля: звёзды с параллаксом, камера, осторожное движение и секвенсор презентаций */
 import React from 'react';
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useTransformEffect } from 'react-zoom-pan-pinch';
@@ -89,13 +90,14 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
     renderView,
     inTransitPlayerIds,
     inTransitIntruderIds,
+    hiddenNewIntruderIds,
     hasContactTease,
     noisePopCorridorIds,
     noiseRollCorridorIds,
     hasTechnicalNoisePop,
     dismissDieRoll,
     dismissContact,
-  } = usePresentationSequencer(view);
+  } = usePresentationSequencer(view, { reducedMotion });
 
   const displayView = renderView ?? view;
 
@@ -107,9 +109,13 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
   const intrudersByRoom = React.useMemo(
     () =>
       displayView
-        ? groupIntrudersByRoom(displayView.intrudersPool.boardTokens.filter((token) => !inTransitIntruderIds.has(token.id)))
+        ? groupIntrudersByRoom(
+            displayView.intrudersPool.boardTokens.filter(
+              (token) => !inTransitIntruderIds.has(token.id) && !hiddenNewIntruderIds.has(token.id),
+            ),
+          )
         : new Map(),
-    [displayView, inTransitIntruderIds],
+    [displayView, inTransitIntruderIds, hiddenNewIntruderIds],
   );
 
   const coordsMap = React.useMemo(() => {

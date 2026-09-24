@@ -195,16 +195,14 @@ function ExplorationRevealFx({
   const visual = EXPLORATION_VISUALS[effect];
   const Icon = visual.Icon;
 
+  // ВАЖНО: анимация выезда карточки висит на ВНУТРЕННЕЙ группе. CSS-анимация
+  // transform перекрывает SVG-атрибут transform той же группы — карточка
+  // улетала в начало координат (левый верхний угол карты) на всё время анимации.
   return (
     <g
       transform={`translate(${point.x}, ${point.y})`}
       aria-label={`Жетон Исследования: ${visual.label}`}
-      className={
-        reducedMotion
-          ? 'pointer-events-none'
-          : 'pointer-events-none motion-safe:animate-exploration-reveal motion-reduce:animate-none'
-      }
-      style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
+      className="pointer-events-none"
     >
       <circle
         r={42}
@@ -213,59 +211,66 @@ function ExplorationRevealFx({
         className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined}
       />
 
-      <g transform="translate(-46, -36)">
-        <rect
-          x={0}
-          y={0}
-          width={92}
-          height={60}
-          rx={9}
-          fill={visual.bg}
-          stroke={visual.border}
-          strokeWidth={1.6}
-          opacity={0.98}
-        />
-        <rect
-          x={3}
-          y={3}
-          width={86}
-          height={54}
-          rx={6}
-          fill="none"
-          stroke={visual.border}
-          strokeOpacity={0.22}
-          strokeWidth={1}
-        />
+      <g
+        className={
+          reducedMotion ? undefined : 'motion-safe:animate-exploration-reveal motion-reduce:animate-none'
+        }
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
+      >
+        <g transform="translate(-46, -30)">
+          <rect
+            x={0}
+            y={0}
+            width={92}
+            height={60}
+            rx={9}
+            fill={visual.bg}
+            stroke={visual.border}
+            strokeWidth={1.6}
+            opacity={0.98}
+          />
+          <rect
+            x={3}
+            y={3}
+            width={86}
+            height={54}
+            rx={6}
+            fill="none"
+            stroke={visual.border}
+            strokeOpacity={0.22}
+            strokeWidth={1}
+          />
 
-        <g transform="translate(36, 8)">
-          <circle cx={10} cy={10} r={12} fill="#05070c" stroke={visual.border} strokeWidth={1.2} opacity={0.9} />
-          <Icon size={14} x={3} y={3} className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined} />
-        </g>
-
-        <text
-          x={46}
-          y={38}
-          textAnchor="middle"
-          className="font-bold tracking-wider"
-          style={{ fontSize: '7.5px', fill: visual.color, fontFamily: 'Share Tech Mono, monospace' }}
-        >
-          {visual.label}
-        </text>
-
-        <g transform="translate(46, 44)">
-          <rect x={-22} y={0} width={44} height={12} rx={6} fill="#05070c" stroke="#1e293b" strokeWidth={1} />
-          <g transform="translate(-14, 2)">
-            <Package size={8} className="text-slate-400" />
+          <g transform="translate(36, 8)">
+            <circle cx={10} cy={10} r={12} fill="#05070c" stroke={visual.border} strokeWidth={1.2} opacity={0.9} />
+            <Icon size={14} x={3} y={3} className={visual.flicker ? 'motion-safe:animate-flame-flicker' : undefined} />
           </g>
+
           <text
-            x={6}
-            y={8.5}
+            x={46}
+            y={38}
             textAnchor="middle"
-            style={{ fontSize: '7px', fill: '#cbd5e1', fontFamily: 'Share Tech Mono, monospace' }}
-            className="font-bold"
+            className="font-bold tracking-wider"
+            style={{ fontSize: '7.5px', fill: visual.color, fontFamily: 'Share Tech Mono, monospace' }}
           >
-            {itemsCount} ПРЕДМ.
+            {visual.label}
           </text>
+
+          <g transform="translate(46, 44)">
+            <rect x={-22} y={0} width={44} height={12} rx={6} fill="#05070c" stroke="#1e293b" strokeWidth={1} />
+            <g transform="translate(-14, 2)">
+              <Package size={8} className="text-slate-400" />
+            </g>
+            <text
+              x={6}
+              y={8.5}
+              textAnchor="middle"
+              style={{ fontSize: '7px', fill: '#cbd5e1', fontFamily: 'Share Tech Mono, monospace' }}
+              className="font-bold"
+            >
+              {itemsCount} ПРЕДМ.
+            </text>
+          </g>
         </g>
       </g>
 
@@ -282,8 +287,10 @@ function ExplorationRevealFx({
 }
 
 function RoomRevealFx({ point, reducedMotion }: { point: Point; reducedMotion: boolean }) {
+  // Скан-пинг по туману: двойное радарное кольцо + вспышка центра.
+  // Комната ещё под туманом — имя и иконки появятся позже, на перевороте.
   return (
-    <g transform={`translate(${point.x}, ${point.y})`} className="pointer-events-none" aria-label="Отсек вскрыт">
+    <g transform={`translate(${point.x}, ${point.y})`} className="pointer-events-none" aria-label="Сканирование отсека">
       <circle
         r={48}
         fill="none"
@@ -291,6 +298,15 @@ function RoomRevealFx({ point, reducedMotion }: { point: Point; reducedMotion: b
         strokeWidth={2.5}
         className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-door-shockwave motion-reduce:animate-none'}
         style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      />
+      <circle
+        r={40}
+        fill="none"
+        stroke="#00f0ff"
+        strokeWidth={1.2}
+        strokeOpacity={0.6}
+        className={reducedMotion ? 'opacity-0' : 'motion-safe:animate-noise-ripple motion-reduce:animate-none'}
+        style={{ transformBox: 'fill-box', transformOrigin: 'center', animationDelay: '260ms' } as React.CSSProperties}
       />
       <circle
         r={8}

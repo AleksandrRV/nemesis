@@ -11,18 +11,8 @@ interface ControlledProps {
 export function ContactOverlay({ view, entry: controlledEntry, onClose: controlledOnClose }: { view: SanitizedGameState } & Partial<ControlledProps>) {
   const isControlled = controlledEntry !== undefined;
 
-  if (isControlled) {
-    if (!controlledEntry) return null;
-    return (
-      <ContactModal
-        key={`${view.meta.gameId}-${controlledEntry.id}`}
-        entry={controlledEntry}
-        view={view}
-        onClose={() => controlledOnClose?.(controlledEntry.sequence)}
-      />
-    );
-  }
-
+  // Хуки объявляются до ветвления: условный useState после раннего return
+  // ломает порядок хуков между контролируемым и автономным режимами.
   const gameId = view.meta.gameId;
   const latest = view.gameLog.at(-1)?.sequence ?? 0;
   const [progress, setProgress] = useState(() => ({
@@ -32,6 +22,19 @@ export function ContactOverlay({ view, entry: controlledEntry, onClose: controll
   }));
   const reset = progress.gameId !== gameId || latest < progress.observed;
   const seen = reset ? initialContactSequence(view.gameLog) : progress.seen;
+
+  if (isControlled) {
+    if (!controlledEntry) return null;
+    return (
+      <ContactModal
+        key={`${gameId}-${controlledEntry.id}`}
+        entry={controlledEntry}
+        view={view}
+        onClose={() => controlledOnClose?.(controlledEntry.sequence)}
+      />
+    );
+  }
+
   if (reset) setProgress({ gameId, seen, observed: latest });
   const entry = nextContactPresentation(view.gameLog, seen);
   if (!entry) return null;

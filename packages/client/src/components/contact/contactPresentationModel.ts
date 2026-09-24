@@ -24,10 +24,14 @@ export function isContactPresentationEntry(entry: GameLogEntry): entry is Contac
 }
 
 export function initialContactSequence(log: readonly GameLogEntry[]): number {
-  const lastContact = [...log].reverse().find((entry) => entry.event.type === 'CONTACT_OCCURRED');
-  if (lastContact) return lastContact.sequence - 1;
-  const lastAttack = [...log].reverse().find(isContactPresentationEntry);
-  return lastAttack ? lastAttack.sequence - 1 : (log.at(-1)?.sequence ?? 0);
+  // При загрузке страницы история не проигрывается: всё, что уже есть в
+  // журнале — включая последний Контакт и результаты атак — считается
+  // увиденным. Иначе после F5 лишний раз открываются окна о Чужих.
+  for (let i = log.length - 1; i >= 0; i--) {
+    const entry = log[i]!;
+    if (isContactPresentationEntry(entry)) return entry.sequence;
+  }
+  return log.at(-1)?.sequence ?? 0;
 }
 
 export function nextContactPresentation(

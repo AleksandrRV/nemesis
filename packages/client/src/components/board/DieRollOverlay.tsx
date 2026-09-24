@@ -99,6 +99,17 @@ export const DieRollOverlay: React.FC<Partial<ControlledProps>> = ({ entry: cont
     };
   }, [displayEntry, isControlled, handleClose]);
 
+  // Esc — явное закрытие. Клик по фону намеренно НЕ закрывает окно:
+  // случайный клик во время последовательности анимаций «съедал» результат.
+  React.useEffect(() => {
+    if (!isControlled || !displayEntry) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isControlled, displayEntry, handleClose]);
+
   if (!displayEntry) return null;
 
   const key = faceKey(displayEntry.result);
@@ -106,7 +117,7 @@ export const DieRollOverlay: React.FC<Partial<ControlledProps>> = ({ entry: cont
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] motion-reduce:bg-black/75" onClick={handleClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] motion-reduce:bg-black/75" />
       <div
         className={`relative flex flex-col items-center gap-3 rounded-[20px] border-2 bg-slate-950 px-8 py-6 shadow-2xl ${visual.border} ${reducedMotion ? '' : 'motion-safe:animate-die-roll motion-reduce:animate-none'}`}
       >

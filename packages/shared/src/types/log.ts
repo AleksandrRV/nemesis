@@ -123,6 +123,33 @@ export type GameLogEvent =
       itemName: string;
     }
   | {
+      /** Разыграно подглядывание («Знание корабля», Дрон-разведчик, Планы «Немезиды»). */
+      type: 'ROOM_PEEKED';
+      playerId: string;
+      roomId: RoomId;
+      roomName: string;
+      /** null — жетон Исследования не подглядывался («Планы „Немезиды"»). */
+      effect: import('./rooms.js').ExplorationEffect | null;
+      itemsCount: number;
+      /** Сколько отсеков подглядуто одной картой (Дрон — 1, Планы — 2). */
+      peekCount: number;
+    }
+  | {
+      /** «Оценка угрозы»: верхняя карта Событий просмотрена и оставлена/положена вниз. */
+      type: 'EVENT_PEEKED';
+      playerId: string;
+      cardName: string;
+      placed: 'TOP' | 'BOTTOM';
+    }
+  | {
+      /** «Почините/Повредите Двигатель»: состояние двигателя в Машинном Отсеке переключено. */
+      type: 'ENGINE_TOGGLED';
+      playerId: string;
+      roomId: RoomId;
+      engineNumber: number;
+      isWorking: boolean;
+    }
+  | {
       /** Поднят Тяжёлый объект Действием [1] (стр. 13, 22). */
       type: 'OBJECT_PICKED_UP';
       playerId: string;
@@ -252,6 +279,20 @@ export type GameLogEvent =
       target: 'DOOR' | 'NOISE';
       corridorId: string;
       value: string | boolean;
+    }
+  | {
+      type: 'OBJECT_DROPPED';
+      playerId: string;
+      roomId: RoomId;
+      objectId: string;
+      objectKind: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
+    }
+  | {
+      type: 'HEAVY_ITEM_DISCARDED';
+      playerId: string;
+      roomId: RoomId;
+      itemId: string;
+      itemName: string;
     };
 
 export interface GameLogEntry {

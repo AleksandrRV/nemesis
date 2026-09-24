@@ -4,7 +4,7 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
  * Как разыгрывается вход в пустой отсек: обычным броском кубика Шума или
  * «Осторожным движением» с маркером в выбранный Коридор (стр. 13, 15).
  */
-export type NoiseRollMode = { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor };
+export type NoiseRollMode = { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor } | { kind: 'NONE' };
 
 /** Событие прерывания: шаг пайплайна, который должен разрешиться до конца действия (tech_stack §4). */
 export type InterruptEvent =

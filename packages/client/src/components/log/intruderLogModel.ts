@@ -3,14 +3,10 @@ import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
 import type { GameLogSegment } from './gameLogModel';
 
-export const INTRUDER_TYPE_NAMES: Record<IntruderToken['type'], string> = {
-  BLANK: 'Пустой жетон',
-  LARVA: 'Личинка',
-  CREEPER: 'Крипер',
-  ADULT: 'Взрослая особь',
-  BREEDER: 'Трутень',
-  QUEEN: 'Королева',
-};
+// Единый справочник названий Чужих (intruderReference.ts) под прежним именем.
+import { INTRUDER_NAMES_RU as INTRUDER_TYPE_NAMES } from '../board/intruderReference';
+
+export { INTRUDER_TYPE_NAMES };
 
 /** Винительный падеж для фраз с прямой атакой цели («атакует Крипера»). */
 const NAMES_ACCUSATIVE: Record<IntruderToken['type'], string> = {

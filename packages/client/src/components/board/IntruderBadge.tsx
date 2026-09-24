@@ -1,14 +1,7 @@
 import type { IntruderBadgeModel } from './intruderMapModel';
 import { isDominantIntruder } from './intruderMapModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
-
-const INTRUDER_NAMES_RU: Record<IntruderBadgeModel['type'], string> = {
-  LARVA: 'Личинка',
-  CREEPER: 'Крипер',
-  ADULT: 'Взрослая особь',
-  BREEDER: 'Трутень',
-  QUEEN: 'Королева',
-};
+import { INTRUDER_NAMES_RU } from './intruderReference';
 
 interface IntruderBadgeProps {
   badge: IntruderBadgeModel;

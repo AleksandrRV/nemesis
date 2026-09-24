@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ActionCard, SanitizedGameState } from '@nemesis/shared';
+import type { ActionCard, EngineAction, PlayCardActionPayload, SanitizedGameState, UseItemActionPayload } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import {
   ChevronUp,
@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 import { CardDetailsModal, type CardDetailsTarget } from '../modals/CardDetailsModal';
 import { HandConfirmModals } from './HandConfirmModals';
+import { CardUseModal } from './CardUseModal';
+import { CardResultModal } from './CardResultModal';
+import { buildCardUseResult, type CardUseResult } from './cardUseResultModel';
+import type { CardUseRequest } from './cardUsageModel';
 import { CombatActionButtons } from '../combat/CombatActionButtons';
 import { isActivePlayerInCombat } from '../board/intruderMapModel';
 
@@ -29,9 +33,19 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const [prevTurnKey, setPrevTurnKey] = React.useState<string>('');
   const [showPassConfirm, setShowPassConfirm] = React.useState(false);
   const [inspectCardTarget, setInspectCardTarget] = React.useState<CardDetailsTarget | null>(null);
+  // Откуда открыта карточка предмета: слот руки или инвентарь (влияет на окно использования)
+  const [inspectLocation, setInspectLocation] = React.useState<'INVENTORY' | 'HAND_SLOT'>('INVENTORY');
 
-  // Состояние подтверждения разыгрывания выбранной карты
-  const [pendingPlayCard, setPendingPlayCard] = React.useState<ActionCard | null>(null);
+  // Окно использования карты: шаги «вариант → цель → подтверждение»
+  const [useRequest, setUseRequest] = React.useState<CardUseRequest | null>(null);
+  // Отправленное действие, чей результат ещё не показан (до/после для diff)
+  const [pendingResult, setPendingResult] = React.useState<{
+    title: string;
+    variantLabel: string;
+    before: SanitizedGameState;
+  } | null>(null);
+  // Обязательное окно результата (локальное состояние — не воспроизводится при F5)
+  const [useResult, setUseResult] = React.useState<CardUseResult | null>(null);
 
   const selectedCardIds = useGameStore((state) => state.selectedCardIds);
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
@@ -43,6 +57,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const setShootModalOpen = useGameStore((state) => state.setShootModalOpen);
   const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
   const dispatch = useGameStore((state) => state.dispatch);
+  const rejection = useGameStore((state) => state.rejection);
 
   const activePlayerId = view.meta.activePlayerId;
   const player = view.players[activePlayerId];
@@ -51,13 +66,19 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   if (currentTurnKey !== prevTurnKey) {
     setPrevTurnKey(currentTurnKey);
     clearSelection();
-    setPendingPlayCard(null);
   }
 
   if (!player) return null;
 
   const handCards = player.actionDeck.hand;
-  const handLimit = 5; // базовый предел
+  // Лимит руки: берём из санитизированного состояния (вычислено в filterStateForPlayer) или считаем на клиенте
+  // по правилу CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0 (стр. 10, 25)
+  const currentRoom = view.ship.rooms[player.roomId];
+  const isCabinsRoom = currentRoom?.definitionId === 'CABINS';
+  const isWorkingRoom = currentRoom?.hasMalfunction === false && currentRoom?.hasFire === false;
+  const noIntrudersInRoom = (currentRoom?.occupantIntruderIds?.length ?? 0) === 0;
+  const computedHandLimit = isCabinsRoom && isWorkingRoom && noIntrudersInRoom ? 6 : 5;
+  const handLimit = (player as { handLimit?: number }).handLimit ?? computedHandLimit;
   const isMyTurn = view.meta.activePlayerId === player.id;
   const canAct = isMyTurn && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE';
 
@@ -78,33 +99,54 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     });
     clearSelection();
     setShowPassConfirm(false);
-    setPendingPlayCard(null);
   };
 
-  const executePlayCard = (card: ActionCard) => {
-    const discardCardIds = card.playCost > 0 ? consumePaymentCards(card.playCost) : [];
-    dispatch({
-      type: 'ACTION_PLAY_CARD',
-      payload: {
-        cardId: card.id,
-        discardCardIds,
-      },
-    });
-    setPendingPlayCard(null);
-    clearSelection();
+  const openUseModal = (request: CardUseRequest) => {
+    setInspectCardTarget(null);
+    setUseRequest(request);
   };
 
-  const handleUseItem = (itemId: string, actionCost: number) => {
-    const discardCardIds = actionCost > 0 ? consumePaymentCards(actionCost) : [];
-    dispatch({
-      type: 'ACTION_USE_ITEM',
-      payload: {
-        itemId,
-        discardCardIds,
-      },
-    });
+  // Подтверждение в CardUseModal: оплата (без самой карты) → dispatch → ожидание результата.
+  const handleUseConfirm = (request: CardUseRequest, variantLabel: string, payload: Record<string, unknown>) => {
+    const cost = request.kind === 'ACTION' ? request.card.playCost : request.card.actionCost;
+    const cardId = request.card.id;
+    const discardCardIds = cost > 0 ? consumePaymentCards(cost, cardId) : [];
+    const before = view;
+    const action: EngineAction =
+      request.kind === 'ACTION'
+        ? { type: 'ACTION_PLAY_CARD', payload: { ...(payload as PlayCardActionPayload), discardCardIds } }
+        : { type: 'ACTION_USE_ITEM', payload: { ...(payload as UseItemActionPayload), discardCardIds } };
+    dispatch(action);
+    setUseRequest(null);
     clearSelection();
+    setPendingResult({ title: request.card.name, variantLabel, before });
   };
+
+  // Как только движок ответил (новый view — успех, rejection — отказ), показываем окно результата.
+  React.useEffect(() => {
+    if (!pendingResult) return;
+    if (rejection) {
+      setUseResult(buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel, rejection));
+      setPendingResult(null);
+      return;
+    }
+    if (view !== pendingResult.before) {
+      setUseResult(buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel));
+      setPendingResult(null);
+    }
+  }, [view, rejection, pendingResult]);
+
+  // Оплата для выбранной карты: конвертированные очки + отмеченные карты (кроме самой карты и Заражения).
+  const contaminationIds = new Set(handCards.filter((card) => !('characterClass' in card)).map((card) => card.id));
+  const computeAvailablePayment = (excludeCardId: string): number =>
+    convertedCardIds.length + selectedCardIds.filter((id) => id !== excludeCardId && !contaminationIds.has(id)).length;
+
+  // Оружие с боезапасом — для боевых карт Действия (Прицельный/Очередь/Адреналин/Прикрытие).
+  const combatWeaponItemId =
+    player.handSlots.find(
+      (slot): slot is Extract<typeof slot, { source: 'ITEM' }> =>
+        slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0,
+    )?.card.id ?? null;
 
   return (
     <aside
@@ -118,9 +160,9 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           onClose={() => setInspectCardTarget(null)}
           onPlay={
             inspectCardTarget.kind === 'ACTION'
-              ? () => setPendingPlayCard(inspectCardTarget.card)
+              ? () => openUseModal({ kind: 'ACTION', card: inspectCardTarget.card })
               : inspectCardTarget.kind === 'ITEM'
-                ? () => handleUseItem(inspectCardTarget.card.id, inspectCardTarget.card.actionCost)
+                ? () => openUseModal({ kind: 'ITEM', card: inspectCardTarget.card, location: inspectLocation })
                 : undefined
           }
         />
@@ -133,8 +175,20 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             <Hand size={16} />
             <span className="text-xs font-bold tracking-wider uppercase">РУКА ИГРОКА</span>
           </div>
-          <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+          <span
+            title={
+              handLimit === 6
+                ? 'Каюты: лимит руки увеличен до 6 — исправные Каюты без Чужих и Пожара (стр. 10, 25)'
+                : 'Базовый лимит руки 5 карт (стр. 10)'
+            }
+            className={`text-xs font-mono px-2 py-0.5 rounded border transition ${
+              handLimit === 6
+                ? 'bg-emerald-950 border-emerald-500 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse'
+                : 'bg-slate-800 border-slate-700 text-slate-300'
+            }`}
+          >
             {handCards.length} / {handLimit}
+            {handLimit === 6 && <span className="ml-1 text-[10px]">CABINS</span>}
           </span>
           <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
             Колода: {player.actionDeck.drawPileCount} • Сброс: {player.actionDeck.discardCount}
@@ -218,10 +272,16 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             <div className="flex gap-2">
               {[0, 1].map((idx) => {
                 const slot = player.handSlots[idx];
+                const handleDiscardHeavy = () => {
+                  dispatch({
+                    type: 'ACTION_DISCARD_HEAVY_ITEM',
+                    payload: { handSlotIndex: idx },
+                  });
+                };
                 return (
                   <div
                     key={idx}
-                    className="w-48 h-16 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
+                    className="w-52 h-20 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
                   >
                     {slot ? (
                       slot.source === 'ITEM' ? (
@@ -230,7 +290,10 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                             <span className="font-bold text-cyan-300 truncate text-xs">{slot.card.name}</span>
                             <button
                               type="button"
-                              onClick={() => setInspectCardTarget({ kind: 'ITEM', card: slot.card })}
+                              onClick={() => {
+                                setInspectLocation('HAND_SLOT');
+                                setInspectCardTarget({ kind: 'ITEM', card: slot.card });
+                              }}
                               className="text-slate-400 hover:text-cyan-300 p-0.5"
                               title="Инфо о предмете"
                             >
@@ -243,25 +306,55 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                                 ? `Оружие • Патроны: ${slot.card.ammo}/${slot.card.maxAmmo}`
                                 : 'Тяжёлый предмет'}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleUseItem(slot.card.id, slot.card.actionCost)}
-                              className="text-cyan-400 hover:text-cyan-300 font-bold underline"
-                            >
-                              Исп. [{slot.card.actionCost}]
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openUseModal({ kind: 'ITEM', card: slot.card, location: 'HAND_SLOT' })}
+                                className="text-cyan-400 hover:text-cyan-300 font-bold underline"
+                              >
+                                Исп. [{slot.card.actionCost}]
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDiscardHeavy}
+                                className="text-red-400 hover:text-red-300 font-bold underline"
+                                title="Сбросить тяжёлый предмет в комнату (без действия, стр. 22)"
+                              >
+                                Сброс
+                              </button>
+                            </div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="font-bold text-amber-300 truncate text-xs">
-                            {slot.object.kind === 'CORPSE'
-                              ? 'Труп'
-                              : slot.object.kind === 'EGG'
-                                ? 'Яйцо Чужих'
-                                : 'Останки'}
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold text-amber-300 truncate text-xs">
+                              {slot.object.kind === 'CORPSE'
+                                ? 'Труп'
+                                : slot.object.kind === 'EGG'
+                                  ? 'Яйцо Чужих'
+                                  : 'Останки'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setInspectCardTarget({ kind: 'OBJECT', object: slot.object } as never)}
+                              className="text-slate-400 hover:text-amber-300 p-0.5"
+                              title="Инфо об объекте"
+                            >
+                              <Info size={13} />
+                            </button>
                           </div>
-                          <div className="text-[10px] text-slate-400">Тяжёлый объект</div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>Тяжёлый объект • {slot.object.id.slice(0, 8)}</span>
+                            <button
+                              type="button"
+                              onClick={handleDiscardHeavy}
+                              className="text-red-400 hover:text-red-300 font-bold underline"
+                              title="Сбросить объект на пол комнаты без действия (стр. 22)"
+                            >
+                              Сброс
+                            </button>
+                          </div>
                         </>
                       )
                     ) : (
@@ -299,7 +392,10 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                     <span className="font-semibold">{item.name}</span>
                     <button
                       type="button"
-                      onClick={() => setInspectCardTarget({ kind: 'ITEM', card: item })}
+                      onClick={() => {
+                        setInspectLocation('INVENTORY');
+                        setInspectCardTarget({ kind: 'ITEM', card: item });
+                      }}
                       className="text-slate-400 hover:text-cyan-300 p-0.5 ml-1"
                       title="Подробнее"
                     >
@@ -307,7 +403,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleUseItem(item.id, item.actionCost)}
+                      onClick={() => openUseModal({ kind: 'ITEM', card: item, location: 'INVENTORY' })}
                       className="text-emerald-400 hover:text-emerald-300 font-bold text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-600/50"
                       title={`Использовать за ${item.actionCost} очков/карт`}
                     >
@@ -445,7 +541,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPendingPlayCard(card as ActionCard);
+                        openUseModal({ kind: 'ACTION', card: card as ActionCard });
                       }}
                       className="mt-1 w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] py-1 rounded-lg shadow-lg flex items-center justify-center gap-1 active:scale-95 transition animate-in fade-in slide-in-from-top-1"
                     >
@@ -504,11 +600,23 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
         </div>
       )}
 
-      {/* Подтверждающие модалы: розыгрыш карты Действия и Пас */}
+      {/* Окно использования карты: варианты → цель → подтверждение */}
+      {useRequest && (
+        <CardUseModal
+          view={view}
+          request={useRequest}
+          combatWeaponItemId={combatWeaponItemId}
+          availablePayment={computeAvailablePayment(useRequest.card.id)}
+          onConfirm={({ variant, payload }) => handleUseConfirm(useRequest, variant.label, payload)}
+          onClose={() => setUseRequest(null)}
+        />
+      )}
+
+      {/* Обязательное окно результата использования */}
+      {useResult && <CardResultModal result={useResult} onClose={() => setUseResult(null)} />}
+
+      {/* Подтверждающие модалы: Пас */}
       <HandConfirmModals
-        pendingPlayCard={pendingPlayCard}
-        onCancelPlay={() => setPendingPlayCard(null)}
-        onConfirmPlay={executePlayCard}
         showPassConfirm={showPassConfirm}
         onCancelPass={() => setShowPassConfirm(false)}
         onConfirmPass={executePass}

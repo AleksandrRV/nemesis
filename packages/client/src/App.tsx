@@ -2,6 +2,7 @@ import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
 import type { CharacterClass, RoomId } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
+import { usePresentationStore } from './store/presentationStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
@@ -10,11 +11,12 @@ import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
 import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
-import { ContactOverlay } from './components/contact/ContactOverlay';
 import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
 import { ShootModal } from './components/combat/ShootModal';
+import { IntruderBoardButton } from './components/intruders/IntruderBoardButton';
+import { IntruderBoardModal } from './components/intruders/IntruderBoardModal';
 import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
@@ -23,23 +25,61 @@ import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
+  const selectRoom = useGameStore((state) => state.selectRoom);
+  const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
+  // Планшет Чужих: открытие — только кликом по кнопке HUD, F5 окно закрывает.
+  const [intruderBoardOpen, setIntruderBoardOpen] = React.useState(false);
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
   });
 
   // Кинематографичная презентация Фазы Событий (Шаг 9): открывается один раз
   // на каждую Фазу (ключ — секвенс Сдвига Счётчиков Времени), повторные
-  // обновления снимка её уже не тревожат.
+  // обновления снимка её уже не тревожат. Закрытые фазы переживают F5:
+  // ключи хранятся в sessionStorage по идентификатору партии, иначе после
+  // обновления страницы модалка последней фазы открывалась заново.
   const eventPhaseModalModel = React.useMemo(() => (view ? buildEventPhaseModalModel(view) : null), [view]);
-  const [dismissedEventPhaseKeys, setDismissedEventPhaseKeys] = React.useState<number[]>([]);
+  const gameId = view?.meta.gameId ?? null;
+  // Закрытия текущей сессии поверх sessionStorage: состояние меняется только
+  // в обработчике закрытия, поэтому рендер остаётся чистым.
+  const [sessionDismissedPhases, setSessionDismissedPhases] = React.useState<Record<string, number[]>>({});
+  // null — партия ещё не загружена, модалки закрыты до первого снимка.
+  const dismissedEventPhaseKeys = React.useMemo(() => {
+    if (!gameId) return null;
+    let persisted: number[] = [];
+    try {
+      const raw = window.sessionStorage.getItem(`nemesis:event-phase-dismissed:${gameId}`);
+      if (raw) persisted = JSON.parse(raw) as number[];
+    } catch {
+      // Приватный режим без sessionStorage: держим закрытия только в памяти.
+    }
+    return [...new Set([...persisted, ...(sessionDismissedPhases[gameId] ?? [])])];
+  }, [gameId, sessionDismissedPhases]);
   const [eventPhaseHighlightRoomIds, setEventPhaseHighlightRoomIds] = React.useState<readonly RoomId[]>([]);
   const eventPhaseModalOpen =
-    eventPhaseModalModel !== null && !dismissedEventPhaseKeys.includes(eventPhaseModalModel.phaseKey);
+    dismissedEventPhaseKeys !== null &&
+    eventPhaseModalModel !== null &&
+    !dismissedEventPhaseKeys.includes(eventPhaseModalModel.phaseKey);
 
   const closeEventPhaseModal = () => {
-    if (eventPhaseModalModel) {
-      setDismissedEventPhaseKeys((keys) => [...keys, eventPhaseModalModel.phaseKey]);
+    if (eventPhaseModalModel && gameId) {
+      const phaseKey = eventPhaseModalModel.phaseKey;
+      setSessionDismissedPhases((phases) => ({
+        ...phases,
+        [gameId]: [...new Set([...(phases[gameId] ?? []), phaseKey])],
+      }));
+      try {
+        let persisted: number[] = [];
+        const raw = window.sessionStorage.getItem(`nemesis:event-phase-dismissed:${gameId}`);
+        if (raw) persisted = JSON.parse(raw) as number[];
+        window.sessionStorage.setItem(
+          `nemesis:event-phase-dismissed:${gameId}`,
+          JSON.stringify([...new Set([...persisted, phaseKey])]),
+        );
+      } catch {
+        // Игнорируем: воспроизведение фазы после F5 просто продолжится.
+      }
     }
     setEventPhaseHighlightRoomIds([]);
   };
@@ -86,6 +126,13 @@ export const App: React.FC = () => {
             </span>
           </div>
 
+          {/* Планшет Чужих: живой бейдж «на борту» + точка «улей шевелился» */}
+          <IntruderBoardButton
+            view={view}
+            open={intruderBoardOpen}
+            onOpen={() => setIntruderBoardOpen(true)}
+          />
+
           {/* Сид партии: виден игрокам, копируется по нажатию — по нему воспроизводится тот же стол */}
           <SeedChip seed={view.meta.seed} />
 
@@ -120,8 +167,8 @@ export const App: React.FC = () => {
         <RoomInspector />
         <PlayerHandPanel view={view} />
         <GameLogPanel view={view} />
-        {!eventPhaseModalOpen && <EventPhaseBanner view={view} />}
-        {eventPhaseModalOpen && eventPhaseModalModel && (
+        {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
+        {isPresentationIdle && eventPhaseModalOpen && eventPhaseModalModel && (
           <EventPhaseModal
             view={view}
             model={eventPhaseModalModel}
@@ -136,8 +183,18 @@ export const App: React.FC = () => {
             onClose={() => setShowCharacterSelect(false)}
           />
         )}
-        {view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
-        {view.pendingDecisionPlayerId && !view.pendingDecision && (
+        {intruderBoardOpen && (
+          <IntruderBoardModal
+            view={view}
+            onClose={() => setIntruderBoardOpen(false)}
+            onNavigate={(roomId) => {
+              setIntruderBoardOpen(false);
+              selectRoom(roomId as RoomId);
+            }}
+          />
+        )}
+        {isPresentationIdle && view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
+        {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && (
           <div
             role="status"
             className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
@@ -148,9 +205,8 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
-        {!showCharacterSelect && <ContactOverlay view={view} />}
-        <ShootModal />
-        <MeleeModal />
+        {isPresentationIdle && <ShootModal />}
+        {isPresentationIdle && <MeleeModal />}
 
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>

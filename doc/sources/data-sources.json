@@ -1,8 +1,8 @@
 {
   "meta": {
     "version": 2,
-    "updated": "2026-09-22",
-    "updatedFor": "0.4.8",
+    "updated": "2026-09-23",
+    "updatedFor": "0.5.1",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Физических компонентов (фото поля, кубика, жетонов) в репозитории нет: всё, что можно было прочитать только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
@@ -547,7 +547,7 @@
       }
     },
     "deck-composition": {
-      "file": "packages/shared/src/data/actionCards.ts, packages/shared/src/data/itemCards.ts, packages/shared/src/data/contaminationCards.ts, packages/shared/src/data/seriousWounds.ts, packages/shared/src/data/eventCards.ts",
+      "file": "packages/shared/src/data/actionCards.ts, packages/shared/src/data/itemCards.ts, packages/shared/src/data/contaminationCards.ts, packages/shared/src/data/seriousWounds.ts, packages/shared/src/data/eventCards.ts, packages/shared/src/data/startingItems.ts",
       "status": "RULES_LOCAL",
       "facts": [
         {
@@ -556,38 +556,72 @@
           "lines": "116, 296"
         },
         {
-          "claim": "60 карт Действий: ровно по 10 карт на каждого из 6 персонажей",
+          "claim": "60 карт Действий: ровно по 10 карт на каждого из 6 персонажей, каждая карта имеет машинный эффект (kind)",
           "source": "rules-md",
-          "lines": "112, 381, 749"
+          "lines": "112, 381, 749, 24-28"
         },
         {
-          "claim": "По 30 карт в Красной (Военные), Жёлтой (Технические) и Зелёной (Медицинские) колодах",
+          "claim": "По 30 карт в Красной (Военные), Жёлтой (Технические) и Зелёной (Медицинские) колодах; все карты Предметов имеют actionCost 0-1, isHeavy=false, isSingleUse по типу, componentSymbols — синие символы для крафта (стр. 22-23)",
           "source": "rules-md",
-          "lines": "118-120"
+          "lines": "118-120, 22-23, 1500-1508"
         },
         {
-          "claim": "12 карт в Синей колоде Создаваемых предметов (по 3 экземпляра 4 рецептов)",
+          "claim": "12 карт в Синей колоде Создаваемых предметов (по 3 экземпляра 4 рецептов: Антидот, Тазер, Огнемёт, Коктейль Молотова)",
           "source": "rules-md",
           "lines": "121, 1500-1508"
         },
         {
-          "claim": "27 карт Заражения в отдельной колоде",
+          "claim": "27 карт Заражения в отдельной колоде (7 с Инфекцией)",
           "source": "rules-md",
           "lines": "114, 1276-1300"
         },
         {
-          "claim": "16 карт Тяжёлых Травм в колоде Травм",
+          "claim": "16 карт Тяжёлых Травм в колоде Травм (4 типа ×4)",
           "source": "rules-md",
           "lines": "116, 1342-1360"
         },
         {
-          "claim": "6 карт Стартовых Предметов (Оружие) персонажей",
+          "claim": "6 карт Стартовых Предметов (Оружие) персонажей: Револьвер 6/6, Дробовик 2/2, Обрез 2/2, Боевая винтовка 5/5, Энерговинтовка 4/4 энерго, Пистолет 3/3 — боезапас напечатан на карте",
           "source": "rules-md",
-          "lines": "122, 383"
+          "lines": "122, 383, 22"
+        },
+        {
+          "claim": "Синие символы компонентов на картах Предметов (CHEMICALS, ALCOHOL, FABRIC, ELECTRONICS, POWER_CELL, TOOLS) — читаются только с физического картона; точный состав по каждой карте требует сверки",
+          "source": "rules-md",
+          "lines": "23, 1500-1508"
         }
       ],
       "expectation": {
         "actionsPerCharacter": 10,
+        "actionCardEffectKinds": [
+          "RELOAD",
+          "ORDER",
+          "MOTIVATION",
+          "SUPPRESSIVE_FIRE",
+          "BASIC_REPAIR",
+          "REPAIR",
+          "FAST_REPAIR",
+          "INGENUITY",
+          "DISMISS",
+          "SEARCH",
+          "SCAVENGE",
+          "REST",
+          "DEMOLITION",
+          "SHIP_KNOWLEDGE",
+          "PILOTING",
+          "OLD_FRIEND",
+          "COMPUTER_SKILLS",
+          "PYROTECHNIC",
+          "TECH_CORRIDORS",
+          "BURST_FIRE",
+          "STEEL_NERVES",
+          "AIMED_FIRE",
+          "ADRENALINE",
+          "RECONNAISSANCE",
+          "INTRANET",
+          "ACCESS_DENIED",
+          "THREAT_ASSESSMENT"
+        ],
         "redItemsCount": 30,
         "yellowItemsCount": 30,
         "greenItemsCount": 30,
@@ -595,8 +629,45 @@
         "contaminationCount": 27,
         "seriousWoundsCount": 16,
         "eventCardsCount": 20,
-        "startingWeaponsCount": 6
-      }
+        "startingWeaponsCount": 6,
+        "startingWeaponsAmmo": {
+          "CAPTAIN": {
+            "ammo": 6,
+            "maxAmmo": 6,
+            "isEnergy": false
+          },
+          "PILOT": {
+            "ammo": 2,
+            "maxAmmo": 2,
+            "isEnergy": false
+          },
+          "MECHANIC": {
+            "ammo": 2,
+            "maxAmmo": 2,
+            "isEnergy": false
+          },
+          "SOLDIER": {
+            "ammo": 5,
+            "maxAmmo": 5,
+            "isEnergy": false
+          },
+          "SCOUT": {
+            "ammo": 4,
+            "maxAmmo": 4,
+            "isEnergy": true
+          },
+          "SCIENTIST": {
+            "ammo": 3,
+            "maxAmmo": 3,
+            "isEnergy": false
+          }
+        }
+      },
+      "unverified": [
+        "Точные componentSymbols по каждой карте Предметов читаются только с картона; в коде использованы правдоподобные символы по описанию действия (TOOLS для Инструментов, ELECTRONICS для Планов техкоридоров и т.д.), требует физической сверки.",
+        "Машинные effect.kind карт Действий выведены из русских описаний (стр. 24-28) и не сверены с английскими оригиналами карт; при сверке уточнить названия kind.",
+        "Боезапас стартового оружия (6/2/2/5/4/3) — из внешних переписей; требует сверки с картой оружия."
+      ]
     },
     "combat-die": {
       "file": "packages/shared/src/data/combatDie.ts",
@@ -1324,10 +1395,10 @@
       },
       "unverified": [
         "Номера Коридоров, символы Чужих и тексты каждого экземпляра взяты из транскрипта doc/data/EVENTS.md; оригинальных сканов карт в репозитории нет.",
-      "Транскрипт перечисляет 22 пункта, физическая колода содержит 20 карт: из состава исключены вторая «Подготовка» [4] и «Пожирающее пламя». Точный недостающий элемент группы «Разрушение корабля» требует сверки с картоном.",
-      "Отступление в бою по карте «Подготовка» (направление «Любое»): карта не печатает номер Коридора, поэтому по буквальному чтению стр. 20 («переместите Чужого в направлении Коридора, номер которого указан на этой карте») Чужой остаётся на месте. Официального разъяснения нет; при появлении вердикта трактовка меняется одной ветвью в logic/intruderRetreat.ts.",
-      "Golden-тест проверяет точное соответствие кода этому пакету источника, а не подтверждает достоверность физического транскрипта."
-    ]
+        "Транскрипт перечисляет 22 пункта, физическая колода содержит 20 карт: из состава исключены вторая «Подготовка» [4] и «Пожирающее пламя». Точный недостающий элемент группы «Разрушение корабля» требует сверки с картоном.",
+        "Отступление в бою по карте «Подготовка» (направление «Любое»): карта не печатает номер Коридора, поэтому по буквальному чтению стр. 20 («переместите Чужого в направлении Коридора, номер которого указан на этой карте») Чужой остаётся на месте. Официального разъяснения нет; при появлении вердикта трактовка меняется одной ветвью в logic/intruderRetreat.ts.",
+        "Golden-тест проверяет точное соответствие кода этому пакету источника, а не подтверждает достоверность физического транскрипта."
+      ]
     },
     "intruder-miniatures": {
       "file": "packages/shared/src/data/intruderMiniatures.ts",

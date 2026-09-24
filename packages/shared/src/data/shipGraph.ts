@@ -69,13 +69,12 @@ export const SHIP_CORRIDORS: CorridorConnection[] = [
 
   // --- Нос / Левое крыло ---
   { id: '2-6', fromRoomId: 2, toRoomId: 6, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
-  { id: '3-6', fromRoomId: 3, toRoomId: 6, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
-  { id: '3-7', fromRoomId: 3, toRoomId: 7, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
+  { id: '3-7', fromRoomId: 3, toRoomId: 7, fromNumbers: [3, 4], toNumbers: [3, 4], doorState: 'OPEN', hasNoise: false },
   { id: '4-8', fromRoomId: 4, toRoomId: 8, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
 
   // --- Центр-север ---
-  { id: '5-6', fromRoomId: 5, toRoomId: 6, fromNumbers: [1, 2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
-  { id: '5-10', fromRoomId: 5, toRoomId: 10, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
+  { id: '5-6', fromRoomId: 5, toRoomId: 6, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
+  { id: '5-10', fromRoomId: 5, toRoomId: 10, fromNumbers: [1, 2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
   { id: '6-7', fromRoomId: 6, toRoomId: 7, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
   { id: '6-11', fromRoomId: 6, toRoomId: 11, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
   { id: '8-11', fromRoomId: 8, toRoomId: 11, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
@@ -85,7 +84,7 @@ export const SHIP_CORRIDORS: CorridorConnection[] = [
   // --- Центр-юг ---
   { id: '7-8', fromRoomId: 7, toRoomId: 8, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
   { id: '8-9', fromRoomId: 8, toRoomId: 9, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
-  { id: '9-12', fromRoomId: 9, toRoomId: 12, fromNumbers: [4], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
+  { id: '9-12', fromRoomId: 9, toRoomId: 12, fromNumbers: [1,2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
 
   // --- Северо-восток ---
   {

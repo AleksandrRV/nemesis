@@ -17,6 +17,19 @@ const CAPTAIN_DECK = [
   'ACT_CAP_SEARCH_2',
 ];
 
+/** Машиночитаемый эффект по id тестовой карты — как в data/actionCards.ts. */
+function effectForId(id: string): ActionCard['effect'] {
+  if (id.includes('RELOAD')) return { kind: 'RELOAD', ammoGain: 1 };
+  if (id.includes('REST')) return { kind: 'REST' };
+  if (id.includes('REPAIR')) return { kind: 'BASIC_REPAIR' };
+  if (id.includes('DEMOLITION')) return { kind: 'DEMOLITION' };
+  if (id.includes('DISMISS')) return { kind: 'DISMISS' };
+  if (id.includes('SEARCH')) return { kind: 'SEARCH' };
+  if (id.includes('ORDER')) return { kind: 'ORDER' };
+  if (id.includes('MOTIVATION')) return { kind: 'MOTIVATION', drawCount: 1 };
+  return { kind: 'REST' };
+}
+
 function playState(): GameState {
   const state = contactState(1, 'player-actions-test');
   const player = state.players['player-1']!;
@@ -26,6 +39,7 @@ function playState(): GameState {
     name: id,
     playCost: id === 'ACT_CAP_BASIC_REPAIR' ? 2 : 0,
     description: '',
+    effect: effectForId(id),
   }));
   player.actionDeck.drawPile = [];
   player.actionDeck.discard = [];
@@ -49,7 +63,7 @@ function weapon(): ItemCard {
     isSingleUse: false,
     actionCost: 0,
     isWeapon: true,
-    isEnergyWeapon: false,
+    isEnergyWeapon: true,
     ammo: 1,
     maxAmmo: 6,
     componentSymbols: [],
@@ -81,17 +95,25 @@ function play(
 describe('Разыгрывание карт Действий (стр. 10, 13)', () => {
   it('уходит в личный сброс, считает действие и передаёт ход после второго', () => {
     const state = playState();
+    // «Перезарядка» требует оружие не полным: стартовый Револьвер заряжаем на 5/6.
+    const weaponSlot = state.players['player-1']!.handSlots[0];
+    if (weaponSlot && weaponSlot.source === 'ITEM') weaponSlot.card.ammo = 5;
+    // «Отдых» требует карту Заражения на руке.
+    state.players['player-1']!.actionDeck.hand.push({ id: 'CONTAMINATION_REST', isInfected: false, isScanned: false });
+
     const next = play(state, card(state, 'ACT_CAP_RELOAD'));
     const player = next.players['player-1']!;
-    expect(player.actionDeck.hand).toHaveLength(9);
+    expect(player.actionDeck.hand).toHaveLength(10);
     expect(player.actionDeck.discard.map((entry) => entry.id)).toEqual(['ACT_CAP_RELOAD']);
     expect(player.actionsPerformedThisRound).toBe(1);
-    const finished = play(next, card(next, 'ACT_CAP_ORDER'));
+    const finished = play(next, card(next, 'ACT_CAP_REST'));
     expect(finished.players['player-1']!.actionsPerformedThisRound).toBe(0);
   });
 
   it('оплата берётся с руки; Заражение и сама разыгрываемая карта оплатой быть не могут', () => {
     const state = playState();
+    // «Базовый ремонт» требует маркер Неисправности в отсеке.
+    state.ship.rooms[state.players['player-1']!.roomId]!.hasMalfunction = true;
     state.players['player-1']!.actionDeck.hand.push({ id: 'CONTAMINATION_1', isInfected: false, isScanned: false });
     expectEngineError(
       () => play(state, card(state, 'ACT_CAP_BASIC_REPAIR'), [card(state, 'ACT_CAP_RELOAD'), 'CONTAMINATION_1']),
@@ -134,8 +156,14 @@ describe('Разыгрывание карт Действий (стр. 10, 13)', 
 
   it('Демонтаж с выбранной Дверью переводит её в Разрушенную', () => {
     const state = playState();
-    const next = play(state, card(state, 'ACT_CAP_DEMOLITION'), [], { targetCorridorId: '1-2' });
-    expect(next.ship.corridors['1-2']?.doorState).toBe('DESTROYED');
+    const roomId = state.players['player-1']!.roomId;
+    const corridor = Object.values(state.ship.corridors).find(
+      (candidate) =>
+        (candidate.fromRoomId === roomId || candidate.toRoomId === roomId) && candidate.doorState !== 'DESTROYED',
+    );
+    expect(corridor).toBeDefined();
+    const next = play(state, card(state, 'ACT_CAP_DEMOLITION'), [], { targetCorridorId: corridor!.id });
+    expect(next.ship.corridors[corridor!.id]?.doorState).toBe('DESTROYED');
   });
 });
 
@@ -148,11 +176,15 @@ describe('Использование Предметов (стр. 10, 22)', () =>
     const state = playState();
     const single = item(state, 'ITEM_GRE_MEDKIT_1');
     const multi = item(state, 'ITEM_GRE_CLOTHES_1', { isSingleUse: false });
+    state.players['player-1']!.lightWounds = 1; // Аптечке нужно, что лечить
+    state.players['player-1']!.hasSlime = true; // Одежде нужна Слизь
     state.players['player-1']!.inventory = [single, multi];
     const next = use(state, single.id, [card(state, 'ACT_CAP_RELOAD')]);
     expect(next.players['player-1']!.inventory.map((entry) => entry.id)).toEqual([multi.id]);
     expect(next.players['player-1']!.actionDeck.discard.map((entry) => entry.id)).toEqual(['ACT_CAP_RELOAD']);
-    expect(use(next, multi.id, [card(next, 'ACT_CAP_ORDER')]).players['player-1']!.inventory).toHaveLength(1);
+    const again = structuredClone(next);
+    again.players['player-1']!.hasSlime = true; // многоразовая Одежда применима повторно
+    expect(use(again, multi.id, [card(next, 'ACT_CAP_ORDER')]).players['player-1']!.inventory).toHaveLength(1);
   });
 
   it('Аптечка лечит Лёгкие Травмы, Алкоголь удаляет карту Заражения из руки', () => {

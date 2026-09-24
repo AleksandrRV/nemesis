@@ -36,6 +36,8 @@ export interface FormattedGameLogEntry {
   id: string;
   sequence: number;
   segments: GameLogSegment[];
+  groupId: string | null;
+  isMovementGroup: boolean;
 }
 
 const ROOM_NAMES = new Map(
@@ -371,6 +373,28 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: ` в ${roomLabel(view, event.roomId)}.` },
       ];
     }
+    case 'OBJECT_DROPPED': {
+      const kindLabel =
+        event.objectKind === 'CORPSE'
+          ? 'Труп члена экипажа'
+          : event.objectKind === 'EGG'
+            ? 'Яйцо Чужих'
+            : 'Останки Чужого';
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' сбрасывает Тяжёлый объект «' },
+        { text: kindLabel, tone: 'warning', strong: true },
+        { text: `» в ${roomLabel(view, event.roomId)}.` },
+      ];
+    }
+    case 'HEAVY_ITEM_DISCARDED': {
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' сбрасывает тяжёлый предмет «' },
+        { text: event.itemName, tone: 'warning', strong: true },
+        { text: `» в ${roomLabel(view, event.roomId)}.` },
+      ];
+    }
     case 'EVENT_EFFECT_RESOLVED':
       return formatEventEffectOutcome(event.outcome, view);
     case 'HIVE_DEVELOPMENT_RESOLVED':
@@ -392,14 +416,126 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
     default:
-      return formatIntruderLogEvent(event, view);
+      return formatIntruderLogEvent(event as never, view);
   }
 }
 
 export function formatGameLogEntry(entry: GameLogEntry, view: SanitizedGameState): FormattedGameLogEntry {
-  return { id: entry.id, sequence: entry.sequence, segments: formatEntry(entry, view) };
+  return {
+    id: entry.id,
+    sequence: entry.sequence,
+    segments: formatEntry(entry, view),
+    groupId: null,
+    isMovementGroup: false,
+  };
+}
+
+function computeMovementGroups(
+  log: readonly GameLogEntry[],
+): Map<string, { groupId: string | null; isMovement: boolean }> {
+  const map = new Map<string, { groupId: string | null; isMovement: boolean }>();
+  const movementRelated = new Set([
+    'ROOM_DISCOVERED',
+    'EXPLORATION_TOKEN_REVEALED',
+    'EXPLORATION_EFFECT_RESOLVED',
+    'NOISE_ROLLED',
+    'NOISE_MARKER_PLACED',
+    'NOISE_SKIPPED',
+    'CONTACT_OCCURRED',
+    'SURPRISE_ATTACK_RESOLVED',
+    'INTRUDERS_MOVED',
+    'INTRUDERS_BLOCKED_BY_DOOR',
+  ]);
+
+  let currentGroupId: string | null = null;
+  let currentPlayerId: string | null = null;
+  let currentRoomId: number | null = null;
+  let lastSeqInGroup = -100;
+
+  for (const entry of log) {
+    const ev = entry.event as GameLogEvent & { playerId?: string | null; roomId?: number; toRoomId?: number };
+
+    if (ev.type === 'PLAYER_MOVED') {
+      currentGroupId = `move-${entry.sequence}`;
+      currentPlayerId = ev.playerId;
+      currentRoomId = ev.toRoomId;
+      lastSeqInGroup = entry.sequence;
+      map.set(entry.id, { groupId: currentGroupId, isMovement: true });
+      continue;
+    }
+
+    if (currentGroupId && currentRoomId !== null && movementRelated.has(ev.type)) {
+      // Проверяем принадлежность к текущему движению: roomId совпадает и игрок тот же (или null для маркеров от DANGER)
+      const entryRoomId = (ev as { roomId?: number }).roomId;
+      const entryPlayerId = (ev as { playerId?: string | null }).playerId;
+      const roomMatches = entryRoomId === undefined || entryRoomId === currentRoomId;
+      const playerMatches = entryPlayerId === undefined || entryPlayerId === null || entryPlayerId === currentPlayerId;
+      const close = entry.sequence - lastSeqInGroup <= 8;
+
+      if (roomMatches && playerMatches && close) {
+        map.set(entry.id, { groupId: currentGroupId, isMovement: true });
+        lastSeqInGroup = entry.sequence;
+        continue;
+      }
+    }
+
+    // Сброс группы при разрыве
+    if (
+      ev.type === 'PLAYER_TURN_STARTED' ||
+      ev.type === 'ROUND_STARTED' ||
+      ev.type === 'TIME_TRACK_ADVANCED' ||
+      ev.type === 'EVENT_CARD_DRAWN' ||
+      ev.type === 'PLAYER_PASSED' ||
+      ev.type === 'GAME_OVER'
+    ) {
+      currentGroupId = null;
+      currentPlayerId = null;
+      currentRoomId = null;
+    }
+
+    // Не в группе движения
+    map.set(entry.id, { groupId: null, isMovement: false });
+  }
+
+  return map;
 }
 
 export function formatGameLog(view: SanitizedGameState): FormattedGameLogEntry[] {
-  return view.gameLog.map((entry) => formatGameLogEntry(entry, view));
+  const groups = computeMovementGroups(view.gameLog);
+  return view.gameLog.map((entry) => {
+    const g = groups.get(entry.id);
+    return {
+      id: entry.id,
+      sequence: entry.sequence,
+      segments: formatEntry(entry, view),
+      groupId: g?.groupId ?? null,
+      isMovementGroup: g?.isMovement ?? false,
+    };
+  });
+}
+
+export interface GroupedGameLog {
+  groupId: string | null;
+  isMovement: boolean;
+  entries: FormattedGameLogEntry[];
+}
+
+export function groupFormattedLog(entries: readonly FormattedGameLogEntry[]): GroupedGameLog[] {
+  const result: GroupedGameLog[] = [];
+  let current: GroupedGameLog | null = null;
+
+  for (const entry of entries) {
+    if (entry.groupId && current && current.groupId === entry.groupId) {
+      current.entries.push(entry);
+    } else {
+      if (current) result.push(current);
+      if (entry.groupId) {
+        current = { groupId: entry.groupId, isMovement: entry.isMovementGroup, entries: [entry] };
+      } else {
+        current = { groupId: null, isMovement: false, entries: [entry] };
+      }
+    }
+  }
+  if (current) result.push(current);
+  return result;
 }

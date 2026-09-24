@@ -1,5 +1,5 @@
 import type { CombatDieFace } from '../data/combatDie.js';
-import type { EventCard, ItemDeckColor } from './cards.js';
+import type { EventCard, ItemCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
 
 export type PendingDecision =
@@ -8,8 +8,26 @@ export type PendingDecision =
       id: string;
       playerId: string;
       type: 'CHOOSE_SEARCH_ITEM';
-      drawnCardIds: string[];
+      /** Полные карты, вытянутые из колоды — владелец видит name/description/color (Шаг 5, долг 11) */
+      cards: ItemCard[];
       sourceDeck: ItemDeckColor;
+      roomId: RoomId;
+    }
+  | {
+      id: string;
+      playerId: string;
+      type: 'CHOOSE_STORAGE_ITEM';
+      /** Отдельный тип для Склада, чтобы не путать itemsCount-- логику (Шаг 5, долг 14) */
+      cards: ItemCard[];
+      sourceDeck: ItemDeckColor;
+      roomId: RoomId;
+    }
+  | {
+      id: string;
+      playerId: string;
+      type: 'CHOOSE_ENERGY_WEAPON';
+      /** Выбор энергооружия в Оружейной, если у игрока их несколько (Шаг 6, долг 18) */
+      weaponIds: string[];
       roomId: RoomId;
     }
   | {
@@ -23,6 +41,8 @@ export type PendingDecision =
       playerId: string;
       type: 'DISCARD_HEAVY_ITEM_FOR_NEW';
       newItemId: string;
+      /** Комната, в которой был поиск — чтобы после сброса завершить поиск (Шаг 5, долг 12) */
+      roomId?: RoomId;
     }
   | {
       id: string;
@@ -64,4 +84,12 @@ export type PendingDecision =
       type: 'CHOOSE_EVENT_CARD';
       /** Три вытянутые карты — публичная информация: карты Событий вскрываются лицом вверх. */
       cards: EventCard[];
+    }
+  | {
+      /** «Стальные нервы»: сбросить карту, чтобы отменить Внезапную Атаку (стр. 25)? */
+      id: string;
+      playerId: string;
+      type: 'STEEL_NERVES_OFFER';
+      intruderId: string;
+      intruderType: string;
     };

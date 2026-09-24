@@ -175,11 +175,11 @@ describe('RoomInspector: Останки, подбор и Лаборатория 
 
     expect(html).toContain('Изучить: Останки Чужого');
     expect(html).not.toContain('Изучить: Яйцо Чужих');
-    expect(html).toContain('Слабости Чужих');
-    // Рубашка REMAINS скрыта, изученная EGG открыта.
+    // Инфопанели Слабостей в окне комнаты больше нет — они на Планшете Чужих.
+    expect(html).not.toContain('Слабости Чужих');
     expect(html).not.toContain('Уязвимость к энергии');
-    expect(html).toContain('Реакция на опасность');
-    expect(html).toContain('не изучено');
+    expect(html).not.toContain('Реакция на опасность');
+    expect(html).not.toContain('не изучено');
   });
 
   it('рубашка Слабости не раскрывает имя в разметке', () => {
@@ -201,8 +201,10 @@ describe('RoomInspector: Останки, подбор и Лаборатория 
     });
 
     const html = renderWithPayment(view, roomId, []);
-    expect(html).toContain('Слабости Чужих');
+    // Окно комнаты не показывает Слабости вовсе — ни имён, ни рубашек:
+    // единственное место слабостей — Планшет Чужих (IntruderBoardModal).
+    expect(html).not.toContain('Слабости Чужих');
     expect(html).not.toContain('Секретная Слабость');
-    expect(html).toContain('не изучено');
+    expect(html).not.toContain('не изучено');
   });
 });

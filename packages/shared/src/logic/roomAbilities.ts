@@ -4,11 +4,12 @@ import type { ActionDeckCard, ContaminationCard } from '../types/cards.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
-import { drawSearchCards } from './search.js';
-import { advanceTurn } from './turnCycle.js';
+import { drawSearchCards, placeItemToPlayer } from './search.js';
+import { advanceTurnWithoutFire, applyFireEndTurnEffect } from './turnCycle.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 import { sufferLightWounds } from './characterDamage.js';
+import { drawFromStream, shuffle } from '../utils/rng.js';
 
 export function executeRoomAbility(state: GameState, actorId: string, payload: RoomAbilityPayload): void {
   const player = state.players[actorId]!;
@@ -33,13 +34,33 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
   switch (room.definitionId) {
     case 'ARMORY': {
       // Перезарядка энергооружия: ищем в слотах рук оружие с isEnergyWeapon: true
-      const energyWeaponSlot = player.handSlots.find(
+      // Шаг 6, долг 18: если 2 энергоствола в руках — давать выбор через CHOOSE_ENERGY_WEAPON, или заряжать все.
+      // Реализуем выбор: если несколько — ставим решение CHOOSE_ENERGY_WEAPON.
+      const energyWeaponSlots = player.handSlots.filter(
         (slot) => slot.source === 'ITEM' && slot.card.isWeapon && slot.card.isEnergyWeapon === true,
       );
-      if (!energyWeaponSlot || energyWeaponSlot.source !== 'ITEM') {
+
+      if (energyWeaponSlots.length === 0) {
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'У персонажа нет энергооружия в руках для перезарядки');
       }
-      const weapon = energyWeaponSlot.card;
+
+      if (energyWeaponSlots.length > 1) {
+        // Несколько энергооружий — игрок выбирает одно
+        state.pendingDecision = {
+          id: allocateEntityId(state, 'armory-choice'),
+          playerId: actorId,
+          type: 'CHOOSE_ENERGY_WEAPON',
+          weaponIds: energyWeaponSlots.map((s) => (s.source === 'ITEM' ? s.card.id : '')),
+          roomId: room.id,
+        };
+        return;
+      }
+
+      const weaponSlot = energyWeaponSlots[0]!;
+      if (weaponSlot.source !== 'ITEM') {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'У персонажа нет энергооружия в руках для перезарядки');
+      }
+      const weapon = weaponSlot.card;
       const maxAmmo = weapon.maxAmmo ?? 4;
       const currentAmmo = weapon.ammo ?? 0;
       const newAmmo = Math.min(maxAmmo, currentAmmo + 2);
@@ -190,16 +211,41 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
 
     case 'STORAGE': {
       // Склад: Поиск в любой колоде (Красная, Жёлтая, Зелёная) без уменьшения itemsCount комнаты
+      // Шаг 5, долг 14: введён отдельный тип CHOOSE_STORAGE_ITEM чтобы не путать itemsCount-- логику
       const targetDeck = payload.targetDeckColor ?? 'YELLOW';
       const drawn = drawSearchCards(state, targetDeck);
       if (drawn.length === 0) {
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `В колоде ${targetDeck} не осталось карт`);
       }
+      if (drawn.length === 1) {
+        // Одиночная карта — сразу помещаем, но с проверкой тяжёлых рук (Шаг 5, долг 12)
+        // Склад не уменьшает itemsCount, поэтому roomId не передаём — DISCARD_HEAVY не должен декрементить
+        const placed = placeItemToPlayer(state, actorId, drawn[0]!);
+        if (!placed) {
+          appendGameLog(state, {
+            type: 'ROOM_ABILITY_USED',
+            playerId: actorId,
+            roomId: room.id,
+            roomDefinitionId: 'STORAGE',
+            detail: `Поиск на Складе в колоде ${targetDeck} (требуется сброс тяжёлого)`,
+          });
+          return;
+        }
+        appendGameLog(state, {
+          type: 'ROOM_ABILITY_USED',
+          playerId: actorId,
+          roomId: room.id,
+          roomDefinitionId: 'STORAGE',
+          detail: `Поиск на Складе в колоде ${targetDeck}`,
+        });
+        queueActionCompletion(state, actorId);
+        return;
+      }
       state.pendingDecision = {
         id: allocateEntityId(state, 'storage-choice'),
         playerId: actorId,
-        type: 'CHOOSE_SEARCH_ITEM',
-        drawnCardIds: drawn.map((c) => c.id),
+        type: 'CHOOSE_STORAGE_ITEM',
+        cards: drawn,
         sourceDeck: targetDeck,
         roomId: room.id,
       };
@@ -215,6 +261,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
 
     case 'NEST': {
       // Улей: взятие 1 яйца Чужих
+      // Шаг 6, долг 16: id генерация через allocateEntityId чтобы избежать коллизий EGG_${5-eggsOnBoard}
       if (state.intrudersPool.eggsOnBoard <= 0) {
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'В Улье не осталось яиц Чужих');
       }
@@ -224,7 +271,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       state.intrudersPool.eggsOnBoard -= 1;
       player.handSlots.push({
         source: 'OBJECT',
-        object: { id: `EGG_${5 - state.intrudersPool.eggsOnBoard}`, kind: 'EGG' },
+        object: { id: allocateEntityId(state, 'egg'), kind: 'EGG' },
       });
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
@@ -344,11 +391,25 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       }
 
       // Карты с инфекцией удаляются из игры, чистые карты замешиваются в колоду
+      // Шаг 6, долг 17: по книге чистые замешиваются — использовать shuffle(cards) + rngDraws.cards++
       player.actionDeck.hand = [];
-      player.actionDeck.drawPile.push(...cleanCards);
+      if (cleanCards.length > 0) {
+        const shuffled = shuffle(() => {
+          const v = drawFromStream(state.meta.seed, 'cards', state.meta.rngDraws.cards);
+          state.meta.rngDraws.cards += 1;
+          return v;
+        }, cleanCards);
+        player.actionDeck.drawPile.push(...shuffled);
+      }
       player.hasLarva = false;
       sufferLightWounds(state, actorId, 1);
-      player.hasPassed = true;
+
+      // Огонь наносится до блокировки паса (если в Операционной есть Пожар)
+      applyFireEndTurnEffect(state, actorId);
+
+      if (!player.isDead) {
+        player.hasPassed = true;
+      }
 
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
@@ -357,7 +418,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         roomDefinitionId: 'SURGERY',
         detail: `Хирургическая операция: удалено ${infectedCards.length} карт инфекции, получена 1 лёгкая травма, пас`,
       });
-      advanceTurn(state, actorId);
+      advanceTurnWithoutFire(state, actorId);
       return;
     }
 

@@ -35,6 +35,7 @@ describe('Подготовка руки и лимиты (v0.3.0 Шаг 3)', () =
     if (cabinsRoom) {
       player.roomId = cabinsRoom.id;
       cabinsRoom.hasMalfunction = false;
+      cabinsRoom.hasFire = false;
       cabinsRoom.occupantIntruderIds = [];
 
       expect(getPlayerHandLimit(state, 'player-1')).toBe(CABINS_HAND_SIZE);
@@ -42,7 +43,41 @@ describe('Подготовка руки и лимиты (v0.3.0 Шаг 3)', () =
       // При неисправности лимит снова базовый
       cabinsRoom.hasMalfunction = true;
       expect(getPlayerHandLimit(state, 'player-1')).toBe(BASE_HAND_SIZE);
+
+      // При пожаре лимит снова базовый
+      cabinsRoom.hasMalfunction = false;
+      cabinsRoom.hasFire = true;
+      expect(getPlayerHandLimit(state, 'player-1')).toBe(BASE_HAND_SIZE);
+
+      // При чужих лимит базовый
+      cabinsRoom.hasFire = false;
+      cabinsRoom.occupantIntruderIds = ['intruder-1'];
+      expect(getPlayerHandLimit(state, 'player-1')).toBe(BASE_HAND_SIZE);
     }
+  });
+
+  it('санитизированный лимит руки считается по тем же правилам (CABINS + !hasMalfunction && !hasFire && no intruders)', async () => {
+    const { filterStateForPlayer } = await import('./sanitizer.js');
+    const { getSanitizedPlayerHandLimit } = await import('./cardsPayment.js');
+    const state = createInitialGameState('test-seed-cabins-sanitized');
+    const player = state.players['player-1']!;
+    const cabinsRoom = Object.values(state.ship.rooms).find((r) => r.definitionId === 'CABINS');
+    if (!cabinsRoom) return;
+
+    player.roomId = cabinsRoom.id;
+    cabinsRoom.hasMalfunction = false;
+    cabinsRoom.hasFire = false;
+    cabinsRoom.occupantIntruderIds = [];
+
+    const sanitized = filterStateForPlayer(state, 'player-1');
+    expect(sanitized.players['player-1']?.handLimit).toBe(CABINS_HAND_SIZE);
+    expect(getSanitizedPlayerHandLimit(sanitized, 'player-1')).toBe(CABINS_HAND_SIZE);
+
+    // Пожар → 5
+    cabinsRoom.hasFire = true;
+    const sanitizedFire = filterStateForPlayer(state, 'player-1');
+    expect(sanitizedFire.players['player-1']?.handLimit).toBe(BASE_HAND_SIZE);
+    expect(getSanitizedPlayerHandLimit(sanitizedFire, 'player-1')).toBe(BASE_HAND_SIZE);
   });
 
   it('добирает карты до лимита руки при нехватке', () => {

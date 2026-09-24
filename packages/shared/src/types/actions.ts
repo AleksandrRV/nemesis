@@ -42,6 +42,12 @@ export type PlayCardActionPayload = {
   option?: string;
   targetRoomId?: RoomId;
   targetCorridorId?: string;
+  /** Персонаж-цель («Приказ»: перенос другого Персонажа). */
+  targetPlayerId?: string;
+  /** Цвет колоды Предметов («Мародерство», «Поиск» в белом отсеке). */
+  targetDeckColor?: ItemDeckColor;
+  /** Предмет-цена («Пиротехник»: сброс Предмета за маркер Пожара). */
+  targetItemId?: string;
   /** Шаг 8: параметры классовой боевой карты — карта и действие играются вместе. */
   combat?: CombatCardPayload;
 };
@@ -51,7 +57,15 @@ export type UseItemActionPayload = {
   discardCardIds?: string[];
   option?: string;
   targetRoomId?: RoomId;
+  /** Вторая цель («Планы Немезиды»: подглядывание двух комнат). */
+  targetRoomId2?: RoomId;
   targetCorridorId?: string;
+  /** Персонаж-цель, если предмет действует на другого Персонажа. */
+  targetPlayerId?: string;
+  /** Цвет колоды Предметов, если предмет ищет в конкретной колоде. */
+  targetDeckColor?: ItemDeckColor;
+  /** Карты с руки для спецэффектов («Военные препараты»: сброс N карт → добор N+1). */
+  targetCardIds?: string[];
 };
 
 export type GameAction =
@@ -85,6 +99,11 @@ export type GameAction =
       /** Базовое действие «Поднять Тяжёлый объект» [1] (стр. 13, 22): Труп, Яйцо или Останки из своего отсека. */
       type: 'ACTION_PICK_UP_OBJECT';
       payload: { objectId: string; discardCardIds: string[] };
+    }
+  | {
+      /** Сброс тяжёлого предмета/объекта из слота руки в комнату (стр. 22, ITEMS_AND_GEAR.md: сброс без действия) */
+      type: 'ACTION_DISCARD_HEAVY_ITEM';
+      payload: { handSlotIndex: number; discardCardIds?: string[] };
     }
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }

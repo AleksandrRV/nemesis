@@ -36,149 +36,243 @@
 
 ## Этап 1 (v0.1.0) — Архитектурный каркас, Граф корабля и SVG-карта
 > **Срок:** Неделя 1  
-> **Фокус:** Базовая архитектура монорепозитория, структуры данных и визуализация поля.
+> **Фокус:** Базовая архитектура монорепозитория, детерминированное ядро, топология 21/29 и интерактивная векторная карта.  
+> **Статус на 17.09.2026 (версия 0.1.9 → 0.1.11):** каркас готов и зафиксирован как **v0.1.0**. Ниже этап разделён на 7 последовательных шагов. На старте проекта репозиторий был пустым — сканов `doc/original/` ещё не было, источником служили `doc/rules.md` и внешние переписи компонентов. Каждый шаг явно перечисляет файлы, контракты и тесты, которые его закрывают.
 
-### Задачи:
-1. **Инициализация проекта:**
-   * Настройка NPM Workspaces: `packages/shared`, `packages/client`, `packages/server` (заглушка).
-   * Строгий `tsconfig.base.json`, конфиг `eslint`, настройка Vite + React + Tailwind CSS в `packages/client`.
-2. **Модель данных корабля (`packages/shared`):**
-   * Описание топологии корабля в виде графа: 21 комната (5 особых, 11 основных «1», 5 дополнительных «2»), ребра-коридоры с номерами (1–4) и слотами под двери/шум.
-   * Конфигурация комнат по умолчанию (стр. 6–7, 9 правил).
-3. **Визуализация интерактивной карты (`packages/client`):**
-   * Отрисовка комнат в виде стилизованных векторных шестиугольников (SVG).
-   * Отрисовка коридоров (линии) с индикаторами дверей (Открыта/Закрыта/Разрушена).
-   * Интеграция `react-zoom-pan-pinch`: свободное панорамирование и зум карты жестами и мышью на смартфонах и ПК.
+### Шаг 1. Инициализация монорепозитория и базовый tooling (Scaffolding) — ВЫПОЛНЕНО в 0.1.0
 
-**Результат этапа (Playable Demo v0.1.0):**  
-В браузере открывается интерактивная карта корабля «Немезида». Можно зумить, перемещать карту пальцем/мышью, кликать по комнатам и видеть в боковой панели их названия, тип и связанные коридоры.
+* **Workspaces:** корневой `package.json` с `workspaces: ["packages/*"]`, `packages/shared` (`immer`, `seedrandom`) и `packages/client` (`react 18`, `vite 5`, `tailwind 3`, `zustand 4`, `lucide-react`, `react-zoom-pan-pinch 3.4.3`), `packages/server` — заглушка (цель этапов 10–11, не создавать в этом этапе).
+* **Строгий TypeScript:** `tsconfig.base.json` — `strict: true`, `noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `esModuleInterop`, отдельные `tsconfig.json` для shared/client/test/node.
+* **Линтер и формат:** `eslint.config.mjs` — `max-lines` 500 (предупреждение), 1000 — рефакторинг, `no-restricted-imports` (запрет React/DOM/Node в shared, запрет `Math.random` в логике), `import/no-restricted`, `eslint` + `prettier`, `.prettierignore` исключает `TEMP/EXPERT_*`.
+* **Сборка и тесты:** `vite.config.ts` с `@vitejs/plugin-react`, `tailwind.config.js` + `postcss.config.js` + `src/index.css` (только директивы Tailwind), `vitest` с проектами `shared` и `client`, `jsdom` для клиента.
+* **Документация каркаса:** `AGENTS.md` (регламент агента), `NOTICE.md` (статус фанатского проекта, правило 1:1), `README.md` stub, `doc/rules.md` — текст книги правил (источник истины), `doc/design_document.md` / `tech_stack.md` / `project-map.md` — цель, не факт.
+* **Скрипты:** `npm ci`, `npm run dev` (`vite --host`), `npm run verify` (`typecheck + lint + format:check + test`), `npm run build`, `npm run test:coverage`.
+* *Результат:* `npm ci` ставит оба воркспейса, `npm run verify` зелёный на пустых модулях, dev-сервер отдаёт пустую страницу с HUD-заглушкой.
+
+### Шаг 2. Контракты типов и детерминированный RNG (Core Types & RNG) — ВЫПОЛНЕНО в 0.1.0
+
+* **Корневой контракт:** `packages/shared/src/types/state.ts` — `GAME_STATE_SCHEMA_VERSION`, `GameMeta` (`gameId`, `seed`, `nextEntitySequence`, `gameMode SOLO/COOP/SEMI_COOP/INTRUDER_PLAYER`, `currentRound`, `phase PLAYER_PHASE/EVENT_PHASE/GAME_OVER`, `activePlayerId`, `firstPlayerId`, `timeTrackPosition 0..15`, `selfDestructTrackPosition null|0..8`, `rngDraws Record<RngStream, number>`, `gameOverReason SHIP_EXPLODED/HULL_BREACH/HYPERSPACE_JUMP/NO_ACTIVE_CHARACTERS`), `ShipState` (`rooms Record<RoomId, RoomState>`, `corridors Record<string, CorridorConnection>`, `technicalCorridorNoise boolean`, `engines Record<EngineNumber, EngineState {isWorking}>`, `coordinates {destination EARTH/MARS/DEEP_SPACE_1/2, currentCourseMarker A/B/C/D}`, `escapePods`), `IntrudersPoolState` (`bag`, `supply`, `boardTokens`, `eggsOnBoard 0..8`, `weaknessSlots`, `firstEncounterOccurred`, `attackSuppression`), `GameState` (`meta`, `ship`, `intrudersPool`, `decks`, `players`, `claimsLog`, `gameLog`, `interruptQueue`, `pendingDecision`).
+* **Остальные контракты:** `rooms.ts` — `RoomState` (`id`, `definitionId`, `category SPECIAL/ROOM_1/ROOM_2`, `isExplored`, `itemsCount`, `hasComputer`, `hasFire`, `hasMalfunction`, `hasSlime`, `hasDecompressionToken`, `occupantIntruderIds`, `objects`), `CorridorConnection` (`id`, `fromRoomId`, `toRoomId`, `exits {from:1..4, to:1..4}`, `doorState OPEN/CLOSED/DESTROYED`, `hasNoise`, `techNumbers`), `ExplorationEffect`; `entities.ts` — `CharacterClass` 6 классов (CAPTAIN/PILOT/MECHANIC/SOLDIER/SCOUT/SCIENTIST, Медик промо документируется отдельно), `PlayerState` (2 слота рук), `IntruderToken` (27 шт.), `IntruderEntity woundsCount`; `actions.ts` — `GameAction` discriminated union (`ACTION_MOVE`, `ACTION_SEARCH`, `ACTION_ROOM_ABILITY`, `ACTION_PASS`, `ACTION_SHOOT`, `ACTION_MELEE`, `ACTION_PICK_UP_OBJECT`, `ACTION_RESOLVE_DECISION`), `DevAction`; `cards.ts` — `ActionCard`, `ItemCard`, `ContaminationCard`, `SeriousWoundCard`, `IntruderAttackCard`, `EventCard`, `GameDecksState`; `sanitized.ts` — `SanitizedGameState` (скрытое как `null`/счётчики); `log.ts` — `GameLogEntry id sequence`; `interrupts.ts`, `decisions.ts`, `contact.ts`.
+* **RNG:** `packages/shared/src/utils/rng.ts` — `seedrandom` мастер-сид, 5 потоков `layout` (расклад поля/колод), `bag` (мешок Чужих), `cards` (общие колоды), `noise` (кубик Шума d10), `combat` (кубик Боя d6), `createRng`, `shuffle` (Fisher-Yates, ровно n-1 чтений), `rollDie`/`pickIndex`, восстановление реплеем от сида по `rngDraws`.
+* **Пакет источника:** `doc/sources/data-sources.json` — `meta` + `tables` с `status` (`RULES_LOCAL`, `USER_CONFIRMED`, `EXTERNAL_UNVERIFIED`, `UNVERIFIED_BOARD`) и `unverified` списком; golden-тест `sources.golden.test.ts` сверяет код с JSON.
+* *Тесты:* `index.test.ts` (экспорт ядра), `types/rooms.test.ts` (контракты), `rng` determinism (один сид → одна последовательность).
+* *Результат:* ядро компилируется без DOM/Node, типы строгие, RNG детерминирован, `filterStateForPlayer` ещё не реализован.
+
+### Шаг 3. Топология корабля — граф 21/29 и определения комнат (Ship Graph & Room Definitions) — ВЫПОЛНЕНО в 0.1.0
+
+* **Граф:** `packages/shared/src/data/shipGraph.ts` — `SHIP_ROOM_NODES` 21 узел (001 Мостик, 011 Криогенный, 019/020/021 Машинные — SPECIAL всегда исследованы; 16 неособых слотов для тайлов), `SHIP_CORRIDORS` **29** коридоров (каждый: `id`, `fromRoomId`, `toRoomId`, `exits {from:1..4, to:1..4}`, `doorState OPEN`, `hasNoise false`, `techNumbers` — входы в вентиляцию). Геометрия: 8 отсеков с входами — 2:[1,2], 4:[2,3], 5:[4], 9:[3], 14:[3], 15:[4], 19:[3,4], 21:[2,3] (из `map_full.jpg`). Известное расхождение: парные коридоры (два независимых между одной парой отсеков) описаны одной записью с общим маркером Шума/двери — зафиксировано тестом-снимком `shipGraph.test.ts`, ждёт сверки с физическим полем (`UNVERIFIED_BOARD`).
+* **Определения комнат:** `packages/shared/src/data/roomDefinitions.ts` — `SPECIAL_ROOMS` 5 (COCKPIT, HIBERNATORIUM, ENGINE_01/02/03), `BASIC_ROOMS_1` 11 (ARMORY RED, COMM YELLOW, INFIRMARY GREEN, LABORATORY GREEN, GENERATOR YELLOW, ESCAPE_POD_A/B WHITE, FIRE_CONTROL YELLOW, NEST RED, STORAGE RED, SURGERY GREEN), `ADDITIONAL_ROOMS_2` 9 (AIRLOCK_CONTROL YELLOW, CABINS WHITE, CANTEEN GREEN, COMMAND_CENTER YELLOW, ENGINE_CONTROL YELLOW, HATCH_CONTROL GREEN, OBSERVATION_ROOM RED, SLIME_ROOM WHITE, SHOWER WHITE). Поля: `id`, `name`, `color`, `hasComputer`, `actionCost [2]`, `description`. Цвета сверены с кодом (ранее в доках были ошибки: COMMAND_CENTER RED→YELLOW, HATCH_CONTROL WHITE→GREEN, OBSERVATION WHITE→RED).
+* **Тесты:** `shipGraph.test.ts` 17 кейсов (связность графа, уникальность ID, snapshot коридоров), `roomDefinitions.test.ts` 11 кейсов (уникальность ID, категории, цвета, компьютеры).
+* **Прованс:** `map_full.jpg` 7978×5456 (21 слот 001–021, коридоры с номерами, вентиляция, треки 15/8), `rooms.pdf` 11 стр. (гексы 1/2 + особые, жетоны), `data-sources.json#ship-graph-rooms/corridors`, `#room-definitions` — `UNVERIFIED_BOARD` для геометрии, `RULES_LOCAL` для категорий.
+* *Результат:* граф готов для запросов `findAdjacentOpenRoomIds`, `findOpenCorridors`, `roomHasTechnicalEntrance`.
+
+### Шаг 4. Запросы графа, маркеры и детерминированная подготовка партии (Setup, Markers & Queries) — ВЫПОЛНЕНО в 0.1.0–0.1.9
+
+* **Константы подготовки:** `packages/shared/src/data/setup.ts` — `TIME_TRACK_LENGTH 15`, `SELF_DESTRUCT_TRACK_LENGTH 8` (жёлтая зона ≥6, череп 8), `ESCAPE_PODS_BY_PLAYER_COUNT` (1–2→2, 3–4→3, 5→4), `ESCAPE_POD_CAPACITY 2`, `HAND_SLOT_COUNT 2`, `QUEST_ITEM_COUNT 2`, `BASE_ADULT_COUNT 3`, `BAG_ADULTS_PER_PLAYER 1`, `COORDINATE_DESTINATIONS` 4 (EARTH/MARS/DEEP_SPACE_1/2 упрощение, полный маппинг A-D — этап 0.6), `HIVE_EGG_CAPACITY 8`.
+* **Колоды стола:** `packages/shared/src/data/cardsSetup.ts` — `createInitialDecks()` (поток `cards`), `createActionDeckForCharacter()` (60 карт действий 6×10), `createShuffledPile()` (ровно n-1 чтений), `explorationTokens.ts` 20 жетонов (44 предмета: 8 Неисправность, 2 Пожар, 2 Тишина, 2 Слизь, 2 Опасность, 4 Двери), `intruderPool.ts` 27 жетонов (1 BLANK, 8 LARVA, 3 CREEPER, 12 ADULT, 2 BREEDER, 1 QUEEN), `ADULT_ESCAPE_NUMBERS` [2,3,4,4,1,2,3,1,2,3,4,1], `contaminationCards.ts` 27 (7 инфицированных), `seriousWounds.ts` 16 (4×4), `eventCards.ts` 20, `intruderAttacks.ts` 20, `weaknesses.ts` 8, `itemCards.ts` 90 (30/30/30), `crafting.ts` 12, `startingItems.ts` 6, `combatDie.ts` 6 граней (2 промаха), `noiseDie.ts` 10 граней.
+* **Логика подготовки:** `packages/shared/src/logic/setup.ts` — `createInitialGameState(seed)` детерминированно: тасует тайлы (11 всегда +5 из 9) потоком `layout`, жетоны Исследования 20→16 (4 в коробку, стр. 6 шаг 4), мешок Чужих `splitIntruderBag()` по числу игроков (3+1×игроков взрослых), колоды стола потоком `cards`, персонажей `CHARACTERS` (6 пресетов), капсулы `createEscapePods()` (LOCKED, наименьший номер в Отсек А), двигатели `isWorking` (инверсная пара, верхний — истина, стр. 6 шаг 8), координаты случайный destination, треки 0, RNG счётчики.
+* **Запросы графа:** `packages/shared/src/logic/shipGraphQueries.ts` — `requireOpenPath()`, `findOpenCorridors()`, `findAdjacentOpenRoomIds()`, `roomHasTechnicalEntrance()`, `corridorsLeadingInto()` — единый источник для движения игроков и Чужих.
+* **Маркеры и лимиты:** `packages/shared/src/logic/markers.ts` — `placeFireMarker()` лимит 8→`SHIP_EXPLODED`, `placeMalfunctionMarker()` 8→`HULL_BREACH` (запрет в NEST/SLIME_ROOM), `placeDoorToken()` 12 с перестановкой (разрушенные не трогаются, стр. 17), `noiseMarkersInSupply()` 30, `requireNoiseMarkerSupply()`. Разрушенная дверь терминальна (OPEN→CLOSED→DESTROYED).
+* **Тесты:** `setup.test.ts` 10 кейсов (детерминизм сида, капсулы по игрокам, мешок по игрокам, тайлы), `shipGraph.test.ts`, `markers.test.ts` 14 кейсов (лимиты, перестановка дверей, взрыв/разрыв).
+* *Результат:* `createInitialGameState('test-seed')` всегда даёт одну и ту же партию, лимиты маркеров соблюдены.
+
+### Шаг 5. Санитайзер, транспорт и сохранение сессии (Sanitizer, Transport & Persistence) — ВЫПОЛНЕНО в 0.1.9–0.1.10
+
+* **Фильтр скрытой информации:** `packages/shared/src/logic/sanitizer.ts` — `filterStateForPlayer(state, viewingPlayerId): SanitizedGameState` — чужие руки/инвентарь → `null`/счётчики, неисследованные тайлы → `null`, чужие `pendingDecision` → `null`, порядок колод → только `drawPileCount`, сброс → лицом вверх, жетоны Чужих в мешке — только состав по типам, а не порядок. Ни один компонент не получает полный `GameState`.
+* **Транспорт:** `packages/client/src/services/transport/ITransport.ts` — интерфейс `init()`, `sendAction(action)`, `subscribeToState(cb)`. `LocalInMemoryTransport.ts` — исполняет `GameEngine.processAction()` в браузере (Immer produce), хранит `GameState`, отдаёт наружу только `filterStateForPlayer`, сохраняет снапшот после каждого действия через `sessionStorage`. Будущий `SocketIoTransport` — план этапов 10–11.
+* **Сохранение:** `packages/client/src/services/session/sessionStorage.ts` — `createLocalSessionStorage()` ключ `nemesis_active_game_session` (ранее `nemesis-session`), `createLocalSessionStorage` + `createSeed()` — `crypto.randomUUID` с fallback на `crypto.getRandomValues` (Э1-2, LAN http без secure context), `seed.ts`. Проверка `schemaVersion` — несовместимые сохранения не восстанавливаются, начинается новая партия.
+* **Стор:** `packages/client/src/store/gameStore.ts` — `Zustand 4 + Immer 10 + persist`, `view: SanitizedGameState|null`, `selectedRoomId`, `rejection: EngineError|null`, `dispatch(action)` → транспорт, `selectRoom()`, `openTechnicalCorridors()`.
+* **Каркас UI:** `App.tsx` — верхний HUD (раунд, фаза, активный игрок, трек времени, сид с копированием `SeedChip`, версия из `package.json` через Vite define), сборка слоёв карты и панелей; `main.tsx`.
+* **Тесты:** `sanitizer.test.ts` (чужая рука скрыта, порядок колоды скрыт), `sessionStorage.test.ts` (сериализация/десериализация, версия схемы), `transport` (локальный транспорт, broadcast).
+* *Результат:* партия сохраняется в `localStorage` и переживает перезагрузку вкладки, Zero Cheating соблюдён.
+
+### Шаг 6. Интерактивная SVG-карта и инспектор отсеков (Board UI & Inspector) — ВЫПОЛНЕНО в 0.1.0–0.1.11
+
+* **SVG-карта:** `packages/client/src/components/board/ShipMapSVG.tsx` — `viewBox` с полями под узел Технических Коридоров, фон (сетка, градиент корпуса), 21 гекс + 29 коридоров + поле вентиляции. `RoomHex.tsx` — шестиугольник с названием, категорией (SPECIAL/ROOM_1/ROOM_2), бейджами (огонь, поломка, слизь, предметы `itemsCount`, компьютер), фишками игроков, кликабельность ≥44×44px, `hiddenPlayerIds`, `isHighlighted` (янтарное кольцо для Фазы Событий). `CorridorEdge.tsx` — линия коридора + круглая точка двери (OPEN/CLOSED/DESTROYED) и шума (hasNoise), `isHighlighted` при анимации взлома.
+* **Вентиляция:** `TechCorridorHub.tsx` — индустриальный шестиугольник-хаб (решётка, заклёпки, датчик давления, ротор, аварийная красно-жёлтая разметка), пульсация тревоги при `technicalCorridorNoise`, звуковые волны. `VentShaftTraces.tsx` — пунктирные неоновые трассы шахт от каждого красного маячка входа (8 входов) к узлу, обход корпуса, подсветка тревогой и «течение» при шуме. `techCorridorModel.ts` — геометрия трасс, `intruderMapModel.ts` — модель отображения Чужих, `intruderShapes.ts` — единый источник векторных силуэтов (зелёная Личинка, жёлтый Крипер, красная Взрослая, бордовый Трутень, фиолетовая Королева), `IntruderBadge.tsx`.
+* **Zoom & Pan:** `react-zoom-pan-pinch 3.4.3` — `TransformWrapper`/`TransformComponent`, pinch-zoom двумя пальцами, drag, minScale 0.5, maxScale 3, double-click zoom, `panning` с `excluded` для кнопок.
+* **Инспектор:** `inspector/RoomInspector.tsx` — боковая/нижняя панель: исследованность, название, категория, предметы, компьютер, огонь/поломка/слизь/декомпрессия, occupants (персонажи, Чужие с `woundsCount`, объекты `CORPSE/EGG/INTRUDER_REMAINS`). `RoomStatusGrid.tsx` — скрытое как «?» при санитайзере, `FloorObjectsPanel.tsx` — тяжёлые объекты на полу (заглушка кнопки «Поднять [1]» в этапе 1), `TechCorridorPanel.tsx` — состояние вентиляции, список входов (имя только для исследованных), доступы по книге правил (карта Механика «Технические коридоры», предмет «Планы техкоридоров» — розыгрыш в этапах 2+). `CarefulMovePanel.tsx` — заглушка.
+* **Стили:** только Tailwind классы, единственный CSS — `src/index.css` (директивы Tailwind, токены шрифтов), без отдельных `.css` под компоненты.
+* **Тесты:** `board/ShipMapSVG.test.tsx`, `RoomHex.test.tsx`, `CorridorEdge.test.tsx`, `techCorridorModel.test.ts` (покрытие входов, геометрия), `intruderMapModel.test.ts`, `RoomInspector.test.tsx` (отображение скрытого).
+* *Результат:* карта открывается в браузере, зумится пальцем/мышью, клик по комнате — инспектор с названием/типом/коридорами, клик по вентиляции — панель техкоридоров.
+
+### Шаг 7. Журнал-заглушка, dev-панель, CI и выпуск v0.1.0 (Log, Dev & Release) — ВЫПОЛНЕНО в 0.1.9–0.1.11
+
+* **Журнал:** `packages/shared/src/types/log.ts` — `GameLogEntry {id: log-1, sequence монотонный, event: GameLogEvent}` (на этапе 1: `GAME_STARTED`, `PLAYER_MOVED`, `ROOM_DISCOVERED`, `EXPLORATION_TOKEN_REVEALED`, `NOISE_ROLLED`, `GAME_OVER`). `logic/gameLog.ts` — `appendGameLog()`, добавление в той же транзакции Immer, откат при отклонённом действии. `components/log/GameLogPanel.tsx` — нижняя чёрная панель, сворачивание «Скрыть/Показать» с `aria-expanded`/`aria-controls`, моноширинный номер, семантические tone-классы, `gameLogModel.ts` форматирует русские сообщения. Панель получает только `SanitizedGameState`.
+* **Dev-панель:** `components/dev/DevPanel.tsx` + `devPanelModel.ts` — доступна только при `IS_DEV=true` (Vite define), диагностика (сид, режим, схема, `view`), старт с заданным сидом, переключатели `DEV_TOGGLE_DOOR`/`DEV_TOGGLE_NOISE` (разрушенную дверь не чинит, стр. 17). Вырезается из prod-бандла, CI проверяет отсутствие строк dev-панели в бандле.
+* **CI:** `.github/workflows/ci.yml` — на push/PR: `npm ci`, `npm run verify` (typecheck + lint + format:check + test), `npm run build`, отдельный шаг `grep` dev-строк в `dist`.
+* **Качество:** `AGENTS.md` чек-лист перед сдачей (verify зелёный, нет `any`/`Math.random()`/TODO, файлы ≤500 строк цель, ≤1000 рефакторинг, shared без React/DOM/Node, только `SanitizedGameState` наружу, Tailwind классы). `npm run verify` — обязателен.
+* **Релиз:** версия в 3 `package.json` (корень, shared, client) — HUD берёт из сборки, `CHANGELOG.md` запись v0.1.0 (каркас, граф, карта), `README.md` — что работает (карта 21/29, подготовка детерминированная, санитайзер, сохранение, журнал-заглушка, dev-панель), ограничения (нет Контакта/Боя/Целей/Событий, геометрия UNVERIFIED_BOARD, парные коридоры — одна связь, бросок Шума на отсутствующий номер — Тишина).
+* *Результат этапа (Playable Demo v0.1.0) — ДОСТИГНУТ:* в браузере открывается интерактивная карта «Немезиды» 21 отсек / 29 коридоров с узлом Технических Коридоров-заглушкой, можно зумить/панорамировать, кликать по комнатам и видеть инспектор (название, тип, коридоры, бейджи), партия детерминированно готовится по сиду, сохраняется в `localStorage`, журнал показывает `GAME_STARTED`, dev-панель доступна в dev-сборке, `verify` и prod-build зелёные, CI проходит.
 
 ---
 
 ## Этап 2 (v0.2.0) — Перемещение, Туман войны, Механика Шума и A*
 > **Срок:** Неделя 2  
-> **Фокус:** Физическое нахождение персонажа на поле, закрытые комнаты, броски кубика шума.
+> **Фокус:** Фишка персонажа на поле, открытие тайлов, жетоны Исследования 20/44, кубик Шума d10, Осторожное движение [2], маркеры 30, каскад прерываний, граф-запросы.  
+> **Статус на 18.09.2026 (версия 0.2.0):** перемещение, туман войны и Шум работают: `ACTION_MOVE` [1] и «Осторожное движение» [2] (маркер в выбранный Коридор вместо броска, выбор номера 1-4 и Технических Коридоров), вскрытие тайла и жетона Исследования со всеми эффектами (Пожар/Поломка/Слизь/Двери/Тишина/Опасность), кубик d10 (1,1,2,2,3,3,4,4,Тишина,Опасность) через поток `noise`, маркеры в Коридорах и на поле Технических Коридоров, Контакт отклоняется явной ошибкой до этапа 4. Ниже этап разделён на 6 последовательных шагов. **Не реализован собственный взвешенный A\***: доступные отсеки считаются прямым перебором Коридоров с открытой Дверью (`findAdjacentOpenRoomIds`), а полноценный A* с весами огонь/шум/бой — цель этапа 4/8 для ботов (GDD §5.2). Каждый шаг перечисляет файлы, контракты и тесты.
 
-> **Статус на 18.09.2026 (версия 0.2.0):** перемещение, туман войны и Шум работают:
-> `ACTION_MOVE` и «Осторожное движение» [1] (маркер в выбранный Коридор вместо броска),
-> вскрытие тайла и жетона Исследования со всеми эффектами, кубик d10 (1, 1, 2, 2, 3, 3, 4, 4,
-> Тишина, Опасность), маркеры в Коридорах и на поле Технических Коридоров, Контакт отклоняется
-> явной ошибкой до этапа 4. Из перечисленного ниже **не реализован собственный A\***: доступные
-> для перехода отсеки считаются прямым перебором Коридоров с открытой Дверью
-> (`findAdjacentOpenRoomIds`), а поиск пути понадобится вместе с планированием перемещения Чужих
-> на этапе 4 — тогда и появится взвешенный граф с огнём и опасными зонами.
+### Шаг 1. Контракт перемещения и базовое действие «Движение» [1] (Movement Contract) — ВЫПОЛНЕНО в 0.2.0
 
-### Задачи:
-1. **Перемещение и Исследование (`shared`):**
-   * Базовое действие `ACTION_MOVE` (стоимость: 1).
-   * Логика неисследованных комнат: тайлы лежат рубашкой вверх. При входе — переворот тайла и вскрытие жетона исследования (число предметов + спецэффект: Слизь, Огонь, Поломка, Двери, Опасность, Тишина).
-2. **Собственный алгоритм поиска пути (`pathfinding.ts`):**
-   * Реализация взвешенного A* на графе корабля с учетом запертых дверей (непроходимы) и опасных зон (огонь/чужие).
-3. **Механика Шума:**
-   * Бросок кубика Шума (d10) через детерминированный `seedrandom`.
-   * Размещение маркеров шума в коридоры (1, 2, 3, 4).
-   * Обработка результатов «Опасность» (звуки во всех коридорах / призыв чужих) и «Тишина» (учет статуса маркера Слизи).
+* **Типы действий:** `types/actions.ts` — `ACTION_MOVE {targetRoomId, discardCardIds}` стоимость [1], `ACTION_CAREFUL_MOVE {targetRoomId, chosenCorridor, discardCardIds}` стоимость [2] (стр.13). `types/rooms.ts` — `CarefulMoveChosenCorridor` discriminated union: `CORRIDOR {corridorId}`, `CORRIDOR_NUMBER {corridorNumber 1..4}`, `TECHNICAL_CORRIDOR`. `types/interrupts.ts` — `NoiseRollMode ROLL|CAREFUL`, `EXPLORE_ROOM_INTERRUPT {playerId, roomId, corridorId}`, `NOISE_ROLL_INTERRUPT {playerId, roomId, noise}`.
+* **Валидация пути:** `logic/shipGraphQueries.ts` — `findOpenCorridors(state, from, to)` (doorState !== CLOSED), `requireOpenPath` бросает `UNKNOWN_ROOM`, `MOVE_TARGET_IS_CURRENT_ROOM`, `NO_OPEN_DOOR_BETWEEN_ROOMS` (стр.14). `findAdjacentOpenRoomIds` — прямой перебор открытых коридоров, без A*.
+* **Статус Боя:** `logic/combatStatus.ts` — `isRoomInCombat(roomId)` по `occupantIntruderIds.length>0`, `isPlayerInCombat(playerId)` с проверкой жив/не в анабиозе/капсуле. В Бою движение = Побег (на этапе 2 отклоняется `ESCAPE_NOT_IMPLEMENTED`, с этапа 4 — атаки в спину).
+* **Исполнение:** `logic/movement.ts` — `movePlayer(state, playerId, targetRoomId, corridorId, noise)` — снимает игрока из `oldRoom.occupantPlayerIds`, добавляет в `targetRoom.occupantPlayerIds`, `player.roomId = targetRoomId`, `appendGameLog PLAYER_MOVED {from, to, corridorId, mode NORMAL|CAREFUL}`, формирует очередь прерываний: если `!isExplored` → `EXPLORE_ROOM_INTERRUPT` + всегда `NOISE_ROLL_INTERRUPT`. `fsm.ts` `handleAction` — `executeCardPayment` [1]/[2] до перемещения, `queueActionCompletion` после.
+* **Журнал:** `PLAYER_MOVED` — персонаж, исходный/целевой отсек, коридор ID, режим.
+* **Тесты:** `movement.test.ts` (открытый коридор → перемещение, закрытая дверь → `NO_OPEN_DOOR_BETWEEN_ROOMS`, цель = текущий → ошибка), `combatStatus.test.ts`, `shipGraphQueries.test.ts`.
+* *Результат:* фишка перемещается по открытым коридорам за карту действия, очередь прерываний запускается.
 
-**Результат этапа (Playable Demo v0.2.0):**  
-На поле появляется фишка персонажа. Можно перемещаться между смежными комнатами по открытым коридорам, открывать туман войны, автоматически крутить кубик шума, выставлять маркеры шума на ребра графа и наблюдать срабатывание эффектов жетонов исследования.
+### Шаг 2. Туман войны — вскрытие тайлов комнат (Fog of War & Room Reveal) — ВЫПОЛНЕНО в 0.2.0
+
+* **Состояние комнаты:** `types/rooms.ts` `RoomState` — `isExplored boolean`, `definitionId string|null`, `itemsCount number`, `explorationEffect ExplorationEffect|null`, `hasFire/hasMalfunction/hasSlime`. `SPECIAL_ROOMS` всегда `isExplored=true` (стр.5), неособые — рубашкой вверх.
+* **Логика вскрытия:** `logic/roomExploration.ts` — `resolveExploreRoom(state, EXPLORE_ROOM_INTERRUPT)` — `room.isExplored=true`, `appendGameLog ROOM_DISCOVERED {playerId, roomId, roomName из roomDefinitions, category}`. Если `explorationEffect != null` → `EXPLORATION_TOKEN_REVEALED {itemsCount, effect}`. Эффект разыгрывается сразу (см. шаг 3), но исходный `explorationEffect` тайла не затирается — нужен следующему прерыванию шума (`SILENCE`/`DANGER`).
+* **Определение имени:** `roomNameForLog` — берёт `name` из `SPECIAL_ROOMS|BASIC_ROOMS_1|ADDITIONAL_ROOMS_2` по `definitionId`, иначе `Отсек #id` — журнал не раскрывает скрытый тайл задним числом.
+* **Санитайзер:** `sanitizer.ts` — неисследованные комнаты → `definitionId=null`, `isExplored=false`, скрывает `explorationEffect` и `itemsCount` как «?» в `RoomStatusGrid`.
+* **Тесты:** `roomExploration.test.ts` 15 кейсов (вскрытие, лог ROOM_DISCOVERED, сохранение explorationEffect), `sanitizer.test.ts` (неисследованный отсек скрыт).
+* *Результат:* вход в неисследованный слот переворачивает тайл, показывает имя/категорию в журнале, готовит жетон.
+
+### Шаг 3. Жетоны Исследования — пул 20/44 и эффекты (Exploration Tokens) — ВЫПОЛНЕНО в 0.1.11→0.2.0
+
+* **Данные:** `data/explorationTokens.ts` — `EXPLORATION_TOKENS` 20 жетонов, 44 предмета: 8×MALFUNCTION (4,3,2,2,2,2,1,1), 2×FIRE (2,1), 2×SILENCE (1,1), 2×SLIME (4,3), 2×DANGER (3,2), 4×DOORS (4,3,2,1). Прованс `data-sources.json#exploration-tokens` — `EXTERNAL_UNVERIFIED` для состава (числа на картоне), `RULES_LOCAL` для правила 20→16 (стр.3 компоненты, стр.6 шаг4). `setup.ts` — `explorationPool = shuffle(rng layout, EXPLORATION_TOKENS)`, раздача по 1 на 16 неособых слотов через `explorationTokenAt(pool,index)` с явной ошибкой при нехватке.
+* **Исполнение эффектов:** `roomExploration.ts` switch `explorationEffect`:
+  - `FIRE` → `placeFireMarker` (лимит 8→`SHIP_EXPLODED` через `endGame`), лог `EXPLORATION_EFFECT_RESOLVED outcome FIRE_PLACED|FIRE_ALREADY_PRESENT|SHIP_EXPLODED`.
+  - `MALFUNCTION` → `placeMalfunctionMarker` (запрет NEST/SLIME_ROOM → `MALFUNCTION_FORBIDDEN`, лимит 8→`HULL_BREACH`), outcome `MALFUNCTION_PLACED|ALREADY_PRESENT|FORBIDDEN|HULL_BREACH`.
+  - `SLIME` → `player.hasSlime=true` (макс 1, стр.17), outcome `SLIME_APPLIED|ALREADY_PRESENT`.
+  - `DOORS` → `closeDoorOfEntry` → `placeDoorToken` (12 жетонов, при пустом — перестановка с поля, разрушенные не трогаются, стр.17), outcome `DOOR_CLOSED|ALREADY_CLOSED|DESTROYED|MOVED_FROM_BOARD`.
+  - `SILENCE`/`DANGER`/null — откладываются до броска шума (стр.14-15), не исполняются здесь.
+* **Маркеры:** `markers.ts` `FIRE_MARKER_SUPPLY 8`, `MALFUNCTION_MARKER_SUPPLY 8`, `DOOR_TOKEN_SUPPLY 12`, `MALFUNCTION_FORBIDDEN_ROOM_DEFINITIONS ['NEST','SLIME_ROOM']`, функции `countPlaced*`, `*InSupply`, `place*` с явными результатами.
+* **Тесты:** `explorationTokens` golden, `roomExploration.test.ts` (огонь→взрыв, поломка→разрыв, двери→перестановка, слизь→hasSlime), `markers.test.ts`.
+* *Результат:* каждый вход в новый отсек даёт предметы по числу жетона и один эффект по книге правил.
+
+### Шаг 4. Кубик Шума и маркеры — d10 и лимит 30 (Noise Die & Markers) — ВЫПОЛНЕНО в 0.2.0
+
+* **Кубик:** `data/noiseDie.ts` — `NoiseDieFace = {CORRIDOR number 1..4}|{SILENCE}|{DANGER}`, `NOISE_DIE_FACES` 10 граней: 1,1,2,2,3,3,4,4,SILENCE,DANGER. Прованс `data-sources.json#noise-die` — состав подтверждён владельцем по физическому кубику 17.09.2026 (`USER_CONFIRMED`), эффекты — `RULES_LOCAL` стр.15.
+* **RNG:** `logic/noise.ts` — `rollNoiseDie(state)` — `drawFromStream(seed, 'noise', rngDraws.noise)` → `faceIndex = floor(value*10)`, `rngDraws.noise++`, `appendGameLog NOISE_ROLLED {playerId, roomId, result}`. Поток `noise` изолирован от `layout/bag/cards/combat`.
+* **Маркеры:** `logic/noiseMarkers.ts` — `placeNoiseMarker(state, playerId, roomId, target, reason ROLL|CAREFUL|DANGER|BLANK|EVENT)` — если `target.hasNoise` → `CONTACT_INTERRUPT` в начало очереди (повторный шум = Контакт, стр.15), иначе `requireNoiseMarkerSupply` (30) → `hasNoise=true` + `NOISE_MARKER_PLACED {playerId, roomId, target CORRIDOR|TECHNICAL_CORRIDOR, reason}`. `placeCarefulNoiseMarker` — для `CORRIDOR_NUMBER` кладёт шум во все коридоры с этим номером без дублирования Контакта (стр.13). `clearRoomNoise` снимает шум вокруг комнаты, `fillRoomNoise` — для BLANK/DANGER заполняет все свободные коридоры + техкоридор, с проверкой запаса.
+* **Лимиты:** `markers.ts` `NOISE_MARKER_SUPPLY 30`, `countPlacedNoiseMarkers` (коридоры + `technicalCorridorNoise`), `noiseMarkersInSupply`, `requireNoiseMarkerSupply` → `MARKER_SUPPLY_EXHAUSTED` с явной ошибкой (книга не описывает исчерпание, но движок не молчит).
+* **Тесты:** `noise.test.ts` (бросок детерминирован, SILENCE/DANGER ветки), `noiseMarkers.test.ts` (размещение, повторный шум → CONTACT_INTERRUPT, лимит 30, careful number → все коридоры), `fsm.test.ts` (интеграция шума).
+* *Результат:* каждый вход в пустую комнату бросает d10 и ставит маркер по номеру или вызывает DANGER/SILENCE.
+
+### Шаг 5. Осторожное движение [2] и логика Тишины/Опасности/Компаньона (Careful Move & Danger/Silence) — ВЫПОЛНЕНО в 0.2.0
+
+* **Осторожное движение:** `logic/movement.ts` `requireCarefulMoveAllowed(state, playerId, targetRoomId, chosen)` — проверка: не в Бою (`CAREFUL_MOVE_IN_COMBAT`), `TECHNICAL_CORRIDOR` требует `roomHasTechnicalEntrance`, `CORRIDOR_NUMBER` требует наличия коридоров с номером, `CORRIDOR` требует `corridorsLeadingInto`. Свободный коридор: `freeCorridor = some(!hasNoise)` или `freeTechnical = hasEntrance && !technicalCorridorNoise`, иначе `CAREFUL_MOVE_NO_FREE_CORRIDOR` (стр.13). Выбранное место уже с шумом → та же ошибка. `fsm.ts` — оплата [2] через `executeCardPayment` до проверки.
+* **Тишина:** `logic/noise.ts` `resolveNoiseRoll` — если `explorationEffect SILENCE` или `result SILENCE`:
+  - при `player.hasSlime` → трактуется как DANGER (стр.15,17),
+  - иначе → `NOISE_SKIPPED reason EXPLORATION_SILENCE|NOISE_SILENCE`, без маркера, без Контакта.
+* **Опасность:** `resolveNoiseRoll` + `handleDanger` — `explorationEffect DANGER` или `result DANGER`:
+  - найти соседние комнаты через `corridorsLeadingInto` + `SHIP_ROOM_NODES techNumbers`,
+  - если есть Чужие вне Боя (`boardTokens` не в комнате игрока, `isRoomInCombat` false) → притянуть всех таких в комнату игрока: проверка дверей — CLOSED → `DESTROYED` + лог `INTRUDERS_BLOCKED_BY_DOOR source DANGER`, иначе перемещение `roomId` + `occupantIntruderIds` + лог `INTRUDERS_MOVED` (стр.15,18). Контакт не разыгрывается при притяжении.
+  - если Чужих рядом нет → `fillRoomNoise` с reason DANGER (шум во все пустые коридоры вокруг комнаты, включая техкоридор).
+* **Компаньон:** если в целевой комнате есть живой игрок (`livingPlayersInRoom`) или Чужой (`occupantIntruderIds`) — бросок Шума не делается, лог `NOISE_SKIPPED reason COMPANION` (стр.15 «если в отсеке есть персонаж/чужой — конец движения, бросок не нужен»).
+* **Несуществующий номер:** `findNoiseTarget` возвращает `UNMAPPED` если номера нет среди `corridorNumbersOf` и `techNumbers` — трактуется как Тишина `NOISE_SKIPPED UNMAPPED` (решение до физической сверки топологии, `UNVERIFIED_BOARD`).
+* **Тесты:** `carefulMovement.test.ts` 5 кейсов (выбор коридора/номера/техкоридора, занятый → ошибка, все заняты → ошибка), `roomExploration.test.ts` (SILENCE→DANGER при слизи), `noise.test.ts` (COMPANION→пропуск, DANGER→притяжение/заполнение), `fsm.test.ts` интеграция.
+* *Результат:* игрок может заплатить [2] и выбрать, куда положить шум, избежав броска; Тишина/Опасность/Компаньон работают по книге правил.
+
+### Шаг 6. Граф-запросы, UI перемещения и выпуск v0.2.0 (Graph Queries, Board UI & Release) — ВЫПОЛНЕНО в 0.2.0
+
+* **Запросы графа:** `shipGraphQueries.ts` — `findOpenCorridors` (doorState !== CLOSED), `findAdjacentOpenRoomIds` — прямой перебор открытых коридоров (без весов), `corridorsLeadingInto(roomId)` — все коридоры, ведущие в отсек, `roomHasTechnicalEntrance` по `SHIP_ROOM_NODES.techNumbers`, `corridorNumbersOf(corridor, roomId)` → `fromNumbers/toNumbers`, `findNoiseTarget(roomId, number)` → `TECHNICAL_CORRIDOR|CORRIDOR|UNMAPPED`. **A\* не реализован**: взвешенный A* с огнём +2, шумом +2, боем +10 (GDD §5.2) — цель этапа 8 для ботов, на этапе 2 достаточно `findAdjacentOpenRoomIds`. Задокументировано в статусе этапа как осознанное ограничение.
+* **UI перемещения:** `board/ShipMapSVG.tsx` — подсветка доступных для хода отсеков (соседние с открытой дверью) через `findAdjacentOpenRoomIds(view)`, `RoomHex.tsx` — кликабельность ≥44px, бейджи шума/дверей. `inspector/RoomInspector.tsx` — кнопки «Движение [1]» (обычное) и «Осторожное движение [2]» с `CarefulMovePanel.tsx` + `carefulMoveModel.ts` — выбор номера коридора 1-4 или техкоридора, валидация свободных коридоров. `RoomStatusGrid.tsx` — «?» для скрытого. `GameLogPanel` — форматирует `PLAYER_MOVED`, `ROOM_DISCOVERED`, `EXPLORATION_TOKEN_REVEALED`, `EXPLORATION_EFFECT_RESOLVED`, `NOISE_ROLLED`, `NOISE_MARKER_PLACED`, `NOISE_SKIPPED` с tone-классами.
+* **Санитайзер и честность:** `sanitizer.ts` скрывает неисследованные тайлы, `SanitizedGameState` наружу, `LocalInMemoryTransport` + `sessionStorage` сохранение после каждого действия, восстановление с проверкой схемы.
+* **Тесты и релиз:** `movement.test.ts`, `roomExploration.test.ts`, `noise.test.ts`, `noiseMarkers.test.ts`, `carefulMovement.test.ts`, `shipGraph.test.ts`, `markers.test.ts`, `gameLog.test.ts` (последовательность событий перемещения), `GameLogPanel.test.ts`, `ShipMapSVG.test.tsx`, `RoomInspector.test.tsx`. `npm run verify` зелёный, `npm run build` зелёный, `CHANGELOG.md` запись v0.2.0, `README.md` — что работает (движение, туман, шум, осторожное, жетоны 20/44, лимиты 8/8/30/12), ограничения (нет Контакта/Боя, нет A*, парные коридоры — одна связь, UNMAPPED→Тишина).
+* *Результат этапа (Playable Demo v0.2.0) — ДОСТИГНУТ:* фишка персонажа на поле 21/29, перемещение по открытым коридорам за [1]/[2], открытие тумана с жетонами 20/44 и эффектами Пожар/Поломка/Слизь/Двери/Тишина/Опасность, кубик Шума d10 детерминированный, маркеры 30 с лимитом, Осторожное движение с выбором коридора, логика Компаньона/Слизи/Опасности по книге правил, журнал действий, сохранение сессии, карта с зумом/паном. A* отложен до ботов.
 
 ---
 
 ## Этап 3 (v0.3.0) — Карты Действий, Микрораунды и Экономика комнат
 > **Срок:** Неделя 3  
-> **Фокус:** Карточный движок игрока, руки, оплата действий сбросом и действия отсеков.
+> **Фокус:** Карточный движок игрока, руки, оплата действий сбросом, цикл микроходов, Поиск и действия 11 базовых отсеков категории «1».  
+> **Статус на 18.09.2026 (версия 0.3.0):** Фаза Игроков полностью работает: рука 5 карт (6 в Каютах), оплата [1]/[2] с запретом Заражения, три варианта микрохода (2 действия, 1+пас, немедленный пас), круговой порядок от `firstPlayerId`, блокировка спасовавших, урон от огня при завершении хода, Поиск с приватным выбором 1 из 2 через `pendingDecision`, 11 действий комнат с ценой [2], UI руки/инвентаря/модалок и журнал без утечек. Ниже этап разделён на **8 последовательных шагов**. Каждый шаг перечисляет файлы, контракты и тесты. Источник правил — `doc/rules.md` (стр. 6–9, 13–14, 22), состав колод 60/30/30/30/12/27/16 сверен с книгой правил и помечен `RULES_LOCAL` в `data-sources.json#deck-composition`, точные componentSymbols и тексты — по-прежнему `unverified` до сверки с картоном.
 
-> **Статус планирования на 18.09.2026:** версия проекта зафиксирована как **0.2.1**. Ниже этап v0.3.0
-> разделён на восемь последовательных шагов. В репозитории нет сканов оригинальных карт, тайлов комнат,
-> планшетов персонажей и памяток: строки `doc/rules.md` являются текстовым источником правил, но не заменяют
-> сканы компонентов. Каждый шаг явно перечисляет, какие сканы нужны для проверки данных и визуального UI.
+### Шаг 1. Контракт v0.3.0, границы Фазы Игроков и источники данных (Contracts & Scope) — ВЫПОЛНЕНО в 0.2.1
 
-### Шаг 1. Зафиксировать контракт v0.3.0 и собрать источники данных (ВЫПОЛНЕНО)
+* **Границы Фазы Игроков:** `types/state.ts` — `phase PLAYER_PHASE|EVENT_PHASE|GAME_OVER`, `PlayerState {orderNumber, hasPassed, actionsPerformedThisRound, handSlots 2, actionDeck {hand, drawPile, discard}, contaminationDeck, lightWounds, seriousWounds, hasSlime, hasLarva}`, `meta.activePlayerId`, `firstPlayerId`, `currentRound`. Правила: порядок от первого игрока по часовой стрелке, 2 действия за микроход, варианты «действие+пас» и «немедленный пас», блокировка после паса до общего паса, сброс `hasPassed`/`actionsPerformedThisRound` в `startNewRound`, травма от огня при завершении хода в горящем отсеке (стр. 9, 25).
+* **Карты Действия:** `types/cards.ts` — `ActionCard {id, name, description, playCost 0..3, classRestriction CAPTAIN|PILOT|MECHANIC|SOLDIER|SCOUT|SCIENTIST|null, effect {kind}, componentSymbols BLUE|YELLOW|RED}`. 6 классов ×10 карт =60, `BASIC_ROOMS_1` 11 комнат входят в v0.3.0, зависимости с v0.4–v0.6 изолированы: Чужие/бой/инфекции/События/Слабости — заглушки с явным отказом.
+* **PendingDecision:** `types/decisions.ts` — `PendingDecision = {type: CHOOSE_WHITE_ROOM_DECK, playerId}|{CHOOSE_SEARCH_ITEM, playerId, cards [2]}|{DISCARD_HEAVY_ITEM_FOR_NEW, playerId, newItemId}|{CHOOSE_ROOM_ABILITY_PARAMS, ...}` — приватное промежуточное состояние, видимое только владельцу через санитайзер.
+* **Действия:** `types/actions.ts` — `ACTION_MOVE/ACTION_CAREFUL_MOVE` уже есть (этап 2) + `ACTION_SEARCH {discardCardIds}`, `ACTION_ROOM_ABILITY {roomId, params, discardCardIds}`, `ACTION_PASS {discardCardIds}`, `ACTION_RESOLVE_DECISION {decisionId, choice}`. Стоимость: Движение [1], Осторожное [2], Поиск [1], Комната [2], Пас 0 с опциональным сбросом.
+* **Документы:** `doc/v0.3.0-contract.md` (создан на шаге, затем удалён из репозитория; актуальный контракт — `packages/shared/src/types/`), `doc/sources/data-sources.json#deck-composition` — 60/90/12/27/16 состав, `AGENTS.md` — правило 1:1.
+* *Тесты:* `types/rooms.test.ts` (категории), `sources.golden.test.ts` (схема контракта).
+* *Результат:* границы v0.3.0 зафиксированы: 11 комнат «1» входят, всё что требует Чужих — граница с этапами 4–6.
 
-* Уточнить границы Фазы Игроков: порядок игроков, два действия, одно действие и пас, немедленный пас,
-  завершение микрораундов и состояние после общего паса.
-* Утвердить формат карты Действия и идентификаторы эффектов, ограничений и стоимости.
-* Утвердить формат промежуточных решений (`pendingDecision`): выбор карты Поиска, выбор сбрасываемого тяжёлого
-  предмета и параметры действий комнат.
-* Уточнить, входит ли в v0.3.0 полный набор 11 комнат категории «1» или только пять комнат, перечисленных в
-  исходном roadmap. Шесть не перечисленных комнат: Радиорубка, Спасательные отсеки А и В, Лаборатория, Улей и Склад.
-* Зафиксировать границу с v0.4–v0.6 для действий, которые требуют Чужих, инфекций, карт Событий или Слабостей.
-* *Результат шага 1 зафиксирован в документе `doc/v0.3.0-contract.md`.*
+### Шаг 2. Колоды Действий, Предметов, Заражения и Травм (Decks & Data) — ВЫПОЛНЕНО в 0.2.2
 
-### Шаг 2. Наполнить карты Действий и колоды Предметов
+* **Личные колоды:** `data/cards.ts` — `ACTION_CARDS` 60 карт (Капитан 10, Пилот 10, Механик 10, Солдат 10, Разведчик 10, Учёный 10) с именами («Прицельный огонь», «Адреналин» и т.д.), `playCost`, `componentSymbols`, `isClassCard`. `createActionDeckForCharacter(class)` — `shuffle(cards stream, 10)` → `drawPile 5 + hand 5`.
+* **Предметы:** `data/itemCards.ts` — `ITEM_CARDS` 90 карт: Красная 30 (военные: Пистолет, Дробовик, Огнемёт и т.д.), Жёлтая 30 (технические: Инструменты, Планы техкоридоров, Энергозаряд), Зелёная 30 (медицинские: Аптечка, Антидот-заготовка). Поля: `color RED|YELLOW|GREEN|BLUE`, `isWeapon`, `ammo`, `maxAmmo`, `isHeavy`, `isQuest`, `componentSymbols`, `craftingComponents`. `data/crafting.ts` — 12 карт создаваемых (4 рецепта ×3 копии: Антидот, Тазер, Огнемёт, Коктейль Молотова) синяя колода.
+* **Стартовое оружие:** `data/startingItems.ts` — 6 карт: Капитан Пистолет, Пилот Пистолет, Механик Гаечный ключ, Солдат Штурмовая винтовка, Разведчик Энерговинтовка (энерго, `isEnergyWeapon`), Учёный Пистолет. Различие энерго/классика: `isEnergyWeapon` + `maxAmmo` + перезарядка в Оружейной.
+* **Заражение/Травмы:** `data/contaminationCards.ts` 27 карт (7 `isInfected=true`), `data/seriousWounds.ts` 16 карт (4× Рука, Нога, Тело, Кровотечение). `data/cardsSetup.ts` — `createInitialDecks()` тасует все колоды стола потоком `cards` (ровно n-1 чтений на колоду), `rngDraws.cards` детерминирован.
+* **Пакет источника:** `data-sources.json#deck-composition` `RULES_LOCAL` для количества карт (60/30/30/30/12/27/16/20) + `unverified` для componentSymbols/effect.kind/боезапаса, golden-тест `sources.golden.test.ts` сверяет количества и уникальность ID.
+* *Тесты:* `cards.test.ts` 11 кейсов (уникальность, классовые ограничения, тасовка детерминирована), `crafting.test.ts` 7 кейсов (рецепты), `setup.test.ts` (персонаж начинает с 5+5 карт и оружием в руке).
+* *Результат:* все колоды стола и личные колоды наполнены, партия воспроизводима по сиду, оружие в слотах рук.
 
-* Добавить шесть личных наборов по 10 карт Действий с названиями, стоимостью, эффектами и ограничениями.
-* Заполнить Красную, Жёлтую и Зелёную колоды Предметов, включая количество экземпляров и свойства карт.
-* Добавить стартовые оружейные карты персонажей и различие между энергооружием и классическим оружием.
-* Реализовать детерминированное тасование через поток RNG `cards`.
-* Подготовить структуры для карт Заражения и Тяжёлых Травм, необходимые валидатору оплаты и Лазарету.
-* Добавить пакет источников и golden-тесты для количества и свойств карт.
+### Шаг 3. Рука, добор и универсальная оплата действий (Hand & Payment) — ВЫПОЛНЕНО в 0.2.3
 
-### Шаг 3. Реализовать подготовку руки и универсальную оплату действий
+* **Добор:** `logic/cardsPayment.ts` — `getPlayerHandLimit(state, playerId)`: базовый 5, 6 если начало Фазы Игроков, персонаж в исправной Каюте (`CABINS` без огня/поломки/Чужих) и не в Бою (стр. 9). `drawCardsToLimit(player)`: пока `hand.length < limit` — `drawPile.pop()`, при пустой колоде — `shuffle(cards stream, discard)` → `drawPile`, `discard=[]`. `rngDraws.cards` инкрементируется.
+* **Оплата:** `validatePayment(player, discardCardIds, requiredCost)`: проверка `length===cost`, все ID в `hand`, без дубликатов, не содержит карту за саму себя (при разыгрывании карты Действия), абсолютный запрет `isContamination` (`CONTAMINATION_CANNOT_BE_DISCARDED`), проверка `isActionCard`. `executeCardPayment`: атомарно `hand → discard`, в той же транзакции Immer, откат при ошибке.
+* **Пас с Заражением:** `ACTION_PASS` — особый путь: `discardCardIds` может содержать Заражение, сбрасывается любое количество карт с руки (и Действия, и Заражения), `hasPassed=true`, лог `PLAYER_PASSED {discardedCount}`.
+* **Интеграция:** `logic/fsm.ts` / `GameEngine` — `ACTION_MOVE` требует 1, `CAREFUL_MOVE` 2, `SEARCH` 1, `ROOM_ABILITY` 2 через `executeCardPayment` до исполнения эффекта; `consumePaymentCards` в сторе — выбор карт UI.
+* **Инициализация:** `logic/setup.ts` — при `createInitialGameState` персонаж получает `hand 5 + drawPile 5` из своей 10-карточной колоды.
+* *Тесты:* `cardsPayment.test.ts` 14 кейсов (добор до 5/6, перетасовка сброса, запрет Заражения, дубликаты, карта не с руки, атомарность), `cardPiles.test.ts` 6 кейсов (пустая колода → перетасовка), `setup.party.test.ts` (рука 5 при старте).
+* *Результат:* рука, лимиты и оплата работают по книге правил, Заражение нельзя сбросить кроме паса.
 
-* При создании партии собирать личную колоду персонажа и добирать руку до 5 карт.
-* В начале каждой Фазы Игроков добирать карты до лимита, включая лимит 6 для Кают при выполнении условия правил.
-* При пустой колоде перемешивать личный сброс и продолжать добор.
-* Реализовать единый валидатор оплаты для базовых действий, карт Действий и действий комнат.
-* Запретить оплату картами Заражения, картами не с руки и повторным использованием одной карты.
-* Оставить возможность сбрасывать карты Заражения при обычном пасе.
-* Выполнять списание карт, изменение руки и сброс атомарно.
+### Шаг 4. Фаза Игроков и цикл микроходов (Turn Cycle & Player Phase) — ВЫПОЛНЕНО в 0.2.4
 
-### Шаг 4. Реализовать Фазу Игроков и цикл микроходов
+* **Цикл:** `logic/turnCycle.ts` — `getOrderedPlayers(state)`: живые не в анабиозе/капсуле, сорт по `orderNumber`. `findNextActivePlayer(state, fromId)`: круговой обход, пропуск `hasPassed=true` и мёртвых. `advanceTurn(state)`: `player.actionsPerformedThisRound++`, если 2 — `applyFireEndTurnEffect` + сброс счётчика + передача хода; если <2 — остаётся активным. `applyFireEndTurnEffect`: если `ship.rooms[player.roomId].hasFire` — `player.lightWounds++`, лог `FIRE_DAMAGE_TAKEN`. При общем пасе (`all hasPassed`) — `meta.phase=EVENT_PHASE`.
+* **Старт раунда:** `startNewRound(state)`: `currentRound++`, `firstPlayerId` по часовой стрелке, сброс `hasPassed=false`, `actionsPerformedThisRound=0` у всех, `timeTrackPosition` двигался здесь до этапа 0.5.0 (с 0.5.0 — в Фазе Событий), добор до лимита через `drawCardsToLimit`.
+* **Валидация фазы:** `GameEngine` — `NOT_IN_PLAYER_PHASE` если фаза не `PLAYER_PHASE`, `NOT_ACTIVE_PLAYER` если не активный, `PLAYER_ALREADY_PASSED` если уже спасовал.
+* **Микроварианты:** 2 действия подряд → автопередача; 1 действие + пас → `ACTION_PASS` в том же микроходе; немедленный пас → 0 действий + `hasPassed`.
+* **Журнал:** `types/log.ts` — `ROUND_STARTED {round, firstPlayerId}`, `PLAYER_TURN_STARTED {playerId}`, `FIRE_DAMAGE_TAKEN {playerId, roomId, woundsCount}`, `PLAYER_PASSED`. `gameLogModel.ts` форматирует.
+* *Тесты:* `turnCycle.test.ts` 8 кейсов (порядок, круговой обход, блокировка спасовавших, огонь, общий пас → EVENT_PHASE, старт нового раунда с добором), `fsm.test.ts` интеграция.
+* *Результат:* микрораунды, передача хода и огонь при завершении хода работают, фаза корректно переходит в События.
 
-* Добавить переходы `PLAYER_PHASE` и `EVENT_PHASE` с явным контрактом границы между ними.
-* Реализовать порядок от `firstPlayerId`, смену `activePlayerId` и круговой обход игроков.
-* Разрешить варианты: два действия; одно действие с последующим пасом; немедленный пас.
-* После паса блокировать игрока до конца текущей Фазы Игроков.
-* Завершать фазу только после общего паса и корректно сбрасывать `hasPassed` и `actionsPerformedThisRound` в следующем раунде.
-* Обрабатывать последствия завершения хода, включая получение лёгкой травмы в отсеке с Пожаром.
-* Добавить действия и события журнала для начала фазы, хода, оплаты и паса.
+### Шаг 5. Поиск и экономика Предметов (Search & Item Economy) — ВЫПОЛНЕНО в 0.2.5
 
-### Шаг 5. Реализовать «Поиск» и экономику Предметов в отсеках
+* **Типы решений:** `types/decisions.ts` — `PendingDecision` discriminated union: `CHOOSE_WHITE_ROOM_DECK {playerId, roomId}`, `CHOOSE_SEARCH_ITEM {playerId, roomId, deckColor, cards: [ItemCard, ItemCard]}`, `DISCARD_HEAVY_ITEM_FOR_NEW {playerId, roomId, newItemId, heavySlotIds}`.
+* **Логика:** `logic/search.ts` — `validateSearchConditions(state, playerId)`: комната исследована, `itemsCount>0`, не Улей `NEST` и не Комната со Слизью `SLIME_ROOM` (стр. 13), не в Бою, не с огнём? (огонь не запрещает поиск, только действие комнаты). `getRoomDeckColor(roomDef)`: `RED|YELLOW|GREEN|WHITE` по `roomDef.color`. `drawSearchCards(state, deckColor)`: `drawPile.pop()` 2 карты из соответствующей колоды стола. `placeItemToPlayer`: если есть свободный `handSlots` (<2) — в руки, иначе — в инвентарь? Тяжёлые — только в руки, лёгкие — в инвентарь. При занятых руках тяжёлого — инициирует `DISCARD_HEAVY_ITEM_FOR_NEW`.
+* **FSM:** `ACTION_SEARCH` — оплата [1], если белая комната — ставит `CHOOSE_WHITE_ROOM_DECK`, иначе `drawSearchCards` → `CHOOSE_SEARCH_ITEM` (приватное). `ACTION_RESOLVE_DECISION` — выбор 1 карты: выбранная → игроку, вторая → `drawPile.unshift()` (вниз колоды), `room.itemsCount--`, `actionsPerformedThisRound++`, лог `SEARCH_PERFORMED {playerId, roomId}` без названия предмета (скрытность). При замене — старый тяжёлый в сброс соответствующей колоды.
+* **Санитайзер:** `logic/sanitizer.ts` — `pendingDecision` виден только `playerId`, остальным `null`; `itemsCount` виден всем, содержимое колоды — только `drawPileCount`.
+* *Тесты:* `search.test.ts` 7 кейсов (валидация NEST/SLIME_ROOM/неисследованный/пустой/бой, белый выбор колоды, выбор 1 из 2, возврат второй вниз, уменьшение itemsCount, замена тяжёлого), `sanitizer.test.ts` (чужой не видит `CHOOSE_SEARCH_ITEM`), `gameLog.test.ts` (SEARCH_PERFORMED без утечки имени).
+* *Результат:* Поиск полностью по книге правил: 2 карты → выбор 1, приватность, счётчик предметов, журнал без спойлера.
 
-* Реализовать `ACTION_SEARCH` через движок, а не через клиентскую мутацию.
-* Проверять исследованность отсека, наличие предметов, запрет поиска и отсутствие условий, блокирующих действие.
-* Выбирать колоду по цвету отсека; в белом отсеке показывать выбор Красной, Жёлтой или Зелёной колоды.
-* Вытягивать две карты, держать их в приватном промежуточном состоянии и дать владельцу выбрать одну.
-* Помещать выбранную карту в инвентарь или слот руки, а вторую возвращать вниз колоды.
-* При полной руке дать выбрать тяжёлый предмет для сброса.
-* Уменьшать счётчик предметов ровно на один и не раскрывать чужим игрокам содержимое инвентаря.
-* Добавить публичную запись журнала без названия найденного скрытого предмета.
+### Шаг 6. Действия 11 базовых отсеков категории «1» (Room Abilities) — ВЫПОЛНЕНО в 0.2.6
 
-### Шаг 6. Реализовать действия комнат и определить зависимости последующих этапов (ВЫПОЛНЕНО)
+* **Модуль:** `logic/roomAbilities.ts` — `executeRoomAbility(state, playerId, roomId, params)` с общими проверками: комната исследована, `hasMalfunction=false` (стр. 24), не в Бою, персонаж в этой комнате, оплата [2] уже списана. Switch по `room.definitionId` из `BASIC_ROOMS_1`.
+* **11 комнат (стр. 13–14, 16, 22–24):**
+  - **ARMORY (Оружейная) RED:** зарядка энергооружия в руках — `ammo = min(maxAmmo, ammo+2)` для каждого `isEnergyWeapon`.
+  - **COMM_ROOM (Радиорубка) YELLOW:** `ship.hasSignalSent=true` (цель, этап 6).
+  - **INFIRMARY (Лазарет) GREEN:** 3 режима — `TREAT_SERIOUS` перевязка всех тяжёлых (флаг `isTreated`), `HEAL_SERIOUS` удаление 1 перевязанной, `HEAL_LIGHT` удаление всех лёгких ран.
+  - **LABORATORY (Лаборатория) GREEN:** анализ тяжёлого объекта — вход: объект с пола **или** из рук (Труп/Яйцо/Останки), выход: объект сохраняется (с пола — остаётся? по книге сброс, но v0.3.0 — сброс и раскрытие Слабости), `weaknessSlots` `FACE_DOWN→REVEALED`. Повторное — `WEAKNESS_ALREADY_REVEALED`.
+  - **GENERATOR (Генератор) YELLOW:** `START_SELF_DESTRUCT` — `selfDestructTrackPosition=0` если null, `STOP` — `null` если `<6`, запрет остановки в жёлтой зоне ≥6 (необратимо, стр. 11, 24), запрет при персонажах в анабиозе.
+  - **FIRE_CONTROL (Пожарная безопасность) YELLOW:** тушение — `targetRoomId` → `hasFire=false`.
+  - **NEST (Улей) RED:** взятие Яйца — `eggsOnBoard--`, в свободный слот руки, `HAND_SLOTS_FULL` если занято.
+  - **STORAGE (Склад) RED:** бесплатный поиск — выбор колоды, 2 карты → выбор 1 без уменьшения `itemsCount` отсека (особое свойство).
+  - **SURGERY (Операционная) GREEN:** сканирование Заражения — все `contaminationDeck` проверяются на `isInfected`, инфицированные удаляются из игры, чистые замешиваются в `actionDeck.drawPile` (поток `cards`), `lightWounds++`, `hasPassed=true` (микроход завершается пасом, стр. 16).
+  - **ESCAPE_POD_A/B (Спасательные отсеки) WHITE:** посадка — если капсула разблокирована (`isLocked=false`) и есть место (`occupants<capacity`), `player.isInEscapePod=true`, `escapePodId`.
+  - **CABINS (Каюты) WHITE:** нет активного действия [2] в v0.3.0, но даёт лимит руки 6 (реализовано в Шаге 3).
+* **Интеграция:** `ACTION_ROOM_ABILITY` — `executeCardPayment` 2 карты → `executeRoomAbility` → `appendGameLog ROOM_ABILITY_USED {playerId, roomId, detail}`.
+* *Тесты:* `roomAbilities.test.ts` 18 кейсов (все 11 комнат, лимиты ammo, необратимость генератора, NEST HAND_SLOTS_FULL, SURGERY удаление инфекций + рана + пас, FIRE_CONTROL тушение, STORAGE без уменьшения itemsCount, ESCAPE_POD locked/capacity, LABORATORY уже раскрыта).
+* *Результат:* все 11 действий комнат категории «1» работают по книге правил с ценой [2] и проверками неисправности/боя.
 
-* Реализовать `ACTION_ROOM_ABILITY` с типизированными вариантами параметров и общей оплатой 2 карт.
-* Для Оружейной реализовать зарядку энергооружия с ограничением максимального боезапаса.
-* Для Лазарета реализовать обработку тяжёлых травм, лечение тяжёлой травмы и лечение лёгких травм.
-* Для Генератора реализовать запуск и остановку самоуничтожения с проверкой необратимого порога.
-* Для Пожарной безопасности реализовать выбор отсека и удаление Пожара; отступление Чужих подключить только
-  после готовности механики v0.4–v0.5 или зафиксировать временное ограничение.
-* Для Операционной реализовать сканирование карт Заражения с удалением инфекций, получением легкой раны и завершением микрохода.
-* Реализованы действия для всех 11 базовых отсеков («1»): Радиорубка, Спасательные отсеки, Лаборатория, Улей и Склад.
+### Шаг 7. UI Фазы Игроков, руки, инвентаря и приватных решений (Player Phase UI) — ВЫПОЛНЕНО в 0.2.7
 
-### Шаг 7. Подключить UI Фазы Игроков, руки и приватные решения (ВЫПОЛНЕНО)
+* **Рука:** `components/hand/PlayerHandPanel.tsx` — нижняя панель с картами руки (название, стоимость `playCost`, описание, `componentSymbols` синие), мультиселект для оплаты (`selectedCardIds`, `convertedCardIds`), счётчик действий `0/2 1/2`, кнопка Паса `ACTION_PASS` с опциональным сбросом Заражения, счётчики `drawPileCount/discardCount`, индикация Заражения (`isInfected` скрыто до скана).
+* **Инвентарь:** выдвижная панель — 2 слота рук (оружие с `ammo/maxAmmo`, тяжёлые объекты `CORPSE/EGG/INTRUDER_REMAINS`), карманные предметы с цветовой кодировкой `RED/YELLOW/GREEN/BLUE`, счётчики лёгких/тяжёлых травм, `hasSlime/hasLarva`.
+* **Модалки:** `components/modals/DecisionModal.tsx` — `CHOOSE_WHITE_ROOM_DECK`: 3 кнопки Красная/Жёлтая/Зелёная с иконками; `CHOOSE_SEARCH_ITEM`: 2 карты лицом вверх, выбор 1, вторая вниз колоды; `DISCARD_HEAVY_ITEM_FOR_NEW`: список тяжёлых в руках для сброса.
+* **Инспектор:** `RoomInspector.tsx` — кнопки «Обыскать отсек [цена: 1]» (проверка `itemsCount>0`, не NEST/SLIME_ROOM, не в Бою) и «Использовать консоль отсека [цена: 2]» (проверка `hasMalfunction`, Боя), `RoomStatusGrid` с «?» для скрытого, `FloorObjectsPanel` — тяжёлые на полу.
+* **Компоновка:** `App.tsx` — верхний HUD (раунд, фаза, активный игрок, время, сид), карта `ShipMapSVG` с зумом/паном, инспектор справа/снизу, рука внизу, журнал `GameLogPanel` снизу, модалки поверх. Без перекрытия: `bottom-0 left-0 right-0 md:bottom-auto md:top-4` и т.д.
+* **Честность:** только `SanitizedGameState` — чужая рука/инвентарь/`pendingDecision` = `null`/счётчики, `filterStateForPlayer` в транспорте.
+* *Тесты:* `PlayerHandPanel.test.tsx` 3 кейса (рендер руки, мультиселект оплаты, модалки), `RoomInspector.escape.test.tsx` (кнопки поиска/консоли), `ShipMapSVG.test.tsx` (карта с рукой).
+* *Результат:* игрок видит свою руку, инвентарь, может платить картами, искать и использовать консоли, приватные решения не утекают.
 
-* Добавить нижнюю панель руки с читаемыми картами, стоимостью и состоянием выбора.
-* Добавить выбор карт для оплаты и кнопку паса со сбросом карт.
-* Добавить отображение сброса, лимита руки, активного игрока и оставшихся действий.
-* Добавить скрытый инвентарь, два слота руки и отображение травм.
-* Добавить модальное окно выбора одной из двух карт Поиска и выбора колоды в белом отсеке.
-* Добавить контекстные кнопки действий комнаты и обыска в `RoomInspector`.
-* Переразложить нижние элементы вместе с журналом и `RoomInspector`, чтобы панели не перекрывали друг друга.
-* Использовать только `SanitizedGameState`: содержимое чужой руки, инвентаря и промежуточного выбора не попадает в общий UI.
+### Шаг 8. Интеграция, защита информации, тесты и выпуск v0.3.0 (Integration & Release) — ВЫПОЛНЕНО в 0.3.0
 
-### Шаг 8. Проверить, задокументировать и выпустить v0.3.0 (ВЫПОЛНЕНО)
-
-* Добавить тесты подготовки колод, добора, оплаты, запрета сброса Заражения, паса и завершения микрораундов.
-* Добавить тесты Поиска, приватного выбора, возврата второй карты вниз колоды и ограничения счётчика Предметов.
-* Добавить тесты действий комнат и атомарного отката при ошибке.
-* Проверить сериализацию и восстановление руки, сброса и незавершённого выбора.
-* Добавить тесты sanitized-среза и журнала без утечки скрытых карт.
-* Обновить README, CHANGELOG, описание версии и источники данных.
-* Выполнить `npm run verify` и `npm run build`, затем зафиксировать результат как v0.3.0.
+* **Интеграционные тесты:** `logic/release_v0_3_0.test.ts` — round-trip JSON сериализация/десериализация `GameState` (колоды, рука, сброс, `pendingDecision`), санитайзер privacy (чужой не видит `CHOOSE_SEARCH_ITEM` и вытянутых предметов), атомарность (откат при ошибке оплаты/поиска/комнаты).
+* **Модульные тесты:** `cardsPayment.test.ts` (добор, лимит 6 в Каютах, запрет Заражения), `search.test.ts` (приватный выбор, возврат вниз, `itemsCount`), `roomAbilities.test.ts` (11 комнат, необратимость генератора, `HAND_SLOTS_FULL`), `turnCycle.test.ts` (микрораунды, огонь, общий пас), `sanitizer.test.ts` (чужая рука скрыта, порядок колоды скрыт), `gameLog.test.ts` (SEARCH_PERFORMED без имени предмета).
+* **Сериализация:** `sessionStorage.ts` — сохранение `hand/drawPile/discard/pendingDecision` после каждого действия, восстановление с проверкой `GAME_STATE_SCHEMA_VERSION` (схема 4 на v0.3.0), несовместимые — новая партия.
+* **Документация:** `README.md` — что работает (Фаза Игроков, рука, Поиск, 11 комнат, инвентарь, модалки), ограничения (нет Контакта/Боя/Событий/Целей, геометрия `UNVERIFIED_BOARD`), `CHANGELOG.md` 8 записей 0.2.1–0.3.0, `doc/project-map.md` — карта модулей.
+* **Качество:** `npm run verify` (typecheck + lint + format:check + test) зелёный, `npm run build` зелёный, версия в 3 `package.json` (корень, shared, client) — HUD берёт из сборки.
+* *Результат этапа (Playable Demo v0.3.0) — ДОСТИГНУТ:* полноценная Фаза Игроков: внизу рука карт, игрок тратит карты на перемещение [1]/[2], обыск [1] с выбором 1 из 2 и инвентарём, активацию 11 консолей [2], передаёт ход или пасует. Сохранение, журнал и защита информации работают.
 
 **Результат этапа (Playable Demo v0.3.0):**  
-Полноценная Фаза Игроков: внизу экрана отображается рука карт. Игрок тратит карты с руки на перемещение, обыск комнат и активацию консолей корабля, передает ход или пасует.
+Полноценная Фаза Игроков: внизу экрана отображается рука карт. Игрок тратит карты с руки на перемещение, обыск комнат и активацию консолей корабля, передает ход или пасует. Рука 5 (6 в Каютах), оплата с запретом Заражения, Поиск с приватным выбором, 11 действий комнат, инвентарь 2 слота, травмы, журнал без утечек.
 
 ---
 
@@ -580,6 +674,19 @@
 Замкнут полноценный раунд игры «Немезида»: корабль оживает на экране. Появилась физическая локация Технических туннелей с интерактивной вентиляционной сетью. Чужие и игроки плавно скользят по коридорам без резких скачков, ломают переборки и растворяются в шахтах. Вторая половина раунда держит в напряжении: время тает, огонь пожирает палубы, системы выходят из строя, а пришельцы рыщут во тьме и эволюционируют.
 
 ---
+
+---
+
+## Этап 5.5 (текущая разработка) — Планшет Чужих: цифровая копия настольного планшета
+
+> **Статус на 24.09.2026 (после v0.5.0):** Планшет Чужих реализован полностью по плану 8 шагов (`doc/intruder-board-ui.md`) — цифровой аналог физического планшета рядом с полем (стр. 6, шаг 9), только публичная информация, ноль новых движковых экшенов.
+
+* **Шаг 1 — Единый справочник:** `board/intruderReference.ts` — `INTRUDER_NAMES_RU` (один источник для карты, Контактов, боя и журнала — убраны три дубликата), `HIVE_DEFINITION_ID='NEST'`, `HIVE_EGGS_CAPACITY=8`, карточки 5 классов (стойкость/лимиты 6-3-8-2-1/атаки/особенности из INTRUDERS §4–§5), памятка Внезапной Атаки без оборотов жетонов (анти-чит тестом).
+* **Шаг 2 — Модель:** `intruders/intruderBoardModel.ts` — чистая агрегация `SanitizedGameState`: составы мешка/запаса/коробки (инвариант «мешок+запас=полный состав»), шансы Развития Улья методом наибольших остатков (сумма ровно 100), «анатомия колоды Атак» (`INTRUDER_ATTACK_CARDS` минус лицевой сброс по id), `boardByRoom` с Боем/Пожаром/подавлением и честной переживаемостью проверки Стойкости, BFS `roomsWithinDistance` (закрытые двери непроходимы), хроника через `formatGameLogEntry`, `boardChangeKey`/`boardChangeDelta`, `filterBoardRooms`. 33 unit-теста, без мутаций входа.
+* **Шаг 3 — Кнопка и каркас:** чип HUD «ЧУЖИЕ N» с янтарной точкой «улей шевелился» (снимок последнего просмотра); модалка `z-[45]` — решения движка (`z-50`) всегда поверх; `useFocusTrap` вынесен в общий хук (`hooks/useFocusTrap.ts`, опция `onEscape`); открытие — local state в `App`, F5 окно закрывает (история презентации не затронута).
+* **Шаги 4–6 — Секции:** Улей (фишки типов с шансами, полоса опустшения против всего Пула, запас/коробка, Первый Контакт, бейдж «МЕШОК ПУСТ»); Кладка (SVG-яйца с фазовым пульсом, 5/8→8/8); Слабости (рубашки с узором/раскрытые с описанием/пустые, подсказка про Лабораторию); Колода Атак (веер лицевого сброса с наклонами и hover-подъёмом, поповер карточки, бейдж «ПЕРЕТАСОВКА», «анатомия угрозы» в `<details>` с барами по атакующим и эффектам); На борту (фильтры Все/В Бою/Рядом со мной, клик по отсеку → `selectRoom` и подсветка на карте); Хроника улья (тональные сегменты как в Журнале, счётчики, отсылка к Журналу).
+* **Шаг 7 — Кинематографика и доступность:** каскад открытия (stagger 70 мс), скан-линия, «дыхание» рамки, кардиограмма Королевы (`board-heartbeat` + rose-glow), дельта-подсветки изменений между просмотрами, фазовый пульс яиц; `prefers-reduced-motion` глушит всё через `usePrefersReducedMotion` + `motion-reduce`; мобайл-табы (`role=tablist`) «Улей · Атаки · На борту · Хроника».
+* **Приёмка:** vitest 1116 passed (88 файлов, +50 к старту этапа), tsc client+shared чист, `npm run build` ok; окно не воспроизводится при F5, решения движка поверх планшета, скрытая информация (порядок мешка, обороты жетонов, будущие RNG) не показывается.
 
 ---
 

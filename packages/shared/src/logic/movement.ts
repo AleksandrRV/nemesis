@@ -117,9 +117,14 @@ export function movePlayer(
     ? [{ type: 'EXPLORE_ROOM_INTERRUPT', playerId, roomId: targetRoomId, corridorId }]
     : [];
 
+  // Режим NONE («Разведка», перемещение Предметами): Движение без кубика Шума.
+  // CAREFUL идёт через обычное прерывание: маркер ставит resolveNoiseRoll.
+  if (noise.kind !== 'NONE') {
+    nextInterrupts.push({ type: 'NOISE_ROLL_INTERRUPT', playerId, roomId: targetRoomId, noise });
+  }
+
   state.interruptQueue = [
     ...state.interruptQueue,
     ...nextInterrupts,
-    { type: 'NOISE_ROLL_INTERRUPT', playerId, roomId: targetRoomId, noise },
   ];
 }

@@ -1,10 +1,11 @@
 import { queueActionCompletion } from './actionCompletion.js';
 import type { EngineAction } from '../types/actions.js';
-import type { ActionDeckCard, ItemCard } from '../types/cards.js';
+import type { ItemCard } from '../types/cards.js';
+import { applyActionCardEffect, applyItemEffect } from './cardEffects.js';
 import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
-import { advanceTurn } from './turnCycle.js';
+import { performPass } from './turnCycle.js';
 import { EngineError } from './engineErrors.js';
 
 export function executePass(
@@ -12,39 +13,11 @@ export function executePass(
   action: Extract<EngineAction, { type: 'ACTION_PASS' }>,
   actorId: string,
 ): void {
-  const player = state.players[actorId]!;
   // Обычный пас (стр. 10, 28): игрок объявляет пас и имеет право
   // сбросить любое количество карт с руки (как карт Действий, так и карт Заражения).
-  const discardIds = action.payload.discardCardIds ?? [];
-  if (discardIds.length > 0) {
-    const uniqueIds = new Set(discardIds);
-    if (uniqueIds.size !== discardIds.length) {
-      throw new EngineError('PAYMENT_CARD_DUPLICATE', 'Переданы повторяющиеся карты для сброса при пасе');
-    }
-    const handCardIds = new Set(player.actionDeck.hand.map((c) => c.id));
-    for (const cardId of discardIds) {
-      if (!handCardIds.has(cardId)) {
-        throw new EngineError('PAYMENT_CARD_NOT_IN_HAND', 'Одной или нескольких сбрасываемых карт нет в руке');
-      }
-    }
-    const remainingHand: ActionDeckCard[] = [];
-    for (const card of player.actionDeck.hand) {
-      if (uniqueIds.has(card.id)) {
-        player.actionDeck.discard.push(card);
-      } else {
-        remainingHand.push(card);
-      }
-    }
-    player.actionDeck.hand = remainingHand;
-  }
-  player.hasPassed = true;
-  appendGameLog(state, {
-    type: 'PLAYER_PASSED',
-    playerId: actorId,
-    discardedCount: discardIds.length,
-  });
-  advanceTurn(state, actorId);
-  return;
+  // Шаг 4, долг 9: огонь на Пас — до блокировки, чтобы sufferLightWounds
+  // убил до смены activePlayerId (внутри performPass).
+  performPass(state, actorId, action.payload.discardCardIds ?? []);
 }
 
 export function executePlayCard(
@@ -71,41 +44,9 @@ export function executePlayCard(
     1,
   );
   player.actionDeck.discard.push(card);
-  // Применяем специфический эффект базовых карт, если есть
-  if (card.id.includes('RELOAD')) {
-    // Пополнение патронов для оружия в руке
-    const weaponSlot = player.handSlots.find((s) => s.source === 'ITEM' && s.card.isWeapon);
-    if (weaponSlot && weaponSlot.source === 'ITEM') {
-      weaponSlot.card.ammo = Math.min((weaponSlot.card.ammo ?? 0) + 1, weaponSlot.card.maxAmmo ?? 6);
-    }
-  } else if (card.id.includes('REST') || card.name === 'Отдых') {
-    // Просканировать карты Заражения в руке и удалить чистые
-    const nextHand: ActionDeckCard[] = [];
-    for (const c of player.actionDeck.hand) {
-      if (!('characterClass' in c)) {
-        c.isScanned = true;
-        if (c.isInfected) {
-          // Заражена - остаётся
-          nextHand.push(c);
-        }
-        // Чистая отбрасывается
-      } else {
-        nextHand.push(c);
-      }
-    }
-    player.actionDeck.hand = nextHand;
-  } else if (card.id.includes('REPAIR')) {
-    // Ремонт отсека
-    const currentRoom = state.ship.rooms[player.roomId];
-    if (currentRoom) {
-      currentRoom.hasMalfunction = false;
-    }
-  } else if (card.id.includes('DEMOLITION') && action.payload.targetCorridorId) {
-    const corridor = state.ship.corridors[action.payload.targetCorridorId];
-    if (corridor) {
-      corridor.doorState = 'DESTROYED';
-    }
-  }
+  // Машинный эффект карты: полный разбор по effect.kind («карты работают»).
+  // Броски проверок выполнимости откатывают транзакцию целиком.
+  applyActionCardEffect(state, actorId, card, action.payload);
   appendGameLog(state, {
     type: 'ACTION_CARD_PLAYED',
     playerId: actorId,
@@ -148,43 +89,8 @@ export function executeUseItem(
   if (foundItem.actionCost > 0) {
     executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], foundItem.actionCost);
   }
-  // Эффекты предметов
-  if (foundItem.id.includes('BANDAGES') || foundItem.id.includes('MEDKIT')) {
-    if (player.lightWounds > 0) {
-      player.lightWounds = 0;
-    } else if (player.seriousWounds.length > 0) {
-      player.seriousWounds.pop();
-    }
-  } else if (foundItem.id.includes('ALCOHOL')) {
-    const contamIndex = player.actionDeck.hand.findIndex((c) => !('characterClass' in c));
-    if (contamIndex > -1) {
-      player.actionDeck.hand.splice(contamIndex, 1);
-    }
-  } else if (foundItem.id.includes('ENERGY_CHARGE')) {
-    const weaponSlot = player.handSlots.find((s) => s.source === 'ITEM' && s.card.isWeapon);
-    if (weaponSlot && weaponSlot.source === 'ITEM') {
-      weaponSlot.card.ammo = weaponSlot.card.maxAmmo;
-    }
-  } else if (foundItem.id.includes('SYNTHETIC_FOOD')) {
-    // Взять 2 карты
-    for (let i = 0; i < 2; i++) {
-      if (player.actionDeck.drawPile.length > 0) {
-        player.actionDeck.hand.push(player.actionDeck.drawPile.pop()!);
-      }
-    }
-  } else if (foundItem.id.includes('CLOTHES')) {
-    player.hasSlime = false;
-  } else if (foundItem.id.includes('FIRE_EXTINGUISHER')) {
-    const currentRoom = state.ship.rooms[player.roomId];
-    if (currentRoom) {
-      currentRoom.hasFire = false;
-    }
-  } else if (foundItem.id.includes('TOOLS') || foundItem.id.includes('DUCT_TAPE')) {
-    const currentRoom = state.ship.rooms[player.roomId];
-    if (currentRoom) {
-      currentRoom.hasMalfunction = false;
-    }
-  }
+  // Машинный эффект предмета: проверки выполнимости откатывают транзакцию.
+  applyItemEffect(state, actorId, foundItem, action.payload);
   appendGameLog(state, {
     type: 'ITEM_USED',
     playerId: actorId,

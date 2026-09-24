@@ -10,7 +10,7 @@ import type { IntruderEntity, IntruderType, SanitizedGameState } from '@nemesis/
  */
 
 /** Порядок показа типов в узле отсека: от Личинки к Королеве. */
-const TYPE_ORDER: Record<IntruderType, number> = {
+export const TYPE_ORDER: Record<IntruderType, number> = {
   LARVA: 0,
   CREEPER: 1,
   ADULT: 2,

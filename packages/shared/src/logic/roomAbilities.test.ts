@@ -512,4 +512,258 @@ describe('Действия комнат (Room Abilities)', () => {
     expect(next.players['player-1']!.actionDeck.hand.length).toBe(initialHandLength - 2);
     expect(next.players['player-1']!.actionDeck.discard.length).toBe(2);
   });
+
+  it('NEST: id генерация через allocateEntityId без коллизий (Шаг 6, долг 16)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 7;
+    const room = state.ship.rooms[7]!;
+    room.isExplored = true;
+    room.definitionId = 'NEST';
+    room.hasMalfunction = false;
+    state.intrudersPool.eggsOnBoard = 5;
+    player.handSlots = [];
+
+    executeRoomAbility(state, 'player-1', {});
+    const firstId = (player.handSlots[0] as { source: 'ITEM'; card: never } | { source: 'OBJECT'; object: { id: string } }).source === 'OBJECT'
+      ? (player.handSlots[0] as { source: 'OBJECT'; object: { id: string } }).object.id
+      : '';
+
+    // Второе взятие — id должен быть другим
+    player.handSlots = [];
+    state.intrudersPool.eggsOnBoard = 4;
+    executeRoomAbility(state, 'player-1', {});
+
+    const secondId = (player.handSlots[0] as { source: 'OBJECT'; object: { id: string } }).object.id;
+    expect(firstId).not.toBe(secondId);
+    expect(firstId.startsWith('egg-')).toBe(true);
+  });
+
+  it('SURGERY: чистые карты замешиваются потоком cards (Шаг 6, долг 17)', () => {
+    const state = setupState();
+    state.players['player-2'] = {
+      ...state.players['player-1']!,
+      id: 'player-2',
+      orderNumber: 2,
+      hasPassed: false,
+    };
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 6;
+    const room = state.ship.rooms[6]!;
+    room.isExplored = true;
+    room.definitionId = 'SURGERY';
+    room.hasMalfunction = false;
+
+    const beforeCardsDraws = state.meta.rngDraws.cards;
+    player.actionDeck.hand = [
+      { id: 'clean-1', isScanned: false, isInfected: false },
+      { id: 'clean-2', isScanned: false, isInfected: false },
+      { id: 'infected-1', isScanned: false, isInfected: true },
+    ];
+    player.actionDeck.drawPile = [];
+
+    executeRoomAbility(state, 'player-1', {});
+
+    // Чистые карты должны быть в drawPile и перемешаны, rngDraws.cards должен увеличиться
+    expect(player.actionDeck.drawPile).toHaveLength(2);
+    expect(state.meta.rngDraws.cards).toBeGreaterThan(beforeCardsDraws);
+    expect(player.actionDeck.drawPile.some((c) => c.id === 'clean-1')).toBe(true);
+    expect(player.actionDeck.drawPile.some((c) => c.id === 'clean-2')).toBe(true);
+  });
+
+  it('ARMORY: выбор оружия при нескольких энергостволах (Шаг 6, долг 18)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 1;
+    const room = state.ship.rooms[1]!;
+    room.isExplored = true;
+    room.definitionId = 'ARMORY';
+    room.hasMalfunction = false;
+
+    const rifle1: ItemCard = {
+      id: 'energy-rifle-1',
+      name: 'Энерговинтовка 1',
+      color: 'RED',
+      origin: 'STARTING',
+      isHeavy: true,
+      isSingleUse: false,
+      componentSymbols: [],
+      actionCost: 1,
+      description: 'Энерго',
+      isWeapon: true,
+      isEnergyWeapon: true,
+      ammo: 1,
+      maxAmmo: 4,
+    };
+    const rifle2: ItemCard = {
+      id: 'energy-rifle-2',
+      name: 'Энерговинтовка 2',
+      color: 'RED',
+      origin: 'STARTING',
+      isHeavy: true,
+      isSingleUse: false,
+      componentSymbols: [],
+      actionCost: 1,
+      description: 'Энерго',
+      isWeapon: true,
+      isEnergyWeapon: true,
+      ammo: 0,
+      maxAmmo: 4,
+    };
+
+    player.handSlots = [
+      { source: 'ITEM', card: rifle1 },
+      { source: 'ITEM', card: rifle2 },
+    ];
+
+    executeRoomAbility(state, 'player-1', {});
+
+    expect(state.pendingDecision?.type).toBe('CHOOSE_ENERGY_WEAPON');
+    if (state.pendingDecision?.type === 'CHOOSE_ENERGY_WEAPON') {
+      expect(state.pendingDecision.weaponIds).toContain('energy-rifle-1');
+      expect(state.pendingDecision.weaponIds).toContain('energy-rifle-2');
+    }
+  });
+
+  it('LABORATORY: сброс чужого объекта — объект может быть у любого, но сбрасывать может только владелец после изучения (Шаг 6, долг 19)', () => {
+    const engine = new GameEngine();
+    const state = createInitialGameState('lab-discard-test', { playerCount: 2 });
+    const player1 = state.players['player-1']!;
+    const player2 = state.players['player-2']!;
+
+    // Оба в лаборатории
+    const labRoom = Object.values(state.ship.rooms).find((r) => r.definitionId === 'LABORATORY')!;
+    labRoom.isExplored = true;
+    labRoom.hasMalfunction = false;
+    player1.roomId = labRoom.id;
+    player2.roomId = labRoom.id;
+    labRoom.occupantPlayerIds = ['player-1', 'player-2'];
+
+    // Яйцо у player-2
+    player2.handSlots = [{ source: 'OBJECT', object: { id: 'egg-p2', kind: 'EGG' } }];
+    player1.handSlots = [];
+
+    state.intrudersPool.weaknessSlots = [
+      {
+        objectKind: 'EGG',
+        card: { id: 'weakness-egg', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false },
+      },
+    ];
+
+    const payCardIds = [player1.actionDeck.hand[0]!.id, player1.actionDeck.hand[1]!.id];
+    const s1 = engine.processAction(state, {
+      type: 'ACTION_ROOM_ABILITY',
+      payload: { targetObjectKind: 'EGG', discardCardIds: payCardIds },
+    });
+
+    // Изучение прошло, хотя объект у другого игрока
+    expect(s1.intrudersPool.weaknessSlots[0]!.card?.isRevealed).toBe(true);
+    // Объект остался у player-2, а не сброшен
+    expect(s1.players['player-2']?.handSlots).toHaveLength(1);
+
+    // Второй сценарий: player-2 изучает и сбрасывает свой объект
+    const state2 = createInitialGameState('lab-discard-test2', { playerCount: 2 });
+    const p1_2 = state2.players['player-1']!;
+    const p2_2 = state2.players['player-2']!;
+    const labRoom2 = Object.values(state2.ship.rooms).find((r) => r.definitionId === 'LABORATORY')!;
+    labRoom2.isExplored = true;
+    labRoom2.hasMalfunction = false;
+    p1_2.roomId = labRoom2.id;
+    p2_2.roomId = labRoom2.id;
+    labRoom2.occupantPlayerIds = ['player-1', 'player-2'];
+    p2_2.handSlots = [{ source: 'OBJECT', object: { id: 'egg-p2-2', kind: 'EGG' } }];
+    state2.intrudersPool.weaknessSlots = [
+      { objectKind: 'EGG', card: { id: 'weakness-egg2', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false } },
+    ];
+
+    const pay2 = [p2_2.actionDeck.hand[0]!.id, p2_2.actionDeck.hand[1]!.id];
+    state2.meta.activePlayerId = 'player-2';
+    const s2 = engine.processAction(state2, {
+      type: 'ACTION_ROOM_ABILITY',
+      payload: { targetObjectKind: 'EGG', discardObjectAfterStudy: true, discardCardIds: pay2 },
+    });
+
+    expect(s2.players['player-2']?.handSlots).toHaveLength(0);
+    expect(s2.ship.rooms[labRoom2.id]?.objects.some((o) => o.id === 'egg-p2-2')).toBe(true);
+  });
+
+  it('ESCAPE_POD: посадка в уничтоженную капсулу запрещена (Шаг 6, долг 20)', () => {
+    const state = setupState();
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    player.roomId = 8;
+    const room = state.ship.rooms[8]!;
+    room.isExplored = true;
+    room.definitionId = 'ESCAPE_POD_A';
+    room.hasMalfunction = false;
+
+    state.ship.escapePods = {
+      'pod-destroyed': {
+        id: 'pod-destroyed',
+        number: 1,
+        section: 'A',
+        isLocked: false,
+        isDestroyed: true,
+        occupantIds: [],
+      },
+    };
+
+    expectEngineError(() => executeRoomAbility(state, 'player-1', {}), 'ROOM_ABILITY_NOT_ALLOWED');
+  });
+
+  it('атомарность: при ROOM_ABILITY_NOT_ALLOWED состояние полностью откатывается (Шаг 8, долг 27)', () => {
+    const engine = new GameEngine();
+    const state = createInitialGameState('atomicity-room-test');
+    const player = state.players['player-1']!;
+    giveHand(state, 'player-1', 4);
+
+    // Комната с неисправностью
+    player.roomId = 1;
+    const room = state.ship.rooms[1]!;
+    room.isExplored = true;
+    room.definitionId = 'ARMORY';
+    room.hasMalfunction = true;
+    room.hasFire = false;
+    room.occupantIntruderIds = [];
+
+    const snapshot = JSON.stringify(state);
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_ROOM_ABILITY',
+          payload: { discardCardIds: [player.actionDeck.hand[0]!.id, player.actionDeck.hand[1]!.id] },
+        }),
+      'ROOM_ABILITY_NOT_ALLOWED',
+    );
+
+    // Состояние не изменилось
+    expect(JSON.stringify(state)).toBe(snapshot);
+
+    // Теперь бой
+    room.hasMalfunction = false;
+    room.occupantIntruderIds = ['intruder-1'];
+    state.intrudersPool.boardTokens = [{ id: 'intruder-1', type: 'ADULT', roomId: 1, woundsCount: 0 }];
+
+    const snapshot2 = JSON.stringify(state);
+
+    expectEngineError(
+      () =>
+        engine.processAction(state, {
+          type: 'ACTION_ROOM_ABILITY',
+          payload: { discardCardIds: [player.actionDeck.hand[0]!.id, player.actionDeck.hand[1]!.id] },
+        }),
+      'ROOM_ABILITY_NOT_ALLOWED',
+    );
+
+    expect(JSON.stringify(state)).toBe(snapshot2);
+  });
+
 });

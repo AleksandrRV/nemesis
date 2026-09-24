@@ -1,6 +1,15 @@
 import React from 'react';
 import type { SanitizedGameState } from '@nemesis/shared';
-import { BOARD_ANIMATION_TTL_MS, diffBoardSnapshots, inTransitIds, type BoardAnimation } from './boardAnimationModel';
+import {
+  BOARD_ANIMATION_TTL_MS,
+  CONTACT_TEASE_TTL_MS,
+  EXPLORATION_ANIMATION_TTL_MS,
+  NOISE_POP_TTL_MS,
+  NOISE_ROLL_TTL_MS,
+  diffBoardSnapshots,
+  inTransitIds,
+  type BoardAnimation,
+} from './boardAnimationModel';
 
 /**
  * Слой плавных перемещений (Шаг 9): при каждом новом срезе состояния находит
@@ -34,11 +43,19 @@ export function useBoardAnimations(view: SanitizedGameState | null): {
     const freshKeys = new Set(fresh.map((animation) => animation.key));
     setAnimations((current) => [...current.filter((animation) => !freshKeys.has(animation.key)), ...fresh]);
 
-    // Очистка по TTL отдельным таймером пачки: поздние пачки не отменяют ранние.
-    setTimeout(() => {
-      if (!mountedRef.current) return;
-      setAnimations((current) => current.filter((animation) => !freshKeys.has(animation.key)));
-    }, BOARD_ANIMATION_TTL_MS);
+    // Очистка по TTL: для жетонов Исследования — дольше, чтобы прочитать эффект
+    for (const animation of fresh) {
+      let ttl = BOARD_ANIMATION_TTL_MS;
+      if (animation.kind === 'EXPLORATION_REVEAL') ttl = EXPLORATION_ANIMATION_TTL_MS;
+      else if (animation.kind === 'NOISE_POP') ttl = NOISE_POP_TTL_MS;
+      else if (animation.kind === 'NOISE_ROLL') ttl = NOISE_ROLL_TTL_MS;
+      else if (animation.kind === 'CONTACT_TEASE') ttl = CONTACT_TEASE_TTL_MS;
+      const key = animation.key;
+      setTimeout(() => {
+        if (!mountedRef.current) return;
+        setAnimations((current) => current.filter((a) => a.key !== key));
+      }, ttl);
+    }
   }, [view]);
 
   const { playerIds, intruderIds } = inTransitIds(animations);

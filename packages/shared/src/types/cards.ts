@@ -70,6 +70,64 @@ export interface CraftedItemCard extends ItemCard {
   components: [CraftComponent, CraftComponent];
 }
 
+export type ActionCardEffectKind =
+  | 'RELOAD'
+  | 'ORDER'
+  | 'MOTIVATION'
+  | 'SUPPRESSIVE_FIRE'
+  | 'BASIC_REPAIR'
+  | 'REPAIR'
+  | 'FAST_REPAIR'
+  | 'INGENUITY'
+  | 'DISMISS'
+  | 'SEARCH'
+  | 'SCAVENGE'
+  | 'REST'
+  | 'DEMOLITION'
+  | 'SHIP_KNOWLEDGE'
+  | 'PILOTING'
+  | 'OLD_FRIEND'
+  | 'COMPUTER_SKILLS'
+  | 'PYROTECHNIC'
+  | 'TECH_CORRIDORS'
+  | 'BURST_FIRE'
+  | 'STEEL_NERVES'
+  | 'AIMED_FIRE'
+  | 'ADRENALINE'
+  | 'RECONNAISSANCE'
+  | 'INTRANET'
+  | 'ACCESS_DENIED'
+  | 'THREAT_ASSESSMENT';
+
+export type ActionCardEffect =
+  | { kind: 'RELOAD'; ammoGain: number; weaponHint?: string }
+  | { kind: 'ORDER' }
+  | { kind: 'MOTIVATION'; drawCount: number }
+  | { kind: 'SUPPRESSIVE_FIRE'; variant: 'CAPTAIN' | 'SOLDIER' | 'SCOUT'; ammoCost: number }
+  | { kind: 'BASIC_REPAIR' }
+  | { kind: 'REPAIR' }
+  | { kind: 'FAST_REPAIR' }
+  | { kind: 'INGENUITY' }
+  | { kind: 'DISMISS' }
+  | { kind: 'SEARCH' }
+  | { kind: 'SCAVENGE' }
+  | { kind: 'REST' }
+  | { kind: 'DEMOLITION' }
+  | { kind: 'SHIP_KNOWLEDGE' }
+  | { kind: 'PILOTING' }
+  | { kind: 'OLD_FRIEND' }
+  | { kind: 'COMPUTER_SKILLS' }
+  | { kind: 'PYROTECHNIC' }
+  | { kind: 'TECH_CORRIDORS' }
+  | { kind: 'BURST_FIRE' }
+  | { kind: 'STEEL_NERVES' }
+  | { kind: 'AIMED_FIRE' }
+  | { kind: 'ADRENALINE' }
+  | { kind: 'RECONNAISSANCE' }
+  | { kind: 'INTRANET' }
+  | { kind: 'ACCESS_DENIED' }
+  | { kind: 'THREAT_ASSESSMENT' };
+
 export interface ActionCard {
   id: string;
   /** У каждого персонажа собственный набор из 10 карт (стр. 13). */
@@ -78,6 +136,8 @@ export interface ActionCard {
   /** Цена карты: число карт действий, сбрасываемых с руки помимо неё (стр. 13). */
   playCost: number;
   description: string;
+  /** Машинный эффект карты — критерий Шага 1 Этапа 3 (v0.3.0): стаб description → типизированный kind. */
+  effect: ActionCardEffect;
 }
 
 export interface ContaminationCard {

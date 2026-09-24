@@ -3,8 +3,6 @@ import type { ItemCard, ItemDeckColor } from '../types/cards.js';
 import { BASIC_ROOMS_1, ADDITIONAL_ROOMS_2, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
-import { appendGameLog } from './gameLog.js';
-import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 
 const ALL_ROOMS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
@@ -84,8 +82,15 @@ export function drawSearchCards(state: GameState, deckColor: ItemDeckColor): Ite
 /**
  * Добавляет предмет игроку в руку (если тяжелый) или в инвентарь.
  * Если слоты рук заняты, требуется решение на сброс.
+ * Возвращает true если предмет сразу помещён, false если требуется DISCARD_HEAVY (Шаг 5, долг 12).
+ * @param roomId — комната поиска, чтобы после сброса завершить поиск (Шаг 5, долг 12)
  */
-export function placeItemToPlayer(state: GameState, playerId: string, item: ItemCard): boolean {
+export function placeItemToPlayer(
+  state: GameState,
+  playerId: string,
+  item: ItemCard,
+  roomId?: number,
+): boolean {
   const player = state.players[playerId]!;
 
   if (item.isHeavy) {
@@ -93,44 +98,17 @@ export function placeItemToPlayer(state: GameState, playerId: string, item: Item
       player.handSlots.push({ source: 'ITEM', card: item });
       return true;
     }
-    // Обе руки заняты: нужно решение о сбросе
+    // Обе руки заняты: нужно решение о сбросе тяжёлого предмета для нового
     state.pendingDecision = {
       id: allocateEntityId(state, 'item-choice'),
       playerId,
       type: 'DISCARD_HEAVY_ITEM_FOR_NEW',
       newItemId: item.id,
+      roomId,
     };
-    // Временно сохраняем карту в инвентарь или держим в решении
     return false;
   }
 
   player.inventory.push(item);
   return true;
-}
-
-/**
- * Завершает поиск: помещает выбранный предмет игроку, невыбранный — под низ колоды,
- * уменьшает itemsCount в отсеке на 1, пишет в публичный журнал (без названия предмета)
- * и продвигает микроход.
- */
-/**
- * Завершает поиск: уменьшает itemsCount в отсеке на 1,
- * пишет в публичный журнал (без названия найденного предмета)
- * и продвигает микроход.
- */
-export function finishSearch(state: GameState, playerId: string): void {
-  const player = state.players[playerId]!;
-  const room = state.ship.rooms[player.roomId]!;
-
-  if (room.itemsCount > 0) {
-    room.itemsCount -= 1;
-  }
-
-  appendGameLog(state, {
-    type: 'SEARCH_PERFORMED',
-    playerId,
-    roomId: room.id,
-  });
-
-  queueActionCompletion(state, playerId);
 }

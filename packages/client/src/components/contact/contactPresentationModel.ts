@@ -1,13 +1,7 @@
-import type { ContactPresentationEvent, GameLogEntry, IntruderToken } from '@nemesis/shared';
+import type { ContactPresentationEvent, GameLogEntry } from '@nemesis/shared';
 
-export const INTRUDER_NAMES: Record<IntruderToken['type'], string> = {
-  BLANK: 'Пустой жетон',
-  LARVA: 'Личинка',
-  CREEPER: 'Крипер',
-  ADULT: 'Взрослая особь',
-  BREEDER: 'Трутень',
-  QUEEN: 'Королева',
-};
+// Единый справочник названий Чужих (intruderReference.ts) под прежним именем.
+export { INTRUDER_NAMES_RU as INTRUDER_NAMES } from '../board/intruderReference';
 
 export interface ContactPresentationEntry extends Omit<GameLogEntry, 'event'> {
   event: ContactPresentationEvent;
@@ -24,10 +18,14 @@ export function isContactPresentationEntry(entry: GameLogEntry): entry is Contac
 }
 
 export function initialContactSequence(log: readonly GameLogEntry[]): number {
-  const lastContact = [...log].reverse().find((entry) => entry.event.type === 'CONTACT_OCCURRED');
-  if (lastContact) return lastContact.sequence - 1;
-  const lastAttack = [...log].reverse().find(isContactPresentationEntry);
-  return lastAttack ? lastAttack.sequence - 1 : (log.at(-1)?.sequence ?? 0);
+  // При загрузке страницы история не проигрывается: всё, что уже есть в
+  // журнале — включая последний Контакт и результаты атак — считается
+  // увиденным. Иначе после F5 лишний раз открываются окна о Чужих.
+  for (let i = log.length - 1; i >= 0; i--) {
+    const entry = log[i]!;
+    if (isContactPresentationEntry(entry)) return entry.sequence;
+  }
+  return log.at(-1)?.sequence ?? 0;
 }
 
 export function nextContactPresentation(

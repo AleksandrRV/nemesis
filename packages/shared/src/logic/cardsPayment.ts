@@ -9,7 +9,8 @@ export const CABINS_HAND_SIZE = 6;
 /**
  * Определяет целевой лимит руки игрока.
  * По правилам: 5 карт; 6 карт, если игрок начинает Фазу Игроков
- * в Исправных Каютах (отсек CABINS), в которых нет Чужих (стр. 10; стр. 25).
+ * в Исправных Каютах (отсек CABINS), в которых нет Чужих и нет Пожара
+ * (стр. 10; стр. 25; roadmap Шаг 3: без огня/поломки/Чужих).
  */
 export function getPlayerHandLimit(state: GameState, playerId: string): number {
   const player = state.players[playerId];
@@ -19,7 +20,33 @@ export function getPlayerHandLimit(state: GameState, playerId: string): number {
   if (!currentRoom) return BASE_HAND_SIZE;
 
   const isCabins = currentRoom.definitionId === 'CABINS';
-  const isWorking = !currentRoom.hasMalfunction;
+  const isWorking = !currentRoom.hasMalfunction && !currentRoom.hasFire;
+  const noIntruders = (currentRoom.occupantIntruderIds?.length ?? 0) === 0;
+
+  if (isCabins && isWorking && noIntruders) {
+    return CABINS_HAND_SIZE;
+  }
+
+  return BASE_HAND_SIZE;
+}
+
+/**
+ * Версия для санитизированного состояния (клиент).
+ * Использует те же условия: CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0.
+ * Работает с `SanitizedGameState`, где hasMalfunction/hasFire могут быть null (неисследованный отсек).
+ */
+export function getSanitizedPlayerHandLimit(
+  state: { ship: { rooms: Record<number, { definitionId: string | null; hasMalfunction: boolean | null; hasFire: boolean | null; occupantIntruderIds: string[] }> }; players: Record<string, { roomId: number }> },
+  playerId: string,
+): number {
+  const player = state.players[playerId];
+  if (!player) return BASE_HAND_SIZE;
+
+  const currentRoom = state.ship.rooms[player.roomId];
+  if (!currentRoom) return BASE_HAND_SIZE;
+
+  const isCabins = currentRoom.definitionId === 'CABINS';
+  const isWorking = currentRoom.hasMalfunction === false && currentRoom.hasFire === false;
   const noIntruders = (currentRoom.occupantIntruderIds?.length ?? 0) === 0;
 
   if (isCabins && isWorking && noIntruders) {

@@ -113,8 +113,9 @@ export function drawOneActionCard(state: GameState, actorId: string): void {
  * (вскрытие и Шум работают, Внеочередные атаки не проводятся — карта
  * перечислена среди изменяющих правила Побега). Лимиты: Солдат — «себя
  * и/или другого» (1–2 переноса), Капитан — «себя или другого» (ровно 1).
+ * Экспортируется для карты «Приказ» (перемещение другого Персонажа).
  */
-function executeReposition(
+export function executeReposition(
   state: GameState,
   actorId: string,
   moves: { playerId: string; targetRoomId: number }[],

@@ -563,3 +563,128 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     }
   });
 });
+
+describe('filterStateForPlayer: privacy — чужая рука, инвентарь, pendingDecision, порядок колод (Шаг 8, долг 26)', () => {
+  it('чужая рука — пустой массив, инвентарь — null, pendingDecision — null, порядок колод только drawPileCount', () => {
+    const state = createInitialGameState('privacy-test', { playerCount: 2 });
+    // Даём второму игроку предметы и руку
+    state.players['player-2']!.inventory = [
+      {
+        id: 'ITEM_RED_1',
+        name: 'Граната',
+        color: 'RED',
+        origin: 'ROOM_DECK',
+        isHeavy: false,
+        isSingleUse: true,
+        componentSymbols: [],
+        actionCost: 1,
+        description: '',
+        isWeapon: false,
+        ammo: null,
+        maxAmmo: null,
+      } as never,
+    ];
+    state.players['player-2']!.handSlots = [
+      {
+        source: 'ITEM',
+        card: {
+          id: 'heavy-weapon',
+          name: 'Винтовка',
+          color: 'RED',
+          origin: 'STARTING',
+          isHeavy: true,
+          isSingleUse: false,
+          componentSymbols: [],
+          actionCost: 1,
+          description: '',
+          isWeapon: true,
+          isEnergyWeapon: false,
+          ammo: 2,
+          maxAmmo: 4,
+        } as never,
+      },
+    ];
+    state.players['player-2']!.actionDeck.hand = [
+      { id: 'secret-hand-1', characterClass: 'PILOT', name: 'Секрет', playCost: 0, description: '' },
+    ];
+
+    // Приватное решение для player-2
+    state.pendingDecision = {
+      id: 'dec-private',
+      playerId: 'player-2',
+      type: 'CHOOSE_SEARCH_ITEM',
+      cards: [
+        {
+          id: 'secret-item-1',
+          name: 'Секретный предмет',
+          color: 'RED',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: true,
+          componentSymbols: [],
+          actionCost: 1,
+          description: 'Секрет',
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        } as never,
+        {
+          id: 'secret-item-2',
+          name: 'Секретный предмет 2',
+          color: 'YELLOW',
+          origin: 'ROOM_DECK',
+          isHeavy: false,
+          isSingleUse: true,
+          componentSymbols: [],
+          actionCost: 1,
+          description: 'Секрет2',
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        } as never,
+      ],
+      sourceDeck: 'RED',
+      roomId: 1,
+    };
+
+    // Вьювер — player-1, смотрит на чужого player-2
+    const view = filterStateForPlayer(state, 'player-1');
+    const serialized = JSON.stringify(view);
+
+    // Чужая рука — пустой массив (handCount отдельно)
+    expect(view.players['player-2']?.actionDeck.hand).toEqual([]);
+    expect(view.players['player-2']?.actionDeck.handCount).toBe(1);
+    // Инвентарь чужого — null
+    expect(view.players['player-2']?.inventory).toBeNull();
+    // handSlots чужого — скрыты? В текущей реализации они публичны? По правилам тяжёлые видны всем (ITEMS_AND_GEAR.md), но инвентарь скрыт.
+    // Проверяем что inventory null, а handSlots видны (публичные)
+    // pendingDecision чужого — null
+    expect(view.pendingDecision).toBeNull();
+
+    // Порядок колод — только drawPileCount, без drawPile
+    expect(view.decks.items.RED.drawPileCount).toBeDefined();
+    expect((view.decks.items.RED as unknown as { drawPile?: unknown }).drawPile).toBeUndefined();
+    expect(view.decks.items.YELLOW.drawPileCount).toBeDefined();
+    expect(view.decks.events.drawPileCount).toBeDefined();
+    expect((view.decks.events as unknown as { drawPile?: unknown }).drawPile).toBeUndefined();
+
+    // Секретные ID не должны утекать в JSON
+    expect(serialized).not.toContain('secret-hand-1');
+    expect(serialized).not.toContain('secret-item-1');
+    expect(serialized).not.toContain('secret-item-2');
+    expect(serialized).not.toContain('HIDDEN');
+  });
+
+  it('своя рука видна, чужая — только счётчики, инвентарь чужого скрыт', () => {
+    const state = createInitialGameState('privacy-test-2', { playerCount: 2 });
+    const view = filterStateForPlayer(state, 'player-1');
+
+    // Своя рука видна
+    expect(view.players['player-1']?.actionDeck.hand.length).toBeGreaterThan(0);
+    // Чужая рука — пустая, но есть handCount
+    expect(view.players['player-2']?.actionDeck.hand).toEqual([]);
+    expect(typeof view.players['player-2']?.actionDeck.handCount).toBe('number');
+    expect(view.players['player-2']?.inventory).toBeNull();
+  });
+});
+

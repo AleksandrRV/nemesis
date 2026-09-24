@@ -1,14 +1,12 @@
 import React from 'react';
-import type { CarefulMoveChosenCorridor, SanitizedRoomState } from '@nemesis/shared';
+import type { SanitizedRoomState } from '@nemesis/shared';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { intrudersInRoom } from '../board/intruderMapModel';
-import { LaboratoryActions, WeaknessSlotsPanel } from './LaboratoryPanel';
+import { LaboratoryActions } from './LaboratoryPanel';
 import { EscapeConfirmDialog } from './EscapeConfirmDialog';
-import { CarefulMovePanel } from './CarefulMovePanel';
 import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
-import { carefulMoveChoices } from './carefulMoveModel';
 import { RoomStatusGrid } from './RoomStatusGrid';
 import { TechCorridorPanel } from './TechCorridorPanel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
@@ -42,8 +40,9 @@ export const RoomInspector: React.FC = () => {
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
   const setShootModalOpen = useGameStore((state) => state.setShootModalOpen);
   const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
+  const carefulTargetRoomId = useGameStore((state) => state.carefulMoveTargetRoomId);
+  const setCarefulTargetRoomId = useGameStore((state) => state.setCarefulMoveTargetRoomId);
 
-  const [isCarefulSelecting, setIsCarefulSelecting] = React.useState(false);
   const [escapePromptOpen, setEscapePromptOpen] = React.useState(false);
   const [disengageOpen, setDisengageOpen] = React.useState(false);
 
@@ -126,8 +125,8 @@ export const RoomInspector: React.FC = () => {
     return slot ? slot.visibility === 'FACE_DOWN' : false;
   });
 
-  // Раскладка «Осторожного движения» (стр. 13) — чистая модель (Шаг 8).
-  const { choices: availableCorridorNumbers, hasFreeTechnical } = carefulMoveChoices(view, room.id);
+  // Раскладка «Осторожного движения» (стр. 13) — для статуса выбора (F15 diegetic на карте).
+  const isCarefulSelecting = carefulTargetRoomId === room.id;
 
   const handleNormalMove = () => {
     // Движение из отсека с Чужими — это Побег (стр. 19): подтверждаем отдельно.
@@ -190,19 +189,6 @@ export const RoomInspector: React.FC = () => {
     });
   };
 
-  const handleCarefulMove = (chosen: CarefulMoveChosenCorridor) => {
-    const discardCardIds = consumePaymentCards(2);
-    dispatch({
-      type: 'ACTION_CAREFUL_MOVE',
-      payload: {
-        targetRoomId: room.id,
-        chosenCorridor: chosen,
-        discardCardIds,
-      },
-    });
-    setIsCarefulSelecting(false);
-  };
-
   const handleSearch = () => {
     const discardCardIds = consumePaymentCards(1);
     dispatch({
@@ -237,7 +223,7 @@ export const RoomInspector: React.FC = () => {
         <button
           onClick={() => {
             selectRoom(null);
-            setIsCarefulSelecting(false);
+            setCarefulTargetRoomId(null);
           }}
           className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
         >
@@ -391,7 +377,7 @@ export const RoomInspector: React.FC = () => {
           }
         />
 
-        {/* Лаборатория [2] (стр. 16) и слоты Слабостей (стр. 21) */}
+        {/* Лаборатория [2] (стр. 16): изучение объекта. Сами Слабости — на Планшете Чужих */}
         {isLaboratory && isPlayerHere && !isActiveInCombat && (
           <LaboratoryActions
             studyKinds={studyKinds}
@@ -404,8 +390,6 @@ export const RoomInspector: React.FC = () => {
             }
           />
         )}
-        <WeaknessSlotsPanel slots={view.intrudersPool.weaknessSlots} />
-
         {/* Отказ движка: игрок должен понимать, почему действие не прошло */}
         {rejection && (
           <div className="text-xs bg-amber-950/40 border border-amber-900/60 p-2 rounded flex items-start gap-2 text-amber-200">
@@ -415,36 +399,60 @@ export const RoomInspector: React.FC = () => {
         )}
       </div>
 
-      {/* Панель выбора коридора для Осторожного движения */}
+      {/* Панель выбора коридора для Осторожного движения — F15 diegetic overlay на карте */}
       {isCarefulSelecting && canMoveHere && (
-        <CarefulMovePanel
-          choices={availableCorridorNumbers}
-          hasFreeTechnical={hasFreeTechnical}
-          onChoose={handleCarefulMove}
-          onCancel={() => setIsCarefulSelecting(false)}
-        />
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2.5 text-xs">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.14em] text-amber-400/80">
+            <span className="h-1 w-1 rounded-full bg-amber-400 animate-pulse" />
+            ВЫБОР КОРИДОРА → НА КАРТЕ
+          </div>
+          <p className="mt-1.5 leading-relaxed text-amber-100/70">
+            Наведи курсор на коридор у целевого гекса. Свободные — без маркера, занятые — с шумом. Клик на карту —
+            выбор. <span className="text-slate-400">Esc — отмена.</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setCarefulTargetRoomId(null)}
+            className="mt-2 w-full rounded-md border border-slate-700 bg-slate-900/60 px-2 py-1.5 font-mono text-[11px] text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
+          >
+            ОТМЕНИТЬ [Esc]
+          </button>
+        </div>
       )}
 
       {/* Действия: только те, что разрешены правилами. */}
       <div className="pt-3 border-t border-slate-800 flex flex-col gap-2">
         {isPlayerHere && room.isExplored && (
           <div className="flex flex-col gap-1.5">
-            {/* Поиск в отсеке: запрещён в Бою (стр. 18) */}
-            {room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM' && (room.itemsCount ?? 0) > 0 && (
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={isActiveInCombat}
-                title={isActiveInCombat ? 'В Бою поиск запрещён (стр. 18)' : undefined}
-                className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
-                  isActiveInCombat
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-amber-600 hover:bg-amber-500 text-slate-950 active:scale-95'
-                }`}
-              >
-                <Package size={14} /> Обыскать отсек [цена: 1]
-              </button>
-            )}
+            {/* Поиск в отсеке: причины запрета с tooltip (Шаг 7, долг 23) */}
+            {(() => {
+              const getSearchDisabledReason = (): string | null => {
+                if (!room.isExplored) return 'Нельзя искать в неисследованном отсеке (стр. 14) — SEARCH_NOT_ALLOWED';
+                if (room.definitionId === 'NEST' || room.definitionId === 'SLIME_ROOM')
+                  return `Поиск в этом отсеке запрещён правилами (${room.definitionId}) — SEARCH_NOT_ALLOWED`;
+                if ((room.itemsCount ?? 0) <= 0) return 'В отсеке не осталось предметов для поиска (счётчик = 0) — NO_ITEMS_LEFT';
+                if (isActiveInCombat) return 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18) — SEARCH_IN_COMBAT';
+                if (!room.definitionId) return 'Не удалось определить цвет колоды отсека — SEARCH_NOT_ALLOWED';
+                return null;
+              };
+              const searchDisabledReason = getSearchDisabledReason();
+              const isSearchDisabled = Boolean(searchDisabledReason);
+              return (
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={isSearchDisabled}
+                  title={searchDisabledReason ?? undefined}
+                  className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
+                    isSearchDisabled
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      : 'bg-amber-600 hover:bg-amber-500 text-slate-950 active:scale-95'
+                  }`}
+                >
+                  <Package size={14} /> Обыскать отсек [цена: 1]
+                </button>
+              );
+            })()}
 
             {/* Действие комнаты: запрещено в Бою и при Неисправности (стр. 18, 24) */}
             {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && (
@@ -478,7 +486,7 @@ export const RoomInspector: React.FC = () => {
               <Footprints size={14} /> {movingFromCombat ? 'Побег [цена: 1]' : 'Движение [цена: 1]'}
             </button>
             <button
-              onClick={() => setIsCarefulSelecting(true)}
+              onClick={() => setCarefulTargetRoomId(room.id)}
               disabled={isActiveInCombat}
               title={
                 isActiveInCombat

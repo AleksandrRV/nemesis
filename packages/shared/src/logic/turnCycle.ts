@@ -3,6 +3,7 @@ import { endGame } from './gameEnd.js';
 import { runEventPhase } from './eventsPhase.js';
 import type { GameState } from '../types/state.js';
 import type { PlayerState } from '../types/entities.js';
+import type { ActionDeckCard } from '../types/cards.js';
 import { appendGameLog } from './gameLog.js';
 import { drawCardsToLimit } from './cardsPayment.js';
 import { EngineError } from './engineErrors.js';
@@ -51,16 +52,44 @@ export function applyFireEndTurnEffect(state: GameState, playerId: string): bool
 }
 
 /**
- * Завершает микроход активного игрока.
- * - Применяет эффект пожара;
- * - Сбрасывает счётчик действий текущего микрохода (actionsPerformedThisRound = 0);
- * - Если все игроки спасовали: переводит игру в EVENT_PHASE;
- * - Иначе: переключает activePlayerId на следующего неспасовавшего игрока.
+ * Немедленный Пас с необязательным сбросом карт (стр. 10, 28): огонь на Пасе
+ * применяется до блокировки, затем Пас и смена микротхода. Выделен для
+ * переиспользования эффектами карт («Технические коридоры» — «…и спасуйте»).
  */
-export function advanceTurn(state: GameState, completedPlayerId: string): void {
+export function performPass(state: GameState, playerId: string, discardCardIds: readonly string[] = []): void {
+  const player = state.players[playerId]!;
+  if (discardCardIds.length > 0) {
+    const uniqueIds = new Set(discardCardIds);
+    const remainingHand: ActionDeckCard[] = [];
+    for (const card of player.actionDeck.hand) {
+      if (uniqueIds.has(card.id)) {
+        player.actionDeck.discard.push(card);
+      } else {
+        remainingHand.push(card);
+      }
+    }
+    player.actionDeck.hand = remainingHand;
+  }
+  applyFireEndTurnEffect(state, playerId);
+  if (!player.isDead) {
+    player.hasPassed = true;
+  }
+  appendGameLog(state, {
+    type: 'PLAYER_PASSED',
+    playerId,
+    discardedCount: discardCardIds.length,
+  });
+  advanceTurnWithoutFire(state, playerId);
+}
+
+/**
+ * Завершает микроход активного игрока без применения огня.
+ * Используется после явного вызова applyFireEndTurnEffect() в обработчиках паса/действий,
+ * чтобы огонь наносился до смены activePlayerId и до блокировки паса (Шаг 4, долг 9).
+ */
+export function advanceTurnWithoutFire(state: GameState, completedPlayerId: string): void {
   const player = state.players[completedPlayerId];
   if (player) {
-    applyFireEndTurnEffect(state, completedPlayerId);
     player.actionsPerformedThisRound = 0;
   }
 
@@ -90,12 +119,25 @@ export function advanceTurn(state: GameState, completedPlayerId: string): void {
 }
 
 /**
+ * Завершает микроход активного игрока.
+ * - Применяет эффект пожара (урон до смены activePlayerId, чтобы смерть от огня наступила до передачи хода);
+ * - Сбрасывает счётчик действий текущего микрохода (actionsPerformedThisRound = 0);
+ * - Если все игроки спасовали: переводит игру в EVENT_PHASE;
+ * - Иначе: переключает activePlayerId на следующего неспасовавшего игрока.
+ */
+export function advanceTurn(state: GameState, completedPlayerId: string): void {
+  applyFireEndTurnEffect(state, completedPlayerId);
+  advanceTurnWithoutFire(state, completedPlayerId);
+}
+
+/**
  * Переход из Фазы Событий (Шаг 9 книги правил, стр. 10) в новый раунд Фазы
  * Игроков (Шаг 1). Счётчики Времени и Самоуничтожения здесь больше не
  * двигаются: маркер Времени сдвигается в Шаге 4 Фазы Событий
  * (`advanceTimeAndSelfDestruct`). Выполняет:
  * 1. Инкремент currentRound (+1);
  * 2. Передачу жетона Первого Игрока следующему игроку по часовой стрелке;
+ *    если первый умер в Фазе Событий, жетон передаётся следующему живому по кругу от умершего (стр. 10);
  * 3. Сброс флагов hasPassed и actionsPerformedThisRound;
  * 4. Добор карт всеми игроками до лимита руки (включая проверку Кают);
  * 5. Установку activePlayerId = firstPlayerId и phase = 'PLAYER_PHASE'.
@@ -107,18 +149,37 @@ export function startNewRound(state: GameState): void {
 
   state.meta.currentRound += 1;
 
-  const players = getOrderedPlayers(state);
-  if (players.length > 0) {
-    // Передача жетона первого игрока следующему по orderNumber
-    const currentFirstIdx = players.findIndex((p) => p.id === state.meta.firstPlayerId);
-    const nextFirstIdx = currentFirstIdx === -1 ? 0 : (currentFirstIdx + 1) % players.length;
-    state.meta.firstPlayerId = players[nextFirstIdx]!.id;
+  const alivePlayers = getOrderedPlayers(state);
+  if (alivePlayers.length > 0) {
+    const currentFirst = state.players[state.meta.firstPlayerId];
+    let nextFirst: PlayerState | undefined;
+
+    if (currentFirst) {
+      const currentIdx = alivePlayers.findIndex((p) => p.id === currentFirst.id);
+      if (currentIdx !== -1) {
+        // Текущий первый жив — передаём следующему по кругу
+        const nextIdx = (currentIdx + 1) % alivePlayers.length;
+        nextFirst = alivePlayers[nextIdx];
+      } else {
+        // Текущий первый умер/улетел/уснул в Фазе Событий — ищем следующего живого по orderNumber от умершего
+        const deadOrder = currentFirst.orderNumber;
+        nextFirst =
+          alivePlayers.find((p) => p.orderNumber > deadOrder) ?? alivePlayers[0];
+      }
+    } else {
+      // На случай если firstPlayerId отсутствует в state (не должно случаться)
+      nextFirst = alivePlayers[0];
+    }
+
+    if (nextFirst) {
+      state.meta.firstPlayerId = nextFirst.id;
+    }
   }
 
   state.meta.activePlayerId = state.meta.firstPlayerId;
   state.meta.phase = 'PLAYER_PHASE';
 
-  for (const player of players) {
+  for (const player of alivePlayers) {
     player.hasPassed = false;
     player.actionsPerformedThisRound = 0;
     drawCardsToLimit(state, player.id);

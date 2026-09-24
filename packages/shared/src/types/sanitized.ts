@@ -133,6 +133,8 @@ export interface SanitizedPlayerState extends Omit<
   'actionDeck' | 'inventory' | 'questItems' | 'objectives'
 > {
   actionDeck: SanitizedActionDeckState;
+  /** Лимит руки с учётом Кают: 5 базовый, 6 в исправных Каютах без Чужих и Пожара (стр. 10, 25). */
+  handLimit: number;
   /** null — чужой инвентарь скрыт (стр. 22). */
   inventory: ItemCard[] | null;
   /** null — чужие квестовые предметы скрыты до активации (стр. 21). */

@@ -1,13 +1,7 @@
-import type { ContactPresentationEvent, GameLogEntry, IntruderToken } from '@nemesis/shared';
+import type { ContactPresentationEvent, GameLogEntry } from '@nemesis/shared';
 
-export const INTRUDER_NAMES: Record<IntruderToken['type'], string> = {
-  BLANK: 'Пустой жетон',
-  LARVA: 'Личинка',
-  CREEPER: 'Крипер',
-  ADULT: 'Взрослая особь',
-  BREEDER: 'Трутень',
-  QUEEN: 'Королева',
-};
+// Единый справочник названий Чужих (intruderReference.ts) под прежним именем.
+export { INTRUDER_NAMES_RU as INTRUDER_NAMES } from '../board/intruderReference';
 
 export interface ContactPresentationEntry extends Omit<GameLogEntry, 'event'> {
   event: ContactPresentationEvent;

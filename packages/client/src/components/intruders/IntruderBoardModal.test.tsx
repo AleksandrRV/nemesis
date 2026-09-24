@@ -100,6 +100,26 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('«Лаборатория»');
   });
 
+  it('фильтры «На борту»: подпись миниатюр, группа фильтра, кнопка журнала', () => {
+    const view = makeView();
+    view.ship.rooms[3]!.occupantIntruderIds.push('intr-1', 'intr-2');
+    view.intrudersPool.boardTokens.push(
+      { id: 'intr-1', type: 'ADULT', roomId: 3, woundsCount: 0 },
+      { id: 'intr-2', type: 'CREEPER', roomId: 3, woundsCount: 0 },
+    );
+
+    const html = renderToStaticMarkup(<IntruderBoardModal view={view} onClose={() => {}} />);
+
+    // Группа фильтров со счётчиком миниатюр во множественном числе
+    expect(html).toContain('2 миниатюры');
+    expect(html).toContain('Фильтр отсеков');
+    expect(html).toContain('В Бою');
+    expect(html).toContain('Рядом со мной');
+    // Хроника: кнопка к Журналу + счётчик убитых
+    expect(html).toContain('Полная история — в Журнале');
+    expect(html).toContain('Убито:');
+  });
+
   it('пустой мешок: бейдж МЕШОК ПУСТ и честный текст пропуска Развития Улья', () => {
     const view = makeView();
     view.intrudersPool.bag = { BLANK: 0, LARVA: 0, CREEPER: 0, ADULT: 0, BREEDER: 0, QUEEN: 0 };
@@ -161,5 +181,8 @@ describe('IntruderBoardModal', () => {
     expect(html).toContain('Трутень');
     expect(html).toContain('ран: 2');
     expect(html).toContain('Подавлена (раунд 3)');
+    // Навигация: имя отсека — кнопка «показать на карте»
+    expect(html).toContain('↗');
+    expect(html).toContain('Показать');
   });
 });

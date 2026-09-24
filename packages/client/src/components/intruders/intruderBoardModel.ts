@@ -11,8 +11,7 @@ import type {
 } from '@nemesis/shared';
 import { INTRUDER_ATTACK_CARDS } from '@nemesis/shared';
 import { HIVE_DEFINITION_ID, HIVE_EGGS_CAPACITY, INTRUDER_NAMES_RU } from '../board/intruderReference';
-import { roomLabel } from '../log/gameLogModel';
-import { formatGameLogEntry } from '../log/gameLogModel';
+import { formatGameLogEntry, roomLabel, type GameLogSegment } from '../log/gameLogModel';
 import { TYPE_ORDER } from '../board/intruderMapModel';
 
 /**
@@ -85,8 +84,14 @@ export interface IntruderChronicleEntry {
   sequence: number;
   kind: IntruderChronicleKind;
   tokenType: IntruderToken['type'] | null;
+  /** Плоский текст (aria-подпись, тесты). */
   text: string;
+  /** Сегменты с тональностью — рендерятся в цветах Журнала. */
+  segments: GameLogSegment[];
 }
+
+/** Фильтр списка «На борту». */
+export type BoardFilter = 'ALL' | 'COMBAT' | 'NEAR';
 
 export interface IntruderWeaknessSlotRow {
   objectKind: BoardObjectKind;
@@ -395,7 +400,37 @@ function toChronicle(
     kind,
     tokenType,
     text: formatted.segments.map((segment) => segment.text).join(''),
+    segments: formatted.segments,
   };
+}
+
+/** Отсек активного Персонажа — точка отсчёта фильтра «Рядом со мной». */
+export function myRoomId(view: SanitizedGameState): number {
+  return view.players[view.meta.activePlayerId]!.roomId;
+}
+
+/**
+ * Список отсеков «На борту» по фильтру:
+ * - ALL — все с миниатюрами;
+ * - COMBAT — только отсеки в Бою;
+ * - NEAR — отсеки в двух шагах от активного Персонажа по открытым коридорам
+ *   (закрытые двери считаются непроходимыми, `roomsWithinDistance`).
+ */
+export function filterBoardRooms(
+  model: IntruderBoardModel,
+  view: SanitizedGameState,
+  filter: BoardFilter,
+): IntruderBoardRoomRow[] {
+  switch (filter) {
+    case 'ALL':
+      return model.boardByRoom;
+    case 'COMBAT':
+      return model.boardByRoom.filter((row) => row.inCombat);
+    case 'NEAR': {
+      const near = roomsWithinDistance(view, myRoomId(view), 2);
+      return model.boardByRoom.filter((row) => near.has(row.roomId));
+    }
+  }
 }
 
 /** Вместимость кладки — реэкспорт для компонентов планшета. */

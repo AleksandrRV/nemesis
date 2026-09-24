@@ -5,11 +5,17 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
 import { attackCardPopoverStyle } from './attackCardPresentation';
-import { buildIntruderBoardModel } from './intruderBoardModel';
+import {
+  buildIntruderBoardModel,
+  filterBoardRooms,
+  type BoardFilter,
+} from './intruderBoardModel';
 
 interface IntruderBoardModalProps {
   view: SanitizedGameState;
   onClose: () => void;
+  /** Переход к отсеку: закрыть планшет и подсветить комнату на карте. */
+  onNavigate?: (roomId: number) => void;
 }
 
 /**
@@ -21,7 +27,7 @@ interface IntruderBoardModalProps {
  * z-[45]: решения движка (DecisionModal, z-50) всегда поверх планшета.
  * Открыт/закрыт — локальное состояние App: F5 не воспроизводит окно.
  */
-export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, onClose }) => {
+export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, onClose, onNavigate }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   useFocusTrap(containerRef, { onEscape: onClose });
   const model = React.useMemo(() => buildIntruderBoardModel(view), [view]);
@@ -65,81 +71,9 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
 
           <AttacksSection model={model} />
 
-          {/* E. На борту */}
-          <section aria-label="На борту" className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">
-              На борту: {model.boardTotal}
-            </h3>
-            {model.boardByRoom.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">На борту чисто.</p>
-            ) : (
-              <ul className="space-y-2">
-                {model.boardByRoom.map((room) => (
-                  <li key={room.roomId} className="px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/70">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-slate-200 font-bold">{room.roomLabel}</span>
-                      {room.inCombat && (
-                        <span className="text-[10px] font-bold uppercase text-red-300 border border-red-700/70 rounded px-1.5 animate-pulse motion-reduce:animate-none">
-                          В Бою
-                        </span>
-                      )}
-                      {room.onFire && <span className="text-[10px] font-bold uppercase text-orange-300">Пожар</span>}
-                    </div>
-                    <ul className="mt-1 space-y-0.5">
-                      {room.tokens.map((token) => (
-                        <li key={token.id} className="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: INTRUDER_COLORS[token.type] }} />
-                          <span className="text-slate-200">{token.typeName}</span>
-                          <span className="font-mono">ран: {token.wounds}</span>
-                          <span className="text-slate-500">— {token.survivalLabel}</span>
-                          {token.suppressed && (
-                            <span className="text-[10px] text-sky-300 border border-sky-800/70 rounded px-1">
-                              Подавлена (раунд {token.suppressedRound})
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="text-[10px] text-slate-500">
-              Улей: {model.hive.roomId === null ? 'не обнаружен' : model.hive.explored ? 'исследован' : 'тайл лицом вниз'}
-              {model.hive.playersInside > 0 && ` • Персонажей внутри: ${model.hive.playersInside}`}
-              {model.hive.intrudersInside > 0 && ` • Чужих внутри: ${model.hive.intrudersInside}`}
-            </p>
-          </section>
+          <OnBoardSection model={model} view={view} onNavigate={onNavigate} />
 
-          {/* F. Хроника улья */}
-          <section aria-label="Хроника улья" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-violet-400">Хроника улья</h3>
-            {model.chronicle.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">Записей пока нет.</p>
-            ) : (
-              <ul className="space-y-1 max-h-56 overflow-y-auto pr-1">
-                {model.chronicle
-                  .slice()
-                  .reverse()
-                  .map((entry) => (
-                    <li key={entry.sequence} className="text-[11px] text-slate-400 leading-snug flex gap-1.5">
-                      {entry.tokenType && (
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0 mt-1"
-                          style={{ background: INTRUDER_COLORS[entry.tokenType] }}
-                        />
-                      )}
-                      <span className="min-w-0">{entry.text}</span>
-                    </li>
-                  ))}
-              </ul>
-            )}
-            <p className="text-[10px] text-slate-500">
-              Контактов: <b className="text-slate-300 font-mono">{model.counters.contacts}</b> • Яиц добавлено:{' '}
-              <b className="text-slate-300 font-mono">{model.counters.eggsAdded}</b> / уничтожено:{' '}
-              <b className="text-slate-300 font-mono">{model.counters.eggsDestroyed}</b>
-            </p>
-          </section>
+          <ChronicleSection model={model} />
         </div>
       </div>
     </div>
@@ -600,5 +534,200 @@ function AnatomyBars({ title, entries }: { title: string; entries: Array<{ key: 
         ))}
       </ul>
     </div>
+  );
+}
+
+/** Кнопки фильтра списка «На борту». */
+const BOARD_FILTERS: Array<{ id: BoardFilter; label: string }> = [
+  { id: 'ALL', label: 'Все' },
+  { id: 'COMBAT', label: 'В Бою' },
+  { id: 'NEAR', label: 'Рядом со мной' },
+];
+
+/**
+ * E. На борту: отсеки с миниатюрами по фильтру (Все/В Бою/Рядом со мной),
+ * клик по отсеку — навигация на карту (закрыть планшет + selectRoom).
+ */
+function OnBoardSection({
+  model,
+  view,
+  onNavigate,
+}: {
+  model: ReturnType<typeof buildIntruderBoardModel>;
+  view: SanitizedGameState;
+  onNavigate?: (roomId: number) => void;
+}) {
+  const [filter, setFilter] = React.useState<BoardFilter>('ALL');
+  const rooms = filterBoardRooms(model, view, filter);
+  const combatCount = model.boardByRoom.filter((row) => row.inCombat).length;
+
+  return (
+    <section aria-label="На борту" className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">
+          На борту: {model.boardTotal}
+        </h3>
+        <div role="group" aria-label="Фильтр отсеков" className="flex gap-1">
+          {BOARD_FILTERS.map((entry) => {
+            const active = filter === entry.id;
+            const disabled = entry.id === 'COMBAT' && model.boardByRoom.length > 0 && combatCount === 0;
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => setFilter(entry.id)}
+                aria-pressed={active}
+                title={entry.id === 'NEAR' ? 'Отсеки в двух шагах от вашего Персонажа по открытым коридорам' : undefined}
+                className={`px-2 py-0.5 rounded border text-[10px] font-bold transition ${
+                  active
+                    ? 'bg-red-950/70 border-red-600/70 text-red-200'
+                    : disabled
+                      ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {entry.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {model.boardTotal === 0 ? (
+        <p className="text-xs text-slate-500 italic">На борту чисто — ни одной миниатюры в игре.</p>
+      ) : rooms.length === 0 ? (
+        <p className="text-xs text-slate-500 italic">
+          {filter === 'COMBAT' ? 'Боя сейчас нет.' : filter === 'NEAR' ? 'В двух шагах от вас Чужих нет.' : 'На борту чисто.'}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {rooms.map((room) => {
+            const label = `Показать ${room.roomLabel} на карте`;
+            return (
+              <li key={room.roomId} className="px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/70">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.(room.roomId)}
+                    title={label}
+                    aria-label={label}
+                    className="text-xs text-slate-200 font-bold underline decoration-dotted underline-offset-2 hover:text-emerald-300 transition"
+                  >
+                    {room.roomLabel} ↗
+                  </button>
+                  {room.inCombat && (
+                    <span className="text-[10px] font-bold uppercase text-red-300 border border-red-700/70 rounded px-1.5 animate-pulse motion-reduce:animate-none">
+                      В Бою
+                    </span>
+                  )}
+                  {room.onFire && <span className="text-[10px] font-bold uppercase text-orange-300">Пожар</span>}
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {room.tokens.length === 1 ? '1 миниатюра' : `${room.tokens.length} миниатюры`}
+                  </span>
+                </div>
+                <ul className="mt-1 space-y-0.5">
+                  {room.tokens.map((token) => (
+                    <li key={token.id} className="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: INTRUDER_COLORS[token.type] }} />
+                      <span className="text-slate-200">{token.typeName}</span>
+                      <span className="font-mono">ран: {token.wounds}</span>
+                      <span className="text-slate-500">— {token.survivalLabel}</span>
+                      {token.suppressed && (
+                        <span className="text-[10px] text-sky-300 border border-sky-800/70 rounded px-1">
+                          Подавлена (раунд {token.suppressedRound})
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Улей — контекст кладки и Королевы */}
+      <p className="text-[10px] text-slate-500 border-t border-slate-800/70 pt-1.5">
+        Улей: {model.hive.roomId === null ? 'не обнаружен' : model.hive.explored ? 'исследован' : 'тайл лицом вниз'}
+        {model.hive.playersInside > 0 && ` • Персонажей внутри: ${model.hive.playersInside}`}
+        {model.hive.intrudersInside > 0 && ` • Чужих внутри: ${model.hive.intrudersInside}`}
+      </p>
+    </section>
+  );
+}
+
+/** Цвета тональности хроники — те же, что в Журнале (gameLogModel). */
+const CHRONICLE_TONE_CLASSES: Record<string, string> = {
+  system: 'text-white',
+  player: 'text-cyan-300 font-bold',
+  room: 'text-sky-300 font-bold',
+  corridor: 'text-violet-300 font-bold',
+  noise: 'text-orange-300 font-bold',
+  fire: 'text-orange-400 font-bold',
+  malfunction: 'text-amber-300 font-bold',
+  slime: 'text-lime-300 font-bold',
+  danger: 'text-red-300 font-bold',
+  silence: 'text-slate-100 font-bold',
+  door: 'text-fuchsia-300 font-bold',
+  success: 'text-emerald-300 font-bold',
+  warning: 'text-yellow-300 font-bold',
+  error: 'text-red-200 font-bold',
+};
+
+/**
+ * F. Хроника улья: последние intruder-события в тонах Журнала + счётчики.
+ * Полная история — в панели Журнала (кнопка вместо дублирования).
+ */
+function ChronicleSection({ model }: { model: ReturnType<typeof buildIntruderBoardModel> }) {
+  return (
+    <section aria-label="Хроника улья" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
+      <h3 className="text-[10px] font-bold uppercase tracking-wider text-violet-400">Хроника улья</h3>
+      {model.chronicle.length === 0 ? (
+        <p className="text-xs text-slate-500 italic">Записей пока нет — улей молчит.</p>
+      ) : (
+        <ul className="space-y-1 max-h-56 overflow-y-auto pr-1">
+          {model.chronicle
+            .slice()
+            .reverse()
+            .map((entry) => (
+              <li key={entry.sequence} className="text-[11px] leading-snug flex gap-1.5">
+                {entry.tokenType && (
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0 mt-1"
+                    style={{ background: INTRUDER_COLORS[entry.tokenType] }}
+                  />
+                )}
+                <span className="min-w-0 text-slate-400">
+                  {entry.segments.map((segment, index) => (
+                    <span
+                      key={`${entry.sequence}-${index}`}
+                      className={segment.tone ? CHRONICLE_TONE_CLASSES[segment.tone] : undefined}
+                    >
+                      {segment.text}
+                    </span>
+                  ))}
+                </span>
+              </li>
+            ))}
+        </ul>
+      )}
+      <p className="text-[10px] text-slate-500">
+        Контактов: <b className="text-slate-300 font-mono">{model.counters.contacts}</b> • Убито:{' '}
+        <b className="text-slate-300 font-mono">
+          {model.counters.killed.LARVA + model.counters.killed.CREEPER + model.counters.killed.ADULT + model.counters.killed.BREEDER + model.counters.killed.QUEEN}
+        </b>{' '}
+        • Яиц: +<b className="text-slate-300 font-mono">{model.counters.eggsAdded}</b> / −
+        <b className="text-slate-300 font-mono">{model.counters.eggsDestroyed}</b>
+      </p>
+      <button
+        type="button"
+        onClick={() => window.open('', '_blank')}
+        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:border-slate-500 transition"
+        title="Полная история партии — в панели Журнала"
+      >
+        Полная история — в Журнале
+      </button>
+    </section>
   );
 }

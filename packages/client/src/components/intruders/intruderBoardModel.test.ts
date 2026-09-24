@@ -5,6 +5,7 @@ import {
   boardChangeKey,
   buildAttackAnatomy,
   buildIntruderBoardModel,
+  filterBoardRooms,
   intruderSurvivalLabel,
   largestRemainderPercent,
   roomsWithinDistance,
@@ -406,5 +407,56 @@ describe('Улей и дельта-ключ', () => {
     roomsWithinDistance(view, view.players['player-1']!.roomId, 2);
 
     expect(JSON.stringify(view)).toBe(before);
+  });
+});
+
+describe('фильтры «На борту» (filterBoardRooms)', () => {
+  function setupBoard() {
+    const view = makeView();
+    const playerRoomId = view.players['player-1']!.roomId;
+    // Бой у Персонажа
+    view.ship.rooms[playerRoomId]!.occupantIntruderIds.push('intr-1');
+    view.intrudersPool.boardTokens.push({ id: 'intr-1', type: 'ADULT', roomId: playerRoomId, woundsCount: 0 });
+    // Дальний Чужой
+    let farRoomId: number | null = null;
+    for (const room of Object.values(view.ship.rooms)) {
+      const neighborIds = Object.values(view.ship.corridors)
+        .filter((c) => c.doorState !== 'CLOSED')
+        .map((c) => (c.fromRoomId === playerRoomId ? c.toRoomId : c.toRoomId === playerRoomId ? c.fromRoomId : null))
+        .filter((id): id is number => id !== null);
+      if (!neighborIds.includes(room.id) && room.id !== playerRoomId && room.occupantPlayerIds.length === 0) {
+        farRoomId = room.id;
+        break;
+      }
+    }
+    if (farRoomId !== null) {
+      view.intrudersPool.boardTokens.push({ id: 'intr-2', type: 'QUEEN', roomId: farRoomId, woundsCount: 0 });
+    }
+    return { view, playerRoomId, farRoomId };
+  }
+
+  it('ALL — все отсеки с миниатюрами', () => {
+    const { view } = setupBoard();
+    const model = buildIntruderBoardModel(view);
+    expect(filterBoardRooms(model, view, 'ALL')).toHaveLength(2);
+  });
+
+  it('COMBAT — только отсеки с Боем', () => {
+    const { view, playerRoomId } = setupBoard();
+    const model = buildIntruderBoardModel(view);
+    const combat = filterBoardRooms(model, view, 'COMBAT');
+    expect(combat).toHaveLength(1);
+    expect(combat[0]!.roomId).toBe(playerRoomId);
+    expect(combat[0]!.inCombat).toBe(true);
+  });
+
+  it('NEAR — отсеки в 2 шагах; дальняя Королева не попадает', () => {
+    const { view, playerRoomId, farRoomId } = setupBoard();
+    const model = buildIntruderBoardModel(view);
+    const near = filterBoardRooms(model, view, 'NEAR');
+    expect(near.map((row) => row.roomId)).toContain(playerRoomId);
+    if (farRoomId !== null) {
+      expect(near.map((row) => row.roomId)).not.toContain(farRoomId);
+    }
   });
 });

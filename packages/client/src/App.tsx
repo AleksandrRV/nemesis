@@ -25,6 +25,7 @@ import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const startNewGame = useGameStore((state) => state.startNewGame);
+  const selectRoom = useGameStore((state) => state.selectRoom);
   const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
   // Планшет Чужих: открытие — только кликом по кнопке HUD, F5 окно закрывает.
@@ -182,7 +183,16 @@ export const App: React.FC = () => {
             onClose={() => setShowCharacterSelect(false)}
           />
         )}
-        {intruderBoardOpen && <IntruderBoardModal view={view} onClose={() => setIntruderBoardOpen(false)} />}
+        {intruderBoardOpen && (
+          <IntruderBoardModal
+            view={view}
+            onClose={() => setIntruderBoardOpen(false)}
+            onNavigate={(roomId) => {
+              setIntruderBoardOpen(false);
+              selectRoom(roomId as RoomId);
+            }}
+          />
+        )}
         {isPresentationIdle && view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
         {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && (
           <div

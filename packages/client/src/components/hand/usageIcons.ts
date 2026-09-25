@@ -1,0 +1,53 @@
+import {
+  Biohazard,
+  Cog,
+  Crosshair,
+  DoorOpen,
+  Eye,
+  Flame,
+  Footprints,
+  HeartPulse,
+  Layers,
+  Lock,
+  MapPin,
+  Package,
+  Search,
+  Shield,
+  SquareStack,
+  Bug,
+  User,
+  Wrench,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
+import type { CardAccent, UsageIcon } from './usageTypes';
+
+export const USAGE_ICONS: Record<UsageIcon, LucideIcon> = {
+  door: DoorOpen,
+  room: MapPin,
+  move: Footprints,
+  intruder: Bug,
+  player: User,
+  deck: Layers,
+  item: Package,
+  card: SquareStack,
+  engine: Cog,
+  wrench: Wrench,
+  fire: Flame,
+  heal: HeartPulse,
+  eye: Eye,
+  ammo: Crosshair,
+  shield: Shield,
+  bolt: Zap,
+  lock: Lock,
+  search: Search,
+  biohazard: Biohazard,
+};
+
+export const ACCENT_CLASSES: Record<CardAccent, { bar: string; text: string; ring: string; soft: string }> = {
+  ACTION: { bar: 'bg-cyan-400', text: 'text-cyan-300', ring: 'ring-cyan-400', soft: 'bg-cyan-950/40' },
+  RED: { bar: 'bg-red-500', text: 'text-red-300', ring: 'ring-red-400', soft: 'bg-red-950/40' },
+  YELLOW: { bar: 'bg-amber-400', text: 'text-amber-300', ring: 'ring-amber-300', soft: 'bg-amber-950/40' },
+  GREEN: { bar: 'bg-emerald-500', text: 'text-emerald-300', ring: 'ring-emerald-400', soft: 'bg-emerald-950/40' },
+  BLUE: { bar: 'bg-sky-400', text: 'text-sky-300', ring: 'ring-sky-400', soft: 'bg-sky-950/40' },
+};

@@ -1,28 +1,12 @@
 import React from 'react';
-import type {
-  ActionCard,
-  EngineAction,
-  PlayCardActionPayload,
-  SanitizedGameState,
-  UseItemActionPayload,
-} from '@nemesis/shared';
+import type { ActionCard, EngineAction, SanitizedGameState } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import {
-  ChevronUp,
-  ChevronDown,
-  Hand,
-  CheckCircle2,
-  Briefcase,
-  Zap,
-  RotateCcw,
-  Play,
-  AlertCircle,
-  HeartPulse,
-  Info,
-} from 'lucide-react';
+import { ChevronUp, ChevronDown, Hand, Briefcase, Zap, RotateCcw, AlertCircle, HeartPulse, Info } from 'lucide-react';
 import { CardDetailsModal, type CardDetailsTarget } from '../modals/CardDetailsModal';
 import { HandConfirmModals } from './HandConfirmModals';
-import { CardUseModal } from './CardUseModal';
+import { CardUseModal, type CardUseConfirmation } from './CardUseModal';
+import { HandCard, type HandCardPlayability } from './HandCard';
+import { getActionCardUsage } from './actionCardUsage';
 import { CardResultModal } from './CardResultModal';
 import { buildCardUseResult, type CardUseResult } from './cardUseResultModel';
 import type { CardUseRequest } from './cardUsageModel';
@@ -59,11 +43,23 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const clearSelection = useGameStore((state) => state.clearSelection);
   const convertToEnergy = useGameStore((state) => state.convertToEnergy);
   const refundConvertedCard = useGameStore((state) => state.refundConvertedCard);
-  const consumePaymentCards = useGameStore((state) => state.consumePaymentCards);
   const setShootModalOpen = useGameStore((state) => state.setShootModalOpen);
   const setMeleeModalOpen = useGameStore((state) => state.setMeleeModalOpen);
   const dispatch = useGameStore((state) => state.dispatch);
   const rejection = useGameStore((state) => state.rejection);
+
+  if (pendingResult && (rejection || view !== pendingResult.before)) {
+    setUseResult(
+      buildCardUseResult(
+        pendingResult.before,
+        view,
+        pendingResult.title,
+        pendingResult.variantLabel,
+        rejection ?? undefined,
+      ),
+    );
+    setPendingResult(null);
+  }
 
   const activePlayerId = view.meta.activePlayerId;
   const player = view.players[activePlayerId];
@@ -112,42 +108,26 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     setUseRequest(request);
   };
 
-  // Подтверждение в CardUseModal: оплата (без самой карты) → dispatch → ожидание результата.
-  const handleUseConfirm = (request: CardUseRequest, variantLabel: string, payload: Record<string, unknown>) => {
-    const cost = request.kind === 'ACTION' ? request.card.playCost : request.card.actionCost;
-    const cardId = request.card.id;
-    const discardCardIds = cost > 0 ? consumePaymentCards(cost, cardId) : [];
+  const handleUseConfirm = (request: CardUseRequest, confirmation: CardUseConfirmation) => {
     const before = view;
+    const { discardCardIds } = confirmation;
     const action: EngineAction =
       request.kind === 'ACTION'
-        ? { type: 'ACTION_PLAY_CARD', payload: { ...(payload as PlayCardActionPayload), discardCardIds } }
-        : { type: 'ACTION_USE_ITEM', payload: { ...(payload as UseItemActionPayload), discardCardIds } };
+        ? { type: 'ACTION_PLAY_CARD', payload: { ...confirmation.payload, cardId: request.card.id, discardCardIds } }
+        : { type: 'ACTION_USE_ITEM', payload: { ...confirmation.payload, itemId: request.card.id, discardCardIds } };
     dispatch(action);
+    discardCardIds.filter((id) => convertedCardIds.includes(id)).forEach(refundConvertedCard);
     setUseRequest(null);
     clearSelection();
-    setPendingResult({ title: request.card.name, variantLabel, before });
+    setPendingResult({ title: request.card.name, variantLabel: confirmation.variantLabel, before });
   };
 
-  // Как только движок ответил (новый view — успех, rejection — отказ), показываем окно результата.
-  React.useEffect(() => {
-    if (!pendingResult) return;
-    if (rejection) {
-      setUseResult(
-        buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel, rejection),
-      );
-      setPendingResult(null);
-      return;
-    }
-    if (view !== pendingResult.before) {
-      setUseResult(buildCardUseResult(pendingResult.before, view, pendingResult.title, pendingResult.variantLabel));
-      setPendingResult(null);
-    }
-  }, [view, rejection, pendingResult]);
-
-  // Оплата для выбранной карты: конвертированные очки + отмеченные карты (кроме самой карты и Заражения).
-  const contaminationIds = new Set(handCards.filter((card) => !('characterClass' in card)).map((card) => card.id));
-  const computeAvailablePayment = (excludeCardId: string): number =>
-    convertedCardIds.length + selectedCardIds.filter((id) => id !== excludeCardId && !contaminationIds.has(id)).length;
+  const playabilityOf = (card: ActionCard): HandCardPlayability => {
+    if (!canAct) return { playable: false, reason: 'Сейчас не ваш ход' };
+    const variants = getActionCardUsage(card, view).variants;
+    if (variants.some((variant) => variant.available)) return { playable: true };
+    return { playable: false, reason: variants[0]?.reason };
+  };
 
   // Оружие с боезапасом — для боевых карт Действия (Прицельный/Очередь/Адреналин/Прикрытие).
   const combatWeaponItemId =
@@ -203,7 +183,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           </span>
           <div className="h-4 w-[1px] bg-slate-800 mx-1 hidden sm:block" />
           <span className="text-xs font-bold text-amber-400">
-            Действий в этом ходу: {player.actionsPerformedThisRound} / 2
+            Действий в этом ходу: {player.actionsPerformedThisRound} / {player.hasAdrenalineRush ? '∞' : 2}
           </span>
           {convertedCardIds.length > 0 && (
             <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 flex items-center gap-1">
@@ -445,120 +425,27 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
         <div className="p-3 pt-4 pb-4 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between overflow-x-auto min-h-[160px]">
           {/* Сетка карт руки */}
           <div className="flex items-center gap-3 overflow-x-auto pt-4 pb-2 px-1">
-            {handCards.map((card) => {
-              const isContamination = !('characterClass' in card);
-              const isSelected = selectedCardIds.includes(card.id);
-              const isConverted = convertedCardIds.includes(card.id);
-
-              return (
-                <div key={card.id} className="relative flex flex-col items-center shrink-0">
-                  {/* Кнопка "Инфо" для просмотра всей информации о карте */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isContamination) {
-                        setInspectCardTarget({
-                          kind: 'CONTAMINATION',
-                          card: card as Extract<typeof card, { isInfected: boolean }>,
-                        });
-                      } else {
-                        setInspectCardTarget({ kind: 'ACTION', card: card as ActionCard });
-                      }
-                    }}
-                    className="absolute -top-2 right-1 z-20 p-1 rounded-full bg-slate-800 hover:bg-cyan-600 text-slate-300 hover:text-white border border-slate-700 shadow transition"
-                    title="Полная информация о карте"
-                  >
-                    <Info size={12} />
-                  </button>
-
-                  {/* Карточка */}
-                  <button
-                    type="button"
-                    disabled={isConverted}
-                    onClick={() => toggleSelectCard(card.id)}
-                    className={`w-36 h-32 rounded-xl p-3 text-left border flex flex-col justify-between transition-all select-none relative ${
-                      isConverted
-                        ? 'border-emerald-700/60 bg-emerald-950/40 opacity-70 cursor-not-allowed'
-                        : isSelected
-                          ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_20px_rgba(6,182,212,0.45)] -translate-y-2'
-                          : isContamination
-                            ? 'border-purple-800/60 bg-purple-950/40 hover:border-purple-600'
-                            : 'border-slate-800 bg-slate-900/80 hover:border-slate-700 hover:bg-slate-900'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-1 mb-1 pr-4">
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                            isConverted
-                              ? 'bg-emerald-900 text-emerald-200'
-                              : isContamination
-                                ? 'bg-purple-900/80 text-purple-200'
-                                : 'bg-slate-800 text-cyan-300'
-                          }`}
-                        >
-                          {isConverted
-                            ? 'В резерве'
-                            : isContamination
-                              ? 'Заражение'
-                              : `Цена: ${(card as ActionCard).playCost}`}
-                        </span>
-                        {isSelected && !isConverted && <CheckCircle2 size={14} className="text-cyan-400" />}
-                        {isConverted && <Zap size={14} className="text-emerald-400" />}
-                      </div>
-
-                      <div className="text-xs font-bold text-white line-clamp-1 leading-snug">
-                        {isContamination ? 'Карта Заражения' : (card as ActionCard).name}
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                      {isConverted ? (
-                        <div className="flex items-center justify-between text-emerald-300">
-                          <span>Очко действия</span>
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              refundConvertedCard(card.id);
-                            }}
-                            className="text-[9px] underline hover:text-white cursor-pointer"
-                          >
-                            Вернуть
-                          </span>
-                        </div>
-                      ) : isContamination ? (
-                        card.isScanned ? (
-                          card.isInfected ? (
-                            'ИНФЕКЦИЯ ОБНАРУЖЕНА'
-                          ) : (
-                            'Стерильно'
-                          )
-                        ) : (
-                          'Не просканировано'
-                        )
-                      ) : (
-                        (card as ActionCard).description
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Кнопка «Применить» снизу карты в освободившемся месте после сдвига вверх */}
-                  {isSelected && selectedCardIds.length === 1 && !isConverted && !isContamination && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openUseModal({ kind: 'ACTION', card: card as ActionCard });
-                      }}
-                      className="mt-1 w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] py-1 rounded-lg shadow-lg flex items-center justify-center gap-1 active:scale-95 transition animate-in fade-in slide-in-from-top-1"
-                    >
-                      <Play size={11} fill="currentColor" /> Применить
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {handCards.map((card) => (
+              <HandCard
+                key={card.id}
+                card={card}
+                isSelected={selectedCardIds.includes(card.id)}
+                isConverted={convertedCardIds.includes(card.id)}
+                playability={'characterClass' in card ? playabilityOf(card) : { playable: false }}
+                onToggle={() => toggleSelectCard(card.id)}
+                onPlay={() => {
+                  if ('characterClass' in card) openUseModal({ kind: 'ACTION', card });
+                }}
+                onInspect={() =>
+                  setInspectCardTarget(
+                    'characterClass' in card
+                      ? { kind: 'ACTION', card }
+                      : { kind: 'CONTAMINATION', card: card as Extract<typeof card, { isInfected: boolean }> },
+                  )
+                }
+                onRefund={() => refundConvertedCard(card.id)}
+              />
+            ))}
           </div>
 
           {/* Панель управления ходом / оплатой */}
@@ -614,8 +501,8 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
           view={view}
           request={useRequest}
           combatWeaponItemId={combatWeaponItemId}
-          availablePayment={computeAvailablePayment(useRequest.card.id)}
-          onConfirm={({ variant, payload }) => handleUseConfirm(useRequest, variant.label, payload)}
+          preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
+          onConfirm={(confirmation) => handleUseConfirm(useRequest, confirmation)}
           onClose={() => setUseRequest(null)}
         />
       )}

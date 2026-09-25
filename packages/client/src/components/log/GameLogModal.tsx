@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, ScrollText, X } from 'lucide-react';
-import type { GameLogEntry } from '@nemesis/shared';
+import type { SanitizedGameLogEntry } from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { LogLine } from './LogSegments';
 import { GAME_LOG_CATEGORY_ACCENTS, GAME_LOG_CATEGORY_ICONS } from './logCategoryIcons';
@@ -17,7 +17,7 @@ import {
 
 interface GameLogModalProps {
   entries: readonly CategorizedLogEntry[];
-  log: readonly GameLogEntry[];
+  log: readonly SanitizedGameLogEntry[];
   onClose: () => void;
 }
 

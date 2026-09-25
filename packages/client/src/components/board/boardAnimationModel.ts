@@ -1,4 +1,10 @@
-import type { ExplorationEffect, GameLogEntry, GameLogEvent, IntruderLogEvent, NoiseDieFace } from '@nemesis/shared';
+import type {
+  ExplorationEffect,
+  SanitizedGameLogEntry,
+  SanitizedGameLogEvent,
+  IntruderLogEvent,
+  NoiseDieFace,
+} from '@nemesis/shared';
 import type { IntruderType, RoomId, SanitizedGameState } from '@nemesis/shared';
 import { changedDoorStates, type DoorState } from './doorTransitionModel';
 
@@ -75,14 +81,14 @@ export const NOISE_POP_TTL_MS = 1600;
 export const NOISE_ROLL_TTL_MS = 1400;
 export const CONTACT_TEASE_TTL_MS = 1800;
 
-type FreshPlayerMoved = GameLogEntry & { event: Extract<GameLogEvent, { type: 'PLAYER_MOVED' }> };
-type FreshIntruderMoved = GameLogEntry & { event: Extract<IntruderLogEvent, { type: 'INTRUDER_MOVED' }> };
+type FreshPlayerMoved = SanitizedGameLogEntry & { event: Extract<SanitizedGameLogEvent, { type: 'PLAYER_MOVED' }> };
+type FreshIntruderMoved = SanitizedGameLogEntry & { event: Extract<IntruderLogEvent, { type: 'INTRUDER_MOVED' }> };
 
-function isPlayerMovedEntry(entry: GameLogEntry): entry is FreshPlayerMoved {
+function isPlayerMovedEntry(entry: SanitizedGameLogEntry): entry is FreshPlayerMoved {
   return entry.event.type === 'PLAYER_MOVED';
 }
 
-function isIntruderMovedEntry(entry: GameLogEntry): entry is FreshIntruderMoved {
+function isIntruderMovedEntry(entry: SanitizedGameLogEntry): entry is FreshIntruderMoved {
   return entry.event.type === 'INTRUDER_MOVED';
 }
 

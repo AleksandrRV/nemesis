@@ -1,4 +1,4 @@
-import type { GameLogEntry, GameLogEvent, SanitizedGameState } from '@nemesis/shared';
+import type { SanitizedGameLogEntry, SanitizedGameLogEvent, SanitizedGameState } from '@nemesis/shared';
 import {
   groupFormattedLog,
   type FormattedGameLogEntry,
@@ -26,7 +26,7 @@ export const GAME_LOG_CATEGORY_LABELS: Record<GameLogCategory, string> = {
   EVENTS: 'Фаза Событий',
 };
 
-export const GAME_LOG_CATEGORY_BY_EVENT: Record<GameLogEvent['type'], GameLogCategory> = {
+export const GAME_LOG_CATEGORY_BY_EVENT: Record<SanitizedGameLogEvent['type'], GameLogCategory> = {
   GAME_STARTED: 'SYSTEM',
   ROUND_STARTED: 'SYSTEM',
   PLAYER_TURN_STARTED: 'SYSTEM',
@@ -103,7 +103,7 @@ export function segmentsText(segments: readonly GameLogSegment[]): string {
 
 export function categorizeLog(
   formatted: readonly FormattedGameLogEntry[],
-  log: readonly GameLogEntry[],
+  log: readonly SanitizedGameLogEntry[],
 ): CategorizedLogEntry[] {
   const typeBySequence = new Map(log.map((entry) => [entry.sequence, entry.event.type]));
   return formatted.map((entry) => {
@@ -136,7 +136,7 @@ export function countByCategory(entries: readonly CategorizedLogEntry[]): Record
   return counts;
 }
 
-function roundStartedBySequence(log: readonly GameLogEntry[]): Map<number, number> {
+function roundStartedBySequence(log: readonly SanitizedGameLogEntry[]): Map<number, number> {
   const rounds = new Map<number, number>();
   for (const entry of log) {
     if (entry.event.type === 'ROUND_STARTED') rounds.set(entry.sequence, entry.event.round);
@@ -146,7 +146,7 @@ function roundStartedBySequence(log: readonly GameLogEntry[]): Map<number, numbe
 
 export function buildLogRounds(
   entries: readonly CategorizedLogEntry[],
-  log: readonly GameLogEntry[],
+  log: readonly SanitizedGameLogEntry[],
   filter: GameLogFilter,
 ): GameLogRound[] {
   const roundStarts = roundStartedBySequence(log);
@@ -193,7 +193,7 @@ export type LogHighlight = 'CONTACT' | 'NOISE_ROLL';
 
 const CONTACT_LOOKAHEAD = 4;
 
-export function logHighlights(log: readonly GameLogEntry[]): Map<string, LogHighlight> {
+export function logHighlights(log: readonly SanitizedGameLogEntry[]): Map<string, LogHighlight> {
   const highlights = new Map<string, LogHighlight>();
   for (let index = 0; index < log.length; index++) {
     const entry = log[index]!;

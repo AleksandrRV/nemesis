@@ -6,7 +6,7 @@
  * движок (время → атаки → огонь → карта События → эффект → Улей). Каждый шаг
  * предъявляет свои записи Журнала и подсвечивает затронутые отсеки на карте.
  */
-import type { GameLogEntry, RoomId, SanitizedGameState } from '@nemesis/shared';
+import type { SanitizedGameLogEntry, RoomId, SanitizedGameState } from '@nemesis/shared';
 
 export type EventPhaseStepId = 'TIME' | 'ATTACKS' | 'FIRE' | 'EVENT_CARD' | 'EFFECT' | 'HIVE';
 
@@ -14,7 +14,7 @@ export interface EventPhaseStepModel {
   id: EventPhaseStepId;
   title: string;
   /** Записи Журнала шага (по порядку разрешения движком). */
-  entries: GameLogEntry[];
+  entries: SanitizedGameLogEntry[];
   /** Отсеки, подсвечиваемые на карте во время шага. */
   highlightRoomIds: RoomId[];
 }
@@ -36,7 +36,7 @@ const STEP_TITLES: Record<EventPhaseStepId, string> = {
 };
 
 /** Отсеки, подсвечиваемые текстовым эффектом карты События. */
-function effectHighlightRooms(entry: GameLogEntry): RoomId[] {
+function effectHighlightRooms(entry: SanitizedGameLogEntry): RoomId[] {
   if (entry.event.type !== 'EVENT_EFFECT_RESOLVED') return [];
   const result = entry.event.outcome;
   switch (result.kind) {
@@ -59,7 +59,7 @@ function effectHighlightRooms(entry: GameLogEntry): RoomId[] {
   }
 }
 
-function roomIdsFromEntry(entry: GameLogEntry): RoomId[] {
+function roomIdsFromEntry(entry: SanitizedGameLogEntry): RoomId[] {
   switch (entry.event.type) {
     case 'EVENT_PHASE_ATTACK_RESOLVED':
       return [entry.event.roomId];
@@ -84,7 +84,7 @@ function roomIdsFromEntry(entry: GameLogEntry): RoomId[] {
   }
 }
 
-function stepIdForEntry(entry: GameLogEntry): EventPhaseStepId | null {
+function stepIdForEntry(entry: SanitizedGameLogEntry): EventPhaseStepId | null {
   switch (entry.event.type) {
     case 'TIME_TRACK_ADVANCED':
     case 'ESCAPE_PODS_UNLOCKED':
@@ -129,7 +129,7 @@ export function buildEventPhaseModalModel(view: SanitizedGameState): EventPhaseM
   }
   if (phaseStart === -1) return null;
 
-  const buckets = new Map<EventPhaseStepId, GameLogEntry[]>([
+  const buckets = new Map<EventPhaseStepId, SanitizedGameLogEntry[]>([
     ['TIME', []],
     ['ATTACKS', []],
     ['FIRE', []],

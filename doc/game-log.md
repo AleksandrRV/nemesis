@@ -139,3 +139,15 @@
 * `packages/client/src/components/log/gameLogModel.ts` — русские сообщения и выделение.
 
 Покрытие: `gameLog.test.ts`, `gameLogModel.test.ts`, `GameLogPanel.test.ts`, `eventEffectLogModel.test.ts`, `intruderLogModel.ts`, `roundCycle.integration.test.ts` (порядок записей Фазы Событий, 3 цикла подряд, защита санитайзера).
+
+## Приватные записи журнала
+
+Журнал уходит клиенту только через `filterStateForPlayer`, и часть записей в нём фильтруется для каждого игрока (`SanitizedGameLogEntry`). Владелец записи видит всё, остальные — поля, скрытые правилами:
+
+| Событие | Что скрыто от других | Что видят все |
+| --- | --- | --- |
+| `ROOM_PEEKED` | `effect`, `itemsCount` | кто и какой отсек подсмотрел |
+| `EVENT_PEEKED` | `cardName` | кто смотрел и куда положил карту (сверху или вниз) |
+| `ENGINE_TOGGLED` | `isWorking` | номер Двигателя и `orderChanged` — менялся ли порядок жетонов (стр. 26) |
+
+Клиент форматирует эти записи в `components/log/privateLogFormat.ts`: для чужих записей текст говорит «тайно смотрит» без раскрытия содержимого.

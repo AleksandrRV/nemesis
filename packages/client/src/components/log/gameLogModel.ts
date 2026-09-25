@@ -1,12 +1,13 @@
 import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
 import { eventCardName, formatEventEffectOutcome, formatHiveDevelopmentOutcome } from './eventEffectLogModel';
+import { formatPrivateLogEvent, isPrivateLogEvent } from './privateLogFormat';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
   SPECIAL_ROOMS,
   TIME_TRACK_LENGTH,
-  type GameLogEntry,
-  type GameLogEvent,
+  type SanitizedGameLogEntry,
+  type SanitizedGameLogEvent,
   type SanitizedGameState,
 } from '@nemesis/shared';
 
@@ -45,7 +46,7 @@ const ROOM_NAMES = new Map(
 );
 
 const EFFECT_LABELS: Record<
-  NonNullable<Extract<GameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect']>,
+  NonNullable<Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect']>,
   string
 > = {
   FIRE: 'Пожар',
@@ -56,13 +57,16 @@ const EFFECT_LABELS: Record<
   SILENCE: 'Тишина',
 };
 
-const CATEGORY_LABELS: Record<Extract<GameLogEvent, { type: 'ROOM_DISCOVERED' }>['category'], string> = {
+const CATEGORY_LABELS: Record<Extract<SanitizedGameLogEvent, { type: 'ROOM_DISCOVERED' }>['category'], string> = {
   SPECIAL: 'особая',
   ROOM_1: 'основная «1»',
   ROOM_2: 'дополнительная «2»',
 };
 
-const OUTCOME_LABELS: Record<Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_RESOLVED' }>['outcome'], string> = {
+const OUTCOME_LABELS: Record<
+  Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_EFFECT_RESOLVED' }>['outcome'],
+  string
+> = {
   FIRE_PLACED: 'маркер Пожара установлен',
   FIRE_ALREADY_PRESENT: 'Пожар уже был в отсеке',
   SHIP_EXPLODED: 'корабль взорвался',
@@ -101,7 +105,7 @@ function corridorLabel(corridorId: string): string {
   return corridorId.replace('-', '–');
 }
 
-function noiseLabel(result: Extract<GameLogEvent, { type: 'NOISE_ROLLED' }>['result']): GameLogSegment {
+function noiseLabel(result: Extract<SanitizedGameLogEvent, { type: 'NOISE_ROLLED' }>['result']): GameLogSegment {
   if (result.kind === 'CORRIDOR') {
     return { text: `Коридор ${result.number}`, tone: 'corridor', strong: true };
   }
@@ -111,7 +115,9 @@ function noiseLabel(result: Extract<GameLogEvent, { type: 'NOISE_ROLLED' }>['res
     : { text: 'Тишина', tone: 'silence', strong: true };
 }
 
-function targetLabel(target: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['target']): GameLogSegment[] {
+function targetLabel(
+  target: Extract<SanitizedGameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['target'],
+): GameLogSegment[] {
   if (target.kind === 'TECHNICAL_CORRIDOR') {
     return [{ text: 'Технические Коридоры', tone: 'corridor', strong: true }];
   }
@@ -119,7 +125,7 @@ function targetLabel(target: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED'
   return [{ text: `Коридор ${corridorLabel(target.corridorId)}`, tone: 'corridor', strong: true }];
 }
 
-function reasonLabel(reason: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['reason']): string {
+function reasonLabel(reason: Extract<SanitizedGameLogEvent, { type: 'NOISE_MARKER_PLACED' }>['reason']): string {
   if (reason === 'CAREFUL') return 'Осторожное движение';
   if (reason === 'DANGER') return 'Опасность';
   if (reason === 'BLANK') return 'Пустой жетон';
@@ -128,7 +134,9 @@ function reasonLabel(reason: Extract<GameLogEvent, { type: 'NOISE_MARKER_PLACED'
   return 'бросок Шума';
 }
 
-function effectTone(effect: Extract<GameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect']): GameLogTone {
+function effectTone(
+  effect: Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect'],
+): GameLogTone {
   if (effect === 'FIRE') return 'fire';
   if (effect === 'MALFUNCTION') return 'malfunction';
   if (effect === 'SLIME') return 'slime';
@@ -138,13 +146,15 @@ function effectTone(effect: Extract<GameLogEvent, { type: 'EXPLORATION_TOKEN_REV
   return 'door';
 }
 
-function effectSegment(
-  effect: Extract<GameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect'],
+export function effectSegment(
+  effect: Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect'],
 ): GameLogSegment {
   return { text: EFFECT_LABELS[effect], tone: effectTone(effect), strong: true };
 }
 
-function outcomeTone(outcome: Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_RESOLVED' }>['outcome']): GameLogTone {
+function outcomeTone(
+  outcome: Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_EFFECT_RESOLVED' }>['outcome'],
+): GameLogTone {
   if (outcome === 'SHIP_EXPLODED' || outcome === 'HULL_BREACH') return 'error';
   if (outcome.includes('FIRE')) return 'fire';
   if (outcome.includes('MALFUNCTION')) return 'malfunction';
@@ -155,7 +165,7 @@ function outcomeTone(outcome: Extract<GameLogEvent, { type: 'EXPLORATION_EFFECT_
   return 'silence';
 }
 
-function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegment[] {
+function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): GameLogSegment[] {
   const event = entry.event;
 
   switch (event.type) {
@@ -416,11 +426,12 @@ function formatEntry(entry: GameLogEntry, view: SanitizedGameState): GameLogSegm
         { text: '.' },
       ];
     default:
+      if (isPrivateLogEvent(event)) return formatPrivateLogEvent(event, view);
       return formatIntruderLogEvent(event as never, view);
   }
 }
 
-export function formatGameLogEntry(entry: GameLogEntry, view: SanitizedGameState): FormattedGameLogEntry {
+export function formatGameLogEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): FormattedGameLogEntry {
   return {
     id: entry.id,
     sequence: entry.sequence,
@@ -431,7 +442,7 @@ export function formatGameLogEntry(entry: GameLogEntry, view: SanitizedGameState
 }
 
 function computeMovementGroups(
-  log: readonly GameLogEntry[],
+  log: readonly SanitizedGameLogEntry[],
 ): Map<string, { groupId: string | null; isMovement: boolean }> {
   const map = new Map<string, { groupId: string | null; isMovement: boolean }>();
   const movementRelated = new Set([
@@ -453,7 +464,7 @@ function computeMovementGroups(
   let lastSeqInGroup = -100;
 
   for (const entry of log) {
-    const ev = entry.event as GameLogEvent & { playerId?: string | null; roomId?: number; toRoomId?: number };
+    const ev = entry.event as SanitizedGameLogEvent & { playerId?: string | null; roomId?: number; toRoomId?: number };
 
     if (ev.type === 'PLAYER_MOVED') {
       currentGroupId = `move-${entry.sequence}`;

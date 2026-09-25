@@ -1,13 +1,13 @@
-import type { ContactPresentationEvent, GameLogEntry } from '@nemesis/shared';
+import type { ContactPresentationEvent, SanitizedGameLogEntry } from '@nemesis/shared';
 
 // Единый справочник названий Чужих (intruderReference.ts) под прежним именем.
 export { INTRUDER_NAMES_RU as INTRUDER_NAMES } from '../board/intruderReference';
 
-export interface ContactPresentationEntry extends Omit<GameLogEntry, 'event'> {
+export interface ContactPresentationEntry extends Omit<SanitizedGameLogEntry, 'event'> {
   event: ContactPresentationEvent;
 }
 
-export function isContactPresentationEntry(entry: GameLogEntry): entry is ContactPresentationEntry {
+export function isContactPresentationEntry(entry: SanitizedGameLogEntry): entry is ContactPresentationEntry {
   return (
     entry.event.type === 'CONTACT_OCCURRED' ||
     entry.event.type === 'SURPRISE_ATTACK_RESOLVED' ||
@@ -17,7 +17,7 @@ export function isContactPresentationEntry(entry: GameLogEntry): entry is Contac
   );
 }
 
-export function initialContactSequence(log: readonly GameLogEntry[]): number {
+export function initialContactSequence(log: readonly SanitizedGameLogEntry[]): number {
   // При загрузке страницы история не проигрывается: всё, что уже есть в
   // журнале — включая последний Контакт и результаты атак — считается
   // увиденным. Иначе после F5 лишний раз открываются окна о Чужих.
@@ -29,7 +29,7 @@ export function initialContactSequence(log: readonly GameLogEntry[]): number {
 }
 
 export function nextContactPresentation(
-  log: readonly GameLogEntry[],
+  log: readonly SanitizedGameLogEntry[],
   seenSequence: number,
 ): ContactPresentationEntry | null {
   return (

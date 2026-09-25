@@ -84,9 +84,7 @@ describe('Эффекты карт Действий', () => {
     const state = contactState(2, 'card-effects-motivation');
     putPlayer(state, 'player-1', 11);
     putPlayer(state, 'player-2', 11);
-    state.players['player-1']!.actionDeck.hand = [
-      card('ACT_CAP_MOTIVATION', { kind: 'MOTIVATION', drawCount: 1 }),
-    ];
+    state.players['player-1']!.actionDeck.hand = [card('ACT_CAP_MOTIVATION', { kind: 'MOTIVATION', drawCount: 1 })];
 
     const next = play(state, 'ACT_CAP_MOTIVATION');
     expect(next.players['player-1']!.actionDeck.hand.length).toBe(1);
@@ -99,7 +97,8 @@ describe('Эффекты карт Действий', () => {
     const state = captainState();
     const roomId = state.players['player-1']!.roomId;
     const corridor = Object.values(state.ship.corridors).find(
-      (candidate) => (candidate.fromRoomId === roomId || candidate.toRoomId === roomId) && candidate.doorState !== 'DESTROYED',
+      (candidate) =>
+        (candidate.fromRoomId === roomId || candidate.toRoomId === roomId) && candidate.doorState !== 'DESTROYED',
     )!;
     const next = play(state, 'ACT_CAP_DEMOLITION', { targetCorridorId: corridor.id });
     expect(next.ship.corridors[corridor.id]!.doorState).toBe('DESTROYED');
@@ -240,7 +239,8 @@ describe('Эффекты Предметов', () => {
     const itemId = state.players['player-1']!.inventory[0]!.id;
     const roomId = state.players['player-1']!.roomId;
     const corridor = Object.values(state.ship.corridors).find(
-      (candidate) => (candidate.fromRoomId === roomId || candidate.toRoomId === roomId) && candidate.doorState === 'OPEN',
+      (candidate) =>
+        (candidate.fromRoomId === roomId || candidate.toRoomId === roomId) && candidate.doorState === 'OPEN',
     );
     expect(corridor).toBeDefined();
     const before = corridor!.doorState;
@@ -275,7 +275,12 @@ describe('Эффекты Предметов', () => {
     giveItem(healedCopy, 'ITEM_GRE_MEDKIT_2'); // первая Аптечка одноразовая — уже списана
     const secondId = healedCopy.players['player-1']!.inventory[0]!.id;
     const wounded = healedCopy;
-    wounded.players['player-1']!.seriousWounds.push({ id: 'sw-1', name: 'Тяжёлая травма', description: '', isTreated: false });
+    wounded.players['player-1']!.seriousWounds.push({
+      id: 'sw-1',
+      name: 'Тяжёлая травма',
+      description: '',
+      isTreated: false,
+    });
     const payment = wounded.players['player-1']!.actionDeck.hand[0]!.id;
     const treated = useItem(wounded, secondId, { option: 'TREAT_SERIOUS', discardCardIds: [payment] });
     expect(treated.players['player-1']!.seriousWounds[0]).toMatchObject({ isTreated: true });
@@ -291,8 +296,8 @@ describe('Эффекты Предметов', () => {
     const next = useItem(state, itemId);
     const hand = next.players['player-1']!.actionDeck.hand;
     expect(hand.some((entry) => entry.id === 'CONTAMINATION_INF')).toBe(false);
-    // Инфицированная карта ушла в сброс, свежая взята из колоды Заражения.
-    expect(next.players['player-1']!.actionDeck.discard.some((entry) => entry.id === 'CONTAMINATION_INF')).toBe(true);
+    expect(next.players['player-1']!.actionDeck.discard.some((entry) => entry.id === 'CONTAMINATION_INF')).toBe(false);
+    expect(next.decks.contamination.discard.some((entry) => entry.id === 'CONTAMINATION_INF')).toBe(false);
     expect(next.decks.contamination.drawPile.length).toBe(contaminationCount - 1);
     expect(hand.some((entry) => !('characterClass' in entry))).toBe(true);
   });

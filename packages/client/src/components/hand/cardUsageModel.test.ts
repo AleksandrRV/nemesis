@@ -1,246 +1,198 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialGameState, filterStateForPlayer, type SanitizedGameState } from '@nemesis/shared';
+import {
+  CARD_OPTION,
+  CRAFTED_ITEM_CARDS,
+  GREEN_ITEM_CARDS,
+  RED_ITEM_CARDS,
+  YELLOW_ITEM_CARDS,
+  createInitialGameState,
+  filterStateForPlayer,
+  type ActionCard,
+  type ItemCard,
+  type SanitizedGameState,
+} from '@nemesis/shared';
 import {
   buildCombatPayload,
   buildUsePayload,
   getActionCardUsage,
   getItemUsage,
-  getUsageTargets,
+  getStepTargets,
 } from './cardUsageModel';
-import { buildCardUseResult } from './cardUseResultModel';
 
-function makeView(): SanitizedGameState {
-  return filterStateForPlayer(createInitialGameState('usage-model-ui'), 'player-1');
+function makeView(players = 1): SanitizedGameState {
+  return filterStateForPlayer(createInitialGameState('usage-model-ui', { playerCount: players }), 'player-1');
 }
 
-type ActionCardView = Extract<
-  NonNullable<SanitizedGameState['players'][string]>['actionDeck']['hand'][number],
-  { characterClass: string }
->;
-
-/** Клон карты из руки с подменённым эффектом — модель вариантов читает только effect.kind/variant. */
-function cardWithEffect(view: SanitizedGameState, effect: Record<string, unknown>): ActionCardView {
-  const hand = view.players['player-1']!.actionDeck.hand;
-  const base = hand.find((entry): entry is ActionCardView => 'characterClass' in entry);
-  if (!base) throw new Error('В фикстуре нет карты Действия');
-  return { ...base, effect } as ActionCardView;
+function card(effect: ActionCard['effect'], playCost = 0): ActionCard {
+  return { id: `TEST_${effect.kind}`, characterClass: 'CAPTAIN', name: effect.kind, playCost, description: '', effect };
 }
 
-function makeItem(idPart: string, name = idPart) {
-  return {
-    id: `ITEM_TEST_${idPart}`,
-    name,
-    description: 'Тестовый предмет',
-    color: 'GREEN' as const,
-    origin: 'ROOM_DECK' as const,
-    isHeavy: false,
-    isSingleUse: true,
-    componentSymbols: [],
-    actionCost: 0,
-    isWeapon: false,
-    ammo: null,
-    maxAmmo: null,
-  };
+function item(prefix: string): ItemCard {
+  const found = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS].find((entry) =>
+    entry.id.startsWith(prefix),
+  );
+  if (!found) throw new Error(prefix);
+  return structuredClone(found);
 }
 
-describe('getActionCardUsage', () => {
-  it('Перезарядка: доступна при неполном магазине, недоступна с причиной при полном', () => {
+function moveTo(view: SanitizedGameState, definitionId: string): number {
+  const room = Object.values(view.ship.rooms).find((entry) => entry.definitionId === definitionId)!;
+  for (const entry of Object.values(view.ship.rooms))
+    entry.occupantPlayerIds = entry.occupantPlayerIds.filter((id) => id !== 'player-1');
+  room.occupantPlayerIds.push('player-1');
+  view.players['player-1']!.roomId = room.id;
+  return room.id;
+}
+
+describe('Варианты карт Действий', () => {
+  it('ремонт: отдельные варианты «починить» и «повредить» Двигатель, только в Машинном Отсеке', () => {
     const view = makeView();
-    const weapon = view.players['player-1']!.handSlots.find(
-      (slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM' && slot.card.isWeapon,
-    )!;
-    weapon.card.ammo = (weapon.card.maxAmmo ?? 1) - 1;
-
-    const card = cardWithEffect(view, { kind: 'RELOAD' });
-    const usage = getActionCardUsage(card, view);
-
-    expect(usage.variants).toHaveLength(1);
-    expect(usage.variants[0]!.available).toBe(true);
-
-    weapon.card.ammo = weapon.card.maxAmmo;
-
-    const full = getActionCardUsage(card, view);
-    expect(full.variants[0]!.available).toBe(false);
-    expect(full.variants[0]!.reason).toContain('заряжен полностью');
+    const away = getActionCardUsage(card({ kind: 'REPAIR' }), view).variants;
+    expect(away.map((variant) => variant.id)).toEqual(['FIX_ROOM', 'ENGINE_REPAIR', 'ENGINE_DAMAGE']);
+    expect(away[1]!.available).toBe(false);
+    moveTo(view, 'ENGINE_01');
+    const engine = getActionCardUsage(card({ kind: 'REPAIR' }), view).variants;
+    expect(engine[1]).toMatchObject({ available: true, option: CARD_OPTION.ENGINE_REPAIR });
+    expect(engine[2]!.label).toContain('№1');
   });
 
-  it('Отдых: недоступен без Заражения на руке, причина объясняет', () => {
+  it('«Оценка угрозы» передаёт движку выбор «под низ»', () => {
     const view = makeView();
-    const card = cardWithEffect(view, { kind: 'REST' });
-    const usage = getActionCardUsage(card, view);
-    expect(usage.variants[0]!.available).toBe(false);
-    expect(usage.variants[0]!.reason).toContain('нет карт Заражения');
+    const threat = card({ kind: 'THREAT_ASSESSMENT' });
+    const bottom = getActionCardUsage(threat, view).variants.find((variant) => variant.id === 'MOVE_BOTTOM')!;
+    expect(buildUsePayload({ kind: 'ACTION', card: threat }, bottom, [])).toMatchObject({ option: 'MOVE_BOTTOM' });
   });
 
-  it('Отставить: единственный вариант недоступен с явной причиной (карта всегда показывает окно)', () => {
+  it('«Пиротехник»: тушение и поджог отправляют разные варианты; поджог требует Предмет', () => {
     const view = makeView();
-    const card = cardWithEffect(view, { kind: 'DISMISS' });
-    const usage = getActionCardUsage(card, view);
-    expect(usage.variants).toHaveLength(1);
-    expect(usage.variants[0]!.available).toBe(false);
-    expect(usage.variants[0]!.reason).toBeTruthy();
+    const pyro = card({ kind: 'PYROTECHNIC' }, 1);
+    const [extinguish, place] = getActionCardUsage(pyro, view).variants;
+    expect(buildUsePayload({ kind: 'ACTION', card: pyro }, extinguish!, [])).toMatchObject({ option: 'EXTINGUISH' });
+    expect(place!.steps[0]!.kind).toBe('INVENTORY_ITEM');
+    expect(buildUsePayload({ kind: 'ACTION', card: pyro }, place!, [['ITEM_X']])).toMatchObject({
+      option: 'PLACE_FIRE',
+      targetItemId: 'ITEM_X',
+    });
   });
 
-  it('Разрушение: два варианта; Дверь зависит от целых дверей, Неисправность — от отсутствия маркера', () => {
+  it('«Приказ»: цепочка Персонаж → отсек попадает в payload', () => {
     const view = makeView();
-    const card = cardWithEffect(view, { kind: 'DEMOLITION' });
-    const usage = getActionCardUsage(card, view);
-    expect(usage.variants.map((variant) => variant.id)).toEqual(['DOOR', 'MALFUNCTION']);
-    expect(usage.variants[0]!.targetKind).toBe('ADJACENT_DOOR');
-    expect(usage.variants[0]!.available).toBe(true);
-    expect(usage.variants[1]!.available).toBe(true);
-
-    view.ship.rooms[view.players['player-1']!.roomId]!.hasMalfunction = true;
-    const withMalfunction = getActionCardUsage(card, view);
-    expect(withMalfunction.variants[1]!.available).toBe(false);
-    expect(withMalfunction.variants[1]!.reason).toContain('уже стоит');
+    const order = card({ kind: 'ORDER' });
+    const variant = getActionCardUsage(order, view).variants[0]!;
+    expect(variant.steps.map((step) => step.kind)).toEqual(['PLAYER_OTHER_IN_ROOM', 'ADJACENT_ROOM']);
+    expect(buildUsePayload({ kind: 'ACTION', card: order }, variant, [['player-2'], ['12']])).toMatchObject({
+      targetPlayerId: 'player-2',
+      targetRoomId: 12,
+    });
   });
 
-  it('Поиск: недоступен в неисследованном отсеке', () => {
+  it('«Перезарядка» Капитана недоступна, если Револьвер уже заряжен полностью', () => {
+    const view = makeView();
+    const reload = card({ kind: 'RELOAD', ammoGain: 1, weaponHint: 'REVOLVER' });
+    const slot = view.players['player-1']!.handSlots.find((entry) => entry.source === 'ITEM');
+    if (slot?.source === 'ITEM') slot.card.ammo = slot.card.maxAmmo;
+    const variant = getActionCardUsage(reload, view).variants[0]!;
+    expect(variant.available).toBe(false);
+  });
+
+  it('боевые карты строят combat-payload из выбранных целей', () => {
+    const view = makeView();
+    const variant = {
+      id: 'AIMED_SHOOT',
+      label: '',
+      icon: 'ammo' as const,
+      available: true,
+      steps: [],
+      combat: 'AIMED_SHOOT' as const,
+    };
+    expect(buildCombatPayload(variant, 'W1', [['intruder-1']])).toEqual({
+      kind: 'AIMED_SHOOT',
+      weaponItemId: 'W1',
+      targetIntruderId: 'intruder-1',
+    });
+    expect(buildCombatPayload(variant, 'W1', [])).toBeNull();
+    expect(view.players['player-1']).toBeTruthy();
+  });
+});
+
+describe('Варианты Предметов', () => {
+  it('Огнетушитель: Отступление выбирает конкретного Чужого', () => {
+    const view = makeView();
+    const extinguisher = item('ITEM_YEL_FIRE_EXTINGUISHER_');
+    const retreat = getItemUsage(extinguisher, view, 'INVENTORY').variants.find((variant) => variant.id === 'RETREAT')!;
+    expect(retreat.steps[0]!.kind).toBe('INTRUDER_IN_ROOM');
+    expect(
+      buildUsePayload({ kind: 'ITEM', card: extinguisher, location: 'INVENTORY' }, retreat, [['intr-7']]),
+    ).toMatchObject({
+      option: 'RETREAT',
+      targetIntruderId: 'intr-7',
+    });
+  });
+
+  it('Планы «Немезиды»: один шаг с выбором ровно двух отсеков', () => {
+    const view = makeView();
+    const plans = item('ITEM_YEL_NEMESIS_PLANS_');
+    const variant = getItemUsage(plans, view, 'INVENTORY').variants[0]!;
+    expect(variant.steps[0]).toMatchObject({ kind: 'UNEXPLORED_ROOM', min: 2, max: 2 });
+    expect(
+      buildUsePayload({ kind: 'ITEM', card: plans, location: 'INVENTORY' }, variant, [['11', '21']]),
+    ).toMatchObject({
+      targetRoomId: 11,
+      targetRoomId2: 21,
+    });
+  });
+
+  it('Бинты не предлагают лечить Обработанную Травму, Аптечка — предлагает', () => {
+    const view = makeView();
+    expect(getItemUsage(item('ITEM_GRE_BANDAGES_'), view, 'INVENTORY').variants.map((variant) => variant.id)).toEqual([
+      'TREAT_SERIOUS',
+      'HEAL_LIGHT',
+    ]);
+    expect(getItemUsage(item('ITEM_GRE_MEDKIT_'), view, 'INVENTORY').variants.map((variant) => variant.id)).toEqual([
+      'TREAT_SERIOUS',
+      'HEAL_TREATED',
+      'HEAL_LIGHT',
+    ]);
+  });
+
+  it('Военные препараты разрешают сбросить 0 карт', () => {
+    const view = makeView();
+    const variant = getItemUsage(item('ITEM_RED_MILITARY_STIMULANTS_'), view, 'INVENTORY').variants[0]!;
+    expect(variant.steps[0]!.min).toBe(0);
+  });
+
+  it('создаваемые Предметы больше не помечены «не реализовано»', () => {
+    const view = makeView(2);
+    for (const prefix of ['CRAFTED_ANTIDOTE_', 'CRAFTED_TASER_', 'CRAFTED_MOLOTOV_']) {
+      const variants = getItemUsage(item(prefix), view, 'INVENTORY').variants;
+      expect(variants.some((variant) => variant.id === 'UNKNOWN')).toBe(false);
+    }
+  });
+
+  it('оружие объясняет, что стреляет Действием «Стрельба»', () => {
+    const view = makeView();
+    const slot = view.players['player-1']!.handSlots.find((entry) => entry.source === 'ITEM')!;
+    if (slot.source !== 'ITEM') throw new Error('нет оружия');
+    const variant = getItemUsage(slot.card, view, 'HAND_SLOT').variants[0]!;
+    expect(variant.available).toBe(false);
+    expect(variant.reason).toContain('Стрельба');
+  });
+});
+
+describe('Цели шагов', () => {
+  it('Двери рядом подписаны действием, которое с ними произойдёт', () => {
+    const view = makeView();
+    const targets = getStepTargets(view, 'ADJACENT_DOOR');
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets[0]!.sublabel).toMatch(/будет (открыта|закрыта)/);
+  });
+
+  it('Чужие рядом сгруппированы по отсекам и названы по типу', () => {
     const view = makeView();
     const roomId = view.players['player-1']!.roomId;
-    view.ship.rooms[roomId]!.isExplored = false;
-    const card = cardWithEffect(view, { kind: 'SEARCH' });
-    const usage = getActionCardUsage(card, view);
-    expect(usage.variants[0]!.available).toBe(false);
-    expect(usage.variants[0]!.reason).toContain('не исследован');
-  });
-});
-
-describe('getItemUsage', () => {
-  it('Оружие: единственный вариант объясняет, что оружие стреляет в бою', () => {
-    const view = makeView();
-    const weapon = view.players['player-1']!.handSlots.find(
-      (slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM' && slot.card.isWeapon,
-    )!;
-    const usage = getItemUsage(weapon.card, view, 'HAND_SLOT');
-    expect(usage.variants[0]!.available).toBe(false);
-    expect(usage.variants[0]!.reason).toContain('Стрельба');
-  });
-
-  it('Аптечка: варианты лечения зависят от состояния травм', () => {
-    const view = makeView();
-    const medkit = makeItem('MEDKIT');
-    const usage = getItemUsage(medkit, view, 'INVENTORY');
-    expect(usage.variants.map((variant) => variant.id)).toEqual(['TREAT_SERIOUS', 'HEAL_TREATED', 'HEAL_LIGHT']);
-    // В фикстуре травм нет — все варианты недоступны, но с причинами
-    for (const variant of usage.variants) {
-      expect(variant.available).toBe(false);
-      expect(variant.reason).toBeTruthy();
-    }
-  });
-
-  it('Планы Немезиды: подглядывание двух отсеков, шаг второй цели задан', () => {
-    const view = makeView();
-    const plans = makeItem('NEMESIS_PLANS');
-    const usage = getItemUsage(plans, view, 'INVENTORY');
-    expect(usage.variants[0]!.available).toBe(true);
-    expect(usage.variants[0]!.secondTargetKind).toBe('UNEXPLORED_ROOM');
-
-    const targets = getUsageTargets(view, 'UNEXPLORED_ROOM', 'UNEXPLORED_ROOM');
-    expect(targets.first.length).toBeGreaterThan(0);
-    expect(targets.second.length).toBeGreaterThan(0);
-  });
-});
-
-describe('getUsageTargets', () => {
-  it('Двери рядом: подпись Открыта/Закрыта и id коридора', () => {
-    const view = makeView();
-    const targets = getUsageTargets(view, 'ADJACENT_DOOR');
-    expect(targets.first.length).toBeGreaterThan(0);
-    for (const target of targets.first) {
-      expect(target.id).toBeTruthy();
-      expect(target.label).toContain('Дверь:');
-      expect(['Открыта — закрыть', 'Закрыта — открыть']).toContain(target.sublabel);
-    }
-  });
-
-  it('Приказ: первый шаг — другой Персонаж в комнате, второй — соседний отсек', () => {
-    const view = makeView();
-    const first = getUsageTargets(view, 'PLAYER_IN_ROOM', 'ADJACENT_ROOM');
-    expect(first.first.every((target) => target.id !== 'player-1')).toBe(true);
-    expect(first.second.length).toBeGreaterThan(0);
-  });
-});
-
-describe('buildUsePayload / buildCombatPayload', () => {
-  it('Неисправность Разрушения: option + цель без номера комнаты', () => {
-    const view = makeView();
-    const card = cardWithEffect(view, { kind: 'DEMOLITION' });
-    const variant = getActionCardUsage(card, view).variants[1]!;
-    const payload = buildUsePayload({ kind: 'ACTION', card }, variant, null, null);
-    expect(payload).toMatchObject({ cardId: card.id, option: 'MALFUNCTION' });
-  });
-
-  it('Планы Немезиды: обе цели уходят в payload', () => {
-    const view = makeView();
-    const plans = makeItem('NEMESIS_PLANS');
-    const variant = getItemUsage(plans, view, 'INVENTORY').variants[0]!;
-    const payload = buildUsePayload({ kind: 'ITEM', card: plans, location: 'INVENTORY' }, variant, '11', '21');
-    expect(payload).toMatchObject({ itemId: plans.id, option: 'PEEK', targetRoomId: 11, targetRoomId2: 21 });
-  });
-
-  it('Приказ: Персонаж + отсек', () => {
-    const view = makeView();
-    const card = cardWithEffect(view, { kind: 'ORDER' });
-    const variant = getActionCardUsage(card, view).variants[0]!;
-    const payload = buildUsePayload({ kind: 'ACTION', card }, variant, 'player-2', '12');
-    expect(payload).toMatchObject({ cardId: card.id, targetPlayerId: 'player-2', targetRoomId: 12 });
-  });
-
-  it('Прицельный выстрел: combat-payload с оружием и целью', () => {
-    const view = makeView();
-    const weapon = view.players['player-1']!.handSlots.find(
-      (slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM' && slot.card.isWeapon,
-    )!;
-    const payload = buildCombatPayload(
-      { id: 'AIMED_SHOOT', label: '', available: true, targetKind: 'INTRUDER' },
-      weapon.card.id,
-      'intruder-1',
-      null,
-    );
-    expect(payload).toMatchObject({ kind: 'AIMED_SHOOT', weaponItemId: weapon.card.id, targetIntruderId: 'intruder-1' });
-  });
-});
-
-describe('buildCardUseResult', () => {
-  it('Отказ движка: окно результата с текстом ошибки и без строк изменений', () => {
-    const view = makeView();
-    const result = buildCardUseResult(view, view, 'Отдых', 'Сканировать Заражение', 'На руке нет карт Заражения');
-    expect(result.error).toBeTruthy();
-    expect(result.lines).toHaveLength(0);
-  });
-
-  it('Успех: дельта руки, боезапаса и новые записи журнала', () => {
-    const before = makeView();
-    const after = structuredClone(before) as SanitizedGameState;
-    after.players['player-1']!.actionDeck.hand.pop();
-    const weapon = after.players['player-1']!.handSlots.find(
-      (slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM' && slot.card.isWeapon,
-    )!;
-    weapon.card.ammo = (weapon.card.ammo ?? 0) + 1;
-    after.gameLog.push({
-      sequence: before.gameLog.length + 1,
-      playerId: 'player-1',
-      event: { type: 'ACTION_CARD_PLAYED', cardName: 'Перезарядка' } as never,
-    } as never);
-
-    const result = buildCardUseResult(before, after, 'Перезарядка', 'Перезарядить оружие');
-    expect(result.error).toBeUndefined();
-    expect(result.lines.some((line) => line.text.startsWith('Рука:') && line.text.includes('-1'))).toBe(true);
-    expect(result.lines.some((line) => line.text.includes('Боезапас') && line.text.includes('+1'))).toBe(true);
-    expect(result.logLines.some((line) => line.includes('Перезарядка'))).toBe(true);
-  });
-
-  it('Дверь и Шум: изменения коридоров попадают в результат', () => {
-    const before = makeView();
-    const after = structuredClone(before) as SanitizedGameState;
-    const corridor = Object.values(after.ship.corridors)[0]!;
-    corridor.doorState = 'DESTROYED';
-    corridor.hasNoise = true;
-
-    const result = buildCardUseResult(before, after, 'Разрушение', 'Разрушить Дверь');
-    expect(result.lines.some((line) => line.text.startsWith('Дверь разрушена'))).toBe(true);
-    expect(result.lines.some((line) => line.text.startsWith('Маркер Шума'))).toBe(true);
+    view.intrudersPool.boardTokens.push({ id: 'intr-1', type: 'BREEDER', roomId, woundsCount: 1 });
+    view.ship.rooms[roomId]!.occupantIntruderIds.push('intr-1');
+    const [target] = getStepTargets(view, 'INTRUDER_NEARBY');
+    expect(target).toMatchObject({ id: 'intr-1', label: 'Трутень', group: 'Ваш отсек', sublabel: 'Ран: 1' });
   });
 });

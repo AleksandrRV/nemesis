@@ -9,7 +9,7 @@
 import React from 'react';
 import { Flame } from 'lucide-react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
-import type { EventCard, GameLogEntry } from '@nemesis/shared';
+import type { EventCard, SanitizedGameLogEntry } from '@nemesis/shared';
 
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
@@ -104,9 +104,9 @@ function GaugeBar({
   );
 }
 
-export const TimeTrackGauge: React.FC<{ event: Extract<GameLogEntry['event'], { type: 'TIME_TRACK_ADVANCED' }> }> = ({
-  event,
-}) => (
+export const TimeTrackGauge: React.FC<{
+  event: Extract<SanitizedGameLogEntry['event'], { type: 'TIME_TRACK_ADVANCED' }>;
+}> = ({ event }) => (
   <div className="space-y-3 rounded-lg border border-cyan-900/60 bg-slate-950/80 p-3">
     <GaugeBar
       label="МАРКЕР ВРЕМЕНИ"
@@ -143,7 +143,7 @@ const ATTACK_OUTCOME_LABELS: Record<
 
 export const AttackCardVisual: React.FC<{
   view: SanitizedGameState;
-  event: Extract<GameLogEntry['event'], { type: 'EVENT_PHASE_ATTACK_RESOLVED' }>;
+  event: Extract<SanitizedGameLogEntry['event'], { type: 'EVENT_PHASE_ATTACK_RESOLVED' }>;
 }> = ({ view, event }) => {
   const outcome = ATTACK_OUTCOME_LABELS[event.outcome];
   return (
@@ -234,7 +234,9 @@ export const FireStepVisual: React.FC<{ wounds: number; eggsDestroyed: number }>
 /* Шаг 6: жетон Улья                                                    */
 /* ------------------------------------------------------------------ */
 
-function hiveOutcomeText(event: Extract<GameLogEntry['event'], { type: 'HIVE_DEVELOPMENT_RESOLVED' }>): string {
+function hiveOutcomeText(
+  event: Extract<SanitizedGameLogEntry['event'], { type: 'HIVE_DEVELOPMENT_RESOLVED' }>,
+): string {
   const outcome = event.outcome;
   if (!outcome) return 'Жетон Улья вытянут.';
   switch (outcome.kind) {
@@ -264,7 +266,7 @@ function hiveOutcomeText(event: Extract<GameLogEntry['event'], { type: 'HIVE_DEV
 }
 
 export const HiveTokenVisual: React.FC<{
-  event: Extract<GameLogEntry['event'], { type: 'HIVE_DEVELOPMENT_RESOLVED' }>;
+  event: Extract<SanitizedGameLogEntry['event'], { type: 'HIVE_DEVELOPMENT_RESOLVED' }>;
 }> = ({ event }) => (
   <div className="flex items-center justify-center gap-4 rounded-lg border border-purple-900/70 bg-gradient-to-r from-purple-950/30 to-slate-950/80 p-3">
     {/* Мешок Пула Чужих */}

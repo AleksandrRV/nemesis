@@ -7,12 +7,14 @@ import type {
   SanitizedActionDeckState,
   SanitizedCardPile,
   SanitizedDecksState,
+  SanitizedGameLogEntry,
   SanitizedGameState,
   SanitizedHiddenCardPile,
   SanitizedIntruderBag,
   SanitizedRoomState,
   SanitizedWeaknessSlotState,
 } from '../types/sanitized.js';
+import type { GameLogEntry } from '../types/log.js';
 import type { EngineNumber, GameState } from '../types/state.js';
 
 /**
@@ -48,6 +50,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   sanitizePlayers(sanitized, viewingPlayerId);
   sanitizeDecks(sanitized);
   sanitizeWeaknessSlots(sanitized);
+  sanitized.gameLog = state.gameLog.map((entry) => sanitizeLogEntry(entry, viewingPlayerId));
 
   if (sanitized.pendingDecision && sanitized.pendingDecision.playerId !== viewingPlayerId) {
     sanitized.pendingDecision = null;
@@ -234,4 +237,20 @@ function sanitizeWeaknessSlots(state: SanitizedGameState): void {
       ? { objectKind: slot.objectKind, visibility: 'REVEALED', card: slot.card }
       : { objectKind: slot.objectKind, visibility: 'FACE_DOWN' };
   });
+}
+
+function sanitizeLogEntry(entry: GameLogEntry, viewingPlayerId: string): SanitizedGameLogEntry {
+  const event = entry.event;
+  const isOwnEvent = 'playerId' in event && event.playerId === viewingPlayerId;
+  if (isOwnEvent) return { ...entry, event: { ...event } };
+  switch (event.type) {
+    case 'ROOM_PEEKED':
+      return { ...entry, event: { ...event, effect: null, itemsCount: null } };
+    case 'EVENT_PEEKED':
+      return { ...entry, event: { ...event, cardName: null } };
+    case 'ENGINE_TOGGLED':
+      return { ...entry, event: { ...event, isWorking: null } };
+    default:
+      return { ...entry, event: { ...event } };
+  }
 }

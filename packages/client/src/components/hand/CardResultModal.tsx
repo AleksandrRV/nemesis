@@ -17,10 +17,15 @@ export const CardResultModal: React.FC<CardResultModalProps> = ({ result, onClos
   const isError = Boolean(result.error);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
       <div
         className={`w-full max-w-md bg-slate-900 border rounded-2xl p-5 shadow-2xl flex flex-col space-y-3 max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150 ${
-          isError ? 'border-red-500/60 shadow-[0_0_50px_rgba(239,68,68,0.2)]' : 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.18)]'
+          isError
+            ? 'border-red-500/60 shadow-[0_0_50px_rgba(239,68,68,0.2)]'
+            : 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.18)]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >

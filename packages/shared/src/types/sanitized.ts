@@ -1,4 +1,5 @@
 import type { PendingDecision } from './decisions.js';
+import type { GameLogEvent } from './log.js';
 import type {
   ActionCard,
   ContaminationCard,
@@ -167,10 +168,25 @@ export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'b
   weaknessSlots: SanitizedWeaknessSlotState[];
 }
 
+type PrivateLogEvent<TType extends GameLogEvent['type']> = Extract<GameLogEvent, { type: TType }>;
+
+export type SanitizedGameLogEvent =
+  | Exclude<GameLogEvent, { type: 'ROOM_PEEKED' | 'EVENT_PEEKED' | 'ENGINE_TOGGLED' }>
+  | (Omit<PrivateLogEvent<'ROOM_PEEKED'>, 'itemsCount'> & { itemsCount: number | null })
+  | (Omit<PrivateLogEvent<'EVENT_PEEKED'>, 'cardName'> & { cardName: string | null })
+  | (Omit<PrivateLogEvent<'ENGINE_TOGGLED'>, 'isWorking'> & { isWorking: boolean | null });
+
+export interface SanitizedGameLogEntry {
+  id: string;
+  sequence: number;
+  event: SanitizedGameLogEvent;
+}
+
 export interface SanitizedGameState extends Omit<
   GameState,
-  'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision'
+  'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision' | 'gameLog'
 > {
+  gameLog: SanitizedGameLogEntry[];
   decks: SanitizedDecksState;
   ship: Omit<ShipState, 'rooms' | 'engines' | 'coordinates'> & {
     rooms: Record<RoomId, SanitizedRoomState>;

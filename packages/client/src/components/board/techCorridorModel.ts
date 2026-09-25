@@ -1,4 +1,4 @@
-import { SHIP_ROOM_NODES, type GameLogEntry, type IntruderType, type RoomId } from '@nemesis/shared';
+import { SHIP_ROOM_NODES, type SanitizedGameLogEntry, type IntruderType, type RoomId } from '@nemesis/shared';
 
 /**
  * Визуальная модель локации «Технические Коридоры» (Шаг 3 этапа 0.5.0):
@@ -88,13 +88,13 @@ export interface VentEcho {
 }
 
 /** Последний номер записи журнала; 0 для пустого журнала. */
-export function lastLogSequence(log: readonly GameLogEntry[]): number {
+export function lastLogSequence(log: readonly SanitizedGameLogEntry[]): number {
   return log.at(-1)?.sequence ?? 0;
 }
 
 /** Новые уходы Чужих в вентиляцию после уже показанной записи журнала. */
 export function newVentRetreats(
-  log: readonly GameLogEntry[],
+  log: readonly SanitizedGameLogEntry[],
   seenSequence: number,
 ): Array<{ sequence: number; intruderId: string; intruderType: IntruderType; roomId: RoomId }> {
   return log.flatMap((entry) => {

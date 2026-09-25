@@ -88,6 +88,7 @@ export interface PlayerState {
   /** Маркер Слизи лежит на планшете Персонажа, а не в отсеке (стр. 15). */
   hasSlime: boolean;
   hasLarva: boolean;
+  hasAdrenalineRush?: boolean;
   hasSignalSent: boolean;
   isInHibernation: boolean;
   hasEscapedInPod: boolean;

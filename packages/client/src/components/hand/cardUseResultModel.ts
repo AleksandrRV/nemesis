@@ -99,12 +99,18 @@ export function buildCardUseResult(
   const beforeLight = beforePlayer.lightWounds;
   const afterLight = afterPlayer.lightWounds;
   if (beforeLight !== afterLight) {
-    result.lines.push({ text: `Лёгкие Раны: ${delta(beforeLight, afterLight)}`, tone: afterLight > beforeLight ? 'bad' : 'good' });
+    result.lines.push({
+      text: `Лёгкие Раны: ${delta(beforeLight, afterLight)}`,
+      tone: afterLight > beforeLight ? 'bad' : 'good',
+    });
   }
   const beforeSerious = seriousWoundCount(before, playerId);
   const afterSerious = seriousWoundCount(after, playerId);
   if (beforeSerious !== afterSerious) {
-    result.lines.push({ text: `Тяжёлые Травмы: ${delta(beforeSerious, afterSerious)}`, tone: afterSerious > beforeSerious ? 'bad' : 'good' });
+    result.lines.push({
+      text: `Тяжёлые Травмы: ${delta(beforeSerious, afterSerious)}`,
+      tone: afterSerious > beforeSerious ? 'bad' : 'good',
+    });
   }
   if (!beforePlayer.hasLarva && afterPlayer.hasLarva) {
     result.lines.push({ text: 'Инфекция: в организм попала Личинка', tone: 'bad' });
@@ -139,7 +145,10 @@ export function buildCardUseResult(
       result.lines.push({ text: stateLabel, tone: afterCorridor.doorState === 'DESTROYED' ? 'bad' : 'neutral' });
     }
     if (!beforeCorridor.hasNoise && afterCorridor.hasNoise) {
-      result.lines.push({ text: `Маркер Шума: ${roomShort(after, afterCorridor.fromRoomId)} ⇄ ${roomShort(after, afterCorridor.toRoomId)}`, tone: 'bad' });
+      result.lines.push({
+        text: `Маркер Шума: ${roomShort(after, afterCorridor.fromRoomId)} ⇄ ${roomShort(after, afterCorridor.toRoomId)}`,
+        tone: 'bad',
+      });
     }
   }
 
@@ -152,7 +161,9 @@ export function buildCardUseResult(
     }
     if (beforeRoom.hasFire !== afterRoom.hasFire && afterRoom.hasFire != null) {
       result.lines.push({
-        text: afterRoom.hasFire ? `Пожар: ${roomShort(after, afterRoom.id)}` : `Пожар потушен: ${roomShort(after, afterRoom.id)}`,
+        text: afterRoom.hasFire
+          ? `Пожар: ${roomShort(after, afterRoom.id)}`
+          : `Пожар потушен: ${roomShort(after, afterRoom.id)}`,
         tone: afterRoom.hasFire ? 'bad' : 'good',
       });
     }

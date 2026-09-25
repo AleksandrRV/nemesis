@@ -71,6 +71,7 @@ export function performPass(state: GameState, playerId: string, discardCardIds: 
     player.actionDeck.hand = remainingHand;
   }
   applyFireEndTurnEffect(state, playerId);
+  player.hasAdrenalineRush = false;
   if (!player.isDead) {
     player.hasPassed = true;
   }
@@ -163,8 +164,7 @@ export function startNewRound(state: GameState): void {
       } else {
         // Текущий первый умер/улетел/уснул в Фазе Событий — ищем следующего живого по orderNumber от умершего
         const deadOrder = currentFirst.orderNumber;
-        nextFirst =
-          alivePlayers.find((p) => p.orderNumber > deadOrder) ?? alivePlayers[0];
+        nextFirst = alivePlayers.find((p) => p.orderNumber > deadOrder) ?? alivePlayers[0];
       }
     } else {
       // На случай если firstPlayerId отсутствует в state (не должно случаться)

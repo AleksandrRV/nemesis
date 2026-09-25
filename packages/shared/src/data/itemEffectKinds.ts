@@ -1,0 +1,57 @@
+import type { ItemCard } from '../types/cards.js';
+
+export type ItemEffectKind =
+  | 'WEAPON'
+  | 'ENERGY_CHARGE'
+  | 'GRENADE'
+  | 'SMOKE_GRENADE'
+  | 'EXTENDED_MAGAZINE'
+  | 'RECON_DRONE'
+  | 'MILITARY_STIMULANTS'
+  | 'DECOY'
+  | 'DUCT_TAPE'
+  | 'TOOLS'
+  | 'FIRE_EXTINGUISHER'
+  | 'TECH_CORRIDOR_PLANS'
+  | 'SPACE_SUIT'
+  | 'NEMESIS_PLANS'
+  | 'BANDAGES'
+  | 'MEDKIT'
+  | 'ALCOHOL'
+  | 'CLOTHES'
+  | 'ADRENALINE_INJECTION'
+  | 'SYNTHETIC_FOOD'
+  | 'ANTIDOTE'
+  | 'TASER'
+  | 'MOLOTOV'
+  | 'UNKNOWN';
+
+const ITEM_EFFECT_BY_PREFIX: readonly (readonly [string, ItemEffectKind])[] = [
+  ['ITEM_RED_ENERGY_CHARGE_', 'ENERGY_CHARGE'],
+  ['ITEM_RED_SMOKE_GRENADE_', 'SMOKE_GRENADE'],
+  ['ITEM_RED_GRENADE_', 'GRENADE'],
+  ['ITEM_RED_EXTENDED_MAGAZINE_', 'EXTENDED_MAGAZINE'],
+  ['ITEM_RED_RECON_DRONE_', 'RECON_DRONE'],
+  ['ITEM_RED_MILITARY_STIMULANTS_', 'MILITARY_STIMULANTS'],
+  ['ITEM_RED_DECOY_', 'DECOY'],
+  ['ITEM_YEL_DUCT_TAPE_', 'DUCT_TAPE'],
+  ['ITEM_YEL_TOOLS_', 'TOOLS'],
+  ['ITEM_YEL_FIRE_EXTINGUISHER_', 'FIRE_EXTINGUISHER'],
+  ['ITEM_YEL_TECH_CORRIDOR_PLANS_', 'TECH_CORRIDOR_PLANS'],
+  ['ITEM_YEL_SPACE_SUIT_', 'SPACE_SUIT'],
+  ['ITEM_YEL_NEMESIS_PLANS_', 'NEMESIS_PLANS'],
+  ['ITEM_GRE_BANDAGES_', 'BANDAGES'],
+  ['ITEM_GRE_MEDKIT_', 'MEDKIT'],
+  ['ITEM_GRE_ALCOHOL_', 'ALCOHOL'],
+  ['ITEM_GRE_CLOTHES_', 'CLOTHES'],
+  ['ITEM_GRE_ADRENALINE_', 'ADRENALINE_INJECTION'],
+  ['ITEM_GRE_SYNTHETIC_FOOD_', 'SYNTHETIC_FOOD'],
+  ['CRAFTED_ANTIDOTE_', 'ANTIDOTE'],
+  ['CRAFTED_TASER_', 'TASER'],
+  ['CRAFTED_MOLOTOV_', 'MOLOTOV'],
+];
+
+export function getItemEffectKind(item: Pick<ItemCard, 'id' | 'isWeapon'>): ItemEffectKind {
+  if (item.isWeapon) return 'WEAPON';
+  return ITEM_EFFECT_BY_PREFIX.find(([prefix]) => item.id.startsWith(prefix))?.[1] ?? 'UNKNOWN';
+}

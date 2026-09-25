@@ -66,6 +66,7 @@ export type UseItemActionPayload = {
   targetDeckColor?: ItemDeckColor;
   /** Карты с руки для спецэффектов («Военные препараты»: сброс N карт → добор N+1). */
   targetCardIds?: string[];
+  targetIntruderId?: string;
 };
 
 export type GameAction =

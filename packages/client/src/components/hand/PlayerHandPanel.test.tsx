@@ -3,6 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PlayerHandPanel } from './PlayerHandPanel';
 import { DecisionModal } from '../modals/DecisionModal';
 import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
+import panelSource from './PlayerHandPanel.tsx?raw';
+import inspectorSource from '../inspector/RoomInspector.tsx?raw';
+import decisionModalSource from '../modals/DecisionModal.tsx?raw';
+import focusTrapSource from '../../hooks/useFocusTrap.ts?raw';
 
 describe('PlayerHandPanel', () => {
   it('рендерит карты руки активного игрока', () => {
@@ -184,16 +188,7 @@ describe('PlayerHandPanel — динамический лимит руки и т
     // Для теста достаточно проверить что handSlots публичны и что в DecisionModal есть обработка, а сам UI содержит Сброс
     // Мы проверим наличие строки в самом компоненте через динамический импорт текста (встроено в тест)
     // Вместо чтения файла, проверим что PlayerHandPanel при открытом инвентаре рендерит Сброс — используем хак: установим showInventory через проп не предусмотрен, поэтому проверяем исходный код напрямую через require с абсолютным путём
-    const path = require('path');
-    const fs = require('fs');
-    const absolute = path.resolve(process.cwd(), 'packages/client/src/components/hand/PlayerHandPanel.tsx');
-    const fallback = path.resolve(__dirname, './PlayerHandPanel.tsx');
-    let source = '';
-    try {
-      source = fs.readFileSync(absolute, 'utf8');
-    } catch {
-      source = fs.readFileSync(fallback, 'utf8');
-    }
+    const source = panelSource;
     expect(source).toContain('ACTION_DISCARD_HEAVY_ITEM');
     expect(source).toContain('Сброс');
   });
@@ -201,16 +196,7 @@ describe('PlayerHandPanel — динамический лимит руки и т
 
 describe('RoomInspector — причины запрета поиска (Шаг 7, долг 23)', () => {
   it('кнопка Обыскать имеет title с причиной запрета', () => {
-    const path = require('path');
-    const fs = require('fs');
-    const absolute = path.resolve(process.cwd(), 'packages/client/src/components/inspector/RoomInspector.tsx');
-    const fallback = path.resolve(__dirname, '../inspector/RoomInspector.tsx');
-    let source = '';
-    try {
-      source = fs.readFileSync(absolute, 'utf8');
-    } catch {
-      source = fs.readFileSync(fallback, 'utf8');
-    }
+    const source = inspectorSource;
     expect(source).toContain('getSearchDisabledReason');
     expect(source).toContain('SEARCH_NOT_ALLOWED');
     expect(source).toContain('NO_ITEMS_LEFT');
@@ -221,24 +207,13 @@ describe('RoomInspector — причины запрета поиска (Шаг 7
 
 describe('DecisionModal — доступность Esc и фокус-трап (Шаг 7, долг 24)', () => {
   it('имеет onKeyDown и обработку Escape', () => {
-    const path = require('path');
-    const fs = require('fs');
-    const absolute = path.resolve(process.cwd(), 'packages/client/src/components/modals/DecisionModal.tsx');
-    const fallback = path.resolve(__dirname, '../modals/DecisionModal.tsx');
-    let source = '';
-    try {
-      source = fs.readFileSync(absolute, 'utf8');
-    } catch {
-      source = fs.readFileSync(fallback, 'utf8');
-    }
+    const source = decisionModalSource;
     expect(source).toContain('onKeyDown');
     expect(source).toContain('Escape');
     expect(source).toContain('useFocusTrap');
     // Tab/Escape-логика переехала в общий хук useFocusTrap — проверяем её там.
-    const hookPath = path.resolve(process.cwd(), 'packages/client/src/hooks/useFocusTrap.ts');
-    const hookSource = fs.readFileSync(hookPath, 'utf8');
+    const hookSource = focusTrapSource;
     expect(hookSource).toContain("'Tab'");
     expect(hookSource).toContain("'Escape'");
   });
 });
-

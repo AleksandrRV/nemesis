@@ -129,7 +129,7 @@ export type GameLogEvent =
       roomId: RoomId;
       roomName: string;
       /** null — жетон Исследования не подглядывался («Планы „Немезиды"»). */
-      effect: import('./rooms.js').ExplorationEffect | null;
+      effect: ExplorationEffect | null;
       itemsCount: number;
       /** Сколько отсеков подглядуто одной картой (Дрон — 1, Планы — 2). */
       peekCount: number;
@@ -148,6 +148,7 @@ export type GameLogEvent =
       roomId: RoomId;
       engineNumber: number;
       isWorking: boolean;
+      orderChanged: boolean;
     }
   | {
       /** Поднят Тяжёлый объект Действием [1] (стр. 13, 22). */

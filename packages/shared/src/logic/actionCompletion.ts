@@ -8,8 +8,8 @@ export function queueActionCompletion(state: GameState, playerId: string): void 
 export function completeAction(state: GameState, playerId: string): void {
   const player = state.players[playerId]!;
   if (!player.isDead) player.actionsPerformedThisRound += 1;
-  if (player.isDead || player.actionsPerformedThisRound >= 2) {
-    // Огонь наносится до смены activePlayerId, чтобы смерть от огня наступила до передачи хода (Шаг 4, долг 9)
+  const reachedActionLimit = !player.hasAdrenalineRush && player.actionsPerformedThisRound >= 2;
+  if (player.isDead || reachedActionLimit) {
     applyFireEndTurnEffect(state, playerId);
     advanceTurnWithoutFire(state, playerId);
   }

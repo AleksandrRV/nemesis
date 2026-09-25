@@ -1,271 +1,282 @@
 import React from 'react';
-import { CheckCircle2, ChevronRight, Info, Play, X, XCircle } from 'lucide-react';
-import type { SanitizedGameState } from '@nemesis/shared';
-import type { CardUseRequest, UsageTarget, UsageVariant } from './cardUsageModel';
+import { ArrowLeft, Check, Play, X } from 'lucide-react';
+import type { PlayCardActionPayload, SanitizedGameState, UseItemActionPayload } from '@nemesis/shared';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import type { CardUseRequest, TargetSelection, UsageVariant } from './usageTypes';
+import { getActionCardUsage } from './actionCardUsage';
+import { getItemUsage } from './itemUsage';
+import { getStepTargets } from './usageTargets';
+import { buildCombatPayload, buildUsePayload } from './usagePayload';
 import {
-  buildCombatPayload,
-  buildUsePayload,
-  getActionCardUsage,
-  getItemUsage,
-  getUsageTargets,
-  isCombatCardVariant,
-} from './cardUsageModel';
+  autoFillPayment,
+  buildFlowSteps,
+  flowStepTitle,
+  initialPayment,
+  paymentBlocker,
+  paymentCandidates,
+  reservedHandCardIds,
+  targetStepBlocker,
+  type FlowStep,
+} from './cardUseFlow';
+import { CardFace } from './CardFace';
+import { PaymentStep, TargetStepView, VariantStep } from './CardUseSteps';
 
-/**
- * Окно использования карты: название, ВСЕ варианты использования (каждый —
- * с доступностью и причиной отказа), отмена. После выбора варианта с целью —
- * шаг выбора цели (одна или две по цепочке, либо мультывыбор карт руки).
- * Подтверждение отправляет действие; результат покажет CardResultModal.
- */
+export interface CardUseConfirmation {
+  variantLabel: string;
+  payload: Omit<PlayCardActionPayload, 'discardCardIds'> | Omit<UseItemActionPayload, 'discardCardIds'>;
+  discardCardIds: string[];
+}
 
 interface CardUseModalProps {
   view: SanitizedGameState;
   request: CardUseRequest;
-  /** Оружие для боевых карт: id слота с боезапасом (или null). */
   combatWeaponItemId: string | null;
-  /** Сколько карт оплаты доступно (конвертированные очки + отмеченные карты). */
-  availablePayment: number;
-  onConfirm: (args: { variant: UsageVariant; payload: Record<string, unknown> }) => void;
+  preferredPaymentIds: readonly string[];
+  onConfirm: (confirmation: CardUseConfirmation) => void;
   onClose: () => void;
+}
+
+function onlyAvailable(variants: readonly UsageVariant[]): UsageVariant | null {
+  const available = variants.filter((variant) => variant.available);
+  return available.length === 1 ? available[0]! : null;
+}
+
+function targetLabels(view: SanitizedGameState, variant: UsageVariant, selection: TargetSelection): string[] {
+  return variant.steps.map((step, index) => {
+    const chosen = new Set(selection[index] ?? []);
+    const labels = getStepTargets(view, step.kind)
+      .filter((target) => chosen.has(target.id))
+      .map((target) => target.label);
+    return `${step.title}: ${labels.length > 0 ? labels.join(', ') : 'ничего'}`;
+  });
+}
+
+function stepBlocker(
+  step: FlowStep,
+  variant: UsageVariant | null,
+  selection: TargetSelection,
+  paymentError: string | null,
+): string | null {
+  if (step.kind === 'VARIANT') return variant ? null : 'Выберите вариант использования';
+  if (step.kind === 'TARGET') return targetStepBlocker(variant!.steps[step.index]!, selection[step.index] ?? []);
+  if (step.kind === 'PAYMENT') return paymentError;
+  return null;
 }
 
 export const CardUseModal: React.FC<CardUseModalProps> = ({
   view,
   request,
   combatWeaponItemId,
-  availablePayment,
+  preferredPaymentIds,
   onConfirm,
   onClose,
 }) => {
-  const usage = request.kind === 'ACTION' ? getActionCardUsage(request.card, view) : getItemUsage(request.card, view, request.location);
-  const [variantId, setVariantId] = React.useState<string | null>(null);
-  const [firstTargetId, setFirstTargetId] = React.useState<string | null>(null);
-  const [secondTargetId, setSecondTargetId] = React.useState<string | null>(null);
-  const [multiIds, setMultiIds] = React.useState<string[]>([]);
+  const usage =
+    request.kind === 'ACTION'
+      ? getActionCardUsage(request.card, view)
+      : getItemUsage(request.card, view, request.location);
+  const [variant, setVariant] = React.useState<UsageVariant | null>(() => onlyAvailable(usage.variants));
+  const [stepIndex, setStepIndex] = React.useState(0);
+  const [selection, setSelection] = React.useState<string[][]>([]);
+  const [payment, setPayment] = React.useState<string[] | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  useFocusTrap(containerRef, { onEscape: onClose });
 
-  const variant = usage.variants.find((entry) => entry.id === variantId) ?? null;
-  const needsPayment = usage.cost > 0;
-  const paymentMissing = needsPayment ? Math.max(0, usage.cost - availablePayment) : 0;
+  const steps = buildFlowSteps(variant, usage.cost);
+  const step: FlowStep = steps[Math.min(stepIndex, steps.length - 1)]!;
+  const candidates = paymentCandidates(view, request, reservedHandCardIds(variant, selection));
+  const chosenPayment = payment ?? initialPayment(candidates, preferredPaymentIds, usage.cost);
+  const blocker = stepBlocker(step, variant, selection, paymentBlocker(candidates, chosenPayment, usage.cost));
+  const actionVerb = request.kind === 'ACTION' ? 'Разыграть' : 'Использовать';
 
-  const targets = variant ? getUsageTargets(view, variant.targetKind, variant.secondTargetKind) : { first: [], second: [] };
-  const isMultiCardStep = variant?.targetKind === 'HAND_CARDS';
-
-  React.useEffect(() => {
-    setFirstTargetId(null);
-    setSecondTargetId(null);
-    setMultiIds([]);
-  }, [variantId]);
-
-  const targetReady = !variant
-    ? false
-    : isMultiCardStep
-      ? multiIds.length > 0
-      : variant.targetKind === 'NONE'
-        ? true
-        : variant.secondTargetKind
-          ? firstTargetId !== null && secondTargetId !== null
-          : firstTargetId !== null;
-
-  const handleConfirm = () => {
-    if (!variant || !variant.available || !targetReady) return;
-    const payload: Record<string, unknown> = isCombatCardVariant(variant.id)
-      ? { combat: buildCombatPayload(variant, combatWeaponItemId ?? '', firstTargetId, secondTargetId) }
-      : { ...buildUsePayload(request, variant, firstTargetId, secondTargetId, multiIds) };
-    onConfirm({ variant, payload });
+  const selectVariant = (next: UsageVariant) => {
+    setVariant(next);
+    setSelection([]);
+    setPayment(null);
+    setStepIndex(1);
   };
 
+  const confirm = () => {
+    if (!variant) return;
+    const discardCardIds = usage.cost > 0 ? chosenPayment : [];
+    if (variant.combat) {
+      const combat = buildCombatPayload(variant, combatWeaponItemId ?? '', selection);
+      if (combat)
+        onConfirm({ variantLabel: variant.label, payload: { cardId: request.card.id, combat }, discardCardIds });
+      return;
+    }
+    const built = buildUsePayload(request, variant, selection);
+    const payload =
+      request.kind === 'ACTION' ? { ...built, cardId: request.card.id } : { ...built, itemId: request.card.id };
+    onConfirm({ variantLabel: variant.label, payload, discardCardIds });
+  };
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (blocker) return;
+    if (step.kind === 'CONFIRM') {
+      confirm();
+      return;
+    }
+    setStepIndex((index) => Math.min(index + 1, steps.length - 1));
+  };
+
+  const updateSelection = (index: number, ids: string[]) =>
+    setSelection((current) => {
+      const next = [...current];
+      next[index] = ids;
+      return next;
+    });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div
-        className="w-full max-w-lg bg-slate-900 border border-cyan-500/50 rounded-2xl p-5 shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col space-y-4 max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-use-title"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-900 shadow-[0_0_60px_rgba(6,182,212,0.2)] motion-safe:animate-modal-enter"
       >
-        <header className="flex items-start justify-between border-b border-slate-800 pb-3">
-          <div>
-            <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase">
-              {usage.subtitle}
-            </span>
-            <h3 className="text-xl font-heading text-white tracking-wider mt-0.5">{usage.title}</h3>
-          </div>
+        <header className="flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-3">
+          <h2 id="card-use-title" className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
+            {actionVerb}: {usage.title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-            title="Отмена"
+            aria-label="Отменить и закрыть"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </header>
 
-        <p className="text-xs text-slate-300 leading-relaxed">{usage.description}</p>
+        <form
+          onSubmit={submit}
+          className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-[minmax(0,15rem)_1fr]"
+        >
+          <CardFace usage={usage} />
 
-        {/* Шаг 1: варианты использования */}
-        {!variant && (
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Варианты использования
-            </span>
-            {usage.variants.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                disabled={!entry.available}
-                onClick={() => setVariantId(entry.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl border transition flex items-start justify-between gap-2 ${
-                  entry.available
-                    ? 'bg-slate-950 border-slate-700 hover:border-cyan-500 hover:bg-cyan-950/40'
-                    : 'bg-slate-950/60 border-slate-800 opacity-70 cursor-not-allowed'
-                }`}
-              >
-                <span className="flex flex-col gap-0.5">
-                  <span className={`text-xs font-bold ${entry.available ? 'text-slate-100' : 'text-slate-400'}`}>
-                    {entry.label}
-                  </span>
-                  {entry.hint && <span className="text-[11px] text-slate-500">{entry.hint}</span>}
-                  {!entry.available && entry.reason && (
-                    <span className="text-[11px] text-amber-400/90 flex items-center gap-1">
-                      <XCircle size={11} /> {entry.reason}
-                    </span>
-                  )}
-                </span>
-                {entry.available && <ChevronRight size={15} className="text-slate-500 shrink-0 mt-0.5" />}
-              </button>
-            ))}
-          </div>
-        )}
+          <section className="flex min-w-0 flex-col gap-4">
+            <ol className="flex flex-wrap items-center gap-1.5" aria-label="Шаги розыгрыша">
+              {steps.map((entry, index) => {
+                const done = index < stepIndex;
+                const current = index === stepIndex;
+                return (
+                  <li
+                    key={`${entry.kind}-${index}`}
+                    aria-current={current ? 'step' : undefined}
+                    className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      current
+                        ? 'border-cyan-400 bg-cyan-950 text-cyan-200'
+                        : done
+                          ? 'border-emerald-700 bg-emerald-950/50 text-emerald-300'
+                          : 'border-slate-700 text-slate-500'
+                    }`}
+                  >
+                    {done ? <Check size={10} aria-hidden="true" /> : <span className="font-mono">{index + 1}</span>}
+                    {flowStepTitle(entry, variant)}
+                  </li>
+                );
+              })}
+            </ol>
 
-        {/* Шаг 2: выбор цели */}
-        {variant && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-cyan-300">{variant.label}</span>
-              <button
-                type="button"
-                onClick={() => setVariantId(null)}
-                className="text-[11px] text-slate-400 hover:text-white underline"
-              >
-                другой вариант
-              </button>
-            </div>
-
-            {isMultiCardStep ? (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Отметьте карты руки (сброс: {multiIds.length})
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {targets.first.map((target: UsageTarget) => {
-                    const checked = multiIds.includes(target.id);
-                    return (
-                      <button
-                        key={target.id}
-                        type="button"
-                        onClick={() =>
-                          setMultiIds((prev) => (prev.includes(target.id) ? prev.filter((id) => id !== target.id) : [...prev, target.id]))
-                        }
-                        className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition ${
-                          checked
-                            ? 'bg-cyan-600/80 border-cyan-400 text-slate-950'
-                            : 'bg-slate-950 border-slate-700 text-slate-200 hover:border-cyan-600'
-                        }`}
-                      >
-                        {target.label}
-                        {target.sublabel && <span className="ml-1 opacity-70">({target.sublabel})</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              variant.targetKind !== 'NONE' && (
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {targets.second.length > 0 ? (firstTargetId ? 'Шаг 2/2' : 'Шаг 1/2') : 'Выберите цель'}
-                  </span>
-                  <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
-                    {(firstTargetId && targets.second.length > 0 ? targets.second : targets.first).map((target: UsageTarget) => {
-                      const selectedValue = firstTargetId && targets.second.length > 0 ? secondTargetId : firstTargetId;
-                      const active = selectedValue === target.id;
-                      return (
-                        <button
-                          key={target.id}
-                          type="button"
-                          onClick={() => {
-                            if (firstTargetId && targets.second.length > 0) setSecondTargetId(target.id);
-                            else {
-                              setFirstTargetId(target.id);
-                              setSecondTargetId(null);
-                            }
-                          }}
-                          className={`px-3 py-2 rounded-lg border text-xs text-left transition flex items-center justify-between ${
-                            active
-                              ? 'bg-cyan-600/80 border-cyan-400 text-slate-950 font-bold'
-                              : 'bg-slate-950 border-slate-700 text-slate-200 hover:border-cyan-600'
-                          }`}
-                        >
-                          <span>
-                            {target.label}
-                            {target.sublabel && <span className="ml-1.5 text-[10px] opacity-70">{target.sublabel}</span>}
-                          </span>
-                          {active && <CheckCircle2 size={14} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )
+            {step.kind === 'VARIANT' && (
+              <VariantStep variants={usage.variants} selectedId={variant?.id ?? null} onSelect={selectVariant} />
             )}
-          </div>
-        )}
 
-        {/* Оплата */}
-        {needsPayment && variant?.available && (
-          <div
-            className={`text-[11px] px-3 py-2 rounded-lg border flex items-center gap-1.5 ${
-              paymentMissing > 0
-                ? 'bg-amber-950/40 border-amber-600/60 text-amber-300'
-                : 'bg-slate-950 border-slate-800 text-slate-400'
-            }`}
-          >
-            <Info size={12} />
-            {paymentMissing > 0
-              ? `Нужна оплата: ${usage.cost}. Отметьте ещё ${paymentMissing} карт(ы) на руке или конвертируйте их в очки действия.`
-              : `Оплата: ${usage.cost} (очки действия и/или отмеченные карты)`}
-          </div>
-        )}
+            {step.kind === 'TARGET' && variant && (
+              <TargetStepView
+                step={variant.steps[step.index]!}
+                targets={getStepTargets(view, variant.steps[step.index]!.kind)}
+                selected={selection[step.index] ?? []}
+                onChange={(ids) => updateSelection(step.index, ids)}
+              />
+            )}
 
-        <footer className="pt-1 flex items-center justify-end gap-2.5 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-          >
-            Отмена
-          </button>
-          {variant && (
-            <button
-              type="button"
-              disabled={!variant.available || !targetReady || paymentMissing > 0}
-              onClick={handleConfirm}
-              title={
-                !variant.available
-                  ? variant.reason
-                  : paymentMissing > 0
-                    ? `Не хватает ${paymentMissing} карт(ы) оплаты`
-                    : !targetReady
-                      ? 'Выберите цель'
-                      : undefined
-              }
-              className={`px-5 py-2 rounded-xl text-xs font-heading font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg active:scale-95 transition ${
-                variant.available && targetReady && paymentMissing === 0
-                  ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <Play size={13} fill="currentColor" /> Использовать
-            </button>
-          )}
-        </footer>
+            {step.kind === 'PAYMENT' && (
+              <PaymentStep
+                cost={usage.cost}
+                candidates={candidates}
+                chosen={chosenPayment}
+                onChange={setPayment}
+                onAutoFill={() => setPayment(autoFillPayment(candidates, chosenPayment, usage.cost))}
+              />
+            )}
+
+            {step.kind === 'CONFIRM' && variant && (
+              <dl className="flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm">
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Вариант</dt>
+                  <dd className="font-semibold text-white">{variant.label}</dd>
+                  {variant.hint && <dd className="text-xs text-slate-400">{variant.hint}</dd>}
+                </div>
+                {variant.steps.length > 0 && (
+                  <div>
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Цели</dt>
+                    {targetLabels(view, variant, selection).map((line) => (
+                      <dd key={line} className="text-slate-200">
+                        {line}
+                      </dd>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Оплата</dt>
+                  <dd className="text-slate-200">
+                    {usage.cost === 0
+                      ? 'Без доплаты'
+                      : candidates
+                          .filter((candidate) => chosenPayment.includes(candidate.id))
+                          .map((candidate) => candidate.label)
+                          .join(', ')}
+                  </dd>
+                </div>
+              </dl>
+            )}
+
+            <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
+              <p className="min-h-4 text-xs text-amber-300" role="status">
+                {step.kind === 'VARIANT' ? '' : (blocker ?? '')}
+              </p>
+              <div className="flex items-center gap-2">
+                {stepIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
+                    className="flex items-center gap-1 rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                  >
+                    <ArrowLeft size={13} aria-hidden="true" /> Назад
+                  </button>
+                )}
+                {step.kind === 'VARIANT' && variant && (
+                  <button
+                    type="button"
+                    onClick={() => setStepIndex(1)}
+                    className="rounded-xl bg-cyan-500 px-5 py-2 font-heading text-xs font-bold uppercase tracking-wider text-slate-950 transition hover:bg-cyan-400"
+                  >
+                    Далее
+                  </button>
+                )}
+                {step.kind !== 'VARIANT' && (
+                  <button
+                    type="submit"
+                    disabled={blocker !== null}
+                    className="flex items-center gap-1.5 rounded-xl bg-cyan-500 px-5 py-2 font-heading text-xs font-bold uppercase tracking-wider text-slate-950 shadow-lg transition hover:bg-cyan-400 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                  >
+                    {step.kind === 'CONFIRM' && <Play size={13} fill="currentColor" aria-hidden="true" />}
+                    {step.kind === 'CONFIRM' ? actionVerb : 'Далее'}
+                  </button>
+                )}
+              </div>
+            </footer>
+          </section>
+        </form>
       </div>
     </div>
   );

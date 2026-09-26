@@ -23,8 +23,13 @@ export const HandConfirmModals: React.FC<HandConfirmModalsProps> = ({
     <>
       {/* Модальное окно подтверждения Паса */}
       {showPassConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-red-600/60 rounded-xl p-5 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Подтверждение Паса"
+            className="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-slate-900 border border-red-600/60 rounded-xl p-5 shadow-2xl space-y-4"
+          >
             <div className="flex items-center gap-2 text-red-400 border-b border-slate-800 pb-3">
               <AlertCircle size={20} />
               <h3 className="text-lg font-heading tracking-wider text-white">ПОДТВЕРЖДЕНИЕ ПАСА</h3>

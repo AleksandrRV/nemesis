@@ -1,40 +1,48 @@
 import React from 'react';
-import type { ActionCard, EngineAction, SanitizedGameState } from '@nemesis/shared';
+import type { ActionCard, EngineAction, ItemCard, SanitizedGameState } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
-import { ChevronUp, ChevronDown, Hand, Briefcase, Zap, RotateCcw, AlertCircle, HeartPulse, Info } from 'lucide-react';
 import { CardDetailsModal, type CardDetailsTarget } from '../modals/CardDetailsModal';
+import { ModalPortal } from '../ui/ModalPortal';
 import { HandConfirmModals } from './HandConfirmModals';
 import { CardUseModal, type CardUseConfirmation } from './CardUseModal';
-import { HandCard, type HandCardPlayability } from './HandCard';
+import type { HandCardPlayability } from './HandCard';
 import { getActionCardUsage } from './actionCardUsage';
 import { CardResultModal } from './CardResultModal';
 import { buildCardUseResult, type CardUseResult } from './cardUseResultModel';
 import type { CardUseRequest } from './cardUsageModel';
 import { CombatActionButtons } from '../combat/CombatActionButtons';
 import { isActivePlayerInCombat } from '../board/intruderMapModel';
+import { buildPlayerBoardSummary, type BoardTab } from './playerBoardModel';
+import { PlayerBoardSummaryBar } from './PlayerBoardSummary';
+import { BoardCardsSection } from './BoardCardsSection';
+import { BoardGearSection } from './BoardGearSection';
+import { BoardVitalsSection } from './BoardVitalsSection';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
 }
 
+interface PendingResult {
+  title: string;
+  variantLabel: string;
+  before: SanitizedGameState;
+}
+
+const TAB_LABELS: Record<BoardTab, string> = {
+  CARDS: 'Карты',
+  GEAR: 'Снаряжение',
+  VITALS: 'Состояние',
+};
+
 export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
-  const [isOpen, setIsOpen] = React.useState(true);
-  const [showInventory, setShowInventory] = React.useState(false);
-  const [prevTurnKey, setPrevTurnKey] = React.useState<string>('');
+  const [isExpanded, setIsExpanded] = React.useState(true);
+  const [tab, setTab] = React.useState<BoardTab>('CARDS');
+  const [prevTurnKey, setPrevTurnKey] = React.useState('');
   const [showPassConfirm, setShowPassConfirm] = React.useState(false);
   const [inspectCardTarget, setInspectCardTarget] = React.useState<CardDetailsTarget | null>(null);
-  // Откуда открыта карточка предмета: слот руки или инвентарь (влияет на окно использования)
   const [inspectLocation, setInspectLocation] = React.useState<'INVENTORY' | 'HAND_SLOT'>('INVENTORY');
-
-  // Окно использования карты: шаги «вариант → цель → подтверждение»
   const [useRequest, setUseRequest] = React.useState<CardUseRequest | null>(null);
-  // Отправленное действие, чей результат ещё не показан (до/после для diff)
-  const [pendingResult, setPendingResult] = React.useState<{
-    title: string;
-    variantLabel: string;
-    before: SanitizedGameState;
-  } | null>(null);
-  // Обязательное окно результата (локальное состояние — не воспроизводится при F5)
+  const [pendingResult, setPendingResult] = React.useState<PendingResult | null>(null);
   const [useResult, setUseResult] = React.useState<CardUseResult | null>(null);
 
   const selectedCardIds = useGameStore((state) => state.selectedCardIds);
@@ -63,7 +71,6 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
 
   const activePlayerId = view.meta.activePlayerId;
   const player = view.players[activePlayerId];
-
   const currentTurnKey = `${activePlayerId}-${player?.actionsPerformedThisRound ?? 0}`;
   if (currentTurnKey !== prevTurnKey) {
     setPrevTurnKey(currentTurnKey);
@@ -72,17 +79,16 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
 
   if (!player) return null;
 
+  const inCombat = isActivePlayerInCombat(view);
+  const summary = buildPlayerBoardSummary(view, player, inCombat);
+  const { canAct } = summary;
   const handCards = player.actionDeck.hand;
-  // Лимит руки: берём из санитизированного состояния (вычислено в filterStateForPlayer) или считаем на клиенте
-  // по правилу CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0 (стр. 10, 25)
-  const currentRoom = view.ship.rooms[player.roomId];
-  const isCabinsRoom = currentRoom?.definitionId === 'CABINS';
-  const isWorkingRoom = currentRoom?.hasMalfunction === false && currentRoom?.hasFire === false;
-  const noIntrudersInRoom = (currentRoom?.occupantIntruderIds?.length ?? 0) === 0;
-  const computedHandLimit = isCabinsRoom && isWorkingRoom && noIntrudersInRoom ? 6 : 5;
-  const handLimit = (player as { handLimit?: number }).handLimit ?? computedHandLimit;
-  const isMyTurn = view.meta.activePlayerId === player.id;
-  const canAct = isMyTurn && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE';
+
+  const executePass = () => {
+    dispatch({ type: 'ACTION_PASS', payload: { discardCardIds: selectedCardIds } });
+    clearSelection();
+    setShowPassConfirm(false);
+  };
 
   const handlePassClick = () => {
     if (handCards.length > 0 || convertedCardIds.length > 0) {
@@ -92,20 +98,14 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     executePass();
   };
 
-  const executePass = () => {
-    dispatch({
-      type: 'ACTION_PASS',
-      payload: {
-        discardCardIds: selectedCardIds,
-      },
-    });
-    clearSelection();
-    setShowPassConfirm(false);
-  };
-
   const openUseModal = (request: CardUseRequest) => {
     setInspectCardTarget(null);
     setUseRequest(request);
+  };
+
+  const openTab = (next: BoardTab) => {
+    setTab(next);
+    setIsExpanded(true);
   };
 
   const handleUseConfirm = (request: CardUseRequest, confirmation: CardUseConfirmation) => {
@@ -129,395 +129,150 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     return { playable: false, reason: variants[0]?.reason };
   };
 
-  // Оружие с боезапасом — для боевых карт Действия (Прицельный/Очередь/Адреналин/Прикрытие).
+  const inspectItem = (item: ItemCard, location: 'INVENTORY' | 'HAND_SLOT') => {
+    setInspectLocation(location);
+    setInspectCardTarget({ kind: 'ITEM', card: item });
+  };
+
   const combatWeaponItemId =
     player.handSlots.find(
       (slot): slot is Extract<typeof slot, { source: 'ITEM' }> =>
         slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0,
     )?.card.id ?? null;
 
+  const tabCounts: Record<BoardTab, string> = {
+    CARDS: String(summary.handCount),
+    GEAR: `${summary.occupiedHandSlots + summary.inventoryCount}`,
+    VITALS: `${summary.vitals.light + summary.vitals.serious}`,
+  };
+
+  const trailing = (
+    <>
+      {canAct && inCombat && (
+        <CombatActionButtons onShoot={() => setShootModalOpen(true)} onMelee={() => setMeleeModalOpen(true)} />
+      )}
+      <button
+        type="button"
+        disabled={!canAct}
+        onClick={handlePassClick}
+        title={canAct ? 'Спасовать до конца раунда' : 'Сейчас не ваш ход'}
+        className="h-11 rounded-lg border border-red-700/70 bg-red-950/60 px-4 font-heading text-sm font-bold uppercase tracking-wider text-red-100 transition hover:bg-red-900 active:scale-95 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-600"
+      >
+        Пас{selectedCardIds.length > 0 ? ` · сброс ${selectedCardIds.length}` : ''}
+      </button>
+    </>
+  );
+
   return (
-    <aside
-      aria-label="Панель руки игрока"
-      className="absolute bottom-0 left-0 right-0 z-40 flex flex-col bg-slate-950/95 border-t border-cyan-500/30 backdrop-blur-md shadow-2xl transition-all"
+    <section
+      aria-label="Планшет игрока"
+      className="relative z-30 shrink-0 border-t border-cyan-500/30 bg-gradient-to-b from-slate-900 to-slate-950 shadow-[0_-12px_30px_rgba(0,0,0,0.45)]"
     >
-      {/* Модальное окно полной информации о карте / предмете */}
-      {inspectCardTarget && (
-        <CardDetailsModal
-          target={inspectCardTarget}
-          onClose={() => setInspectCardTarget(null)}
-          onPlay={
-            inspectCardTarget.kind === 'ACTION'
-              ? () => openUseModal({ kind: 'ACTION', card: inspectCardTarget.card })
-              : inspectCardTarget.kind === 'ITEM'
-                ? () => openUseModal({ kind: 'ITEM', card: inspectCardTarget.card, location: inspectLocation })
-                : undefined
-          }
-        />
-      )}
+      <PlayerBoardSummaryBar
+        view={view}
+        player={player}
+        summary={summary}
+        isExpanded={isExpanded}
+        onToggle={() => setIsExpanded((value) => !value)}
+        onOpenVitals={() => openTab('VITALS')}
+        trailing={trailing}
+      />
 
-      {/* Шапка руки */}
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-slate-800 px-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-cyan-400">
-            <Hand size={16} />
-            <span className="text-xs font-bold tracking-wider uppercase">РУКА ИГРОКА</span>
-          </div>
-          <span
-            title={
-              handLimit === 6
-                ? 'Каюты: лимит руки увеличен до 6 — исправные Каюты без Чужих и Пожара (стр. 10, 25)'
-                : 'Базовый лимит руки 5 карт (стр. 10)'
-            }
-            className={`text-xs font-mono px-2 py-0.5 rounded border transition ${
-              handLimit === 6
-                ? 'bg-emerald-950 border-emerald-500 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.4)] animate-pulse'
-                : 'bg-slate-800 border-slate-700 text-slate-300'
-            }`}
-          >
-            {handCards.length} / {handLimit}
-            {handLimit === 6 && <span className="ml-1 text-[10px]">CABINS</span>}
-          </span>
-          <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
-            Колода: {player.actionDeck.drawPileCount} • Сброс: {player.actionDeck.discardCount}
-          </span>
-          <div className="h-4 w-[1px] bg-slate-800 mx-1 hidden sm:block" />
-          <span className="text-xs font-bold text-amber-400">
-            Действий в этом ходу: {player.actionsPerformedThisRound} / {player.hasAdrenalineRush ? '∞' : 2}
-          </span>
-          {convertedCardIds.length > 0 && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 flex items-center gap-1">
-              <Zap size={12} /> Очки действия: {convertedCardIds.length}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Статус здоровья в свёрнутом состоянии (символическое отображение) */}
-          {!showInventory && (
-            <div className="flex items-center gap-2 mr-2">
-              <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-[11px]"
-                title="Лёгкие раны (макс 2)"
+      {isExpanded && (
+        <div id="player-board-body" className="border-t border-slate-800">
+          <div role="tablist" aria-label="Разделы планшета" className="flex gap-1 px-3 pt-2 sm:px-4">
+            {(Object.keys(TAB_LABELS) as BoardTab[]).map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                role="tab"
+                id={`board-tab-${entry}`}
+                aria-selected={tab === entry}
+                aria-controls={`board-panel-${entry}`}
+                onClick={() => setTab(entry)}
+                className={`flex h-9 items-center gap-1.5 rounded-t-lg border-b-2 px-3 text-xs font-bold uppercase tracking-wider transition ${
+                  tab === entry
+                    ? 'border-cyan-400 bg-slate-800/70 text-cyan-200'
+                    : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
               >
-                <HeartPulse size={12} className={player.lightWounds > 0 ? 'text-rose-400' : 'text-slate-500'} />
-                <span className={player.lightWounds > 0 ? 'text-rose-300 font-bold' : 'text-slate-400'}>
-                  Раны: {player.lightWounds}/2
+                {TAB_LABELS[entry]}
+                <span className="rounded bg-slate-950 px-1.5 font-mono text-[10px] text-slate-400">
+                  {tabCounts[entry]}
                 </span>
-              </div>
-              <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-[11px]"
-                title="Тяжёлые травмы (макс 3)"
-              >
-                <AlertCircle
-                  size={12}
-                  className={player.seriousWounds.length > 0 ? 'text-red-500 animate-pulse' : 'text-slate-500'}
-                />
-                <span className={player.seriousWounds.length > 0 ? 'text-red-400 font-bold' : 'text-slate-400'}>
-                  Травмы: {player.seriousWounds.length}/3
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Стрельба и Рукопашная — базовые действия в Бою (стр. 19): выбор цели в отдельной панели */}
-          {canAct && isActivePlayerInCombat(view) && (
-            <CombatActionButtons onShoot={() => setShootModalOpen(true)} onMelee={() => setMeleeModalOpen(true)} />
-          )}
-
-          {/* Кнопка показа снаряжения / инвентаря */}
-          <button
-            type="button"
-            onClick={() => setShowInventory((v) => !v)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition border ${
-              showInventory
-                ? 'bg-cyan-950 border-cyan-500 text-cyan-300'
-                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-            }`}
-          >
-            <Briefcase size={13} />
-            <span>Инвентарь ({player.inventory?.length ?? 0})</span>
-          </button>
-
-          {/* Свернуть/развернуть */}
-          <button
-            type="button"
-            onClick={() => setIsOpen((v) => !v)}
-            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800"
-            title={isOpen ? 'Свернуть' : 'Развернуть'}
-          >
-            {isOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Выдвижная панель инвентаря */}
-      {showInventory && (
-        <div className="bg-slate-900/90 border-b border-slate-800 p-3 flex flex-wrap gap-4 text-xs">
-          {/* Слоты рук */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Слоты рук (макс 2):</span>
-            <div className="flex gap-2">
-              {[0, 1].map((idx) => {
-                const slot = player.handSlots[idx];
-                const handleDiscardHeavy = () => {
-                  dispatch({
-                    type: 'ACTION_DISCARD_HEAVY_ITEM',
-                    payload: { handSlotIndex: idx },
-                  });
-                };
-                return (
-                  <div
-                    key={idx}
-                    className="w-52 h-20 rounded border border-slate-700 bg-slate-950/70 p-2 flex flex-col justify-between relative group"
-                  >
-                    {slot ? (
-                      slot.source === 'ITEM' ? (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-cyan-300 truncate text-xs">{slot.card.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInspectLocation('HAND_SLOT');
-                                setInspectCardTarget({ kind: 'ITEM', card: slot.card });
-                              }}
-                              className="text-slate-400 hover:text-cyan-300 p-0.5"
-                              title="Инфо о предмете"
-                            >
-                              <Info size={13} />
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
-                            <span>
-                              {slot.card.isWeapon
-                                ? `Оружие • Патроны: ${slot.card.ammo}/${slot.card.maxAmmo}`
-                                : 'Тяжёлый предмет'}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => openUseModal({ kind: 'ITEM', card: slot.card, location: 'HAND_SLOT' })}
-                                className="text-cyan-400 hover:text-cyan-300 font-bold underline"
-                              >
-                                Исп. [{slot.card.actionCost}]
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleDiscardHeavy}
-                                className="text-red-400 hover:text-red-300 font-bold underline"
-                                title="Сбросить тяжёлый предмет в комнату (без действия, стр. 22)"
-                              >
-                                Сброс
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <div className="font-bold text-amber-300 truncate text-xs">
-                              {slot.object.kind === 'CORPSE'
-                                ? 'Труп'
-                                : slot.object.kind === 'EGG'
-                                  ? 'Яйцо Чужих'
-                                  : 'Останки'}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setInspectCardTarget({ kind: 'OBJECT', object: slot.object } as never)}
-                              className="text-slate-400 hover:text-amber-300 p-0.5"
-                              title="Инфо об объекте"
-                            >
-                              <Info size={13} />
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400">
-                            <span>Тяжёлый объект • {slot.object.id.slice(0, 8)}</span>
-                            <button
-                              type="button"
-                              onClick={handleDiscardHeavy}
-                              className="text-red-400 hover:text-red-300 font-bold underline"
-                              title="Сбросить объект на пол комнаты без действия (стр. 22)"
-                            >
-                              Сброс
-                            </button>
-                          </div>
-                        </>
-                      )
-                    ) : (
-                      <span className="text-slate-600 italic text-[11px] m-auto">Свободная рука</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Инвентарь предметов */}
-          <div className="space-y-1 flex-1 min-w-[240px]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Карманные предметы ({player.inventory?.length ?? 0}):
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {player.inventory && player.inventory.length > 0 ? (
-                player.inventory.map((item) => (
-                  <div
-                    key={item.id}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 flex items-center gap-2 group"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        item.color === 'RED'
-                          ? 'bg-red-500'
-                          : item.color === 'YELLOW'
-                            ? 'bg-amber-400'
-                            : item.color === 'GREEN'
-                              ? 'bg-emerald-500'
-                              : 'bg-cyan-400'
-                      }`}
-                    />
-                    <span className="font-semibold">{item.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInspectLocation('INVENTORY');
-                        setInspectCardTarget({ kind: 'ITEM', card: item });
-                      }}
-                      className="text-slate-400 hover:text-cyan-300 p-0.5 ml-1"
-                      title="Подробнее"
-                    >
-                      <Info size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openUseModal({ kind: 'ITEM', card: item, location: 'INVENTORY' })}
-                      className="text-emerald-400 hover:text-emerald-300 font-bold text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-600/50"
-                      title={`Использовать за ${item.actionCost} очков/карт`}
-                    >
-                      Исп. [{item.actionCost}]
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <span className="text-slate-600 italic text-xs py-1">Нет предметов</span>
-              )}
-            </div>
-          </div>
-
-          {/* Травмы */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Здоровье / Травмы:</span>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs text-rose-300">
-                Лёгкие раны: <b>{player.lightWounds} / 2</b>
-              </span>
-              <span className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-xs text-red-400">
-                Тяжёлые травмы: <b>{player.seriousWounds.length} / 3</b>
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Карты в руке и кнопки действий */}
-      {isOpen && (
-        <div className="p-3 pt-4 pb-4 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between overflow-x-auto min-h-[160px]">
-          {/* Сетка карт руки */}
-          <div className="flex items-center gap-3 overflow-x-auto pt-4 pb-2 px-1">
-            {handCards.map((card) => (
-              <HandCard
-                key={card.id}
-                card={card}
-                isSelected={selectedCardIds.includes(card.id)}
-                isConverted={convertedCardIds.includes(card.id)}
-                playability={'characterClass' in card ? playabilityOf(card) : { playable: false }}
-                onToggle={() => toggleSelectCard(card.id)}
-                onPlay={() => {
-                  if ('characterClass' in card) openUseModal({ kind: 'ACTION', card });
-                }}
-                onInspect={() =>
-                  setInspectCardTarget(
-                    'characterClass' in card
-                      ? { kind: 'ACTION', card }
-                      : { kind: 'CONTAMINATION', card: card as Extract<typeof card, { isInfected: boolean }> },
-                  )
-                }
-                onRefund={() => refundConvertedCard(card.id)}
-              />
+              </button>
             ))}
           </div>
-
-          {/* Панель управления ходом / оплатой */}
-          <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-            {/* Кнопка конвертации в очки действия */}
-            {selectedCardIds.length > 0 && (
-              <button
-                type="button"
-                onClick={convertToEnergy}
-                className="min-h-[44px] px-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition border bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-600/70 text-emerald-200 active:scale-95 flex items-center gap-1.5"
-                title="Конвертировать выбранные карты в очки действия"
-              >
-                <Zap size={15} />
-                <span>В очки действия ({selectedCardIds.length})</span>
-              </button>
+          <div
+            role="tabpanel"
+            id={`board-panel-${tab}`}
+            aria-labelledby={`board-tab-${tab}`}
+            className="max-h-[38vh] overflow-y-auto border-t border-slate-800 bg-slate-950/60 px-3 py-3 sm:px-4"
+          >
+            {tab === 'CARDS' && (
+              <BoardCardsSection
+                hand={handCards}
+                selectedCardIds={selectedCardIds}
+                convertedCardIds={convertedCardIds}
+                playabilityOf={playabilityOf}
+                onToggle={toggleSelectCard}
+                onPlay={(card) => openUseModal({ kind: 'ACTION', card })}
+                onInspect={setInspectCardTarget}
+                onRefund={refundConvertedCard}
+                onConvert={convertToEnergy}
+                onRefundAll={() => convertedCardIds.forEach((id) => refundConvertedCard(id))}
+              />
             )}
-
-            {/* Кнопка отмены конвертации всех очков, если они есть */}
-            {convertedCardIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  convertedCardIds.forEach((id) => refundConvertedCard(id));
-                }}
-                className="min-h-[44px] px-2.5 rounded-lg font-semibold text-xs transition border bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300 flex items-center gap-1"
-                title="Вернуть все очки действия обратно в карты"
-              >
-                <RotateCcw size={14} />
-                <span>Отмена ({convertedCardIds.length})</span>
-              </button>
+            {tab === 'GEAR' && (
+              <BoardGearSection
+                player={player}
+                canAct={canAct}
+                onUseItem={(item, location) => openUseModal({ kind: 'ITEM', card: item, location })}
+                onInspectItem={inspectItem}
+                onInspectObject={(object) => setInspectCardTarget({ kind: 'OBJECT', object })}
+                onDiscardHeavy={(handSlotIndex) =>
+                  dispatch({ type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } })
+                }
+              />
             )}
-
-            {/* Кнопка Паса */}
-            <button
-              type="button"
-              disabled={!canAct}
-              onClick={handlePassClick}
-              className={`min-h-[44px] px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition border ${
-                canAct
-                  ? 'bg-red-950/50 hover:bg-red-900/80 border-red-700/60 text-red-200 active:scale-95'
-                  : 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
-              }`}
-            >
-              Пас {selectedCardIds.length > 0 ? `(сброс: ${selectedCardIds.length})` : ''}
-            </button>
+            {tab === 'VITALS' && <BoardVitalsSection player={player} statuses={summary.statuses} />}
           </div>
         </div>
       )}
 
-      {/* Окно использования карты: варианты → цель → подтверждение */}
-      {useRequest && (
-        <CardUseModal
-          view={view}
-          request={useRequest}
-          combatWeaponItemId={combatWeaponItemId}
-          preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
-          onConfirm={(confirmation) => handleUseConfirm(useRequest, confirmation)}
-          onClose={() => setUseRequest(null)}
+      <ModalPortal>
+        {inspectCardTarget && (
+          <CardDetailsModal
+            target={inspectCardTarget}
+            onClose={() => setInspectCardTarget(null)}
+            onPlay={
+              inspectCardTarget.kind === 'ACTION'
+                ? () => openUseModal({ kind: 'ACTION', card: inspectCardTarget.card })
+                : inspectCardTarget.kind === 'ITEM'
+                  ? () => openUseModal({ kind: 'ITEM', card: inspectCardTarget.card, location: inspectLocation })
+                  : undefined
+            }
+          />
+        )}
+        {useRequest && (
+          <CardUseModal
+            view={view}
+            request={useRequest}
+            combatWeaponItemId={combatWeaponItemId}
+            preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
+            onConfirm={(confirmation) => handleUseConfirm(useRequest, confirmation)}
+            onClose={() => setUseRequest(null)}
+          />
+        )}
+        {useResult && <CardResultModal result={useResult} onClose={() => setUseResult(null)} />}
+        <HandConfirmModals
+          showPassConfirm={showPassConfirm}
+          onCancelPass={() => setShowPassConfirm(false)}
+          onConfirmPass={executePass}
+          handCardsCount={handCards.length}
+          convertedCount={convertedCardIds.length}
         />
-      )}
-
-      {/* Обязательное окно результата использования */}
-      {useResult && <CardResultModal result={useResult} onClose={() => setUseResult(null)} />}
-
-      {/* Подтверждающие модалы: Пас */}
-      <HandConfirmModals
-        showPassConfirm={showPassConfirm}
-        onCancelPass={() => setShowPassConfirm(false)}
-        onConfirmPass={executePass}
-        handCardsCount={handCards.length}
-        convertedCount={convertedCardIds.length}
-      />
-    </aside>
+      </ModalPortal>
+    </section>
   );
 };

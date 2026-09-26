@@ -4,6 +4,7 @@ import { PlayerHandPanel } from './PlayerHandPanel';
 import { DecisionModal } from '../modals/DecisionModal';
 import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 import panelSource from './PlayerHandPanel.tsx?raw';
+import gearSource from './BoardGearSection.tsx?raw';
 import inspectorSource from '../inspector/RoomInspector.tsx?raw';
 import decisionModalSource from '../modals/DecisionModal.tsx?raw';
 import focusTrapSource from '../../hooks/useFocusTrap.ts?raw';
@@ -15,8 +16,10 @@ describe('PlayerHandPanel', () => {
 
     const html = renderToStaticMarkup(<PlayerHandPanel view={sanitized} />);
 
-    expect(html).toContain('РУКА ИГРОКА');
-    expect(html).toContain('Действий в этом ходу');
+    expect(html).toContain('aria-label="Планшет игрока"');
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain('Разыграть');
+    expect(html).toContain('Действий: 0 из 2');
     expect(html).toContain('Пас');
   });
 });
@@ -149,7 +152,6 @@ describe('DecisionModal', () => {
 describe('PlayerHandPanel — динамический лимит руки и тяжёлые объекты (Шаг 7, долги 21-22)', () => {
   it('показывает 5/5 vs 5/6 с подсветкой когда в Каютах (долг 21)', () => {
     const rawState = createInitialGameState('test-hand-limit');
-    // Принудительно делаем комнату 2 Каютами, исследованной и рабочей
     const room = rawState.ship.rooms[2]!;
     room.definitionId = 'CABINS';
     room.isExplored = true;
@@ -161,10 +163,8 @@ describe('PlayerHandPanel — динамический лимит руки и т
     const sanitized = filterStateForPlayer(rawState, 'player-1');
     const html = renderToStaticMarkup(<PlayerHandPanel view={sanitized} />);
 
-    // В Каютах лимит 6, должен показать / 6 и подсветку CABINS
-    expect(html).toContain('/ 6');
-    expect(html).toContain('CABINS');
-    expect(html).toContain('Каюты: лимит руки увеличен до 6');
+    expect(html).toMatch(/\d\/6/);
+    expect(html).toContain('Каюты: лимит руки 6');
   });
 
   it('показывает кнопку сброса для тяжёлых объектов CORPSE/EGG/REMAINS (долг 22)', () => {
@@ -182,15 +182,10 @@ describe('PlayerHandPanel — динамический лимит руки и т
     // Санитайзер должен сохранить тяжёлые объекты (публичны)
     const sanitized = filterStateForPlayer(rawState, 'player-1');
     expect(sanitized.players['player-1']!.handSlots).toHaveLength(2);
-    // Проверяем что компонент содержит логику сброса (ACTION_DISCARD_HEAVY_ITEM)
-    // Рендерим с инвентарём открытым — для этого нужно мокнуть useState? Упростим: проверим что в коде есть кнопка Сброс
-    // Через static markup инвентарь закрыт по умолчанию, но мы можем проверить наличие текста в исходнике через импорт
-    // Для теста достаточно проверить что handSlots публичны и что в DecisionModal есть обработка, а сам UI содержит Сброс
-    // Мы проверим наличие строки в самом компоненте через динамический импорт текста (встроено в тест)
-    // Вместо чтения файла, проверим что PlayerHandPanel при открытом инвентаре рендерит Сброс — используем хак: установим showInventory через проп не предусмотрен, поэтому проверяем исходный код напрямую через require с абсолютным путём
     const source = panelSource;
     expect(source).toContain('ACTION_DISCARD_HEAVY_ITEM');
-    expect(source).toContain('Сброс');
+    expect(gearSource).toContain('Сброс');
+    expect(gearSource).toContain('onDiscardHeavy');
   });
 });
 

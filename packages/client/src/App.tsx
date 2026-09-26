@@ -158,13 +158,14 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Основная зона карты */}
-      <main className="relative min-h-0 w-full flex-1 overflow-hidden">
-        <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
-        <CrewRoster view={view} onSelectRoom={selectRoom} />
-        <RoomInspector />
+      <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+        <section aria-label="Карта корабля" className="relative min-h-0 flex-1 overflow-hidden">
+          <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
+          <CrewRoster view={view} onSelectRoom={selectRoom} />
+          <RoomInspector />
+          {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
+        </section>
         <PlayerHandPanel view={view} />
-        {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
         {isPresentationIdle && eventPhaseModalOpen && eventPhaseModalModel && (
           <EventPhaseModal
             view={view}

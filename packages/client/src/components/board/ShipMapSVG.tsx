@@ -439,7 +439,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
 
                 <svg
                   viewBox="-60 0 1140 1160"
-                  className={`w-full h-full min-w-[800px] min-h-[600px] select-none ${hasContactTease ? 'motion-safe:animate-shake motion-reduce:animate-none' : ''}`}
+                  className={`h-full w-full select-none ${hasContactTease ? 'motion-safe:animate-shake motion-reduce:animate-none' : ''}`}
                   onClick={() => selectRoom(null)}
                 >
                   <defs>

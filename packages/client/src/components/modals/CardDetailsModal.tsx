@@ -1,11 +1,14 @@
 import React from 'react';
-import type { ActionCard, ActionDeckCard, ItemCard } from '@nemesis/shared';
-import { X, Play, Zap, AlertTriangle, Sparkles } from 'lucide-react';
+import type { ActionCard, ActionDeckCard, BoardObject, ItemCard } from '@nemesis/shared';
+import { AlertTriangle, Play, Sparkles, X, Zap } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 
 export type CardDetailsTarget =
   | { kind: 'ACTION'; card: ActionCard }
   | { kind: 'CONTAMINATION'; card: Extract<ActionDeckCard, { isInfected: boolean }> }
-  | { kind: 'ITEM'; card: ItemCard };
+  | { kind: 'ITEM'; card: ItemCard }
+  | { kind: 'OBJECT'; object: BoardObject };
 
 interface CardDetailsModalProps {
   target: CardDetailsTarget;
@@ -13,112 +16,158 @@ interface CardDetailsModalProps {
   onPlay?: () => void;
 }
 
-export const CardDetailsModal: React.FC<CardDetailsModalProps> = ({ target, onClose, onPlay }) => {
+const ITEM_COLOR_LABELS: Record<ItemCard['color'], string> = {
+  RED: 'Красная колода',
+  YELLOW: 'Жёлтая колода',
+  GREEN: 'Зелёная колода',
+  BLUE: 'Создаваемый предмет',
+};
+
+const OBJECT_TEXT: Record<BoardObject['kind'], { name: string; text: string }> = {
+  CORPSE: {
+    name: 'Труп',
+    text: 'Тяжёлый объект: занимает руку. Его можно сбросить на пол отсека без Действия (стр. 22).',
+  },
+  EGG: {
+    name: 'Яйцо Чужих',
+    text: 'Тяжёлый объект: занимает руку. Его можно сбросить на пол отсека без Действия (стр. 22).',
+  },
+  INTRUDER_REMAINS: {
+    name: 'Останки Чужого',
+    text: 'Тяжёлый объект: занимает руку. Останки изучают в Лаборатории; сбросить их можно без Действия (стр. 22).',
+  },
+};
+
+const CONTAMINATION_TEXT =
+  'Карта Заражения засоряет колоду Действий. Её нельзя разыграть или сбросить в оплату. Проверить и очистить её помогают «Отдых», Алкоголь, Антидот и Действия отсеков (Хирургия).';
+
+function header(target: CardDetailsTarget): { eyebrow: string; title: string } {
+  switch (target.kind) {
+    case 'ACTION':
+      return {
+        eyebrow: `Карта Действия · ${CREW_IDENTITIES[target.card.characterClass].label}`,
+        title: target.card.name,
+      };
+    case 'ITEM':
+      return { eyebrow: `Предмет · ${ITEM_COLOR_LABELS[target.card.color]}`, title: target.card.name };
+    case 'CONTAMINATION':
+      return { eyebrow: 'Заражение', title: 'Карта Заражения' };
+    case 'OBJECT':
+      return { eyebrow: 'Тяжёлый объект', title: OBJECT_TEXT[target.object.kind].name };
+  }
+}
+
+function bodyText(target: CardDetailsTarget): string {
+  if (target.kind === 'CONTAMINATION') return CONTAMINATION_TEXT;
+  if (target.kind === 'OBJECT') return OBJECT_TEXT[target.object.kind].text;
+  return target.card.description;
+}
+
+function Badge({ tone, children }: { tone: string; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <header className="flex items-start justify-between border-b border-slate-800 pb-3">
+    <span className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold ${tone}`}>
+      {children}
+    </span>
+  );
+}
+
+export const CardDetailsModal: React.FC<CardDetailsModalProps> = ({ target, onClose, onPlay }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  useFocusTrap(containerRef, { onEscape: onClose });
+  const { eyebrow, title } = header(target);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-details-title"
+        className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-cyan-500/50 bg-slate-900 shadow-[0_0_50px_rgba(6,182,212,0.2)] motion-safe:animate-modal-enter"
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-slate-800 px-5 py-4">
           <div>
-            <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase">
-              {target.kind === 'ACTION'
-                ? `КАРТА ДЕЙСТВИЯ [${target.card.characterClass}]`
-                : target.kind === 'ITEM'
-                  ? `ПРЕДМЕТ [${target.card.color}]`
-                  : 'КАРТА ЗАРАЖЕНИЯ'}
-            </span>
-            <h3 className="text-xl font-heading text-white tracking-wider mt-0.5">
-              {target.kind === 'CONTAMINATION' ? 'Карта Заражения' : target.card.name}
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-400">{eyebrow}</p>
+            <h3 id="card-details-title" className="mt-0.5 font-heading text-2xl tracking-wider text-white">
+              {title}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            aria-label="Закрыть"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
             <X size={20} />
           </button>
         </header>
 
-        <div className="space-y-4 text-xs">
-          {/* Свойства / Бейджи */}
+        <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4">
           <div className="flex flex-wrap gap-2">
             {target.kind === 'ACTION' && (
-              <span className="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold flex items-center gap-1">
-                <Zap size={13} /> Стоимость розыгрыша: {target.card.playCost}
-              </span>
+              <Badge tone="border-slate-700 bg-slate-800 text-cyan-300">
+                <Zap size={12} /> Доплата: {target.card.playCost}
+              </Badge>
             )}
-
             {target.kind === 'ITEM' && (
               <>
-                <span className="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-bold flex items-center gap-1">
-                  <Zap size={13} /> Стоимость: {target.card.actionCost}
-                </span>
+                <Badge tone="border-slate-700 bg-slate-800 text-cyan-300">
+                  <Zap size={12} /> Цена: {target.card.actionCost}
+                </Badge>
                 {target.card.isHeavy && (
-                  <span className="px-2 py-1 rounded bg-amber-950/60 border border-amber-600/50 text-amber-300 font-bold">
-                    Тяжёлый предмет (занимает руку)
-                  </span>
+                  <Badge tone="border-amber-600/50 bg-amber-950/60 text-amber-300">Тяжёлый — занимает руку</Badge>
                 )}
-                {target.card.isSingleUse && (
-                  <span className="px-2 py-1 rounded bg-purple-950/60 border border-purple-600/50 text-purple-300 font-bold">
-                    Одноразовый
-                  </span>
-                )}
+                <Badge tone="border-purple-600/50 bg-purple-950/60 text-purple-300">
+                  {target.card.isSingleUse ? 'Одноразовый' : 'Многоразовый'}
+                </Badge>
                 {target.card.isWeapon && (
-                  <span className="px-2 py-1 rounded bg-red-950/60 border border-red-600/50 text-red-300 font-bold">
-                    Оружие • Боезапас: {target.card.ammo}/{target.card.maxAmmo}
-                  </span>
+                  <Badge tone="border-red-600/50 bg-red-950/60 text-red-300">
+                    Оружие · Боезапас {target.card.ammo ?? 0}/{target.card.maxAmmo ?? '—'}
+                  </Badge>
                 )}
-                {target.card.componentSymbols && target.card.componentSymbols.length > 0 && (
-                  <span className="px-2 py-1 rounded bg-emerald-950/60 border border-emerald-600/50 text-emerald-300 font-bold flex items-center gap-1">
+                {target.card.componentSymbols.length > 0 && (
+                  <Badge tone="border-emerald-600/50 bg-emerald-950/60 text-emerald-300">
                     <Sparkles size={12} /> Компоненты: {target.card.componentSymbols.join(', ')}
-                  </span>
+                  </Badge>
                 )}
               </>
             )}
-
             {target.kind === 'CONTAMINATION' && (
-              <span className="px-2.5 py-1 rounded bg-purple-950/60 border border-purple-600/50 text-purple-300 font-bold flex items-center gap-1">
-                <AlertTriangle size={13} />
+              <Badge tone="border-purple-600/50 bg-purple-950/60 text-purple-300">
+                <AlertTriangle size={12} />
                 {target.card.isScanned
                   ? target.card.isInfected
-                    ? 'ИНФЕКЦИЯ ОБНАРУЖЕНА'
-                    : 'СТЕРИЛЬНО'
-                  : 'НЕ ПРОСКАНИРОВАНО'}
-              </span>
+                    ? 'Инфекция обнаружена'
+                    : 'Стерильна'
+                  : 'Не просканирована'}
+              </Badge>
             )}
           </div>
-
-          {/* Описание эффекта */}
-          <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 leading-relaxed text-slate-300 space-y-2">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-              Текст эффекта / Инструкция:
-            </span>
-            <p className="text-sm text-slate-100">
-              {target.kind === 'CONTAMINATION'
-                ? 'Карта Заражения засоряет колоду действий персонажа. Её нельзя использовать для оплаты действий или конвертировать в очки действий. Для проверки и очистки используйте действие отсека «Хирургия», карту «Отдых» или предмет «Алкоголь».'
-                : target.card.description}
-            </p>
-          </div>
+          <p className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm leading-relaxed text-slate-100">
+            {bodyText(target)}
+          </p>
         </div>
 
-        <footer className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-800">
+        <footer className="flex items-center justify-end gap-2.5 border-t border-slate-800 px-5 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+            className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700"
           >
             Закрыть
           </button>
           {onPlay && (
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                onPlay();
-              }}
-              className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-heading font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg active:scale-95 transition"
+              onClick={onPlay}
+              className="flex items-center gap-1.5 rounded-xl bg-cyan-500 px-5 py-2 font-heading text-xs font-bold uppercase tracking-wider text-slate-950 shadow-lg transition hover:bg-cyan-400 active:scale-95"
             >
-              <Play size={13} fill="currentColor" /> Использовать
+              <Play size={13} fill="currentColor" /> {target.kind === 'ACTION' ? 'Разыграть' : 'Использовать'}
             </button>
           )}
         </footer>

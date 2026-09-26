@@ -206,7 +206,7 @@ export const RoomInspector: React.FC = () => {
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 md:bottom-auto md:top-4 md:right-4 md:left-auto md:w-96 bg-nemesis-hull/95 backdrop-blur-md border-t md:border border-nemesis-border md:rounded-xl shadow-2xl p-4 z-30 transition-all">
+    <div className="absolute bottom-0 left-0 right-0 max-h-[75%] overflow-y-auto md:bottom-auto md:top-4 md:right-4 md:left-auto md:w-96 md:max-h-[calc(100%-2rem)] bg-nemesis-hull/95 backdrop-blur-md border-t md:border border-nemesis-border md:rounded-xl shadow-2xl p-4 z-30 transition-all">
       {/* Шапка инспектора */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
         <div>
@@ -430,8 +430,10 @@ export const RoomInspector: React.FC = () => {
                 if (!room.isExplored) return 'Нельзя искать в неисследованном отсеке (стр. 14) — SEARCH_NOT_ALLOWED';
                 if (room.definitionId === 'NEST' || room.definitionId === 'SLIME_ROOM')
                   return `Поиск в этом отсеке запрещён правилами (${room.definitionId}) — SEARCH_NOT_ALLOWED`;
-                if ((room.itemsCount ?? 0) <= 0) return 'В отсеке не осталось предметов для поиска (счётчик = 0) — NO_ITEMS_LEFT';
-                if (isActiveInCombat) return 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18) — SEARCH_IN_COMBAT';
+                if ((room.itemsCount ?? 0) <= 0)
+                  return 'В отсеке не осталось предметов для поиска (счётчик = 0) — NO_ITEMS_LEFT';
+                if (isActiveInCombat)
+                  return 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18) — SEARCH_IN_COMBAT';
                 if (!room.definitionId) return 'Не удалось определить цвет колоды отсека — SEARCH_NOT_ALLOWED';
                 return null;
               };

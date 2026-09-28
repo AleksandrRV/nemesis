@@ -231,7 +231,33 @@ describe('createInitialGameState: Пул Чужих', () => {
 
     expect(repeat).toEqual(first);
     expect(other).not.toEqual(first);
-    expect([...other].sort()).toEqual([...first].sort());
+    const typesOf = (seed: string) =>
+      createInitialGameState(seed)
+        .intrudersPool.bag.map((token) => token.type)
+        .sort();
+    expect(typesOf('nemesis-beta')).toEqual(typesOf('nemesis-alpha'));
+  });
+
+  it('кладёт в мешок случайных Взрослых: числа Внезапной атаки не зашиты порядком жетонов (rooms.pdf, стр. 7–8)', () => {
+    const adultNumbers = (seed: string) =>
+      createInitialGameState(seed)
+        .intrudersPool.bag.filter((token) => token.type === 'ADULT')
+        .map((token) => token.escapeNumber)
+        .sort()
+        .join(',');
+    const seeds = Array.from({ length: 12 }, (_, index) => `bag-adults-${index}`);
+
+    expect(new Set(seeds.map(adultNumbers)).size).toBeGreaterThan(1);
+    for (const seed of seeds) {
+      const state = createInitialGameState(seed);
+      const tokens = [...state.intrudersPool.bag, ...state.intrudersPool.supply];
+      expect(
+        tokens
+          .filter((token) => token.type === 'ADULT')
+          .map((token) => token.escapeNumber)
+          .sort(),
+      ).toEqual([2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4]);
+    }
   });
 
   it('начинает партию без Чужих на поле и с 5 жетонами Яиц (стр. 6, шаг 9)', () => {

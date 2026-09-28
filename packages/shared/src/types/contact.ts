@@ -101,12 +101,15 @@ export type IntruderLogEvent =
       targetIntruderId: string;
       targetType: IntruderType;
       dieFace: CombatDieFace;
+      /** Грань, которой засчитан бросок, если её подменила Слабость («Уязвимые места»). */
+      countedFace?: CombatDieFace;
       woundsBefore: number;
       injuries: number;
       woundsTotal: number;
       /** Карты проверки Стойкости: выкладываются лицом вверх (стр. 20). */
       toughnessCards: IntruderAttackCard[];
-      toughnessTotal: number;
+      /** null — вытянута стрелка Отступления, стойкость не сравнивалась. */
+      toughnessTotal: number | null;
       killed: boolean;
       /** «Прицельный огонь»: показанная грань — результат переброса. */
       rerolled?: boolean;
@@ -126,13 +129,16 @@ export type IntruderLogEvent =
       targetIntruderId: string;
       targetType: IntruderType;
       dieFace: CombatDieFace;
+      /** Грань, которой засчитан бросок, если её подменила Слабость («Уязвимые места»). */
+      countedFace?: CombatDieFace;
       woundsBefore: number;
       /** В рукопашной грань наносит не больше 1 Раны (стр. 19: «2 Раны» = 1). */
       injuries: number;
       woundsTotal: number;
       /** Карты проверки Стойкости: выкладываются лицом вверх (стр. 20). */
       toughnessCards: IntruderAttackCard[];
-      toughnessTotal: number;
+      /** null — вытянута стрелка Отступления, стойкость не сравнивалась. */
+      toughnessTotal: number | null;
       killed: boolean;
       /** Карта Заражения вытянута в сброс до броска (стр. 19, шаг 1). */
       contaminated: boolean;

@@ -4,16 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { CRAFTING_RECIPES } from './crafting.js';
-import { COMBAT_DIE_FACES } from './combatDie.js';
 import { EVENT_CARDS, EVENT_CARDS_COUNT } from './eventCards.js';
 import { INTRUDER_MINIATURE_LIMITS } from './intruderMiniatures.js';
-import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
 import {
-  ADULT_ESCAPE_NUMBERS,
   BAG_ADULTS_PER_PLAYER,
   BAG_BASE_ADULT_COUNT,
-  ESCAPE_NUMBERS,
+  ESCAPE_NUMBERS_BY_TYPE,
   INTRUDER_SUPPLY_COMPOSITION,
   createIntruderSupply,
   splitIntruderBag,
@@ -71,8 +68,9 @@ interface SourceCard {
 
 interface TableFacts {
   file: string;
+  scanDiscrepancies?: { task: string }[];
   status: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'UNVERIFIED_BOARD' | 'SCAN_VERIFIED';
-  facts: { claim: string; source: string; lines?: string; note?: string }[];
+  facts: { claim: string; source: string; lines?: string; page?: string; note?: string }[];
   expectation: Record<string, unknown>;
   unverified?: string[];
 }
@@ -234,20 +232,20 @@ describe('Golden: Пул Чужих (Э2-1)', () => {
     expect(HIVE_EGG_CAPACITY).toBe(expectation.hiveEggCapacity);
   });
 
-  it('совпадает с источником по числам Внезапной атаки, включая пометку о несверенном', () => {
+  it('совпадает со сканом по числам Внезапной атаки каждого жетона (rooms.pdf, стр. 7–8)', () => {
     const expectation = table('escape-numbers').expectation as {
-      adultEscapeNumbers: number[];
-      otherEscapeNumbers: Record<string, number>;
+      escapeNumbersByType: Record<string, number[]>;
     };
 
-    expect([...ADULT_ESCAPE_NUMBERS]).toEqual(expectation.adultEscapeNumbers);
-    expect(ESCAPE_NUMBERS).toEqual(expectation.otherEscapeNumbers);
+    expect(ESCAPE_NUMBERS_BY_TYPE).toEqual(expectation.escapeNumbersByType);
 
     const supply = createIntruderSupply();
 
-    expect(supply.filter((token) => token.type === 'ADULT')).toHaveLength(expectation.adultEscapeNumbers.length);
-    expect(supply.every((token) => token.escapeNumber >= 0)).toBe(true);
-    expect(table('escape-numbers').status).toBe('EXTERNAL_UNVERIFIED');
+    for (const [type, numbers] of Object.entries(ESCAPE_NUMBERS_BY_TYPE)) {
+      const tokens = supply.filter((token) => token.type === type);
+      expect(tokens.map((token) => token.escapeNumber).sort(), `жетоны ${type}`).toEqual([...numbers].sort());
+    }
+    expect(table('escape-numbers').status).toBe('SCAN_VERIFIED');
   });
 });
 
@@ -549,40 +547,6 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(entry.unverified && entry.unverified.length > 0, 'нет списка unverified').toBe(true);
     const joined = (entry.unverified ?? []).join(' ').toLowerCase();
     expect(joined.includes('component')).toBe(true);
-  });
-});
-
-describe('Golden: кубик Боя и Атаки Чужих (v0.4.0, шаг 1)', () => {
-  it('сверяет все шесть граней, включая кратность Промаха (стр. 2, 18)', () => {
-    const expectation = table('combat-die').expectation;
-
-    expect(expectation.faceCount).toBe(6);
-    expect(COMBAT_DIE_FACES).toHaveLength(6);
-    expect(COMBAT_DIE_FACES).toEqual(expectation.faces);
-    expect(COMBAT_DIE_FACES.filter((face) => face === 'MISS')).toHaveLength(2);
-  });
-
-  it('сверяет каждый экземпляр: ID, эффект, текст, стойкость, стрелку и символы атакующих', () => {
-    const expectation = table('intruder-attacks').expectation;
-    const byEffect: Record<string, number> = {};
-
-    for (const card of INTRUDER_ATTACK_CARDS) byEffect[card.effect] = (byEffect[card.effect] ?? 0) + 1;
-
-    expect(expectation.cardCount).toBe(20);
-    expect(INTRUDER_ATTACK_CARDS).toHaveLength(20);
-    expect(INTRUDER_ATTACK_CARDS).toEqual(expectation.cards);
-    expect(byEffect).toEqual(expectation.byEffect);
-  });
-
-  it.each(['combat-die', 'intruder-attacks'])('%s не выдаёт транскрипт за независимую сверку компонентов', (id) => {
-    const entry = table(id);
-
-    expect(entry.status).toBe('EXTERNAL_UNVERIFIED');
-    expect(entry.unverified?.length).toBeGreaterThan(0);
-    expect(entry.facts.some((fact) => fact.source === 'intruders-transcript' && fact.lines)).toBe(true);
-    expect(entry.facts.some((fact) => fact.source === 'rules-md' && fact.lines)).toBe(true);
-    expect(dataSources.meta.sources['intruders-transcript']?.kind).toBe('EXTERNAL_UNVERIFIED');
-    expect(dataSources.meta.sources['intruders-transcript']?.location).toBe('doc/data/INTRUDERS.md');
   });
 });
 

@@ -55,7 +55,6 @@ describe('Кинематографичные виджеты презентаци
         description: 'Атака когтями',
         effect: 'SCRATCH',
         toughness: 3,
-        hasRetreat: false,
         attackerTypes: ['ADULT'],
       },
       outcome: 'HIT',

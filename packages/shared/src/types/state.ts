@@ -7,11 +7,8 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Совместимость сохранений: Фаза Событий исполняет Шаг 8 книги правил —
-// Развитие Улья (события `HIVE_DEVELOPMENT_RESOLVED`, `HIVE_DEVELOPMENT_SKIPPED`)
-// и возврат жетонов Чужих в Пул при уходе в Технические Коридоры —
-// сохранения схемы 18 не восстанавливаются.
-export const GAME_STATE_SCHEMA_VERSION = 19;
+// Сохранения другой схемы не восстанавливаются (CHANGELOG, «Сверка со сканами, Этап 1»).
+export const GAME_STATE_SCHEMA_VERSION = 20;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

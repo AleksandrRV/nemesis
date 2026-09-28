@@ -11,6 +11,7 @@ import { requireIntruder } from './intruderPlacement.js';
 import { receiveContamination, sufferSeriousWound } from './characterDamage.js';
 import { checkInjuryResult, type InjuryCheckResult } from './shoot.js';
 import { queueActionCompletion } from './actionCompletion.js';
+import { countedCombatFace } from './weaknesses.js';
 
 /**
  * Базовое действие «Рукопашная атака» (стр. 19). Порядок процедуры:
@@ -69,7 +70,8 @@ export function executeMelee(
   receiveContamination(state, actorId);
 
   const dieFace = rollCombatDie(state);
-  const injuries = meleeInjuriesForFace(dieFace, target.type);
+  const countedFace = countedCombatFace(state, dieFace, target.type);
+  const injuries = meleeInjuriesForFace(countedFace, target.type);
   const woundsBefore = target.woundsCount;
 
   let result: InjuryCheckResult = { toughnessCards: [], toughnessTotal: 0, killed: false };
@@ -90,6 +92,7 @@ export function executeMelee(
     targetIntruderId: target.id,
     targetType: target.type,
     dieFace,
+    ...(countedFace !== dieFace ? { countedFace } : {}),
     woundsBefore,
     injuries,
     woundsTotal: woundsBefore + injuries,

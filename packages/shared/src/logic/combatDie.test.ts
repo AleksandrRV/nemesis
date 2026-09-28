@@ -20,8 +20,8 @@ describe('Кубик Боя: шесть физических граней (ст�
   it.each([
     [0, 'MISS'],
     [1 / 6 - Number.EPSILON, 'MISS'],
-    [1 / 6, 'MISS'],
-    [2 / 6 - Number.EPSILON, 'MISS'],
+    [1 / 6, 'TAIL'],
+    [2 / 6 - Number.EPSILON, 'TAIL'],
     [2 / 6, 'TAIL'],
     [3 / 6 - Number.EPSILON, 'TAIL'],
     [3 / 6, 'SILHOUETTES'],
@@ -30,7 +30,7 @@ describe('Кубик Боя: шесть физических граней (ст�
     [5 / 6 - Number.EPSILON, 'ONE_WOUND'],
     [5 / 6, 'TWO_WOUNDS'],
     [1 - Number.EPSILON, 'TWO_WOUNDS'],
-  ] as const)('отображает значение %s в %s без потери второго Промаха', (value, expected) => {
+  ] as const)('отображает значение %s в %s: один Промах и две грани Крипера (dices.pdf)', (value, expected) => {
     const state = createInitialGameState(SEED);
     const draw = vi.spyOn(rng, 'drawFromStream').mockReturnValue(value);
 

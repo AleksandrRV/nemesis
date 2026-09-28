@@ -14,11 +14,8 @@ import { BASE_ADULT_COUNT } from './setup.js';
  * Особи плюс по 1 Взрослой за каждого игрока; остальные жетоны лежат рядом
  * с полем и задействуются по ходу партии (стр. 6, шаг 10).
  *
- * Числа на обороте жетонов (проверка Внезапной атаки, стр. 18) в книге правил
- * не напечатаны: их можно прочитать только с физических жетонов. Текущие
- * значения — зафиксированное допущение, а не проверенный факт; пакет источника
- * помечает его как `EXTERNAL_UNVERIFIED`, и golden-тест удерживает допущение
- * от молчаливого изменения.
+ * Числа на обороте жетонов (проверка Внезапной атаки, стр. 18) прочитаны со
+ * скана `rooms.pdf`, стр. 7–8 (`doc/sources/scan-transcript.md` §2).
  */
 
 /** Состав Пула Чужих из коробки: 27 жетонов (стр. 3, «Игровые компоненты»). */
@@ -37,19 +34,14 @@ export const BAG_BASE_ADULT_COUNT = BASE_ADULT_COUNT;
 /** Сколько Взрослых Особей добавляет каждый игрок (стр. 6, шаг 10). */
 export const BAG_ADULTS_PER_PLAYER = 1;
 
-/**
- * Числа на обороте жетонов Взрослых Особей в порядке выкладывания жетонов
- * в коробке (допущение, стр. 18: число сравнивается с картами на руке).
- */
-export const ADULT_ESCAPE_NUMBERS: readonly number[] = [2, 3, 4, 4, 1, 2, 3, 1, 2, 3, 4, 1];
-
-/** Числа на обороте остальных жетонов (допущение, стр. 18). Пустой жетон числа не имеет. */
-export const ESCAPE_NUMBERS: Record<Exclude<IntruderToken['type'], 'ADULT'>, number> = {
-  BLANK: 0,
-  LARVA: 1,
-  CREEPER: 1,
-  BREEDER: 3,
-  QUEEN: 4,
+/** Числа на обороте жетонов каждого типа, по одному на жетон; у Пустого числа нет (0). */
+export const ESCAPE_NUMBERS_BY_TYPE: Record<IntruderToken['type'], readonly number[]> = {
+  BLANK: [0],
+  LARVA: [1, 1, 1, 1, 1, 1, 1, 1],
+  CREEPER: [1, 1, 1],
+  ADULT: [2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4],
+  BREEDER: [3, 4],
+  QUEEN: [4],
 };
 
 /** Идентификатор жетона по типу и порядковому номеру: стабилен между партиями с одним сидом. */
@@ -58,11 +50,11 @@ function tokenId(type: IntruderToken['type'], index: number): string {
 }
 
 function escapeNumberFor(type: IntruderToken['type'], index: number): number {
-  if (type === 'ADULT') {
-    return ADULT_ESCAPE_NUMBERS[index] ?? ADULT_ESCAPE_NUMBERS[ADULT_ESCAPE_NUMBERS.length - 1]!;
+  const escapeNumber = ESCAPE_NUMBERS_BY_TYPE[type][index];
+  if (escapeNumber === undefined) {
+    throw new Error(`Нет числа Внезапной атаки для жетона ${type} №${index + 1}.`);
   }
-
-  return ESCAPE_NUMBERS[type];
+  return escapeNumber;
 }
 
 /**
@@ -82,8 +74,9 @@ export function createIntruderSupply(): IntruderToken[] {
 
 /**
  * Делит полный набор на мешок и запас рядом с полем по правилу подготовки
- * (стр. 6, шаг 10). Состав мешка зависит только от числа игроков, а порядок
- * внутри мешка задаёт перемешивание в `createInitialGameState`.
+ * (стр. 6, шаг 10). Состав мешка зависит только от числа игроков; из каждого
+ * типа берутся первые жетоны в переданном порядке, поэтому какие именно числа
+ * Внезапной атаки попадут в мешок, решает перемешивание в `createInitialGameState`.
  */
 export function splitIntruderBag(
   supply: IntruderToken[],

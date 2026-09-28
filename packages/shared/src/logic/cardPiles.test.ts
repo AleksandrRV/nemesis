@@ -7,6 +7,7 @@ import { drainInterrupts } from './interrupts.js';
 import { resolveSurpriseAttack } from './intruderAttacks.js';
 import type { GameState } from '../types/state.js';
 import { createInitialDecks } from '../data/cardsSetup.js';
+import { createIntruderSupply } from '../data/intruderPool.js';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -88,7 +89,9 @@ describe('Перетасовка Атак и продолжение потоко
 
   it('подготовка сохраняет фактические позиции bag/cards, не повторяя уже использованные значения', () => {
     const state = contactState();
-    expect(state.meta.rngDraws.bag).toBe(state.intrudersPool.bag.length - 1);
+    const supplyShuffleDraws = createIntruderSupply().length - 1;
+    const bagShuffleDraws = state.intrudersPool.bag.length - 1;
+    expect(state.meta.rngDraws.bag).toBe(supplyShuffleDraws + bagShuffleDraws);
     let cardDraws = 0;
     const sequential = createRng(state.meta.seed, 'cards');
     createInitialDecks(state.meta.seed, () => {

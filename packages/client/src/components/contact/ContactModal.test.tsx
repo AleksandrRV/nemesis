@@ -113,7 +113,6 @@ describe('Окно рукопашной атаки (MELEE_RESOLVED)', () => {
           description: '',
           effect: 'SCRATCH',
           toughness: 3,
-          hasRetreat: false,
           attackerTypes: ['CREEPER', 'ADULT'],
         },
       ],
@@ -157,7 +156,6 @@ describe('Окно выстрела (SHOOT_RESOLVED)', () => {
         description: '',
         effect: 'SCRATCH',
         toughness: 3,
-        hasRetreat: false,
         attackerTypes: ['CREEPER', 'ADULT'],
       },
     ],
@@ -198,18 +196,36 @@ describe('Окно выстрела (SHOOT_RESOLVED)', () => {
     woundsTotal: 1,
     toughnessCards: [
       {
-        id: 'IAT_SCRATCH_1',
-        name: 'Царапание',
+        id: 'IAT_CLAW_4',
+        name: 'Атака когтями',
         description: '',
-        effect: 'SCRATCH',
-        toughness: 2,
-        hasRetreat: true,
-        attackerTypes: ['CREEPER', 'ADULT'],
+        effect: 'CLAW_ATTACK',
+        toughness: null,
+        attackerTypes: ['ADULT', 'BREEDER', 'QUEEN'],
       },
     ],
-    toughnessTotal: 2,
+    toughnessTotal: null,
     killed: false,
   };
+
+  it('карта со стрелкой вместо Стойкости: Раны не сравниваются, Чужой Отступает (стр. 20)', () => {
+    const html = render(RETREAT_SURVIVOR);
+    expect(html).toContain('Стрелка Отступления');
+    expect(html).toContain('Раны со Стойкостью не сравниваются');
+    expect(html).toContain('Чужой выжил и Отступает');
+    expect(html).not.toContain('Сумма Стойкости');
+    expect(html).not.toContain('против Стойкости');
+  });
+
+  it('«Уязвимые места»: промах по Взрослой Особи показан засчитанным как «1 Рана»', () => {
+    const html = render({ ...SHOT_KILL, dieFace: 'MISS', countedFace: 'ONE_WOUND' });
+    expect(html).toContain('Кубик Боя: ПРОМАХ');
+    expect(html).toContain('«Уязвимые места»: промах по Взрослой Особи засчитан как «1 РАНА»');
+  });
+
+  it('без подмены грани строки «Уязвимые места» нет', () => {
+    expect(render(SHOT_KILL)).not.toContain('Уязвимые места');
+  });
 
   it('стрелка Отступления у выжившего: карта Событий и исход отступления', () => {
     const html = render({

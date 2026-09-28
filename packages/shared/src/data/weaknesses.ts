@@ -1,25 +1,22 @@
 import type { WeaknessCard } from '../types/cards.js';
 
 /**
- * 8 карт Слабостей Чужих (стр. 21; тексты — `doc/data/WEAKNESSES.md`).
- * При подготовке партии 3 случайные тасуются и кладутся рубашкой вверх
- * в слоты Планшета Чужих (по одному на Труп, Яйцо и Останки), остальные
- * убираются в коробку (стр. 6, шаг 9). В базовой коробке транскрипта
- * `doc/data/INTRUDERS.md` напечатаны только 7 карт — восьмая («Вид на грани
- * вымирания») известна из `doc/data/WEAKNESSES.md` (замечание ревью 0.4.0).
+ * 8 карт Слабостей Чужих: `cards_additional.pdf`, стр. 13 (`doc/sources/scan-transcript.md` §6).
+ * При подготовке партии 3 случайные кладутся рубашкой вверх в слоты Планшета
+ * Чужих, остальные убираются в коробку (стр. 6, шаг 9; стр. 21).
  */
 export const WEAKNESS_CARDS: readonly WeaknessCard[] = [
   {
     id: 'WK_VULNERABLE_SPOTS',
     name: 'Уязвимые места',
-    description: 'При атаке Взрослых Особей выброшенный [Символ Силуэтов] считается за [Символ 1 Раны].',
+    description: 'При атаке Взрослых Особей выброшенный [Промах] считается [1 Рана].',
     effect: 'VULNERABLE_SPOTS',
     isRevealed: false,
   },
   {
     id: 'WK_FIRE_WEAKNESS',
     name: 'Уязвимость к огню',
-    description: 'Когда Чужой получает Рану от Огня (в фазу Событий или от оружия), он получает 1 дополнительную Рану.',
+    description: 'Когда Чужой получает Рану от Огня, он получает 1 дополнительную Рану.',
     effect: 'FIRE_WEAKNESS',
     isRevealed: false,
   },
@@ -54,19 +51,17 @@ export const WEAKNESS_CARDS: readonly WeaknessCard[] = [
   {
     id: 'WK_ATTACK_BEHAVIOR',
     name: 'Повадки атаки',
-    description: 'Если Взрослая Особь атакует вас «Укусом», вы получаете Легкую Травму вместо Тяжелой Травмы.',
+    description: 'Если Взрослая особь атакует вас «Укусом», вы получаете Легкую Травму вместо Тяжелой Травмы.',
     effect: 'ATTACK_BEHAVIOR',
     isRevealed: false,
   },
   {
     id: 'WK_EDGE_OF_EXTINCTION',
     name: 'Вид на грани вымирания',
-    description:
-      'Стойкость всех Чужих снижена на 1. (При вытягивании карты Атаки отнимайте 1 от числа в левом верхнем углу).',
+    description: 'Стойкость всех Чужих снижена на 1.',
     effect: 'EDGE_OF_EXTINCTION',
     isRevealed: false,
   },
 ];
 
-/** Карт Слабостей в коробке — ровно 8 (стр. 21; ревью 0.4.0). */
 export const WEAKNESS_CARDS_COUNT = WEAKNESS_CARDS.length;

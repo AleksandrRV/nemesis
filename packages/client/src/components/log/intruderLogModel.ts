@@ -1,6 +1,7 @@
 import type { IntruderLogEvent, IntruderToken, SanitizedGameState } from '@nemesis/shared';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
+import { countedFaceText } from '../combat/toughnessPresentation';
 import type { GameLogSegment } from './gameLogModel';
 
 // Единый справочник названий Чужих (intruderReference.ts) под прежним именем.
@@ -17,6 +18,17 @@ const NAMES_ACCUSATIVE: Record<IntruderToken['type'], string> = {
   BREEDER: 'Трутня',
   QUEEN: 'Королеву',
 };
+
+function injuryCheckText(event: { injuries: number; woundsTotal: number; toughnessTotal: number | null }): string {
+  const wounds = `Ран ${event.injuries} (всего ${event.woundsTotal})`;
+  return event.toughnessTotal === null
+    ? `${wounds}, вытянута стрелка Отступления вместо Стойкости. `
+    : `${wounds} против Стойкости ${event.toughnessTotal}. `;
+}
+
+function withTrailingSpace(text: string | null): string {
+  return text ? `${text} ` : '';
+}
 
 export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedGameState): GameLogSegment[] {
   const name =
@@ -69,10 +81,8 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
     case 'SHOOT_RESOLVED': {
       const die = COMBAT_DIE_PRESENTATION[event.dieFace].label;
       text = `${name} стреляет из «${event.weaponName}» (цель: ${INTRUDER_TYPE_NAMES[event.targetType]}): ${die}. `;
-      text +=
-        event.injuries === 0
-          ? 'Без ран.'
-          : `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
+      text += withTrailingSpace(countedFaceText(event.countedFace));
+      text += event.injuries === 0 ? 'Без ран.' : injuryCheckText(event);
       text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
       if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       if (event.fireStarted) text += ' Огнемёт поджёг отсек: маркер Пожара.';
@@ -82,8 +92,9 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       const die = COMBAT_DIE_PRESENTATION[event.dieFace].label;
       text = `${name} атакует ${NAMES_ACCUSATIVE[event.targetType]} рукопашной: ${die}. `;
       text += 'Карта Заражения — в сброс. ';
+      text += withTrailingSpace(countedFaceText(event.countedFace));
       if (event.injuries > 0) {
-        text += `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
+        text += injuryCheckText(event);
         text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
         if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
       } else {

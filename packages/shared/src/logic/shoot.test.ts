@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
-import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
+import { INTRUDER_ATTACK_CARDS, hasRetreatArrow } from '../data/intruderAttacks.js';
 import type { IntruderAttackCard, ItemCard } from '../types/cards.js';
 import type { IntruderType } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
@@ -12,6 +12,10 @@ import { GameEngine } from './fsm.js';
 import { injuriesForFace } from './shoot.js';
 
 const realDraw = rng.drawFromStream;
+
+function attackCard(id: string): IntruderAttackCard {
+  return INTRUDER_ATTACK_CARDS.find((card) => card.id === id)!;
+}
 
 /** Форсирует грань кубика Боя, не трогая другие потоки RNG. */
 function forceCombatDie(face: CombatDieFace): void {
@@ -220,7 +224,7 @@ describe('Стрельба: оплата, боезапас и бросок (ст
     const state = combatReady('shoot-reshuffle');
     state.decks.intruderAttacks = {
       drawPile: [],
-      discard: structuredClone(INTRUDER_ATTACK_CARDS.filter((card) => !card.hasRetreat).slice(0, 2)),
+      discard: structuredClone(INTRUDER_ATTACK_CARDS.filter((card) => !hasRetreatArrow(card)).slice(0, 2)),
     };
     forceCombatDie('ONE_WOUND');
     const before = { ...state.meta.rngDraws };
@@ -250,7 +254,7 @@ describe('Отступление по колоде Событий (стр. 20; �
   it('стрелка Отступления у выжившего: выстрел фиксируется, Чужой уходит по карте События', () => {
     const state = combatReady('shoot-retreat');
     forceCombatDie('ONE_WOUND');
-    deckTop(state, [INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_1')!]); // Стойкость 2, Отступление
+    deckTop(state, [attackCard('IAT_CLAW_4')]);
     eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3 — отсек 8 из отсека 11
     const intruderId = state.intrudersPool.boardTokens[0]!.id;
 
@@ -273,10 +277,49 @@ describe('Отступление по колоде Событий (стр. 20; �
     expect(next.gameLog.some((entry) => entry.event.type === 'INTRUDER_RETREATED')).toBe(true);
   });
 
+  it('стрелка стоит вместо Стойкости: Чужой не убит при любых Ранах и Отступает (стр. 20, решение В-1)', () => {
+    const state = combatReady('shoot-arrow-no-kill');
+    forceCombatDie('TWO_WOUNDS');
+    state.intrudersPool.boardTokens[0]!.woundsCount = 9;
+    deckTop(state, [attackCard('IAT_BITE_4')]);
+    eventDeckTop(state, 'EVT_HUNT_2');
+
+    const event = shootLog(shoot(state));
+
+    expect(event).toMatchObject({ killed: false, toughnessTotal: null, woundsTotal: 11 });
+    expect(event.retreat).toBeDefined();
+  });
+
+  it('Трутень: стрелка хотя бы на одной из двух карт — Отступление без убийства (стр. 20)', () => {
+    const state = combatReady('shoot-arrow-breeder', 'BREEDER');
+    forceCombatDie('TWO_WOUNDS');
+    state.intrudersPool.boardTokens[0]!.woundsCount = 4;
+    deckTop(state, [attackCard('IAT_SCRATCH_1'), attackCard('IAT_CLAW_4')]);
+    eventDeckTop(state, 'EVT_HUNT_2');
+
+    const event = shootLog(shoot(state));
+
+    expect(event).toMatchObject({ killed: false, toughnessTotal: null });
+    expect(event.toughnessCards.map((card) => card.id)).toEqual(['IAT_SCRATCH_1', 'IAT_CLAW_4']);
+    expect(event.retreat).toBeDefined();
+  });
+
+  it('Трутень без стрелок: Стойкости суммируются и убийство проверяется как обычно', () => {
+    const state = combatReady('shoot-breeder-kill', 'BREEDER');
+    forceCombatDie('TWO_WOUNDS');
+    state.intrudersPool.boardTokens[0]!.woundsCount = 3;
+    deckTop(state, [attackCard('IAT_SCRATCH_1'), attackCard('IAT_SCRATCH_2')]);
+
+    const event = shootLog(shoot(state));
+
+    expect(event).toMatchObject({ killed: true, toughnessTotal: 5, woundsTotal: 5 });
+    expect(event.retreat).toBeUndefined();
+  });
+
   it('Закрытая Дверь направления разрушается, Чужой остаётся в отсеке (FAQ Rules 8)', () => {
     const state = combatReady('shoot-retreat-door');
     forceCombatDie('ONE_WOUND');
-    deckTop(state, [INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_1')!]);
+    deckTop(state, [attackCard('IAT_CLAW_4')]);
     eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3 — Коридор 8-11
     state.ship.corridors['8-11']!.doorState = 'CLOSED';
     const intruderId = state.intrudersPool.boardTokens[0]!.id;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
-import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
+import { INTRUDER_ATTACK_CARDS, hasRetreatArrow } from '../data/intruderAttacks.js';
 import type { GameState } from '../types/state.js';
 import type { IntruderType } from '../types/entities.js';
 import * as rng from '../utils/rng.js';
@@ -47,7 +47,7 @@ function eventDeckTop(state: GameState, cardId: string): void {
 
 const SCRATCH_2 = INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_2')!; // Стойкость 3, без стрелки
 const SCRATCH_3 = INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_3')!; // Стойкость 5, без стрелки
-const SCRATCH_1 = INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_1')!; // Стойкость 2, стрелка Отступления
+const RETREAT_ARROW_CLAW = INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_CLAW_4')!;
 
 function melee(state: GameState, overrides: Partial<{ targetIntruderId: string }> = {}): GameState {
   const player = state.players[state.meta.activePlayerId]!;
@@ -241,7 +241,7 @@ describe('Проверка Результата Атаки (стр. 20) в ру�
   it('стрелка Отступления у выжившего: направление по верхней карте Событий (стр. 20)', () => {
     forceCombatDie('ONE_WOUND');
     const state = combatReady('melee-retreat', 'ADULT');
-    deckTop(state, [SCRATCH_1]);
+    deckTop(state, [RETREAT_ARROW_CLAW]);
     eventDeckTop(state, 'EVT_REGENERATION'); // Коридор 1 — отсек 15 из отсека 11
     const intruderId = state.intrudersPool.boardTokens[0]!.id;
 
@@ -272,7 +272,7 @@ describe('Проверка Результата Атаки (стр. 20) в ру�
     // Только карты без стрелки: выживание не должно требовать карту События.
     state.decks.intruderAttacks = {
       drawPile: [],
-      discard: structuredClone(INTRUDER_ATTACK_CARDS.filter((card) => !card.hasRetreat).slice(0, 4)),
+      discard: structuredClone(INTRUDER_ATTACK_CARDS.filter((card) => !hasRetreatArrow(card)).slice(0, 4)),
     };
     const cardsBefore = state.meta.rngDraws.cards;
     const next = melee(state);

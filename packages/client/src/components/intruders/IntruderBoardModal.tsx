@@ -1,11 +1,12 @@
 import React from 'react';
 import { Skull, X } from 'lucide-react';
-import type { BoardObjectKind, SanitizedGameState } from '@nemesis/shared';
+import { hasRetreatArrow, type BoardObjectKind, type SanitizedGameState } from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { attackCardPopoverStyle } from './attackCardPresentation';
+import { RETREAT_ARROW_LABEL, toughnessCardLabel, toughnessGlyph } from '../combat/toughnessPresentation';
 import {
   deltaSinceSnapshot,
   readSeenBoardSnapshot,
@@ -566,7 +567,7 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                   key={card.id}
                   type="button"
                   role="listitem"
-                  aria-label={`${card.name}, стойкость ${card.toughness}${card.hasRetreat ? ', есть Отступление' : ''}`}
+                  aria-label={`${card.name}, ${toughnessCardLabel(card).toLowerCase()}`}
                   aria-expanded={openCardId === card.id}
                   onClick={() => setOpenCardId((current) => (current === card.id ? null : card.id))}
                   style={{
@@ -580,8 +581,10 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                   }`}
                 >
                   <span className="block font-mono font-bold text-sm leading-none" style={{ color: style.color }}>
-                    {card.toughness}
-                    <span className="block text-[7px] uppercase tracking-wider opacity-70">Стойк.</span>
+                    {toughnessGlyph(card)}
+                    <span className="block text-[7px] uppercase tracking-wider opacity-70">
+                      {hasRetreatArrow(card) ? 'Отступ.' : 'Стойк.'}
+                    </span>
                   </span>
                   <span className="block mt-1 text-[8.5px] font-bold leading-tight text-slate-200">{card.name}</span>
                   <span className="absolute bottom-1 left-1.5 flex gap-0.5" aria-hidden="true">
@@ -593,11 +596,6 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                       />
                     ))}
                   </span>
-                  {card.hasRetreat && (
-                    <span className="absolute bottom-1 right-1 text-[10px] text-amber-400" title="Отступление">
-                      ↩
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -621,7 +619,7 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
               </button>
               <div className="flex items-center gap-2 flex-wrap pr-5">
                 <span className="font-mono font-bold text-red-300 border border-red-800/70 rounded px-1.5">
-                  {openCard.toughness}
+                  {toughnessGlyph(openCard)}
                 </span>
                 <span className="text-xs font-bold text-slate-100">{openCard.name}</span>
                 <span
@@ -630,7 +628,7 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                 >
                   {attackCardPopoverStyle(openCard).classLabel}
                 </span>
-                {openCard.hasRetreat && <span className="text-[10px] text-amber-400">↩ Отступление</span>}
+                {hasRetreatArrow(openCard) && <span className="text-[10px] text-amber-400">{RETREAT_ARROW_LABEL}</span>}
               </div>
               <p className="text-[10px] text-slate-300 leading-snug">{openCard.description}</p>
               <p className="text-[10px] text-slate-500 flex items-center gap-1 flex-wrap">

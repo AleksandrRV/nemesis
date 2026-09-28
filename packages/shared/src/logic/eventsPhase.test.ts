@@ -171,7 +171,7 @@ describe('Шаг 6 Фазы Событий: Урон от огня (стр. 10, 
     const state = freshState('evp-fire-retreat');
     const intruderId = putIntruder(state, 'ADULT', 11);
     state.ship.rooms[11]!.hasFire = true;
-    stackToughness(state, 'IAT_BITE_2');
+    stackToughness(state, 'IAT_BITE_4');
     stackEvents(state, 'EVT_HUNT_2');
 
     resolveFireDamage(state);

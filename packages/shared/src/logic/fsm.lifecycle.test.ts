@@ -5,6 +5,7 @@ import type { EngineErrorCode } from './fsm.js';
 import { EngineError, GameEngine, drainInterrupts, findAdjacentOpenRoomIds, resolveInterrupt } from './fsm.js';
 import { FIRE_MARKER_SUPPLY, MALFUNCTION_MARKER_SUPPLY } from './markers.js';
 import { createInitialGameState } from './setup.js';
+import { createIntruderSupply } from '../data/intruderPool.js';
 const SEED = 'engine-test';
 
 /**
@@ -172,12 +173,14 @@ describe('Сохранение и восстановление не сдвига
     expect(twice.meta.rngDraws).toEqual({ ...state.meta.rngDraws, noise: 2 });
   });
 
-  it('счётчик вытягивания из мешка готов к работе: мешок тасуется при подготовке и в состоянии сохраняется целиком', () => {
+  it('счётчик вытягивания из мешка готов к работе: жетоны и мешок тасуются при подготовке и сохраняются целиком', () => {
     const state = freshState();
     const reloaded = JSON.parse(JSON.stringify(state)) as GameState;
+    const supplyShuffleDraws = createIntruderSupply().length - 1;
+    const bagShuffleDraws = state.intrudersPool.bag.length - 1;
 
     expect(reloaded.intrudersPool.bag).toEqual(state.intrudersPool.bag);
     expect(reloaded.intrudersPool.supply).toEqual(state.intrudersPool.supply);
-    expect(reloaded.meta.rngDraws.bag).toBe(state.intrudersPool.bag.length - 1);
+    expect(reloaded.meta.rngDraws.bag).toBe(supplyShuffleDraws + bagShuffleDraws);
   });
 });

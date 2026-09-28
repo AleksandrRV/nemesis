@@ -194,13 +194,12 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   const podNumbers = shuffle(rng, ESCAPE_POD_NUMBERS);
   const destinations = shuffle(rng, COORDINATE_DESTINATIONS);
 
-  // Пул Чужих — 27 жетонов из коробки (стр. 3): мешок собирается по правилу
-  // подготовки (стр. 6, шаг 10), остальные жетоны лежат рядом с полем и войдут
-  // в игру позже. Мешок тасуется своим потоком (`bag`): порядок вытягивания
-  // скрыт от игроков (санитайзер отдаёт наружу только состав), а посторонний
-  // бросок в другом потоке этот порядок не сдвигает (utils/rng.ts).
-  const { bag: bagTokens, supply: intruderSupply } = splitIntruderBag(createIntruderSupply(), playerCount);
-  const intruderBag = shuffle(trackedRng('bag'), bagTokens);
+  const bagRng = trackedRng('bag');
+  const { bag: bagTokens, supply: intruderSupply } = splitIntruderBag(
+    shuffle(bagRng, createIntruderSupply()),
+    playerCount,
+  );
+  const intruderBag = shuffle(bagRng, bagTokens);
 
   // Колоды стола: 3 верхние карты Слабостей уходят в слоты Планшета Чужих
   // рубашкой вниз, остальные убираются в коробку и в партии не участвуют

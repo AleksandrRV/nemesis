@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CONTAMINATION_CARDS } from './contaminationCards.js';
 import { createInitialDecks } from './cardsSetup.js';
 import { EVENT_CARDS } from './eventCards.js';
-import { INTRUDER_ATTACK_CARDS } from './intruderAttacks.js';
+import { INTRUDER_ATTACK_CARDS, hasRetreatArrow } from './intruderAttacks.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from './itemCards.js';
 import { SERIOUS_WOUND_CARDS } from './seriousWounds.js';
 import { createRng, shuffle } from '../utils/rng.js';
@@ -23,8 +23,10 @@ describe('Данные Атак Чужих (стр. 3, 20)', () => {
       expect(card.id).toMatch(/^IAT_[A-Z_]+(?:_\d+)?$/);
       expect(card.name.length).toBeGreaterThan(0);
       expect(card.description.length).toBeGreaterThan(0);
-      expect(Number.isInteger(card.toughness)).toBe(true);
-      expect(card.toughness).toBeGreaterThan(0);
+      if (!hasRetreatArrow(card)) {
+        expect(Number.isInteger(card.toughness)).toBe(true);
+        expect(card.toughness).toBeGreaterThan(0);
+      }
       expect(card.attackerTypes.length).toBeGreaterThan(0);
       expect(new Set(card.attackerTypes).size).toBe(card.attackerTypes.length);
     }

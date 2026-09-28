@@ -211,6 +211,7 @@ describe('Сквозной бой (Шаг 8: интеграция)', () => {
     }
 
     // Вытянутые карты Стойкости лежали лицом вверх (стр. 20) — они публичны.
-    expect(lastFact(next, 'SHOOT_RESOLVED')?.toughnessCards.every((card) => card.toughness > 0)).toBe(true);
+    const toughnessCards = lastFact(next, 'SHOOT_RESOLVED')?.toughnessCards ?? [];
+    expect(toughnessCards.every((card) => card.toughness === null || card.toughness > 0)).toBe(true);
   });
 });

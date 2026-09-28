@@ -10,7 +10,8 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { placeIntruderRemains, removeIntruder, requireIntruder } from './intruderPlacement.js';
-import { isWeaknessRevealed } from './weaknesses.js';
+import { countedCombatFace, isWeaknessRevealed } from './weaknesses.js';
+import { hasRetreatArrow } from '../data/intruderAttacks.js';
 import { resolveIntruderRetreat } from './intruderRetreat.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
@@ -84,7 +85,8 @@ function requireHandWeapon(
 /** Итог проверки Результата Атаки (стр. 20): карты Стойкости, гибель или Отступление. */
 export interface InjuryCheckResult {
   toughnessCards: IntruderAttackCard[];
-  toughnessTotal: number;
+  /** null — среди вытянутых карт есть стрелка Отступления: стойкость не сравнивается. */
+  toughnessTotal: number | null;
   killed: boolean;
   /** Стрелка Отступления у выжившего: разыгранное направление по колоде Событий. */
   retreat?: IntruderRetreatRecord;
@@ -93,11 +95,11 @@ export interface InjuryCheckResult {
 /**
  * Проверка Результата Атаки (стр. 20): Личинке и Яйцу хватает 1 Раны (без
  * карты), Криперу и Взрослой Особи вытягивается 1 карта Атаки, Трутню и
- * Королеве — 2 карты с суммированием Стойкости. Чужой убит, когда суммарные
- * Раны равны Стойкости или превышают её. Стрелка Отступления хотя бы на
- * одной вытянутой карте заставляет выжившего Чужого бежать: направление
- * разыгрывается по верхней карте колоды Событий (стр. 20).
- * Общая процедура для Стрельбы и Рукопашной атаки (стр. 19–20).
+ * Королеве — 2 карты с суммированием Стойкости. Стрелка Отступления стоит на
+ * карте вместо числа: если она есть хотя бы на одной вытянутой карте, Чужой
+ * Отступает и не может быть убит этой проверкой (решение В-1,
+ * `doc/fix-plan-scans.md`). Иначе Чужой убит, когда Раны не меньше суммы.
+ * Общая процедура для Стрельбы, Рукопашной атаки и Урона от Огня.
  */
 export function checkInjuryResult(
   state: GameState,
@@ -137,11 +139,13 @@ export function checkInjuryResult(
   // уходят в сброс; пустая колода перетасовывается сразу (стр. 20).
   for (const card of toughnessCards) pile.discard.push(card);
   reshuffleDiscard(state, pile);
-  // «Вид на грани вымирания»: Стойкость снижена на 1 — отнимайте 1 от числа
-  // на каждой вытянутой карте (doc/data/WEAKNESSES.md; стр. 21).
-  const toughnessTotal =
-    toughnessCards.reduce((sum, card) => sum + card.toughness, 0) -
-    (isWeaknessRevealed(state, 'EDGE_OF_EXTINCTION') ? toughnessCards.length : 0);
+
+  if (toughnessCards.some(hasRetreatArrow)) {
+    const retreat = resolveIntruderRetreat(state, intruderId, attackerId);
+    return { toughnessCards, toughnessTotal: null, killed: false, retreat };
+  }
+
+  const toughnessTotal = printedToughnessTotal(state, toughnessCards);
   const killed = intruder.woundsCount >= toughnessTotal;
 
   if (killed) {
@@ -162,15 +166,13 @@ export function checkInjuryResult(
     return { toughnessCards, toughnessTotal, killed: true };
   }
 
-  if (toughnessCards.some((card) => card.hasRetreat)) {
-    // Направление Отступления определяет карта События (стр. 20): верхняя
-    // карта вытягивается, Чужой двигается к Коридору её номера, карта уходит
-    // в сброс без розыгрыша эффекта.
-    const retreat = resolveIntruderRetreat(state, intruderId, attackerId);
-    return { toughnessCards, toughnessTotal, killed: false, retreat };
-  }
-
   return { toughnessCards, toughnessTotal, killed: false };
+}
+
+/** Сумма напечатанных стойкостей; «Вид на грани вымирания» снижает каждую на 1 (стр. 21). */
+function printedToughnessTotal(state: GameState, toughnessCards: readonly IntruderAttackCard[]): number {
+  const extinctionPenalty = isWeaknessRevealed(state, 'EDGE_OF_EXTINCTION') ? 1 : 0;
+  return toughnessCards.reduce((sum, card) => sum + (card.toughness ?? 0) - extinctionPenalty, 0);
 }
 
 /** Параметры выстрела: базовое действие и классовые карты (Шаг 8). */
@@ -241,7 +243,8 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
   executeCardPayment(state, actorId, params.discardCardIds, 1);
 
   const dieFace = rollCombatDie(state);
-  const baseInjuries = weaponFaceInjuries(dieFace, target.type, weapon.name);
+  const countedFace = countedCombatFace(state, dieFace, target.type);
+  const baseInjuries = weaponFaceInjuries(countedFace, target.type, weapon.name);
   const bonus = weaponBonusInjuries(state, weapon, baseInjuries);
   const burstAmmoSpent = weapon.burstAmmoSpent ?? 0;
   // «Стрельба очередью»: +1 доп. Рана за каждые 2 потраченные ед. Боезапаса.
@@ -272,7 +275,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, actorId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
-  const fireStarted = igniteFromWeapon(state, weapon.name, dieFace, player.roomId);
+  const fireStarted = igniteFromWeapon(state, weapon.name, countedFace, player.roomId);
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -283,6 +286,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     targetIntruderId: target.id,
     targetType: target.type,
     dieFace,
+    ...(countedFace !== dieFace ? { countedFace } : {}),
     woundsBefore,
     injuries,
     woundsTotal: woundsBefore + injuries,

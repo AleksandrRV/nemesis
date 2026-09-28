@@ -15,6 +15,7 @@ import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
 import { playerName } from '../log/gameLogModel';
+import { toughnessCardLabel } from '../combat/toughnessPresentation';
 import type { SanitizedGameState } from '@nemesis/shared';
 
 /** Двойной requestAnimationFrame: переход стиля стартует после маунта. */
@@ -155,7 +156,7 @@ export const AttackCardVisual: React.FC<{
         <p className="truncate text-xs font-bold text-white">{INTRUDER_TYPE_NAMES[event.intruderType]} атакует</p>
         <p className="truncate text-[11px] text-slate-300">
           {event.card
-            ? `Карта Атаки: «${event.card.name}» (Стойкость ${event.card.toughness}${event.card.hasRetreat ? ', стрелка Отступления' : ''})`
+            ? `Карта Атаки: «${event.card.name}» (${toughnessCardLabel(event.card)})`
             : 'Без карты Атаки — Личинка заражает'}
         </p>
         {event.victims.length > 0 && (

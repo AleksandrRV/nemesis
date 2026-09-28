@@ -218,6 +218,38 @@ describe('Журнал: выстрел (стр. 19–20)', () => {
     expect(message).toContain('Стойкости 3');
     expect(message).toContain('Чужой убит!');
   });
+
+  it('стрелка вместо Стойкости и засчитанный «Уязвимыми местами» Промах', () => {
+    const view = filterStateForPlayer(createInitialGameState('log-shoot-arrow'), 'player-1');
+    view.gameLog = [
+      eventEntry(1, {
+        type: 'SHOOT_RESOLVED',
+        playerId: 'player-1',
+        roomId: 11,
+        weaponName: 'Пистолет учёного',
+        ammoLeft: 2,
+        targetIntruderId: 'intruder-1',
+        targetType: 'ADULT',
+        dieFace: 'MISS',
+        countedFace: 'ONE_WOUND',
+        woundsBefore: 0,
+        injuries: 1,
+        woundsTotal: 1,
+        toughnessCards: [],
+        toughnessTotal: null,
+        killed: false,
+      }),
+    ];
+
+    const message = formatGameLog(view)[0]!
+      .segments.map((segment) => segment.text)
+      .join('');
+
+    expect(message).toContain('ПРОМАХ');
+    expect(message).toContain('«Уязвимые места»: промах по Взрослой Особи засчитан как «1 РАНА»');
+    expect(message).toContain('вытянута стрелка Отступления вместо Стойкости');
+    expect(message).not.toContain('против Стойкости');
+  });
 });
 
 describe('Журнал: Останки и подбор объектов (Шаг 6)', () => {

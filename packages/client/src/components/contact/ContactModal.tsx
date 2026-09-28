@@ -6,6 +6,8 @@ import { INTRUDER_NAMES } from './contactPresentationModel';
 import { IntruderSilhouette } from './IntruderSilhouette';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
+import { ToughnessCheckPanel } from '../combat/ToughnessCheckPanel';
+import { countedFaceText, survivalText } from '../combat/toughnessPresentation';
 
 interface ContactModalProps {
   entry: ContactPresentationEntry;
@@ -160,6 +162,11 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                   {COMBAT_DIE_PRESENTATION[event.dieFace].label}
                 </div>
                 <p className="text-center text-sm text-slate-400">{COMBAT_DIE_PRESENTATION[event.dieFace].hint}</p>
+                {event.countedFace && (
+                  <p role="status" className="text-center text-sm text-emerald-300">
+                    {countedFaceText(event.countedFace)}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-center">
@@ -181,26 +188,7 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                 </div>
               </div>
 
-              {event.toughnessCards.length > 0 && (
-                <div className="rounded-xl border border-red-900/80 bg-slate-950/70 p-4 motion-safe:animate-contact-card motion-reduce:animate-none">
-                  <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-red-300">
-                    Проверка Стойкости (стр. 20)
-                  </div>
-                  {event.toughnessCards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="flex items-center justify-between gap-2 border-b border-slate-800 py-1.5 text-sm last:border-b-0"
-                    >
-                      <span className="text-slate-200">{card.name}</span>
-                      <span className="shrink-0 font-mono text-xs text-amber-300">
-                        Стойкость {card.toughness}
-                        {card.hasRetreat ? ' • Отступление' : ''}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="mt-2 text-xs text-slate-400">Сумма Стойкости: {event.toughnessTotal}</div>
-                </div>
-              )}
+              <ToughnessCheckPanel cards={event.toughnessCards} toughnessTotal={event.toughnessTotal} />
 
               {event.killed ? (
                 <div
@@ -217,8 +205,7 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
               ) : (
                 <>
                   <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
-                    Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
-                    миниатюре до следующей успешной атаки (стр. 20).
+                    {survivalText(event.woundsTotal, event.toughnessTotal)}
                   </p>
                   {event.retreat && (
                     <div
@@ -246,6 +233,11 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                   {COMBAT_DIE_PRESENTATION[event.dieFace].label}
                 </div>
                 <p className="text-center text-sm text-slate-400">{COMBAT_DIE_PRESENTATION[event.dieFace].hint}</p>
+                {event.countedFace && (
+                  <p role="status" className="text-center text-sm text-emerald-300">
+                    {countedFaceText(event.countedFace)}
+                  </p>
+                )}
               </div>
 
               <div
@@ -270,26 +262,7 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
                 </div>
               </div>
 
-              {event.toughnessCards.length > 0 && (
-                <div className="rounded-xl border border-red-900/80 bg-slate-950/70 p-4 motion-safe:animate-contact-card motion-reduce:animate-none">
-                  <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-red-300">
-                    Проверка Стойкости (стр. 20)
-                  </div>
-                  {event.toughnessCards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="flex items-center justify-between gap-2 border-b border-slate-800 py-1.5 text-sm last:border-b-0"
-                    >
-                      <span className="text-slate-200">{card.name}</span>
-                      <span className="shrink-0 font-mono text-xs text-amber-300">
-                        Стойкость {card.toughness}
-                        {card.hasRetreat ? ' • Отступление' : ''}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="mt-2 text-xs text-slate-400">Сумма Стойкости: {event.toughnessTotal}</div>
-                </div>
-              )}
+              <ToughnessCheckPanel cards={event.toughnessCards} toughnessTotal={event.toughnessTotal} />
 
               {event.killed ? (
                 <div
@@ -318,8 +291,7 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
               ) : (
                 <>
                   <p className="rounded-lg border border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-300">
-                    Чужой выжил: Ран {event.woundsTotal} против Стойкости {event.toughnessTotal}. Раны остаются на
-                    миниатюре до следующей успешной атаки (стр. 20).
+                    {survivalText(event.woundsTotal, event.toughnessTotal)}
                   </p>
                   {event.retreat && (
                     <div

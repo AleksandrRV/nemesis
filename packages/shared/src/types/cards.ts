@@ -239,8 +239,8 @@ export type IntruderAttackerType = Exclude<IntruderType, 'LARVA'>;
 
 export interface IntruderAttackCard extends CardDefinition {
   effect: IntruderAttackEffect;
-  toughness: number;
-  hasRetreat: boolean;
+  /** null — вместо числа напечатана стрелка Отступления (стр. 20). */
+  toughness: number | null;
   attackerTypes: readonly IntruderAttackerType[];
 }
 

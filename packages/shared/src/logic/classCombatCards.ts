@@ -19,6 +19,7 @@ import {
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
+import { countedCombatFace } from './weaknesses.js';
 
 /**
  * Классовые боевые карты Действий (Шаг 8 этапа 0.4.0; стр. 19, 24–28):
@@ -274,14 +275,20 @@ export function resolveRerollCombatDie(
   if (!target) {
     throw new EngineError('UNKNOWN_INTRUDER', 'Цель «Прицельного огня» больше не на поле.');
   }
-  let injuries = weaponFaceInjuries(dieFace, target.type, decision.weaponName);
+  const countedFace = countedCombatFace(state, dieFace, target.type);
+  let injuries = weaponFaceInjuries(countedFace, target.type, decision.weaponName);
   if (injuries > 0 && decision.weaponBonusEligible) injuries += 1;
 
   const result: InjuryCheckResult =
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, decision.playerId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
-  const fireStarted = igniteFromWeapon(state, decision.weaponName, dieFace, state.players[decision.playerId]!.roomId);
+  const fireStarted = igniteFromWeapon(
+    state,
+    decision.weaponName,
+    countedFace,
+    state.players[decision.playerId]!.roomId,
+  );
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -292,6 +299,7 @@ export function resolveRerollCombatDie(
     targetIntruderId: target.id,
     targetType: target.type,
     dieFace,
+    ...(countedFace !== dieFace ? { countedFace } : {}),
     woundsBefore: decision.woundsBefore,
     injuries,
     woundsTotal: decision.woundsBefore + injuries,

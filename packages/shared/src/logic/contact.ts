@@ -1,7 +1,7 @@
 import type { InterruptEvent } from '../types/interrupts.js';
 import type { GameState } from '../types/state.js';
 import { drawFromStream } from '../utils/rng.js';
-import { receiveContamination } from './characterDamage.js';
+import { infestWithLarva } from './characterDamage.js';
 import { isWeaknessRevealed } from './weaknesses.js';
 
 /**
@@ -87,9 +87,7 @@ export function resolveContact(
     // Личинка исчезает без гибели персонажа (FAQ Rules 12): только ещё
     // одна карта Заражения.
     state.intrudersPool.supply.push(token);
-    const alreadyInfested = player.hasLarva;
-    player.hasLarva = true;
-    receiveContamination(state, playerId);
+    const { alreadyInfested } = infestWithLarva(state, playerId);
     appendGameLog(state, {
       type: 'CONTACT_OCCURRED',
       playerId,

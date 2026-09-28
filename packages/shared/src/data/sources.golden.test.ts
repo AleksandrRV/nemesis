@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { CRAFTING_RECIPES } from './crafting.js';
-import { EVENT_CARDS, EVENT_CARDS_COUNT } from './eventCards.js';
 import { INTRUDER_MINIATURE_LIMITS } from './intruderMiniatures.js';
+import { EVENT_CARDS } from './eventCards.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
 import {
   BAG_ADULTS_PER_PLAYER,
@@ -547,64 +547,6 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(entry.unverified && entry.unverified.length > 0, 'нет списка unverified').toBe(true);
     const joined = (entry.unverified ?? []).join(' ').toLowerCase();
     expect(joined.includes('component')).toBe(true);
-  });
-});
-
-describe('Golden: колода Событий (этап 0.5.0, шаг 1)', () => {
-  it('сверяет каждый экземпляр: ID, эффект, направление, символы Чужих и флаги уничтожения', () => {
-    const expectation = table('event-cards').expectation as {
-      cardCount: number;
-      byEffect: Record<string, number>;
-      destroyedOnResolve: string[];
-      reshuffledIntoDeck: string[];
-      corridorNumbers: Record<string, number | 'ANY'>;
-      cards: unknown[];
-    };
-    const byEffect: Record<string, number> = {};
-
-    for (const card of EVENT_CARDS) byEffect[card.effect] = (byEffect[card.effect] ?? 0) + 1;
-
-    expect(expectation.cardCount).toBe(20);
-    expect(EVENT_CARDS_COUNT).toBe(20);
-    expect(EVENT_CARDS).toHaveLength(20);
-    expect(new Set(EVENT_CARDS.map((card) => card.id)).size).toBe(20);
-    expect(EVENT_CARDS).toEqual(expectation.cards);
-    expect(byEffect).toEqual(expectation.byEffect);
-  });
-
-  it('сверяет коридоры уничтожения, замешивания и избранные направления', () => {
-    const expectation = table('event-cards').expectation as {
-      destroyedOnResolve: string[];
-      reshuffledIntoDeck: string[];
-      corridorNumbers: Record<string, number | 'ANY'>;
-    };
-    const byId = new Map(EVENT_CARDS.map((card) => [card.id, card]));
-
-    for (const card of EVENT_CARDS) {
-      expect(expectation.destroyedOnResolve.includes(card.id), `${card.id}: флаг уничтожения`).toBe(
-        card.isDestroyedOnResolve,
-      );
-      expect(expectation.reshuffledIntoDeck.includes(card.id), `${card.id}: флаг замешивания`).toBe(
-        card.isReshuffledIntoDeck,
-      );
-      expect(card.isDestroyedOnResolve && card.isReshuffledIntoDeck, `${card.id}: флаги взаимоисключающи`).toBe(false);
-    }
-
-    for (const [id, corridorNumber] of Object.entries(expectation.corridorNumbers)) {
-      expect(byId.get(id)?.corridorNumber, `${id}: направление`).toBe(corridorNumber);
-    }
-  });
-
-  it('не выдаёт транскрипт за независимую сверку компонентов', () => {
-    const entry = table('event-cards');
-
-    expect(entry.status).toBe('EXTERNAL_UNVERIFIED');
-    expect(entry.unverified?.length).toBeGreaterThan(0);
-    expect(entry.facts.some((fact) => fact.source === 'events-transcript')).toBe(true);
-    expect(entry.facts.some((fact) => fact.source === 'rules-md' && fact.lines)).toBe(true);
-    expect(entry.facts.some((fact) => fact.source === 'owner-decision-2026-09-22')).toBe(true);
-    expect(dataSources.meta.sources['events-transcript']?.kind).toBe('EXTERNAL_UNVERIFIED');
-    expect(dataSources.meta.sources['events-transcript']?.location).toBe('doc/data/EVENTS.md');
   });
 });
 

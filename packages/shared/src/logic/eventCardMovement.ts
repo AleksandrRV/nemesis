@@ -24,15 +24,9 @@ export function resolveEventCardMovement(state: GameState): void {
   playEventCard(state, card);
 }
 
-/**
- * Полный розыгрыш одной карты Событий: Движение Чужих по верхнему блоку,
- * текстовый эффект нижнего блока и судьба карты («Подготовка» вызывает
- * этот путь повторно для выбранной карты).
- */
+/** Полный розыгрыш одной карты Событий: Движение Чужих, текстовый эффект и судьба карты. */
 export function playEventCard(state: GameState, card: EventCard): void {
-  if (card.corridorNumber !== 'ANY') {
-    moveIntrudersByCard(state, card.intruderTypes, card.corridorNumber);
-  }
+  moveIntrudersByCard(state, card.intruderTypes, card.corridorNumber);
   if (state.meta.phase !== 'GAME_OVER') {
     resolveEventCardEffect(state, card);
   }

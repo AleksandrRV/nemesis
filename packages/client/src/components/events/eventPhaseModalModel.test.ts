@@ -53,7 +53,7 @@ describe('eventPhaseModalModel: шесть шагов презентации Ф�
           name: 'Короткое замыкание',
           description: 'Отказы систем',
           effect: 'SHORT_CIRCUIT',
-          corridorNumber: 'ANY',
+          corridorNumber: 4,
           intruderTypes: [],
           isDestroyedOnResolve: false,
           isReshuffledIntoDeck: false,

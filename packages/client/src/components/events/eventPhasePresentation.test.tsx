@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
+import { EVENT_CARDS, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 import type { EventCard, GameLogEntry } from '@nemesis/shared';
 
 import {
@@ -109,21 +109,15 @@ describe('Кинематографичные виджеты презентаци
     expect(html).toContain('#ef4444');
   });
 
-  it('карта «Подготовка» показывает любое направление и отсутствие движения', () => {
-    const card: EventCard = {
-      id: 'EV_PREPARATION',
-      name: 'Подготовка',
-      description: 'Выбор карты',
-      effect: 'PREPARATION',
-      corridorNumber: 'ANY',
-      intruderTypes: [],
-      isDestroyedOnResolve: false,
-      isReshuffledIntoDeck: false,
-    };
+  it('карта «Пожирающее пламя» показывает Коридор 4, три символа и печатный текст', () => {
+    const card = EVENT_CARDS.find((candidate) => candidate.id === 'EVT_DEVOURING_FLAME')!;
     const html = renderToStaticMarkup(<EventCardVisual card={card} />);
 
-    expect(html).toContain('ЛЮБОЙ КОРИДОР');
-    expect(html).toContain('Движения Чужих нет');
+    expect(html).toContain('КОРИДОР 4');
+    expect(html).toContain('title="Крипер"');
+    expect(html).toContain('title="Трутень"');
+    expect(html).toContain('title="Королева"');
+    expect(html).toContain('Переместите Счетчик Предметов на 0');
   });
 
   it('урон от огня считает Раны Чужим и уничтоженные Яйца', () => {

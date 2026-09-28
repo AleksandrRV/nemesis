@@ -428,9 +428,9 @@ describe('Отступление Чужого в журнале (стр. 20)', (
         intruderId: 'intruder-3',
         intruderType: 'QUEEN',
         retreat: {
-          eventCardId: 'EVT_PREPARATION',
-          eventCardName: 'Подготовка',
-          corridorNumber: 'ANY',
+          eventCardId: 'EVT_HUNT_1',
+          eventCardName: 'Охота',
+          corridorNumber: 2,
           outcome: 'STAYED',
           toRoomId: null,
           corridorId: null,
@@ -442,8 +442,8 @@ describe('Отступление Чужого в журнале (стр. 20)', (
     expect(messages[0]).toContain('остаётся в отсеке');
     expect(messages[1]).toContain('уходит в Технический Коридор');
     expect(messages[1]).toContain('все Раны сброшены');
-    expect(messages[2]).toContain('любой Коридор');
-    expect(messages[2]).toContain('Карта не указывает номер Коридора');
+    expect(messages[2]).toContain('Коридор №2');
+    expect(messages[2]).toContain('нет выхода с этим номером');
   });
 
   it('показывает атаку Чужого в Фазе Событий и подавление Зовом', () => {
@@ -470,7 +470,7 @@ describe('Отступление Чужого в журнале (стр. 20)', (
 
   it('показывает карту События и Движение Чужих в Фазе Событий', () => {
     const view = filterStateForPlayer(createInitialGameState('game-log-model-movement'), 'player-1');
-    const eventCard = structuredClone(EVENT_CARDS.find((card) => card.id === 'EVT_HUNT_2')!);
+    const eventCard = structuredClone(EVENT_CARDS.find((card) => card.id === 'EVT_BROOD')!);
     view.gameLog = [
       eventEntry(1, { type: 'EVENT_CARD_DRAWN', round: 1, card: eventCard }),
       eventEntry(2, {
@@ -503,9 +503,9 @@ describe('Отступление Чужого в журнале (стр. 20)', (
 
     const messages = formatGameLog(view).map((entry) => entry.segments.map((segment) => segment.text).join(''));
 
-    expect(messages[0]).toContain('Охота');
+    expect(messages[0]).toContain('Выводок');
     expect(messages[0]).toContain('Коридор 3');
-    expect(messages[0]).toContain('Взрослая особь, Трутень, Королева');
+    expect(messages[0]).toContain('двигаются: Взрослая особь, Трутень.');
     expect(messages[1]).toContain('Взрослая особь перемещается из отсека #12 в #16');
     expect(messages[2]).toContain('уходит в Технические Коридоры через вход 4');
     expect(messages[2]).toContain('миниатюра снята, Раны сброшены');

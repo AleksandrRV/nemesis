@@ -128,7 +128,7 @@ export interface GameState {
   claimsLog: ClaimEvent[];
   gameLog: GameLogEntry[]; // публичный журнал, 19 EventEffectOutcome + 6 HiveDevelopmentOutcome
   interruptQueue: InterruptEvent[]; // каскад: EXPLORE_ROOM, NOISE_ROLL, CONTACT, SURPRISE_ATTACK, ESCAPE_ATTACK, etc.
-  pendingDecision: PendingDecision | null; // CHOOSE_OBJECTIVE, CHOOSE_SEARCH_ITEM, CHOOSE_WHITE_ROOM_DECK, CHOOSE_EVENT_CARD, etc.
+  pendingDecision: PendingDecision | null; // CHOOSE_OBJECTIVE, CHOOSE_SEARCH_ITEM, CHOOSE_WHITE_ROOM_DECK, STEEL_NERVES_OFFER, etc.
 }
 ```
 

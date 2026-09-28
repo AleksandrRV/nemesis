@@ -107,17 +107,6 @@ describe('Отступление Чужого в бою (стр. 20)', () => {
     expect(state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.roomId).toBe(9);
   });
 
-  it('«Подготовка» без номера Коридора: направления нет, Чужой остаётся', () => {
-    const state = retreatState('retreat-any');
-    const intruderId = putIntruder(state, 'ADULT', 11);
-    eventDeckTop(state, 'EVT_PREPARATION');
-
-    const record = resolveIntruderRetreat(state, intruderId, 'player-1');
-
-    expect(record).toMatchObject({ outcome: 'STAYED', corridorNumber: 'ANY' });
-    expect(state.intrudersPool.boardTokens.find((entry) => entry.id === intruderId)!.roomId).toBe(11);
-  });
-
   it('пустая колода Событий перетасовывается из сброса потоком cards', () => {
     const state = retreatState('retreat-reshuffle');
     const intruderId = putIntruder(state, 'ADULT', 11);

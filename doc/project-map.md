@@ -27,7 +27,7 @@
 | `cards.ts` | `ActionCard`, `ItemCard`, `CraftedItemCard`, `ContaminationCard`, `SeriousWoundCard`, `IntruderAttackCard`, `EventCard`, `GameDecksState` | Контракты колод: предметы 90, крафт 12, заражение 27, травмы 16, атаки 20, события 20, действия 60. |
 | `rooms.ts` | `RoomState`, `RoomDefinition`, `CorridorConnection`, `ExplorationEffect`, `RoomSlotCategory` | Комнаты, двери OPEN/CLOSED/DESTROYED, 29 коридоров, эффекты жетонов. |
 | `entities.ts` | `PlayerState`, `CharacterClass`, `IntruderToken`, `IntruderEntity`, `BoardObject`, `HandSlotContent`, `EscapePodState`, `WeaknessSlotState` | Персонажи 6 классов, 2 слота рук, инвентарь, жетоны Чужих 27, миниатюры лимиты. |
-| `decisions.ts` | `PendingDecision` | Отложенные решения: `CHOOSE_OBJECTIVE`, `CHOOSE_SEARCH_ITEM`, `CHOOSE_WHITE_ROOM_DECK`, `CHOOSE_EVENT_CARD`, `DISCARD_HEAVY_ITEM_FOR_NEW`, `ROOM_FIRE_CONTROL_TARGET`, `ROOM_GENERATOR_ACTION`, `CHOOSE_REST_CONTAMINATION_DISCARD`, `REROLL_COMBAT_DIE`. |
+| `decisions.ts` | `PendingDecision` | Отложенные решения: `CHOOSE_OBJECTIVE`, `CHOOSE_SEARCH_ITEM`, `CHOOSE_WHITE_ROOM_DECK`, `DISCARD_HEAVY_ITEM_FOR_NEW`, `ROOM_FIRE_CONTROL_TARGET`, `ROOM_GENERATOR_ACTION`, `CHOOSE_REST_CONTAMINATION_DISCARD`, `REROLL_COMBAT_DIE`. |
 | `sanitized.ts` | `SanitizedGameState`, `SanitizedPlayerState` | Отфильтрованный срез: скрытое как `null`/счётчики. |
 | `log.ts` | `GameLogEntry`, `EventEffectOutcome` (19), `HiveDevelopmentOutcome` (6) | Журнал партии + итоги эффектов Событий и Улья. |
 | `interrupts.ts` | `InterruptEvent` | Стек прерываний: `EXPLORE_ROOM`, `NOISE_ROLL`, `CONTACT`, `SURPRISE_ATTACK`, `ESCAPE_ATTACK`, etc. |

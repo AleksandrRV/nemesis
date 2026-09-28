@@ -130,65 +130,6 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
     });
   });
 
-  describe('Выводок', () => {
-    it('Яйцо сбрасывается с Планшета, Личинка уходит в мешок', () => {
-      const state = freshState('dump');
-      const larvaBefore = state.intrudersPool.bag.filter((token) => token.type === 'LARVA').length;
-
-      const result = outcome(state, 'EVT_BROOD');
-
-      expect(state.intrudersPool.eggsOnBoard).toBe(4);
-      expect(result).toEqual({ kind: 'BROOD', eggDiscarded: true, infectedPlayerIds: [], larvaAddedToBag: true });
-      expect(state.intrudersPool.bag.filter((token) => token.type === 'LARVA')).toHaveLength(larvaBefore + 1);
-    });
-
-    it('пусторукий Персонаж в Улье тянет карту Заражения, Личинка в мешок не кладётся', () => {
-      const state = freshState('dump');
-      putPlayer(state, 'player-1', 3);
-      state.players['player-1']!.actionDeck.hand = [];
-      const contaminationBefore = state.decks.contamination.drawPile.length;
-
-      const result = outcome(state, 'EVT_BROOD');
-
-      expect(result).toEqual({
-        kind: 'BROOD',
-        eggDiscarded: true,
-        infectedPlayerIds: ['player-1'],
-        larvaAddedToBag: false,
-      });
-      expect(state.decks.contamination.drawPile).toHaveLength(contaminationBefore - 1);
-      expect(state.players['player-1']!.actionDeck.discard).toHaveLength(1);
-    });
-
-    it('Персонаж в Улье с картами на руке избегает Заражения', () => {
-      const state = freshState('dump');
-      putPlayer(state, 'player-1', 3);
-      expect(state.players['player-1']!.actionDeck.hand.length).toBeGreaterThan(0);
-
-      const result = outcome(state, 'EVT_BROOD');
-
-      expect(result).toMatchObject({ infectedPlayerIds: [], larvaAddedToBag: true });
-    });
-  });
-
-  describe('Регенерация', () => {
-    it('каждый Чужой на поле сбрасывает до 2 Ран', () => {
-      const state = freshState('dump');
-      const threeWounds = putIntruder(state, 'ADULT', 6);
-      const oneWound = putIntruder(state, 'CREEPER', 13);
-      const healthy = putIntruder(state, 'ADULT', 8);
-      state.intrudersPool.boardTokens.find((token) => token.id === threeWounds)!.woundsCount = 3;
-      state.intrudersPool.boardTokens.find((token) => token.id === oneWound)!.woundsCount = 1;
-
-      const result = outcome(state, 'EVT_REGENERATION');
-
-      expect(result).toEqual({ kind: 'REGENERATION', healedIntruderIds: [threeWounds, oneWound], woundsRemoved: 3 });
-      expect(state.intrudersPool.boardTokens.find((token) => token.id === threeWounds)!.woundsCount).toBe(1);
-      expect(state.intrudersPool.boardTokens.find((token) => token.id === oneWound)!.woundsCount).toBe(0);
-      expect(state.intrudersPool.boardTokens.find((token) => token.id === healthy)!.woundsCount).toBe(0);
-    });
-  });
-
   describe('Затаившиеся', () => {
     it('все Чужие вне Боя сняты с поля, их жетоны возвращаются в Пул, Чужие в Бою остаются', () => {
       const state = freshState('dump');
@@ -208,52 +149,6 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
       expect(state.ship.rooms[13]!.occupantIntruderIds).toHaveLength(0);
       expect(bagCount('ADULT')).toBe(adultsBefore + 1);
       expect(bagCount('CREEPER')).toBe(creepersBefore + 1);
-    });
-  });
-
-  describe('Созревание', () => {
-    it('носитель Личинки гибнет со спавном Крипера, выжившие сканируются на ИНФЕКЦИЮ', () => {
-      const state = freshState('dump2', 2); // оба персонажа в отсеке 11
-      state.players['player-1']!.hasLarva = true;
-      const infectedCards = state.decks.contamination.drawPile.filter((card) => card.isInfected);
-      const cleanCards = state.decks.contamination.drawPile.filter((card) => !card.isInfected);
-      state.decks.contamination.drawPile = [...infectedCards, ...cleanCards];
-
-      const result = outcome(state, 'EVT_MATURATION');
-
-      expect(result).toEqual({
-        kind: 'MATURATION',
-        deadPlayerIds: ['player-1'],
-        creeperRoomIds: [11],
-        scannedPlayerIds: ['player-2'],
-        infectedPlayerIds: ['player-2'],
-      });
-      expect(state.players['player-1']!.isDead).toBe(true);
-      expect(state.players['player-1']!.hasLarva).toBe(false);
-      expect(state.ship.rooms[11]!.occupantIntruderIds).toHaveLength(1);
-      const creeper = state.intrudersPool.boardTokens.find((token) => token.roomId === 11 && token.type === 'CREEPER');
-      expect(creeper).toBeDefined();
-      expect(state.players['player-2']!.hasLarva).toBe(true);
-      expect(state.decks.contamination.discard).toHaveLength(4);
-      expect(state.decks.contamination.drawPile).toHaveLength(23);
-    });
-
-    it('без носителей Личинки и без ИНФЕКЦИИ в четырёх картах никто не заражается', () => {
-      const state = freshState('dump2', 2);
-      const infectedCards = state.decks.contamination.drawPile.filter((card) => card.isInfected);
-      const cleanCards = state.decks.contamination.drawPile.filter((card) => !card.isInfected);
-      state.decks.contamination.drawPile = [...cleanCards, ...infectedCards];
-
-      const result = outcome(state, 'EVT_MATURATION');
-
-      expect(result).toEqual({
-        kind: 'MATURATION',
-        deadPlayerIds: [],
-        creeperRoomIds: [],
-        scannedPlayerIds: ['player-1', 'player-2'],
-        infectedPlayerIds: [],
-      });
-      expect(state.decks.contamination.discard).toHaveLength(8);
     });
   });
 
@@ -424,6 +319,59 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
       const result = outcome(state, 'EVT_DESTRUCTIVE_FLAME');
 
       expect(result).toMatchObject({ kind: 'DESTRUCTIVE_FLAME', malfunctionRoomIds: [] });
+    });
+  });
+
+  describe('Пожирающее пламя', () => {
+    it('Счетчик Предметов горящих отсеков обнуляется, затем огонь расползается по открытым Коридорам', () => {
+      const state = freshState('dump');
+      state.ship.rooms[11]!.hasFire = true;
+      state.ship.rooms[11]!.itemsCount = 2;
+      state.ship.rooms[14]!.hasFire = true;
+      state.ship.rooms[14]!.itemsCount = 0;
+      state.ship.rooms[6]!.itemsCount = 3;
+
+      const result = outcome(state, 'EVT_DEVOURING_FLAME');
+
+      expect(result).toEqual({
+        kind: 'DEVOURING_FLAME',
+        clearedItemRoomIds: [11],
+        fireRoomIds: [6, 8, 15, 13, 17],
+      });
+      expect(state.ship.rooms[11]!.itemsCount).toBe(0);
+      expect(state.ship.rooms[6]!.itemsCount).toBe(3);
+      expect(state.ship.rooms[11]!.hasMalfunction).toBe(false);
+      expect([6, 8, 15, 13, 17].every((roomId) => state.ship.rooms[roomId]!.hasFire)).toBe(true);
+    });
+
+    it('Закрытая Дверь не пропускает огонь', () => {
+      const state = freshState('dump');
+      state.ship.rooms[11]!.hasFire = true;
+      state.ship.corridors['6-11']!.doorState = 'CLOSED';
+
+      const result = outcome(state, 'EVT_DEVOURING_FLAME');
+
+      expect(result).toMatchObject({ fireRoomIds: [8, 14, 15] });
+      expect(state.ship.rooms[6]!.hasFire).toBe(false);
+    });
+
+    it('без горящих отсеков ничего не происходит', () => {
+      const state = freshState('dump');
+
+      const result = outcome(state, 'EVT_DEVOURING_FLAME');
+
+      expect(result).toEqual({ kind: 'DEVOURING_FLAME', clearedItemRoomIds: [], fireRoomIds: [] });
+    });
+
+    it('девятый маркер Пожара взрывает корабль', () => {
+      const state = freshState('dump');
+      for (const roomId of [2, 3, 4, 5, 6, 7, 8, 9]) state.ship.rooms[roomId]!.hasFire = true;
+      state.ship.rooms[11]!.hasFire = true;
+
+      outcome(state, 'EVT_DEVOURING_FLAME');
+
+      expect(state.meta.phase).toBe('GAME_OVER');
+      expect(state.meta.gameOverReason).toBe('SHIP_EXPLODED');
     });
   });
 

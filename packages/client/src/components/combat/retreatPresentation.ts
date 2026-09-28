@@ -1,7 +1,7 @@
 import type { IntruderRetreatRecord } from '@nemesis/shared';
 
 export function retreatNumberLabel(record: IntruderRetreatRecord): string {
-  return record.corridorNumber === 'ANY' ? 'любой Коридор' : `Коридор №${record.corridorNumber}`;
+  return `Коридор №${record.corridorNumber}`;
 }
 
 export function retreatOutcomeText(record: IntruderRetreatRecord): string {
@@ -13,8 +13,6 @@ export function retreatOutcomeText(record: IntruderRetreatRecord): string {
     case 'TECHNICAL_CORRIDORS':
       return 'Чужой уходит в Технический Коридор: миниатюра снята с поля, все Раны сброшены (стр. 16).';
     case 'STAYED':
-      return record.corridorNumber === 'ANY'
-        ? 'Карта не указывает номер Коридора — Чужой остаётся в отсеке.'
-        : 'В отсеке нет выхода с этим номером — Чужой остаётся на месте.';
+      return 'В отсеке нет выхода с этим номером — Чужой остаётся на месте.';
   }
 }

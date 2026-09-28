@@ -66,3 +66,12 @@ export function receiveContamination(state: GameState, playerId: string): void {
   player.actionDeck.discard.push(card);
   appendGameLog(state, { type: 'CONTAMINATION_RECEIVED', playerId });
 }
+
+export function infestWithLarva(state: GameState, playerId: string): { alreadyInfested: boolean } {
+  const player = state.players[playerId];
+  if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${playerId}.`);
+  const alreadyInfested = player.hasLarva;
+  player.hasLarva = true;
+  receiveContamination(state, playerId);
+  return { alreadyInfested };
+}

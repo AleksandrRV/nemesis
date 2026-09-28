@@ -1,5 +1,5 @@
 import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
-import { eventCardName, formatEventEffectOutcome, formatHiveDevelopmentOutcome } from './eventEffectLogModel';
+import { formatEventEffectOutcome, formatHiveDevelopmentOutcome } from './eventEffectLogModel';
 import { formatPrivateLogEvent, isPrivateLogEvent } from './privateLogFormat';
 import { formatScanLogEvent } from './scanLogFormat';
 import { formatCraftLogEvent, formatQuestLogEvent } from './craftLogFormat';
@@ -350,7 +350,7 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
       ];
 
     case 'EVENT_CARD_DRAWN': {
-      const direction = event.card.corridorNumber === 'ANY' ? 'любое' : `Коридор ${event.card.corridorNumber}`;
+      const direction = `Коридор ${event.card.corridorNumber}`;
       const symbols = event.card.intruderTypes.map((type) => INTRUDER_TYPE_NAMES[type]).join(', ');
       return [
         { text: `Фаза Событий: карта Событий «${event.card.name}»`, tone: 'warning', strong: true },
@@ -414,13 +414,6 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
       return formatHiveDevelopmentOutcome(event.outcome, view);
     case 'HIVE_DEVELOPMENT_SKIPPED':
       return [{ text: 'Развитие Улья: Пул Чужих пуст — вытягивать нечего.', tone: 'silence' }];
-    case 'EVENT_CARD_CHOSEN':
-      return [
-        { text: playerName(view, event.playerId), tone: 'player', strong: true },
-        { text: ' разыгрывает выбранную карту Событий: ' },
-        { text: `«${eventCardName(event.chosenCardId)}»`, tone: 'warning', strong: true },
-        { text: ` (${event.discardedCardIds.length} других — в сброс).` },
-      ];
     case 'DEV_STATE_CHANGED':
       return [
         { text: 'Dev-переключатель', tone: 'warning', strong: true },

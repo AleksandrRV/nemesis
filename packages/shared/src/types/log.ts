@@ -31,12 +31,12 @@ export type EventEffectOutcome =
       infectedPlayerIds: string[];
     }
   | { kind: 'RAMPAGE'; malfunctionRoomIds: RoomId[] }
-  | { kind: 'PREPARATION'; decisionPlayerId: string }
   | { kind: 'PREY_SCENT'; noiseCorridorIds: string[] }
   | { kind: 'NOISE_TECH_CORRIDORS'; markerPlaced: boolean; rolledPlayerIds: string[] }
   | { kind: 'HIVE'; noiseCorridorIds: string[]; nestExplored: boolean }
   | { kind: 'FLAMMABLE_MIXTURE'; fireRoomIds: RoomId[]; spread: boolean }
   | { kind: 'DESTRUCTIVE_FLAME'; malfunctionRoomIds: RoomId[]; fireRoomIds: RoomId[] }
+  | { kind: 'DEVOURING_FLAME'; clearedItemRoomIds: RoomId[]; fireRoomIds: RoomId[] }
   | { kind: 'ESCAPE_POD_EJECTION'; podId: string | null }
   | { kind: 'SHORT_CIRCUIT'; malfunctionRoomIds: RoomId[] }
   | { kind: 'COOLANT_LEAK'; selfDestructStarted: boolean }
@@ -83,7 +83,7 @@ export type GameLogEffectOutcome =
   | 'DANGER_TRIGGERED'
   | 'SILENCE_RESOLVED';
 
-export type ContaminationScanSource = 'REST' | 'SURGERY' | 'ANTIDOTE' | 'ALCOHOL';
+export type ContaminationScanSource = 'REST' | 'SURGERY' | 'ANTIDOTE' | 'ALCOHOL' | 'MATURATION';
 
 export type ContaminationScanResult = 'INFECTED' | 'CLEAN';
 
@@ -291,13 +291,6 @@ export type GameLogEvent =
       cardId: string;
       effect: EventEffect;
       outcome: EventEffectOutcome;
-    }
-  | {
-      /** «Подготовка»: игрок выбрал одну из трёх вытянутых карт Событий для розыгрыша. */
-      type: 'EVENT_CARD_CHOSEN';
-      playerId: string;
-      chosenCardId: string;
-      discardedCardIds: string[];
     }
   | {
       /** Развитие Улья исполнено (стр. 10, шаг 8; стр. 31): жетон вытянут и разыгран. */

@@ -192,19 +192,15 @@ export const EventCardVisual: React.FC<{ card: EventCard }> = ({ card }) => (
     <div className="mb-2 flex items-center justify-between gap-2">
       <span className="text-[9px] font-bold tracking-[0.3em] text-cyan-500">КАРТА СОБЫТИЯ</span>
       <span className="rounded-full border border-cyan-500 bg-cyan-950/70 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-200">
-        {card.corridorNumber === 'ANY' ? 'ЛЮБОЙ КОРИДОР' : `КОРИДОР ${card.corridorNumber}`}
+        {`КОРИДОР ${card.corridorNumber}`}
       </span>
     </div>
     <div className="mb-2 flex min-h-10 items-center justify-center gap-1 rounded border border-slate-800 bg-black/50 py-1">
-      {card.intruderTypes.length > 0 ? (
-        card.intruderTypes.map((type, index) => (
-          <span key={`${type}-${index}`} title={INTRUDER_TYPE_NAMES[type]}>
-            <IntruderSilhouette type={type} size={30} />
-          </span>
-        ))
-      ) : (
-        <span className="text-[10px] text-slate-500">Движения Чужих нет</span>
-      )}
+      {card.intruderTypes.map((type, index) => (
+        <span key={`${type}-${index}`} title={INTRUDER_TYPE_NAMES[type]}>
+          <IntruderSilhouette type={type} size={30} />
+        </span>
+      ))}
     </div>
     <p className="text-center text-sm font-black tracking-wide text-white">{card.name}</p>
     <p className="mt-1 text-center text-[11px] leading-4 text-slate-300">{card.description}</p>

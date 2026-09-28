@@ -1,11 +1,6 @@
 import type { EventEffectOutcome, HiveDevelopmentOutcome, SanitizedGameState } from '@nemesis/shared';
-import { EVENT_CARDS } from '@nemesis/shared';
 import type { GameLogSegment } from './gameLogModel';
 import { playerName, roomLabel } from './gameLogModel';
-
-export function eventCardName(cardId: string): string {
-  return EVENT_CARDS.find((card) => card.id === cardId)?.name ?? cardId;
-}
 
 function roomIdsText(view: SanitizedGameState, roomIds: number[]): string {
   return roomIds.map((roomId) => roomLabel(view, roomId)).join(', ');
@@ -87,13 +82,20 @@ export function formatEventEffectOutcome(outcome: EventEffectOutcome, view: Sani
             { text: `маркеры Неисправности в ${roomIdsText(view, outcome.malfunctionRoomIds)}.` },
           ]
         : [{ text: 'Разгром: крупных Чужих на поле нет.' }];
-    case 'PREPARATION':
-      return [
-        { text: 'Подготовка: ', tone: 'warning', strong: true },
-        {
-          text: `${playerName(view, outcome.decisionPlayerId)} выбирает одну из трёх карт Событий для розыгрыша.`,
-        },
-      ];
+    case 'DEVOURING_FLAME': {
+      const parts: GameLogSegment[] = [{ text: 'Пожирающее пламя: ', tone: 'fire', strong: true }];
+      parts.push(
+        outcome.clearedItemRoomIds.length > 0
+          ? { text: `Счетчик Предметов на 0 в ${roomIdsText(view, outcome.clearedItemRoomIds)}.` }
+          : { text: 'в горящих отсеках не осталось Предметов.' },
+      );
+      parts.push(
+        outcome.fireRoomIds.length > 0
+          ? { text: ` Огонь распространяется в ${roomIdsText(view, outcome.fireRoomIds)}.` }
+          : { text: ' Огню некуда распространяться.' },
+      );
+      return parts;
+    }
     case 'PREY_SCENT':
       return outcome.noiseCorridorIds.length > 0
         ? [
@@ -104,11 +106,11 @@ export function formatEventEffectOutcome(outcome: EventEffectOutcome, view: Sani
     case 'NOISE_TECH_CORRIDORS':
       return outcome.markerPlaced
         ? [
-            { text: 'Шум в тех. коридорах: ', tone: 'noise', strong: true },
+            { text: 'Шум в технических коридорах: ', tone: 'noise', strong: true },
             { text: 'маркер Шума размещён на поле Технических Коридоров.' },
           ]
         : [
-            { text: 'Шум в тех. коридорах: ', tone: 'noise', strong: true },
+            { text: 'Шум в технических коридорах: ', tone: 'noise', strong: true },
             { text: `кубик Шума бросают ${playerNamesText(view, outcome.rolledPlayerIds)}.` },
           ];
     case 'HIVE':

@@ -50,30 +50,28 @@ export function resolveIntruderRetreat(
     corridorId: null,
   };
 
-  if (eventCard.corridorNumber !== 'ANY') {
-    const target = findNoiseTarget(state, roomId, eventCard.corridorNumber);
+  const target = findNoiseTarget(state, roomId, eventCard.corridorNumber);
 
-    if (target.kind === 'TECHNICAL_CORRIDOR') {
-      removeIntruder(state, intruderId);
-      returnTokenToBag(state, intruderType);
-      record.outcome = 'TECHNICAL_CORRIDORS';
-    } else if (target.kind === 'CORRIDOR') {
-      const corridor = target.corridor;
-      record.corridorId = corridor.id;
+  if (target.kind === 'TECHNICAL_CORRIDOR') {
+    removeIntruder(state, intruderId);
+    returnTokenToBag(state, intruderType);
+    record.outcome = 'TECHNICAL_CORRIDORS';
+  } else if (target.kind === 'CORRIDOR') {
+    const corridor = target.corridor;
+    record.corridorId = corridor.id;
 
-      if (corridor.doorState === 'CLOSED') {
-        corridor.doorState = 'DESTROYED';
-        record.outcome = 'DOOR_DESTROYED';
-      } else {
-        const toRoomId: RoomId = corridor.fromRoomId === roomId ? corridor.toRoomId : corridor.fromRoomId;
-        intruder.roomId = toRoomId;
-        state.ship.rooms[roomId]!.occupantIntruderIds = state.ship.rooms[roomId]!.occupantIntruderIds.filter(
-          (id) => id !== intruderId,
-        );
-        state.ship.rooms[toRoomId]!.occupantIntruderIds.push(intruderId);
-        record.outcome = 'MOVED';
-        record.toRoomId = toRoomId;
-      }
+    if (corridor.doorState === 'CLOSED') {
+      corridor.doorState = 'DESTROYED';
+      record.outcome = 'DOOR_DESTROYED';
+    } else {
+      const toRoomId: RoomId = corridor.fromRoomId === roomId ? corridor.toRoomId : corridor.fromRoomId;
+      intruder.roomId = toRoomId;
+      state.ship.rooms[roomId]!.occupantIntruderIds = state.ship.rooms[roomId]!.occupantIntruderIds.filter(
+        (id) => id !== intruderId,
+      );
+      state.ship.rooms[toRoomId]!.occupantIntruderIds.push(intruderId);
+      record.outcome = 'MOVED';
+      record.toRoomId = toRoomId;
     }
   }
 

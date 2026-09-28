@@ -30,12 +30,12 @@ function drawnEvent(state: GameState) {
 describe('Шаг 7а Фазы Событий: Движение Чужих по карте События (стр. 10, 15)', () => {
   it('верхняя карта вытягивается лицом вверх и уходит в сброс', () => {
     const state = freshState('move-draw');
-    eventDeckTop(state, 'EVT_HUNT_2');
+    eventDeckTop(state, 'EVT_BROOD');
 
     resolveEventCardMovement(state);
 
-    expect(drawnEvent(state).card.id).toBe('EVT_HUNT_2');
-    expect(state.decks.events.discard.map((card) => card.id)).toEqual(['EVT_HUNT_2']);
+    expect(drawnEvent(state).card.id).toBe('EVT_BROOD');
+    expect(state.decks.events.discard.map((card) => card.id)).toEqual(['EVT_BROOD']);
     expect(state.decks.events.drawPile).toHaveLength(19);
   });
 
@@ -43,7 +43,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     const state = freshState('move-symbols');
     const adultId = putIntruder(state, 'ADULT', 12);
     const creeperId = putIntruder(state, 'CREEPER', 12);
-    eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3, только крупные виды
+    eventDeckTop(state, 'EVT_BROOD'); // Коридор 3: Взрослая, Трутень
 
     resolveEventCardMovement(state);
 
@@ -56,7 +56,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     const state = freshState('move-combat');
     putIntruder(state, 'ADULT', 11); // player-1 в отсеке 11
     const freeId = putIntruder(state, 'ADULT', 12);
-    eventDeckTop(state, 'EVT_HUNT_2');
+    eventDeckTop(state, 'EVT_BROOD');
 
     resolveEventCardMovement(state);
 
@@ -71,7 +71,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     const fromTwelve = putIntruder(state, 'ADULT', 12);
     const fromSixteen = putIntruder(state, 'ADULT', 16);
     state.ship.corridors['12-16']!.doorState = 'CLOSED';
-    eventDeckTop(state, 'EVT_HUNT_2'); // Коридор 3: из обоих отсеков это «12-16»
+    eventDeckTop(state, 'EVT_BROOD'); // Коридор 3: из обоих отсеков это «12-16»
 
     resolveEventCardMovement(state);
 
@@ -91,7 +91,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
   it('открытый Коридор: переход фиксирует особь, отсеки и номер карты', () => {
     const state = freshState('move-open');
     const adultId = putIntruder(state, 'ADULT', 12);
-    eventDeckTop(state, 'EVT_HUNT_2');
+    eventDeckTop(state, 'EVT_BROOD');
 
     resolveEventCardMovement(state);
 
@@ -136,7 +136,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     state.players['player-1']!.roomId = 12;
     const adultId = putIntruder(state, 'ADULT', 11);
     delete state.ship.corridors['8-11']; // номер 3 отсека 11 исчез
-    eventDeckTop(state, 'EVT_HUNT_2');
+    eventDeckTop(state, 'EVT_BROOD');
 
     resolveEventCardMovement(state);
 
@@ -144,16 +144,15 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     expect(movedEvents(state)).toHaveLength(0);
   });
 
-  it('«Подготовка» (любое направление): никто не двигается', () => {
-    const state = freshState('move-preparation');
-    const adultId = putIntruder(state, 'ADULT', 12);
-    eventDeckTop(state, 'EVT_PREPARATION');
+  it.each(EVENT_CARDS.map((card) => [card.id]))('Личинка на поле не двигается картой %s', (cardId) => {
+    const state = freshState('move-larva');
+    const larvaId = putIntruder(state, 'LARVA', 12);
+    eventDeckTop(state, cardId);
 
     resolveEventCardMovement(state);
 
-    expect(movedEvents(state)).toHaveLength(0);
-    expect(state.intrudersPool.boardTokens.find((token) => token.id === adultId)!.roomId).toBe(12);
-    expect(state.decks.events.discard.map((card) => card.id)).toEqual(['EVT_PREPARATION']);
+    expect(movedEvents(state).some((event) => event.intruderId === larvaId)).toBe(false);
+    expect([12, undefined]).toContain(state.intrudersPool.boardTokens.find((token) => token.id === larvaId)?.roomId);
   });
 
   it('вход в неисследованный отсек к Персонажу: Бой без Контакта и вскрытия', () => {
@@ -161,7 +160,7 @@ describe('Шаг 7а Фазы Событий: Движение Чужих по �
     state.players['player-1']!.roomId = 16;
     state.ship.rooms[16]!.isExplored = false;
     putIntruder(state, 'ADULT', 12);
-    eventDeckTop(state, 'EVT_HUNT_2');
+    eventDeckTop(state, 'EVT_BROOD');
 
     resolveEventCardMovement(state);
 

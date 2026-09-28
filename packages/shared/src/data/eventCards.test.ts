@@ -5,7 +5,7 @@ import { EVENT_CARDS, EVENT_CARDS_COUNT } from './eventCards.js';
 import type { IntruderType } from '../types/entities.js';
 
 const SEED = 'event-deck-step-1';
-const KNOWN_INTRUDER_TYPES: readonly IntruderType[] = ['LARVA', 'CREEPER', 'ADULT', 'BREEDER', 'QUEEN'];
+const EVENT_SYMBOL_TYPES: readonly IntruderType[] = ['CREEPER', 'ADULT', 'BREEDER', 'QUEEN'];
 
 function eventIds(seed: string): string[] {
   return createInitialDecks(seed).events.drawPile.map((card) => card.id);
@@ -23,21 +23,32 @@ describe('Данные колоды Событий (стр. 3, 10)', () => {
     }
   });
 
-  it('направление — номер Коридора 1–4 или любое: иных значений нет', () => {
-    for (const card of EVENT_CARDS) {
-      const valid = card.corridorNumber === 'ANY' || [1, 2, 3, 4].includes(card.corridorNumber);
-      expect(valid, `${card.id}: направление ${String(card.corridorNumber)}`).toBe(true);
+  it('направление — номер Коридора 1–4, по 5 карт на каждый номер', () => {
+    for (const corridorNumber of [1, 2, 3, 4] as const) {
+      const cards = EVENT_CARDS.filter((card) => card.corridorNumber === corridorNumber);
+      expect(cards, `Коридор ${corridorNumber}`).toHaveLength(5);
     }
   });
 
-  it('символы Чужих верхнего блока непусты, уникальны и взяты из пяти типов', () => {
+  it('на карте 2–3 символа Чужих без повторов, символа Личинки нет ни на одной карте', () => {
     for (const card of EVENT_CARDS) {
-      expect(card.intruderTypes.length, card.id).toBeGreaterThan(0);
+      expect(card.intruderTypes.length, card.id).toBeGreaterThanOrEqual(2);
+      expect(card.intruderTypes.length, card.id).toBeLessThanOrEqual(3);
       expect(new Set(card.intruderTypes).size, card.id).toBe(card.intruderTypes.length);
       for (const type of card.intruderTypes) {
-        expect(KNOWN_INTRUDER_TYPES, `${card.id}: неизвестный тип ${type}`).toContain(type);
+        expect(EVENT_SYMBOL_TYPES, `${card.id}: символ ${type}`).toContain(type);
       }
     }
+  });
+
+  it('«Подготовки» в колоде нет, «Пожирающее пламя» — направление 4', () => {
+    expect(EVENT_CARDS.map((card) => card.name)).not.toContain('Подготовка');
+    expect(EVENT_CARDS.find((card) => card.id === 'EVT_DEVOURING_FLAME')).toMatchObject({
+      name: 'Пожирающее пламя',
+      effect: 'DEVOURING_FLAME',
+      corridorNumber: 4,
+      intruderTypes: ['CREEPER', 'BREEDER', 'QUEEN'],
+    });
   });
 
   it('флаги уничтожения и замешивания взаимоисключающи: 4 карты в коробку, 1 обратно в колоду', () => {

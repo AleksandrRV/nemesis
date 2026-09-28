@@ -184,12 +184,8 @@ export interface ObjectiveCard extends CardDefinition {
   kind: 'PERSONAL' | 'CORPORATE';
 }
 
-/**
- * Направление Движения Чужих, напечатанное в верхнем блоке карты События
- * (стр. 10, шаг 7). «Подготовка» двигает Чужих через любой Коридор —
- * её направление не фиксировано числом.
- */
-export type EventCorridorNumber = 1 | 2 | 3 | 4 | 'ANY';
+/** Направление Движения Чужих в верхнем блоке карты События (стр. 10, шаг 7). */
+export type EventCorridorNumber = 1 | 2 | 3 | 4;
 
 /**
  * Машинный эффект нижнего блока карты События (стр. 10; `doc/data/EVENTS.md`).
@@ -204,7 +200,7 @@ export type EventEffect =
   | 'HIDDEN'
   | 'MATURATION'
   | 'RAMPAGE'
-  | 'PREPARATION'
+  | 'DEVOURING_FLAME'
   | 'PREY_SCENT'
   | 'NOISE_TECH_CORRIDORS'
   | 'HIVE'

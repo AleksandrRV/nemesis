@@ -1,20 +1,22 @@
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
 import type { EventCard } from '../types/cards.js';
+import type { PlayerState } from '../types/entities.js';
 import type { EventEffectOutcome } from '../types/log.js';
 import type { RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
 import { drawFromStream, pickIndex, shuffle } from '../utils/rng.js';
-import { drawSharedCard } from './cardPiles.js';
-import { killPlayer, receiveContamination } from './characterDamage.js';
+import { drawActionCards, isContaminationCard } from './cardEffectsShared.js';
+import { infestWithLarva, killPlayer } from './characterDamage.js';
 import { endGame } from './gameEnd.js';
 import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, placeIntruder, removeIntruder, returnTokenToBag } from './intruderPlacement.js';
 import { placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { requireNoiseMarkerSupply } from './noiseMarkers.js';
 import { corridorNumbersOf, corridorsLeadingInto } from './shipGraphQueries.js';
-import { allocateEntityId } from './stateIds.js';
-import { getOrderedPlayers } from './turnCycle.js';
 import { evacuatePod } from './evacuation.js';
+import { logContaminationScan, resolveInfectionFound, scanContaminationCards } from './infectionScanner.js';
+
+const MATURATION_DRAW_COUNT = 4;
 
 const ALL_ROOM_DEFINITIONS = [...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2, ...SPECIAL_ROOMS];
 
@@ -81,8 +83,8 @@ export function resolveEventCardEffect(state: GameState, card: EventCard): void 
     case 'RAMPAGE':
       outcome = resolveMalfunctionRooms(state, roomsWithLargeIntruders(state), 'RAMPAGE');
       break;
-    case 'PREPARATION':
-      outcome = resolvePreparation(state);
+    case 'DEVOURING_FLAME':
+      outcome = resolveDevouringFlame(state);
       break;
     case 'PREY_SCENT':
       outcome = resolvePreyScent(state);
@@ -235,7 +237,17 @@ function resolveProtectNest(state: GameState): EventEffectOutcome {
   return { kind: 'PROTECT_NEST', contactPlayerIds };
 }
 
-/** «Выводок»: Яйцо с Планшета, Заражение пусторуким в Улье, иначе Личинка в мешок. */
+function playersOnBoardInOrder(state: GameState): PlayerState[] {
+  return Object.values(state.players)
+    .filter((player) => !player.isDead && !player.isInHibernation && !player.hasEscapedInPod)
+    .sort((a, b) => a.orderNumber - b.orderNumber);
+}
+
+function hasNoActionCardsInHand(player: PlayerState): boolean {
+  return player.actionDeck.hand.every(isContaminationCard);
+}
+
+/** «Выводок»: Яйцо с Планшета, Инфицирование в Улье без карт Действий, иначе Личинка в мешок. */
 function resolveBrood(state: GameState): EventEffectOutcome {
   let eggDiscarded = false;
   if (state.intrudersPool.eggsOnBoard > 0) {
@@ -247,8 +259,8 @@ function resolveBrood(state: GameState): EventEffectOutcome {
   const nest = roomByDefinition(state, 'NEST');
   if (nest) {
     for (const playerId of livingPlayersInRoom(state, nest.id)) {
-      if (state.players[playerId]!.actionDeck.hand.length > 0) continue;
-      receiveContamination(state, playerId);
+      if (!hasNoActionCardsInHand(state.players[playerId]!)) continue;
+      infestWithLarva(state, playerId);
       infectedPlayerIds.push(playerId);
     }
   }
@@ -257,7 +269,7 @@ function resolveBrood(state: GameState): EventEffectOutcome {
   return { kind: 'BROOD', eggDiscarded, infectedPlayerIds, larvaAddedToBag };
 }
 
-/** «Регенерация»: каждый Чужой на поле сбрасывает до 2 Ран. */
+/** «Регенерация»: каждый Чужой на поле сбрасывает 2 Раны (сколько есть). */
 function resolveRegeneration(state: GameState): EventEffectOutcome {
   const healedIntruderIds: string[] = [];
   let woundsRemoved = 0;
@@ -288,19 +300,14 @@ function resolveHidden(state: GameState): EventEffectOutcome {
   return { kind: 'HIDDEN', withdrawnIntruderIds };
 }
 
-/**
- * «Созревание»: носители Личинки гибнут со спавном Крипера (стр. 21),
- * затем каждый выживший на борту тянет 4 карты Заражения — вытянувший
- * ИНФЕКЦИЮ получает Личинку; карты уходят в сброс колоды Заражения.
- */
+/** «Созревание»: носители Личинки гибнут, остальные сканируют руку после добора 4 карт. */
 function resolveMaturation(state: GameState): EventEffectOutcome {
   const deadPlayerIds: string[] = [];
   const creeperRoomIds: RoomId[] = [];
 
-  for (const player of Object.values(state.players).sort((a, b) => a.orderNumber - b.orderNumber)) {
-    if (!player.hasLarva || player.isDead || player.hasEscapedInPod) continue;
+  for (const player of playersOnBoardInOrder(state)) {
+    if (!player.hasLarva) continue;
     const roomId = player.roomId;
-    player.hasLarva = false;
     killPlayer(state, player.id);
     deadPlayerIds.push(player.id);
     placeIntruder(state, 'CREEPER', roomId);
@@ -309,18 +316,23 @@ function resolveMaturation(state: GameState): EventEffectOutcome {
 
   const scannedPlayerIds: string[] = [];
   const infectedPlayerIds: string[] = [];
-  for (const player of Object.values(state.players).sort((a, b) => a.orderNumber - b.orderNumber)) {
-    if (player.isDead || player.hasEscapedInPod) continue;
+  for (const player of playersOnBoardInOrder(state)) {
     scannedPlayerIds.push(player.id);
-    const drawn = [0, 1, 2, 3].map(() => drawSharedCard(state, state.decks.contamination, 'Заражение'));
-    if (drawn.some((card) => card.isInfected) && !player.hasLarva) {
-      player.hasLarva = true;
-      infectedPlayerIds.push(player.id);
-    }
-    state.decks.contamination.discard.push(...drawn);
+    const drawnCount = drawActionCards(state, player.id, MATURATION_DRAW_COUNT);
+    const results = scanContaminationCards(player.actionDeck.hand);
+    const isInfected = results.includes('INFECTED');
+    const outcome = isInfected ? resolveInfectionFound(state, player.id) : 'CLEAN';
+    if (isInfected) infectedPlayerIds.push(player.id);
+    if (results.length > 0) logContaminationScan(state, player.id, 'MATURATION', results, 0, outcome);
+    if (!player.isDead) discardDrawnCards(player, drawnCount);
   }
 
   return { kind: 'MATURATION', deadPlayerIds, creeperRoomIds, scannedPlayerIds, infectedPlayerIds };
+}
+
+function discardDrawnCards(player: PlayerState, drawnCount: number): void {
+  const drawn = player.actionDeck.hand.splice(player.actionDeck.hand.length - drawnCount, drawnCount);
+  player.actionDeck.discard.push(...drawn);
 }
 
 /** Общее размещение Неисправностей: Разгром, Короткое замыкание, Жизнеобеспечение. */
@@ -339,20 +351,6 @@ function resolveMalfunctionRooms(
     }
   }
   return { kind, malfunctionRoomIds };
-}
-
-/** «Подготовка»: Первый Игрок выбирает одну из трёх вытянутых карт для розыгрыша. */
-function resolvePreparation(state: GameState): EventEffectOutcome {
-  const cards = [0, 1, 2].map(() => drawSharedCard(state, state.decks.events, 'События'));
-  const ordered = getOrderedPlayers(state);
-  const decider = ordered.find((player) => player.id === state.meta.firstPlayerId) ?? ordered[0]!;
-  state.pendingDecision = {
-    id: allocateEntityId(state, 'event-card-choice'),
-    playerId: decider.id,
-    type: 'CHOOSE_EVENT_CARD',
-    cards,
-  };
-  return { kind: 'PREPARATION', decisionPlayerId: decider.id };
 }
 
 function placeEventNoiseOnCorridor(state: GameState, roomId: RoomId, corridorId: string): void {
@@ -459,6 +457,23 @@ function resolveDestructiveFlame(state: GameState): EventEffectOutcome {
   const { placed, exploded } = spreadFireFrom(state, burningRoomIds);
   if (exploded) endGame(state, 'SHIP_EXPLODED');
   return { kind: 'DESTRUCTIVE_FLAME', malfunctionRoomIds, fireRoomIds: placed };
+}
+
+/** «Пожирающее пламя»: Счетчик Предметов горящих отсеков на 0 и распространение огня. */
+function resolveDevouringFlame(state: GameState): EventEffectOutcome {
+  const burningRooms = sortedRooms(state).filter((room) => room.hasFire);
+  const clearedItemRoomIds: RoomId[] = [];
+  for (const room of burningRooms) {
+    if (room.itemsCount > 0) clearedItemRoomIds.push(room.id);
+    room.itemsCount = 0;
+  }
+
+  const { placed, exploded } = spreadFireFrom(
+    state,
+    burningRooms.map((room) => room.id),
+  );
+  if (exploded) endGame(state, 'SHIP_EXPLODED');
+  return { kind: 'DEVOURING_FLAME', clearedItemRoomIds, fireRoomIds: placed };
 }
 
 /** Распространение огня по соседним отсекам: Закрытые Двери не пропускают огонь. */

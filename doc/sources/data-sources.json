@@ -32,16 +32,6 @@
         "title": "Awaken Realms — Official Game FAQ v2.2 (16.04.2025), Rules 8/12/17/19/24 и Actions 4/11",
         "location": "https://awakenrealms.com/images/download/Nemesis/ENG/Nemesis_FAQ_v2.1.pdf"
       },
-      "events-transcript": {
-        "kind": "EXTERNAL_UNVERIFIED",
-        "title": "doc/data/EVENTS.md — предоставленный транскрипт колоды Событий (версия 2.0, «Merged & Verified»)",
-        "location": "doc/data/EVENTS.md"
-      },
-      "owner-decision-2026-09-22": {
-        "kind": "USER_CONFIRMED",
-        "title": "Решение владельца проекта по составу колоды Событий (сессия 22.09.2026): в физической колоде 20 карт, «Подготовка» одна — отменено сверкой со сканом 28.09.2026: «Подготовка» — карта Действий Чужих (scan-transcript §4.1)",
-        "location": "сессия разработки, 22.09.2026"
-      },
       "pnp-scans": {
         "kind": "ORIGINAL_SCAN",
         "title": "Сканы оригинальных компонентов (книга правил, карты, тайлы, жетоны, кубики, поле), сверка 28.09.2026 при 250–300 dpi",
@@ -1066,7 +1056,7 @@
     },
     "event-cards": {
       "file": "packages/shared/src/data/eventCards.ts",
-      "status": "EXTERNAL_UNVERIFIED",
+      "status": "SCAN_VERIFIED",
       "facts": [
         {
           "claim": "В базовой игре 20 карт Событий; колода управляет Движением Чужих и эффектами в Фазу Событий.",
@@ -1074,7 +1064,7 @@
           "lines": "116, 490-505, 1861-1863"
         },
         {
-          "claim": "Верхний блок карты задаёт символы двигающихся Чужих и номер Коридора (1–4); нижний — текстовый эффект. «Подготовка» двигает Чужих через любой Коридор.",
+          "claim": "Верхний блок карты задаёт символы двигающихся Чужих и номер Коридора (1–4); нижний — текстовый эффект.",
           "source": "rules-md",
           "lines": "490-499"
         },
@@ -1084,14 +1074,29 @@
           "lines": "499, 504-505"
         },
         {
-          "claim": "Точный состав 20 карт, номера Коридоров, символы Чужих и тексты эффектов зафиксированы по транскрипту. В колоде одна «Подготовка» (любое направление): вторая копия из транскрипта не входит в физическую колоду по решению владельца.",
-          "source": "events-transcript",
-          "note": "Транскрипт перечисляет 22 пункта; вторая «Подготовка» [4] и одна карта «Разрушения корабля» в физическую колоду из 20 карт не входят (решение владельца 22.09.2026)."
+          "claim": "20 карт Событий: название, направление (1–4), 2–3 символа Чужих без Личинки и печатный текст каждого экземпляра (scan-transcript §4). Тексты в коде — дословно с карты; опечатка «с маркерои Пожара» на «Пожирающем пламени» записана как «с маркером Пожара».",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 11, 13, 15"
         },
         {
-          "claim": "В физической колоде 20 карт и одна «Подготовка»; карта «Пожирающее пламя» не входит в состав, зафиксированный кодом.",
-          "source": "owner-decision-2026-09-22",
-          "note": "Какая именно вторая карта «Разрушения корабля» отсутствует в физической колоде, сверкой с картоном не подтверждена; из двух кандидатов огня в код не вошла «Пожирающее пламя»."
+          "claim": "Перепечатанные «Защита кладки» и «Неисправность» совпадают с колодой по символам, направлению и смыслу текста.",
+          "source": "pnp-scans",
+          "page": "fixes.pdf, стр. 1"
+        },
+        {
+          "claim": "«Подготовка» — карта колоды Действий Чужих (режим «Игра за Чужого», стр. 27): другая рамка, подпись «ЧУЖОЙ», рубашка «ДЕЙСТВИЕ ЧУЖИХ»; в колоду Событий не входит (решение В-3).",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 1–2 (scan-transcript §4.1)"
+        },
+        {
+          "claim": "«Инфицирован» («Выводок», «Созревание»): Личинка на Планшет Персонажа и 1 карта Заражения; карты Заражения не являются картами Действий.",
+          "source": "rules-md",
+          "lines": "687, 1261-1265, 1302-1303"
+        },
+        {
+          "claim": "«Созревание»: 4 карты берутся из личной колоды Действий; пустая колода замешивает сброс. Персонажи в Анабиозе и покинувшие корабль в розыгрыше не участвуют.",
+          "source": "rules-md",
+          "lines": "448, 592"
         },
         {
           "claim": "Отступление в бою (стр. 20): стрелка Отступления на карте проверки Стойкости заставляет выжившего Чужого бежать — вытягивается карта События, Чужой перемещается в направлении Коридора её номера, затем карта сбрасывается без розыгрыша эффекта. Королева и Трутни отступают при стрелке хотя бы на одной из двух карт.",
@@ -1119,7 +1124,7 @@
           "HIDDEN": 1,
           "MATURATION": 1,
           "RAMPAGE": 1,
-          "PREPARATION": 1,
+          "DEVOURING_FLAME": 1,
           "PREY_SCENT": 1,
           "NOISE_TECH_CORRIDORS": 1,
           "HIVE": 1,
@@ -1144,7 +1149,24 @@
         "corridorNumbers": {
           "EVT_HUNT_1": 2,
           "EVT_HUNT_2": 3,
-          "EVT_PREPARATION": "ANY"
+          "EVT_PROTECT_NEST": 2,
+          "EVT_BROOD": 3,
+          "EVT_REGENERATION": 1,
+          "EVT_HIDDEN": 4,
+          "EVT_MATURATION": 1,
+          "EVT_RAMPAGE": 2,
+          "EVT_DEVOURING_FLAME": 4,
+          "EVT_PREY_SCENT": 3,
+          "EVT_NOISE_TECH_CORRIDORS": 4,
+          "EVT_HIVE": 3,
+          "EVT_FLAMMABLE_MIXTURE": 4,
+          "EVT_DESTRUCTIVE_FLAME": 1,
+          "EVT_ESCAPE_POD_EJECTION": 3,
+          "EVT_SHORT_CIRCUIT": 4,
+          "EVT_COOLANT_LEAK": 1,
+          "EVT_LIFE_SUPPORT_MALFUNCTION": 2,
+          "EVT_MALFUNCTION": 2,
+          "EVT_OPEN_COMPARTMENTS": 1
         },
         "cards": [
           {
@@ -1153,13 +1175,13 @@
             "effect": "HUNT",
             "corridorNumber": 2,
             "intruderTypes": [
-              "ADULT",
+              "CREEPER",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Если возможно, переместите каждую Взрослую Особь вне Боя в соседнюю Комнату с Персонажем. При совпадении — в Комнату с наименьшим номером."
+            "description": "Если возможно, переместите каждую Взрослую Особь, не находящуюся в Бою, в соседнюю Комнату с Персонажем. Если таких Комнат несколько, выберите Комнату под наименьшим номером."
           },
           {
             "id": "EVT_HUNT_2",
@@ -1167,13 +1189,12 @@
             "effect": "HUNT",
             "corridorNumber": 3,
             "intruderTypes": [
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Если возможно, переместите каждую Взрослую Особь вне Боя в соседнюю Комнату с Персонажем. При совпадении — в Комнату с наименьшим номером."
+            "description": "Если возможно, переместите каждую Взрослую Особь, не находящуюся в Бою, в соседнюю Комнату с Персонажем. Если таких Комнат несколько, выберите Комнату под наименьшим номером."
           },
           {
             "id": "EVT_PROTECT_NEST",
@@ -1181,15 +1202,12 @@
             "effect": "PROTECT_NEST",
             "corridorNumber": 2,
             "intruderTypes": [
-              "LARVA",
-              "CREEPER",
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Каждый Персонаж в Улье или несущий Яйцо разыгрывает Контакт."
+            "description": "Каждый Персонаж, который находится в Улье или несет Яйцо, разыгрывает Столкновение."
           },
           {
             "id": "EVT_BROOD",
@@ -1197,15 +1215,12 @@
             "effect": "BROOD",
             "corridorNumber": 3,
             "intruderTypes": [
-              "LARVA",
-              "CREEPER",
               "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "BREEDER"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Сбросьте 1 Яйцо с Планшета Чужих. Персонажи в Улье без карт на руке получают Инфекцию. Если никто не инфицирован, добавьте Личинку в мешок."
+            "description": "Сбросьте 1 Яйцо с Планшета Чужих. Персонажи, находящиеся в Улье, и у которых не осталось карт Действий, становятся Инфицированными. Если в итоге никто не был Инфицирован, поместите жетон Личинки в пул Чужих."
           },
           {
             "id": "EVT_REGENERATION",
@@ -1213,9 +1228,6 @@
             "effect": "REGENERATION",
             "corridorNumber": 1,
             "intruderTypes": [
-              "LARVA",
-              "CREEPER",
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
@@ -1229,15 +1241,12 @@
             "effect": "HIDDEN",
             "corridorNumber": 4,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "ADULT"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Удалите с поля всех Чужих вне Боя. Поместите их жетоны обратно в Пул."
+            "description": "Удалите с поля всех Чужих, которые не находятся в Бою. Поместите соответствующие им жетоны в Пул Чужих."
           },
           {
             "id": "EVT_MATURATION",
@@ -1245,15 +1254,13 @@
             "effect": "MATURATION",
             "corridorNumber": 1,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Каждый Персонаж с Личинкой умирает (спавн Крипера). Каждый Персонаж берёт 4 карты из колоды: если есть ИНФЕКЦИЯ, получает Личинку. Сбросьте взятые карты."
+            "description": "Каждый Персонаж, на Планшете которого есть Личинка, умирает (поместите Крипера в Комнату, в которой он был). Каждый Персонаж берет по 4 карты из своей колоды и сканирует все карты Заражения на руке. Если хотя бы 1 из них была с ИНФЕКЦИЕЙ, поместите Личинку на его Планшет. Сбросьте взятые карты."
           },
           {
             "id": "EVT_RAMPAGE",
@@ -1261,31 +1268,26 @@
             "effect": "RAMPAGE",
             "corridorNumber": 2,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "ADULT"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
             "description": "Поместите маркер Неисправности в каждую Комнату со Взрослой Особью, Трутнем или Королевой."
           },
           {
-            "id": "EVT_PREPARATION",
-            "name": "Подготовка",
-            "effect": "PREPARATION",
-            "corridorNumber": "ANY",
+            "id": "EVT_DEVOURING_FLAME",
+            "name": "Пожирающее пламя",
+            "effect": "DEVOURING_FLAME",
+            "corridorNumber": 4,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Возьмите 3 карты Событий и разыграйте 1 из них."
+            "description": "Переместите Счетчик Предметов на 0 в каждой Комнате с маркером Пожара. Поместите маркер Пожара в каждую соседнюю Комнату. Огонь не распространяется через Закрытые Двери и Технические Коридоры."
           },
           {
             "id": "EVT_PREY_SCENT",
@@ -1293,31 +1295,25 @@
             "effect": "PREY_SCENT",
             "corridorNumber": 3,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "ADULT"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Поместите по 1 маркеру Шума в каждый Коридор без маркеров, соединённый с Комнатами, где есть Персонажи со Слизью."
+            "description": "Поместите по 1 маркеру Шума в каждый коридор без маркеров Шума, соединенный с Комнатами, в которых находятся Персонажи с маркерами Слизи на их Планшетах."
           },
           {
             "id": "EVT_NOISE_TECH_CORRIDORS",
-            "name": "Шум в тех. коридорах",
+            "name": "Шум в технических коридорах",
             "effect": "NOISE_TECH_CORRIDORS",
             "corridorNumber": 4,
             "intruderTypes": [
-              "LARVA",
-              "CREEPER",
               "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "BREEDER"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Если в Технических Коридорах нет маркера Шума — поместите его. Если есть — каждый Персонаж в Комнате с вентиляцией бросает кубик Шума."
+            "description": "Если в Тех. Коридорах нет маркера Шума, поместите его туда. Если там уже есть маркер Шума, каждый Персонаж в Комнате, соединенной с Тех. Коридорами, бросает кубик Шума."
           },
           {
             "id": "EVT_HIVE",
@@ -1325,15 +1321,13 @@
             "effect": "HIVE",
             "corridorNumber": 3,
             "intruderTypes": [
-              "LARVA",
               "CREEPER",
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Если Улей исследован, поместите по 1 маркеру Шума во все пустые Коридоры вокруг Улья."
+            "description": "Если Улей исследован, поместите по 1 маркеру Шума в каждый коридор без маркеров Шума, соединенный с Ульем."
           },
           {
             "id": "EVT_FLAMMABLE_MIXTURE",
@@ -1341,13 +1335,12 @@
             "effect": "FLAMMABLE_MIXTURE",
             "corridorNumber": 4,
             "intruderTypes": [
-              "ADULT",
               "BREEDER",
               "QUEEN"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Маркер Пожара в Криогенный Отсек. Если он уже там — маркер Пожара во все соседние Комнаты (огонь не проходит через закрытые Двери)."
+            "description": "Поместите маркер Пожара в Криогенный Отсек. Если там уже есть такой маркер, поместите маркер Пожара в каждую соседнюю Комнату. Огонь не распространяется через Закрытые Двери и Технические Коридоры."
           },
           {
             "id": "EVT_DESTRUCTIVE_FLAME",
@@ -1355,13 +1348,12 @@
             "effect": "DESTRUCTIVE_FLAME",
             "corridorNumber": 1,
             "intruderTypes": [
-              "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "CREEPER",
+              "ADULT"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
-            "description": "Маркер Неисправности во все Комнаты с Огнём. Маркер Пожара во все соседние Комнаты."
+            "description": "Поместите маркер Неисправности в каждую Комнату с маркером Пожара. Поместите маркер Пожара в каждую соседнюю Комнату. Огонь не распространяется через Закрытые Двери и Технические Коридоры."
           },
           {
             "id": "EVT_ESCAPE_POD_EJECTION",
@@ -1375,7 +1367,7 @@
             ],
             "isDestroyedOnResolve": true,
             "isReshuffledIntoDeck": false,
-            "description": "Удалите 1 Спасательную Капсулу с наименьшим номером. Удалите эту карту из игры и замешайте сброс в колоду Событий."
+            "description": "Удалите 1 Спасательную Капсулу под наименьшим номером. УДАЛИТЕ эту карту из игры и замешайте сброс в колоду Событий."
           },
           {
             "id": "EVT_SHORT_CIRCUIT",
@@ -1389,7 +1381,7 @@
             ],
             "isDestroyedOnResolve": true,
             "isReshuffledIntoDeck": false,
-            "description": "Маркер Неисправности в каждую Жёлтую Комнату с Компьютером. Удалите эту карту из игры и замешайте сброс в колоду Событий."
+            "description": "Поместите маркер Неисправности в каждую Желтую Комнату с Компьютером. УДАЛИТЕ эту карту из игры и замешайте сброс в колоду Событий."
           },
           {
             "id": "EVT_COOLANT_LEAK",
@@ -1403,7 +1395,7 @@
             ],
             "isDestroyedOnResolve": true,
             "isReshuffledIntoDeck": false,
-            "description": "Если в Генераторе есть Неисправность, запустите Самоуничтожение. Удалите эту карту из игры и замешайте сброс в колоду Событий."
+            "description": "Если в Комнате Генератора есть маркер Неисправности, запустите процесс Самоуничтожения. УДАЛИТЕ эту карту из игры и замешайте сброс в колоду Событий."
           },
           {
             "id": "EVT_LIFE_SUPPORT_MALFUNCTION",
@@ -1417,7 +1409,7 @@
             ],
             "isDestroyedOnResolve": true,
             "isReshuffledIntoDeck": false,
-            "description": "Маркер Неисправности во все Зелёные Комнаты. Удалите эту карту из игры и замешайте сброс в колоду Событий."
+            "description": "Поместите маркер Неисправности в каждую Зеленую Комнату. УДАЛИТЕ эту карту из игры и замешайте сброс в колоду Событий."
           },
           {
             "id": "EVT_MALFUNCTION",
@@ -1426,12 +1418,11 @@
             "corridorNumber": 2,
             "intruderTypes": [
               "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "BREEDER"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": true,
-            "description": "Маркер Неисправности в исследованную Комнату с наименьшим номером. Затем замешайте эту карту обратно в колоду Событий."
+            "description": "Поместите маркер Неисправности в исследованную Комнату с наименьшим номером. Затем замешайте эту карту обратно в колоду Событий."
           },
           {
             "id": "EVT_OPEN_COMPARTMENTS",
@@ -1439,41 +1430,15 @@
             "effect": "OPEN_COMPARTMENTS",
             "corridorNumber": 1,
             "intruderTypes": [
-              "LARVA",
-              "CREEPER",
               "ADULT",
-              "BREEDER",
-              "QUEEN"
+              "BREEDER"
             ],
             "isDestroyedOnResolve": false,
             "isReshuffledIntoDeck": false,
             "description": "Откройте все Двери на поле (кроме Разрушенных)."
           }
         ]
-      },
-      "unverified": [
-        "Колода прочитана со скана (scan-transcript §4); состав, символы и часть текстов расходятся с кодом до задач С2-1…С2-3.",
-        "Номера Коридоров, символы Чужих и тексты каждого экземпляра взяты из транскрипта doc/data/EVENTS.md; оригинальных сканов карт в репозитории нет.",
-        "Golden-тест проверяет точное соответствие кода этому пакету источника, а не подтверждает достоверность физического транскрипта.",
-        "Отступление в бою по карте «Подготовка» (направление «Любое»): пока карта остаётся в коде, Чужой остаётся на месте. Ветвь удаляется вместе с картой в задаче С2-1."
-      ],
-      "scanDiscrepancies": [
-        {
-          "task": "С2-1",
-          "page": "cards_base.pdf, стр. 1–2, 11, 13, 15",
-          "reading": "«Подготовка» — карта Действий Чужих, в колоде Событий её нет; в колоде есть «Пожирающее пламя» (направление 4)"
-        },
-        {
-          "task": "С2-2",
-          "page": "cards_base.pdf, стр. 11, 13, 15; fixes.pdf, стр. 1",
-          "reading": "Символы Чужих на каждой карте — 2–3 типа без Личинки (scan-transcript §4)"
-        },
-        {
-          "task": "С2-3",
-          "page": "cards_base.pdf, стр. 11",
-          "reading": "«Созревание»: 4 карты берутся из своей колоды Действий; «Регенерация»: «сбрасывает 2 Раны»; «Выводок»: без карт Действий — Инфицирован"
-        }
-      ]
+      }
     },
     "intruder-miniatures": {
       "file": "packages/shared/src/data/intruderMiniatures.ts",

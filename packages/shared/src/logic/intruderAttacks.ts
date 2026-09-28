@@ -2,7 +2,13 @@ import type { IntruderAttackEffect } from '../types/cards.js';
 import type { AttackVictimStatus, IntruderLogEvent } from '../types/contact.js';
 import type { GameState } from '../types/state.js';
 import { drawSharedCard, reshuffleDiscard } from './cardPiles.js';
-import { killPlayer, receiveContamination, sufferLightWounds, sufferSeriousWound } from './characterDamage.js';
+import {
+  infestWithLarva,
+  killPlayer,
+  receiveContamination,
+  sufferLightWounds,
+  sufferSeriousWound,
+} from './characterDamage.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, removeIntruder, requireIntruder, transformCreeper } from './intruderPlacement.js';
@@ -109,8 +115,7 @@ export function performIntruderAttack(
 
   if (intruderType === 'LARVA') {
     removeIntruder(state, intruderId);
-    player.hasLarva = true;
-    receiveContamination(state, playerId);
+    infestWithLarva(state, playerId);
     appendEvent({ ...common, card: null, outcome: 'INFESTATION', victims: [victimStatus(state, playerId)] });
     return;
   }

@@ -100,7 +100,6 @@ function stepIdForEntry(entry: SanitizedGameLogEntry): EventPhaseStepId | null {
     case 'INTRUDERS_BLOCKED_BY_DOOR':
       return 'EVENT_CARD';
     case 'EVENT_EFFECT_RESOLVED':
-    case 'EVENT_CARD_CHOSEN':
       return 'EFFECT';
     case 'HIVE_DEVELOPMENT_RESOLVED':
     case 'HIVE_DEVELOPMENT_SKIPPED':

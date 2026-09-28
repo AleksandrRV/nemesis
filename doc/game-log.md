@@ -97,8 +97,7 @@
 | `EVENT_CARD_DRAWN` | Шаг 7а: верхняя карта Событий вытянута лицом вверх — карта с направлением и символами |
 | `INTRUDER_MOVED` | Шаг 7а: переход Чужого по коридору или уход в вентиляцию (особь, из/в отсек, коридор ID, номер карты) |
 | `INTRUDERS_BLOCKED_BY_DOOR` | Шаг 7а: Закрытая Дверь разрушена сообща, источник `DANGER` или `EVENT_PHASE` |
-| `EVENT_EFFECT_RESOLVED` | Шаг 7б: текстовый эффект карты исполнен — 19 вариантов `EventEffectOutcome`: `HUNT` (движение взрослых к персонажам), `PROTECT_NEST` (контакты), `BROOD` (яйцо с планшета, инфекция), `REGENERATION` (снятие ран), `HIDDEN` (снятие вне боя), `MATURATION` (гибель носителей Личинки, скан 4 карт), `RAMPAGE` (поломки), `PREPARATION` (решение Первого Игрока), `PREY_SCENT`/`NOISE_TECH_CORRIDORS`/`HIVE` (шум от карт), `FLAMMABLE_MIXTURE`/`DESTRUCTIVE_FLAME` (пожар/поломки с распространением), `ESCAPE_POD_EJECTION` (`isDestroyed`), `SHORT_CIRCUIT`/`COOLANT_LEAK`/`LIFE_SUPPORT_MALFUNCTION`/`MALFUNCTION` (поломки), `OPEN_COMPARTMENTS` (открытие дверей) |
-| `EVENT_CARD_CHOSEN` | «Подготовка»: какую из 3 карт выбрал Первый Игрок и какие ушли в сброс |
+| `EVENT_EFFECT_RESOLVED` | Шаг 7б: текстовый эффект карты исполнен — по варианту `EventEffectOutcome` на каждый из 19 эффектов: `HUNT` (движение взрослых к персонажам), `PROTECT_NEST` (контакты), `BROOD` (яйцо с планшета, инфекция), `REGENERATION` (снятие ран), `HIDDEN` (снятие вне боя), `MATURATION` (гибель носителей Личинки, скан руки после добора 4 карт своей колоды), `RAMPAGE` (поломки), `PREY_SCENT`/`NOISE_TECH_CORRIDORS`/`HIVE` (шум от карт), `FLAMMABLE_MIXTURE`/`DESTRUCTIVE_FLAME`/`DEVOURING_FLAME` (пожар, поломки или обнуление Счетчика Предметов с распространением огня), `ESCAPE_POD_EJECTION` (`isDestroyed`), `SHORT_CIRCUIT`/`COOLANT_LEAK`/`LIFE_SUPPORT_MALFUNCTION`/`MALFUNCTION` (поломки), `OPEN_COMPARTMENTS` (открытие дверей) |
 | `HIVE_DEVELOPMENT_RESOLVED` | Шаг 8: Развитие Улья — тип жетона из мешка и итог `HiveDevelopmentOutcome`: `LARVA`→взрослая в мешок, `CREEPER`→трутень в мешок, `ADULT`/`BREEDER`→броски Шума вне боя, `QUEEN`→миниатюра в Улей с контактом или яйцо на планшет (вместимость 8), `BLANK`→взрослая из запаса |
 | `HIVE_DEVELOPMENT_SKIPPED` | Развитие Улья пропущено: мешок пуст (`EMPTY_BAG`) |
 
@@ -120,7 +119,7 @@
 * успешные результаты, предупреждения, ошибки, завершение партии — цвет + текст.
 
 `intruderLogModel.ts` — тексты Контакта/Боя (силуэты, числа, Внезапная атака, раны, отступление).  
-`eventEffectLogModel.ts` — русские тексты 19 итогов эффектов Событий и выбора «Подготовки».
+`eventEffectLogModel.ts` — русские тексты 19 итогов эффектов Событий.
 
 ---
 
@@ -154,4 +153,4 @@
 
 ## Запись о сканировании Заражения
 
-`CONTAMINATION_SCANNED` — публичная запись: источник (Отдых, Операционная, Антидот, Алкоголь), вердикт по каждой карте без её id, число удалённых карт и исход. Клиент форматирует её в `components/log/scanLogFormat.ts` и показывает кинематографичной сессией Красного Сканера (`doc/infection-scanner.md`).
+`CONTAMINATION_SCANNED` — публичная запись: источник (Отдых, Операционная, Антидот, Алкоголь, карта События «Созревание»), вердикт по каждой карте без её id, число удалённых карт и исход. Клиент форматирует её в `components/log/scanLogFormat.ts` и показывает кинематографичной сессией Красного Сканера (`doc/infection-scanner.md`).

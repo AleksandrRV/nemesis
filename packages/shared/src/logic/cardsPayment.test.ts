@@ -119,6 +119,7 @@ describe('Валидатор и выполнение оплаты действи
     name: 'Тест',
     playCost: 0,
     description: '',
+    effect: { kind: 'SEARCH' },
   });
 
   const dummyContaminationCard = (id: string): ContaminationCard => ({

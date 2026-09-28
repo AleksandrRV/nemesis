@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GameEngine, EngineError } from './fsm.js';
 import { createInitialGameState } from './setup.js';
 import { filterStateForPlayer } from './sanitizer.js';
-import { startNewRound } from './turnCycle.js';
 import { getPlayerHandLimit, drawCardsToLimit } from './cardsPayment.js';
 import type { GameState } from '../types/state.js';
 import type { ItemCard } from '../types/cards.js';
@@ -147,7 +146,6 @@ describe('Комплексная валидация релиза v0.3.0', () => 
     // Подготовка: найдём комнату Генератора и сделаем её соседней к стартовой (11) для простоты
     const generatorRoom = Object.values(state.ship.rooms).find((r) => r.definitionId === 'GENERATOR');
     expect(generatorRoom).toBeDefined();
-    const genRoomId = generatorRoom!.id;
 
     // Делаем генератор исследованным, с предметами, без поломки
     generatorRoom!.isExplored = true;
@@ -172,7 +170,6 @@ describe('Комплексная валидация релиза v0.3.0', () => 
     room6.occupantIntruderIds = [];
 
     const player1 = state.players['player-1']!;
-    const player2 = state.players['player-2']!;
 
     // Убедимся что у player-1 достаточно карт для оплаты MOVE[1] + SEARCH[1] + GENERATOR[2] = 4 карты
     // В начальной руке 5 карт, так что хватит
@@ -282,12 +279,11 @@ describe('Комплексная валидация релиза v0.3.0', () => 
     expect(afterNewRound.meta.currentRound).toBe(2);
 
     // Проверим лимит руки: базовый 5, в Каютах 6
-    const p1After = afterNewRound.players['player-1']!;
     const handLimit = getPlayerHandLimit(afterNewRound, 'player-1');
     expect([5, 6]).toContain(handLimit);
 
     // Добор до лимита
-    const drawn = drawCardsToLimit(afterNewRound, 'player-1', handLimit);
+    drawCardsToLimit(afterNewRound, 'player-1', handLimit);
     expect(afterNewRound.players['player-1']!.actionDeck.hand.length).toBe(handLimit);
 
     // Если игрок в Каютах без поломки/пожара/Чужих — лимит 6

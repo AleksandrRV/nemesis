@@ -115,8 +115,8 @@ describe('Побег из Боя (стр. 19; Шаг 7)', () => {
     expect(next.ship.rooms[target]!.occupantPlayerIds).not.toContain('player-1');
 
     // В Криогенном отсеке есть стартовый Труп — ищем именно Труп Капитана.
-    const corpses = next.ship.rooms[11]!.objects.filter((object) => object.kind === 'CORPSE');
-    expect(corpses.some((object) => object.characterClass === 'CAPTAIN')).toBe(true);
+    const objects = next.ship.rooms[11]!.objects;
+    expect(objects.some((object) => object.kind === 'CORPSE' && object.characterClass === 'CAPTAIN')).toBe(true);
 
     const types = next.gameLog.map((entry) => entry.event.type);
     expect(types).toContain('PLAYER_DIED');

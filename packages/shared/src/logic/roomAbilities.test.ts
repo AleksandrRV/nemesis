@@ -22,6 +22,7 @@ function giveHand(state: GameState, playerId: string, count: number = 5) {
       characterClass: player.characterClass,
       playCost: 1,
       description: 'Test',
+      effect: { kind: 'SEARCH' },
     });
   }
 }

@@ -4,6 +4,7 @@ import { createInitialGameState } from './setup.js';
 import { GameEngine } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { drawSearchCards, getRoomDeckColor, validateSearchConditions } from './search.js';
+import type { CraftedItemCard } from '../types/cards.js';
 
 describe('Механика Поиска и экономика предметов (v0.3.0 Шаг 5)', () => {
   it('определяет цвет колоды отсека по правилам', () => {
@@ -130,27 +131,59 @@ describe('Механика Поиска и экономика предметов
 
     // Занимаем обе руки тяжёлыми предметами
     player.handSlots = [
-      { source: 'ITEM', card: { id: 'heavy-1', name: 'Тяж1', color: 'RED', origin: 'ROOM_DECK', isHeavy: true, isSingleUse: false, componentSymbols: [], actionCost: 0, description: '', isWeapon: false, ammo: null, maxAmmo: null } as never },
-      { source: 'ITEM', card: { id: 'heavy-2', name: 'Тяж2', color: 'RED', origin: 'ROOM_DECK', isHeavy: true, isSingleUse: false, componentSymbols: [], actionCost: 0, description: '', isWeapon: false, ammo: null, maxAmmo: null } as never },
+      {
+        source: 'ITEM',
+        card: {
+          id: 'heavy-1',
+          name: 'Тяж1',
+          color: 'RED',
+          origin: 'ROOM_DECK',
+          isHeavy: true,
+          isSingleUse: false,
+          componentSymbols: [],
+          actionCost: 0,
+          description: '',
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        } as never,
+      },
+      {
+        source: 'ITEM',
+        card: {
+          id: 'heavy-2',
+          name: 'Тяж2',
+          color: 'RED',
+          origin: 'ROOM_DECK',
+          isHeavy: true,
+          isSingleUse: false,
+          componentSymbols: [],
+          actionCost: 0,
+          description: '',
+          isWeapon: false,
+          ammo: null,
+          maxAmmo: null,
+        } as never,
+      },
     ];
 
     // Делаем колоду с одной тяжёлой картой — берём реальную карту из CRAFTED чтобы DISCARD_HEAVY мог её найти в шаблонах
-    const heavyCard = {
+    const heavyCard: CraftedItemCard = {
       id: 'CRAFTED_FLAMETHROWER_1',
       name: 'Огнемёт',
       color: 'BLUE' as const,
       origin: 'CRAFTED' as const,
       recipeId: 'FLAMETHROWER' as const,
-      components: ['TOOLS', 'CHEMICALS'] as const,
+      components: ['TOOLS', 'CHEMICALS'],
       isHeavy: true,
       isSingleUse: false,
-      componentSymbols: [] as const,
+      componentSymbols: [],
       actionCost: 1,
       description: 'Огнемёт',
       isWeapon: true,
       ammo: 4,
       maxAmmo: 4,
-    } as never;
+    };
     state.decks.items.RED.drawPile = [heavyCard];
 
     const payCardId = player.actionDeck.hand[0]!.id;
@@ -174,7 +207,9 @@ describe('Механика Поиска и экономика предметов
       });
 
       expect(s2.pendingDecision).toBeNull();
-      expect(s2.players['player-1']?.handSlots.some((s) => s.source === 'ITEM' && s.card.id === heavyCard.id)).toBe(true);
+      expect(s2.players['player-1']?.handSlots.some((s) => s.source === 'ITEM' && s.card.id === heavyCard.id)).toBe(
+        true,
+      );
       // Теперь поиск завершён и itemsCount уменьшен
       expect(s2.ship.rooms[room.id]?.itemsCount).toBe(0);
     }
@@ -191,9 +226,48 @@ describe('Механика Поиска и экономика предметов
     room.itemsCount = 1;
 
     // Задаём известный порядок колоды: [A, B, C]
-    const cardA = { id: 'A', name: 'A', color: 'RED', origin: 'ROOM_DECK', isHeavy: false, isSingleUse: true, componentSymbols: [], actionCost: 0, description: '', isWeapon: false, ammo: null, maxAmmo: null } as never;
-    const cardB = { id: 'B', name: 'B', color: 'RED', origin: 'ROOM_DECK', isHeavy: false, isSingleUse: true, componentSymbols: [], actionCost: 0, description: '', isWeapon: false, ammo: null, maxAmmo: null } as never;
-    const cardC = { id: 'C', name: 'C', color: 'RED', origin: 'ROOM_DECK', isHeavy: false, isSingleUse: true, componentSymbols: [], actionCost: 0, description: '', isWeapon: false, ammo: null, maxAmmo: null } as never;
+    const cardA = {
+      id: 'A',
+      name: 'A',
+      color: 'RED',
+      origin: 'ROOM_DECK',
+      isHeavy: false,
+      isSingleUse: true,
+      componentSymbols: [],
+      actionCost: 0,
+      description: '',
+      isWeapon: false,
+      ammo: null,
+      maxAmmo: null,
+    } as never;
+    const cardB = {
+      id: 'B',
+      name: 'B',
+      color: 'RED',
+      origin: 'ROOM_DECK',
+      isHeavy: false,
+      isSingleUse: true,
+      componentSymbols: [],
+      actionCost: 0,
+      description: '',
+      isWeapon: false,
+      ammo: null,
+      maxAmmo: null,
+    } as never;
+    const cardC = {
+      id: 'C',
+      name: 'C',
+      color: 'RED',
+      origin: 'ROOM_DECK',
+      isHeavy: false,
+      isSingleUse: true,
+      componentSymbols: [],
+      actionCost: 0,
+      description: '',
+      isWeapon: false,
+      ammo: null,
+      maxAmmo: null,
+    } as never;
     state.decks.items.RED.drawPile = [cardA, cardB, cardC];
 
     const payCardId = player.actionDeck.hand[0]!.id;

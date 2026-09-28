@@ -4,7 +4,7 @@ import type { EngineErrorCode } from './fsm.js';
 import { EngineError } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { createInitialGameState } from './setup.js';
-import type { EventCard, WeaknessCard } from '../types/cards.js';
+import type { ActionCard, EventCard, WeaknessCard } from '../types/cards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
 
@@ -219,7 +219,14 @@ describe('filterStateForPlayer: карты Заражения (стр. 20)', () 
 
     if (player) {
       player.actionDeck.hand = [
-        { id: 'act-1', characterClass: 'CAPTAIN', name: 'Ремонт', playCost: 0, description: '' },
+        {
+          id: 'act-1',
+          characterClass: 'CAPTAIN',
+          name: 'Ремонт',
+          playCost: 0,
+          description: '',
+          effect: { kind: 'REPAIR' },
+        },
       ];
     }
 
@@ -324,12 +331,13 @@ describe('filterStateForPlayer: границы', () => {
 
   it('не отдаёт порядок добора личной колоды, чужую руку и чужой сброс, но открывает их размеры (стр. 7, 18)', () => {
     const state = createInitialGameState(SEED, { playerCount: 2 });
-    const actionCard = (id: string, characterClass: 'CAPTAIN' | 'PILOT') => ({
+    const actionCard = (id: string, characterClass: 'CAPTAIN' | 'PILOT'): ActionCard => ({
       id,
       characterClass,
       name: 'Карта действий',
       playCost: 0,
       description: '',
+      effect: { kind: 'SEARCH' },
     });
 
     state.players[VIEWER]!.actionDeck = {
@@ -605,7 +613,14 @@ describe('filterStateForPlayer: privacy — чужая рука, инвента�
       },
     ];
     state.players['player-2']!.actionDeck.hand = [
-      { id: 'secret-hand-1', characterClass: 'PILOT', name: 'Секрет', playCost: 0, description: '' },
+      {
+        id: 'secret-hand-1',
+        characterClass: 'PILOT',
+        name: 'Секрет',
+        playCost: 0,
+        description: '',
+        effect: { kind: 'SEARCH' },
+      },
     ];
 
     // Приватное решение для player-2
@@ -687,4 +702,3 @@ describe('filterStateForPlayer: privacy — чужая рука, инвента�
     expect(view.players['player-2']?.inventory).toBeNull();
   });
 });
-

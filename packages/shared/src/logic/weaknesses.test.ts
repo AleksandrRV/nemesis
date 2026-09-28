@@ -3,6 +3,7 @@ import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { WEAKNESS_CARDS } from '../data/weaknesses.js';
 import type { ItemCard, WeaknessEffect } from '../types/cards.js';
+import type { HeavyObjectRef } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
 import * as rng from '../utils/rng.js';
 import { resolveSurpriseAttack } from './intruderAttacks.js';
@@ -187,7 +188,7 @@ describe('Смерть Чужого: Останки (стр. 20, 22)', () => {
     const picked = next.players[next.meta.activePlayerId]!;
     // Слот 0 — стартовый предмет, Останки легли в свободный слот.
     expect(picked.handSlots.some((slot) => slot.source === 'OBJECT' && slot.object.id === 'remains-1')).toBe(true);
-    expect(picked.handSlots.find((slot) => slot.source === 'OBJECT')?.object).toMatchObject({
+    expect(picked.handSlots.find((slot): slot is HeavyObjectRef => slot.source === 'OBJECT')?.object).toMatchObject({
       kind: 'INTRUDER_REMAINS',
       intruderType: 'CREEPER',
     });
@@ -334,68 +335,66 @@ describe('Эффекты раскрытых Слабостей (стр. 21)', ()
     expect(shootEvent(shoot(state)).injuries).toBe(1);
   });
 
-describe('Сброс тяжёлого предмета/объекта (Шаг 7, долг 22)', () => {
-  it('ACTION_DISCARD_HEAVY_ITEM сбрасывает объект на пол комнаты без действия', () => {
-    const state = combatStatusState('discard-object');
-    const roomId = state.players[state.meta.activePlayerId]!.roomId;
-    state.players[state.meta.activePlayerId]!.handSlots = [
-      { source: 'OBJECT', object: { id: 'egg-discard', kind: 'EGG' } },
-    ];
-    state.ship.rooms[roomId]!.objects = [];
+  describe('Сброс тяжёлого предмета/объекта (Шаг 7, долг 22)', () => {
+    it('ACTION_DISCARD_HEAVY_ITEM сбрасывает объект на пол комнаты без действия', () => {
+      const state = combatStatusState('discard-object');
+      const roomId = state.players[state.meta.activePlayerId]!.roomId;
+      state.players[state.meta.activePlayerId]!.handSlots = [
+        { source: 'OBJECT', object: { id: 'egg-discard', kind: 'EGG' } },
+      ];
+      state.ship.rooms[roomId]!.objects = [];
 
-    const next = new GameEngine().processAction(state, {
-      type: 'ACTION_DISCARD_HEAVY_ITEM',
-      payload: { handSlotIndex: 0 },
+      const next = new GameEngine().processAction(state, {
+        type: 'ACTION_DISCARD_HEAVY_ITEM',
+        payload: { handSlotIndex: 0 },
+      });
+
+      expect(next.players[next.meta.activePlayerId]!.handSlots).toHaveLength(0);
+      expect(next.ship.rooms[roomId]!.objects.some((o) => o.id === 'egg-discard')).toBe(true);
+      expect(next.gameLog.some((e) => e.event.type === 'OBJECT_DROPPED')).toBe(true);
     });
 
-    expect(next.players[next.meta.activePlayerId]!.handSlots).toHaveLength(0);
-    expect(next.ship.rooms[roomId]!.objects.some((o) => o.id === 'egg-discard')).toBe(true);
-    expect(next.gameLog.some((e) => e.event.type === 'OBJECT_DROPPED')).toBe(true);
-  });
+    it('ACTION_DISCARD_HEAVY_ITEM сбрасывает тяжёлый предмет в сброс колоды', () => {
+      const state = combatStatusState('discard-item');
+      const heavyItem = {
+        id: 'ITEM_RED_HEAVY',
+        name: 'Тяжёлый',
+        color: 'RED' as const,
+        origin: 'ROOM_DECK' as const,
+        isHeavy: true,
+        isSingleUse: false,
+        componentSymbols: [] as const,
+        actionCost: 1,
+        description: '',
+        isWeapon: false,
+        ammo: null,
+        maxAmmo: null,
+      } as never;
+      state.players[state.meta.activePlayerId]!.handSlots = [{ source: 'ITEM', card: heavyItem }];
+      state.decks.items.RED.discard = [];
 
-  it('ACTION_DISCARD_HEAVY_ITEM сбрасывает тяжёлый предмет в сброс колоды', () => {
-    const state = combatStatusState('discard-item');
-    const roomId = state.players[state.meta.activePlayerId]!.roomId;
-    const heavyItem = {
-      id: 'ITEM_RED_HEAVY',
-      name: 'Тяжёлый',
-      color: 'RED' as const,
-      origin: 'ROOM_DECK' as const,
-      isHeavy: true,
-      isSingleUse: false,
-      componentSymbols: [] as const,
-      actionCost: 1,
-      description: '',
-      isWeapon: false,
-      ammo: null,
-      maxAmmo: null,
-    } as never;
-    state.players[state.meta.activePlayerId]!.handSlots = [{ source: 'ITEM', card: heavyItem }];
-    state.decks.items.RED.discard = [];
+      const next = new GameEngine().processAction(state, {
+        type: 'ACTION_DISCARD_HEAVY_ITEM',
+        payload: { handSlotIndex: 0 },
+      });
 
-    const next = new GameEngine().processAction(state, {
-      type: 'ACTION_DISCARD_HEAVY_ITEM',
-      payload: { handSlotIndex: 0 },
+      expect(next.players[next.meta.activePlayerId]!.handSlots).toHaveLength(0);
+      expect(next.decks.items.RED.discard.some((c) => c.id === 'ITEM_RED_HEAVY')).toBe(true);
+      expect(next.gameLog.some((e) => e.event.type === 'HEAVY_ITEM_DISCARDED')).toBe(true);
     });
 
-    expect(next.players[next.meta.activePlayerId]!.handSlots).toHaveLength(0);
-    expect(next.decks.items.RED.discard.some((c) => c.id === 'ITEM_RED_HEAVY')).toBe(true);
-    expect(next.gameLog.some((e) => e.event.type === 'HEAVY_ITEM_DISCARDED')).toBe(true);
+    it('неверный индекс слота — INVALID_HAND_SLOT', () => {
+      const state = combatStatusState('discard-invalid');
+      state.players[state.meta.activePlayerId]!.handSlots = [];
+
+      expectEngineError(
+        () =>
+          new GameEngine().processAction(state, {
+            type: 'ACTION_DISCARD_HEAVY_ITEM',
+            payload: { handSlotIndex: 0 },
+          }),
+        'INVALID_HAND_SLOT',
+      );
+    });
   });
-
-  it('неверный индекс слота — INVALID_HAND_SLOT', () => {
-    const state = combatStatusState('discard-invalid');
-    state.players[state.meta.activePlayerId]!.handSlots = [];
-
-    expectEngineError(
-      () =>
-        new GameEngine().processAction(state, {
-          type: 'ACTION_DISCARD_HEAVY_ITEM',
-          payload: { handSlotIndex: 0 },
-        }),
-      'INVALID_HAND_SLOT',
-    );
-  });
-});
-
 });

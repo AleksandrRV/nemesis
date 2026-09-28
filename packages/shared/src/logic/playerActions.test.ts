@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contactState, expectEngineError } from '../testing/contactFixtures.js';
-import type { ItemCard } from '../types/cards.js';
+import type { ActionCard, ItemCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { GameEngine } from './fsm.js';
 
@@ -224,12 +224,13 @@ describe('Использование Предметов (стр. 10, 22)', () =>
     const energy = item(state, 'ITEM_RED_ENERGY_CHARGE_1');
     player.inventory = [food, energy];
     player.handSlots = [{ source: 'ITEM', card: weapon() }];
-    player.actionDeck.drawPile = ['ACT_CAP_EXTRA_1', 'ACT_CAP_EXTRA_2'].map((id) => ({
+    player.actionDeck.drawPile = ['ACT_CAP_EXTRA_1', 'ACT_CAP_EXTRA_2'].map((id): ActionCard => ({
       id,
       characterClass: 'CAPTAIN',
       name: id,
       playCost: 0,
       description: '',
+      effect: { kind: 'SEARCH' },
     }));
     const afterFood = use(state, food.id, [card(state, 'ACT_CAP_RELOAD')]);
     expect(afterFood.players['player-1']!.actionDeck.hand).toHaveLength(11);

@@ -311,7 +311,7 @@ describe('Golden: кубик Шума (Э2-1)', () => {
 
     expect(NOISE_DIE_FACES).toHaveLength(expectation.faceCount);
 
-    const corridorFaces = NOISE_DIE_FACES.filter((face) => face.kind === 'CORRIDOR').map((face) => face.number);
+    const corridorFaces = NOISE_DIE_FACES.flatMap((face) => (face.kind === 'CORRIDOR' ? [face.number] : []));
     const specialFaces = NOISE_DIE_FACES.filter((face) => face.kind !== 'CORRIDOR').map((face) => face.kind);
 
     expect(corridorFaces).toEqual(expectation.corridorFaces);
@@ -463,7 +463,7 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     }
 
     // Проверяем что все kind из источника встречаются хотя бы раз
-    const seen = new Set(ACTION_CARDS.map((c) => c.effect.kind));
+    const seen = new Set<string>(ACTION_CARDS.map((c) => c.effect.kind));
     for (const kind of expectation.actionCardEffectKinds) {
       expect(seen.has(kind), `effect.kind ${kind} не встречается ни в одной карте`).toBe(true);
     }

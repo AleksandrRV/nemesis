@@ -131,7 +131,7 @@ export type GameAction =
   | {
       /** Сброс тяжёлого предмета/объекта из слота руки в комнату (стр. 22, ITEMS_AND_GEAR.md: сброс без действия) */
       type: 'ACTION_DISCARD_HEAVY_ITEM';
-      payload: { handSlotIndex: number; discardCardIds?: string[] };
+      payload: { handSlotIndex: number };
     }
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }

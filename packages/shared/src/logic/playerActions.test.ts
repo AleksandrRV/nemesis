@@ -177,7 +177,7 @@ describe('Использование Предметов (стр. 10, 22)', () =>
     const single = item(state, 'ITEM_GRE_MEDKIT_1');
     const multi = item(state, 'ITEM_GRE_CLOTHES_1', { isSingleUse: false });
     state.players['player-1']!.seriousWounds = [
-      { id: 'SW_TEST', name: 'Тяжелая Травма', description: '', isTreated: false },
+      { id: 'SW_TEST', kind: 'LEG', name: 'Травма ноги', description: '', isTreated: false },
     ]; // Аптечке нужно, что обрабатывать
     state.players['player-1']!.hasSlime = true; // Одежде нужна Слизь
     state.players['player-1']!.inventory = [single, multi];

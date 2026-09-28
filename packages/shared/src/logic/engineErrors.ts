@@ -53,6 +53,7 @@ export type EngineErrorCode =
   | 'SHOOT_NOT_IN_COMBAT'
   | 'MELEE_NOT_IN_COMBAT'
   | 'HAND_SLOTS_FULL'
+  | 'HEAVY_DROP_REQUIRED'
   | 'OBJECT_NOT_AVAILABLE'
   | 'WEAKNESS_ALREADY_REVEALED'
   /** Выбранная карта в слоте Руки — не Оружие либо Оружия там нет (стр. 19). */

@@ -113,6 +113,7 @@ export type GameLogEvent =
       roomId: RoomId;
       woundsCount: number;
     }
+  | { type: 'BLEEDING_WOUND_TAKEN'; playerId: string }
   | {
       type: 'SEARCH_PERFORMED';
       playerId: string;

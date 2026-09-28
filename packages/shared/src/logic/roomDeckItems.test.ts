@@ -212,7 +212,7 @@ describe('Ключ самоуничтожения', () => {
     expect(started.meta.selfDestructTrackPosition).toBe(0);
     expect(started.gameLog.at(-1)?.event).toMatchObject({ type: 'SELF_DESTRUCT_TOGGLED', isActive: true });
 
-    state.meta.selfDestructTrackPosition = 3;
+    state.meta.selfDestructTrackPosition = 2;
     const stopped = useItem(state, keyId);
     expect(stopped.meta.selfDestructTrackPosition).toBeNull();
   });
@@ -227,7 +227,7 @@ describe('Ключ самоуничтожения', () => {
     expectEngineError(() => useItem(broken.state, broken.keyId), 'NO_COMPUTER');
 
     const irreversible = keyState('self-destruct-yellow');
-    irreversible.state.meta.selfDestructTrackPosition = 6;
+    irreversible.state.meta.selfDestructTrackPosition = 3;
     expectEngineError(() => useItem(irreversible.state, irreversible.keyId), 'ROOM_ABILITY_NOT_ALLOWED');
 
     const hibernating = keyState('self-destruct-hibernation');

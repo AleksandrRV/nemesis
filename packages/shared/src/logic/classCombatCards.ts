@@ -14,6 +14,7 @@ import { allocateEntityId } from './stateIds.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
+import { escapeCost } from './seriousWoundEffects.js';
 
 /**
  * Классовые боевые карты Действий (Шаг 8 этапа 0.4.0; стр. 19, 24–28):
@@ -231,16 +232,14 @@ export function executeCombatCard(
       }
       if (combat.kind === 'ADRENALINE_ESCAPE') {
         consumeCard(state, actorId, cardId);
-        // Побег — это Движение: цена базового действия списывается как обычно (стр. 19).
-        executeCardPayment(state, actorId, payment, 1);
+        const isEscape = isPlayerInCombat(state, actorId);
+        executeCardPayment(state, actorId, payment, isEscape ? escapeCost(state.players[actorId]!) : 1);
         // Побег — по обычным правилам, с Внеочередными атаками (стр. 19);
         // добор карты — после атак и Шума, перед завершением действия.
         state.interruptQueue.push({
           type: 'ESCAPE_ATTACK_INTERRUPT',
           playerId: actorId,
-          intruderIds: isPlayerInCombat(state, actorId)
-            ? state.ship.rooms[state.players[actorId]!.roomId]!.occupantIntruderIds.slice()
-            : [],
+          intruderIds: isEscape ? state.ship.rooms[state.players[actorId]!.roomId]!.occupantIntruderIds.slice() : [],
           targetRoomId: combat.targetRoomId,
         });
         state.interruptQueue.push({ type: 'DRAW_ACTION_CARD_INTERRUPT', playerId: actorId });

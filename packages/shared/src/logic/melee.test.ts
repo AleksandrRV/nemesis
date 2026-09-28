@@ -177,7 +177,13 @@ describe('Промах — Тяжёлая Травма (стр. 19, 21)', () => 
     const state = combatReady('melee-miss-death', 'ADULT');
     const player = state.players[state.meta.activePlayerId]!;
     // Третья Тяжёлая Травма убивает: у Персонажа уже 3 (стр. 21; ревью 0.4.0).
-    const trauma = (id: string) => ({ id, name: 'Травма', description: '', isTreated: false });
+    const trauma = (id: string) => ({
+      id,
+      kind: 'LEG' as const,
+      name: 'Травма ноги',
+      description: '',
+      isTreated: false,
+    });
     player.seriousWounds.push(trauma('sw-1'), trauma('sw-2'), trauma('sw-3'));
     const roomId = player.roomId;
     const next = melee(state);

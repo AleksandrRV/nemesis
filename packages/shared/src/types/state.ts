@@ -7,8 +7,8 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Сохранения другой схемы не восстанавливаются (CHANGELOG, «Сверка со сканами, Этап 4»).
-export const GAME_STATE_SCHEMA_VERSION = 23;
+// Сохранения другой схемы не восстанавливаются (CHANGELOG, «Сверка со сканами, Этап 5»).
+export const GAME_STATE_SCHEMA_VERSION = 24;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -20,7 +20,7 @@ export type GameMode = 'SOLO' | 'COOP' | 'SEMI_COOP' | 'INTRUDER_PLAYER';
 /** Почему партия окончена (стр. 11, 17): взрыв, разрыв обшивки, гиперпрыжок или отсутствие участников. */
 export type GameOverReason = 'SHIP_EXPLODED' | 'HULL_BREACH' | 'HYPERSPACE_JUMP' | 'NO_ACTIVE_CHARACTERS';
 export type GamePhase = 'PLAYER_PHASE' | 'EVENT_PHASE' | 'GAME_OVER';
-export type Destination = 'EARTH' | 'MARS' | 'DEEP_SPACE_1' | 'DEEP_SPACE_2';
+export type Destination = 'EARTH' | 'MARS' | 'VENUS' | 'DEEP_SPACE';
 export type CourseMarker = 'A' | 'B' | 'C' | 'D';
 export type EngineNumber = 1 | 2 | 3;
 
@@ -34,9 +34,9 @@ export interface EngineState {
 }
 
 export interface CoordinatesState {
-  /** Истинный пункт назначения из случайно выбранной карты Координат (стр. 6, шаг 5). */
-  destination: Destination;
-  /** Положение маркера Курса на карте Координат. */
+  /** Случайная карта Координат (стр. 6, шаг 5; `data/coordinateCards.ts`); пункт назначения — по маркеру Курса. */
+  cardId: string;
+  /** Положение маркера Курса на поле установки Курса (стр. 6, шаг 6). */
   currentCourseMarker: CourseMarker;
 }
 
@@ -80,7 +80,8 @@ export interface GameMeta {
   firstPlayerId: string;
   /** Позиция маркера Времени: 0..TIME_TRACK_LENGTH, где 15 — красный прыжок (стр. 11). */
   timeTrackPosition: number;
-  selfDestructTrackPosition: number | null; // 0..8 (8 = череп)
+  /** Позиция маркера Самоуничтожения: 0..SELF_DESTRUCT_EXPLODES_AT, где 6 — череп; null — процесс не запущен. */
+  selfDestructTrackPosition: number | null;
   /**
    * Сколько раз партия уже обратилась к каждому потоку случайности.
    * Сам генератор в состоянии не хранится (состояние остаётся JSON-сериализуемым),

@@ -57,14 +57,16 @@ describe('Пакет источника: сверка со сканами ори
       (entry.scanDiscrepancies ?? []).map((item) => ({ id, item })),
     );
 
-    expect(discrepancies.length).toBeGreaterThan(0);
-
     for (const { id, item } of discrepancies) {
       expect(item.task, `таблица ${id}: метка задачи`).toMatch(/^С[1-7]-\d+$/);
       expect(fixPlan, `таблица ${id}: задачи ${item.task} нет в плане`).toContain(`### ${item.task}.`);
       expect(item.page.length, `таблица ${id}: нет страницы скана`).toBeGreaterThan(0);
       expect(item.reading.length, `таблица ${id}: нет прочитанного значения`).toBeGreaterThan(0);
     }
+  });
+
+  it('после этапов 1–5 плана открытых расхождений со сканами нет', () => {
+    expect(tables.filter(([, entry]) => (entry.scanDiscrepancies ?? []).length > 0).map(([id]) => id)).toEqual([]);
   });
 
   it('не выдаёт расходящуюся со сканом внешнюю таблицу за проверенную', () => {

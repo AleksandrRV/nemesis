@@ -24,6 +24,7 @@ import type {
 } from '../types/sanitized.js';
 import type { GameLogEntry } from '../types/log.js';
 import type { EngineNumber, GameState } from '../types/state.js';
+import { handLimitOf } from './cardsPayment.js';
 
 /**
  * Фильтрация скрытой информации (tech_stack §3.2, GDD §5.1).
@@ -104,7 +105,7 @@ function sanitizeShip(state: SanitizedGameState, viewer: PlayerState): void {
   }
 
   if (!viewer.inspectedCoordinates) {
-    state.ship.coordinates.destination = null;
+    state.ship.coordinates.cardId = null;
   }
 
   for (const room of Object.values(state.ship.rooms)) {
@@ -153,14 +154,7 @@ function sanitizePlayers(state: SanitizedGameState, viewingPlayerId: string): vo
       playerId === viewingPlayerId,
     );
 
-    // Лимит руки с учётом Кают: 5 базовый, 6 в исправных Каютах без Чужих и Пожара (стр. 10, 25)
-    // Вычисляется на основе санитизированного состояния комнаты — игрок видит, есть ли Пожар/Неисправность/Чужие.
-    const room = state.ship.rooms[player.roomId];
-    const isCabins = room?.definitionId === 'CABINS';
-    const isWorking = room?.hasMalfunction === false && room?.hasFire === false;
-    const noIntruders = (room?.occupantIntruderIds?.length ?? 0) === 0;
-
-    (player as unknown as { handLimit: number }).handLimit = isCabins && isWorking && noIntruders ? 6 : 5;
+    player.handLimit = handLimitOf(player, state.ship.rooms[player.roomId]);
   }
 }
 

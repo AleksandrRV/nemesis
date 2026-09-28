@@ -1,34 +1,12 @@
-import type { ActionCard, ActionDeckCard, ActionDeckState } from '../types/cards.js';
+import type { ActionCard, ActionDeckCard, ActionDeckState, SeriousWoundCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
+import { BACK_WOUND_HAND_SIZE, hasActiveSeriousWound } from './seriousWoundEffects.js';
 
 export const BASE_HAND_SIZE = 5;
 export const CABINS_HAND_SIZE = 6;
-
-/**
- * Определяет целевой лимит руки игрока.
- * По правилам: 5 карт; 6 карт, если игрок начинает Фазу Игроков
- * в Исправных Каютах (отсек CABINS), в которых нет Чужих и нет Пожара
- * (стр. 10; стр. 25; roadmap Шаг 3: без огня/поломки/Чужих).
- */
-export function getPlayerHandLimit(state: GameState, playerId: string): number {
-  const player = state.players[playerId];
-  if (!player) return BASE_HAND_SIZE;
-
-  const currentRoom = state.ship.rooms[player.roomId];
-  if (!currentRoom) return BASE_HAND_SIZE;
-
-  const isCabins = currentRoom.definitionId === 'CABINS';
-  const isWorking = !currentRoom.hasMalfunction && !currentRoom.hasFire;
-  const noIntruders = (currentRoom.occupantIntruderIds?.length ?? 0) === 0;
-
-  if (isCabins && isWorking && noIntruders) {
-    return CABINS_HAND_SIZE;
-  }
-
-  return BASE_HAND_SIZE;
-}
+const CABINS_EXTRA_CARDS = CABINS_HAND_SIZE - BASE_HAND_SIZE;
 
 interface HandLimitRoomView {
   definitionId: string | null;
@@ -37,33 +15,34 @@ interface HandLimitRoomView {
   occupantIntruderIds: string[];
 }
 
-interface HandLimitStateView {
-  ship: { rooms: Record<number, HandLimitRoomView> };
-  players: Record<string, { roomId: number }>;
+interface HandLimitPlayerView {
+  roomId: number;
+  seriousWounds: readonly Pick<SeriousWoundCard, 'kind' | 'isTreated'>[] | null;
 }
 
-/**
- * Версия для санитизированного состояния (клиент).
- * Использует те же условия: CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0.
- * Работает с `SanitizedGameState`, где hasMalfunction/hasFire могут быть null (неисследованный отсек).
- */
-export function getSanitizedPlayerHandLimit(state: HandLimitStateView, playerId: string): number {
+interface HandLimitStateView {
+  ship: { rooms: Record<number, HandLimitRoomView | undefined> };
+  players: Record<string, HandLimitPlayerView | undefined>;
+}
+
+function restsInCabins(room: HandLimitRoomView | undefined): boolean {
+  if (room?.definitionId !== 'CABINS') return false;
+  const isWorking = room.hasMalfunction === false && room.hasFire === false;
+  return isWorking && room.occupantIntruderIds.length === 0;
+}
+
+export function handLimitOf(player: HandLimitPlayerView, room: HandLimitRoomView | undefined): number {
+  const base = hasActiveSeriousWound(player, 'BACK') ? BACK_WOUND_HAND_SIZE : BASE_HAND_SIZE;
+  return restsInCabins(room) ? base + CABINS_EXTRA_CARDS : base;
+}
+
+export function getPlayerHandLimit(state: HandLimitStateView, playerId: string): number {
   const player = state.players[playerId];
   if (!player) return BASE_HAND_SIZE;
-
-  const currentRoom = state.ship.rooms[player.roomId];
-  if (!currentRoom) return BASE_HAND_SIZE;
-
-  const isCabins = currentRoom.definitionId === 'CABINS';
-  const isWorking = currentRoom.hasMalfunction === false && currentRoom.hasFire === false;
-  const noIntruders = (currentRoom.occupantIntruderIds?.length ?? 0) === 0;
-
-  if (isCabins && isWorking && noIntruders) {
-    return CABINS_HAND_SIZE;
-  }
-
-  return BASE_HAND_SIZE;
+  return handLimitOf(player, state.ship.rooms[player.roomId]);
 }
+
+export const getSanitizedPlayerHandLimit = getPlayerHandLimit;
 
 /**
  * Добор карт до целевого лимита руки.

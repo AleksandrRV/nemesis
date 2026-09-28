@@ -4,16 +4,13 @@ import { BASIC_ROOMS_1, ADDITIONAL_ROOMS_2, SPECIAL_ROOMS } from '../data/roomDe
 import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
+import { hasFreeHandSlot } from './seriousWoundEffects.js';
 
 const ALL_ROOMS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
 
-/**
- * Определяет цвет колоды отсека по его definitionId.
- */
 export function getRoomDeckColor(definitionId: string | null): ItemDeckColor | 'WHITE' | null {
-  if (!definitionId) return null;
-  const def = ALL_ROOMS.find((r) => r.id === definitionId);
-  return (def?.color as ItemDeckColor | 'WHITE') ?? null;
+  const color = ALL_ROOMS.find((definition) => definition.id === definitionId)?.color;
+  return color === undefined || color === 'NONE' ? null : color;
 }
 
 /**
@@ -55,7 +52,7 @@ export function validateSearchConditions(
 
   const color = getRoomDeckColor(room.definitionId);
   if (!color) {
-    throw new EngineError('SEARCH_NOT_ALLOWED', 'Не удалось определить цвет колоды отсека');
+    throw new EngineError('SEARCH_NOT_ALLOWED', 'У этой Комнаты нет цвета — Поиск в ней невозможен (стр. 26).');
   }
 
   return { roomId: room.id, color };
@@ -95,11 +92,10 @@ export function placeItemToPlayer(state: GameState, playerId: string, item: Item
   const player = state.players[playerId]!;
 
   if (item.isHeavy) {
-    if (player.handSlots.length < 2) {
+    if (hasFreeHandSlot(player)) {
       player.handSlots.push({ source: 'ITEM', card: item });
       return true;
     }
-    // Обе руки заняты: нужно решение о сбросе тяжёлого предмета для нового
     state.pendingDecision = {
       id: allocateEntityId(state, 'item-choice'),
       playerId,

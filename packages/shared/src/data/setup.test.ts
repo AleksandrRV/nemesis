@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { COORDINATE_CARDS, coursedDestination } from './coordinateCards.js';
 
 import {
   CHARACTERS,
-  COORDINATE_DESTINATIONS,
   ESCAPE_PODS_BY_PLAYER_COUNT,
   ESCAPE_POD_NUMBERS,
   MAX_PLAYER_COUNT,
@@ -28,18 +28,27 @@ describe('Подготовка к игре: Спасательные Капсу�
   });
 });
 
-describe('Подготовка к игре: карта Координат', () => {
-  it('содержит четыре возможных пункта назначения (стр. 11)', () => {
-    expect(COORDINATE_DESTINATIONS).toHaveLength(4);
-    expect(new Set(COORDINATE_DESTINATIONS).size).toBe(4);
-    expect(COORDINATE_DESTINATIONS).toContain('EARTH');
-    expect(COORDINATE_DESTINATIONS).toContain('MARS');
+describe('Карты Координат (cards_additional.pdf, стр. 13, 15)', () => {
+  it('8 карт, на каждой четыре разных пункта назначения — Земля, Марс, Венера, Глубокий космос', () => {
+    expect(COORDINATE_CARDS).toHaveLength(8);
+    expect(new Set(COORDINATE_CARDS.map((card) => card.id)).size).toBe(8);
+    for (const card of COORDINATE_CARDS) {
+      expect(Object.values(card.destinations).sort()).toEqual(['DEEP_SPACE', 'EARTH', 'MARS', 'VENUS']);
+    }
   });
 
-  it('состоит из Земли, Марса и двух вариантов глубокого космоса', () => {
-    const deepSpace = COORDINATE_DESTINATIONS.filter((destination) => destination.startsWith('DEEP_SPACE'));
+  it('пункт назначения определяется картой и положением маркера Курса: карта 5, Курс «B» — Земля', () => {
+    expect(coursedDestination('COORDINATES_5', 'B')).toBe('EARTH');
+    expect(coursedDestination('COORDINATES_5', 'A')).toBe('VENUS');
+    expect(coursedDestination('COORDINATES_1', 'D')).toBe('EARTH');
+  });
 
-    expect(deepSpace).toHaveLength(2);
+  it('у каждого пункта назначения на Курсе «B» есть хотя бы одна карта', () => {
+    expect(new Set(COORDINATE_CARDS.map((card) => card.destinations.B)).size).toBe(4);
+  });
+
+  it('неизвестная карта — ошибка', () => {
+    expect(() => coursedDestination('COORDINATES_9', 'A')).toThrow();
   });
 });
 

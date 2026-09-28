@@ -1,5 +1,5 @@
 import type { SanitizedWeaknessSlotState } from '@nemesis/shared';
-import { OBJECT_KIND_LABELS } from './studyObjectLabels';
+import { OBJECT_KIND_LABELS } from './laboratoryModel';
 
 interface LaboratoryActionsProps {
   /** Типы объектов, чьи Слабости ещё под рубашкой (стр. 16, 21). */

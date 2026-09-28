@@ -4,6 +4,7 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { discardItemCard } from './cardEffectsShared.js';
+import { hasFreeHandSlot } from './seriousWoundEffects.js';
 
 /**
  * Базовое действие «Поднять Тяжёлый объект» [1] (стр. 13, 22): «поднимите
@@ -19,8 +20,8 @@ export function executePickUpObject(
 ): void {
   const player = state.players[actorId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
-  if (player.handSlots.length >= 2) {
-    throw new EngineError('HAND_SLOTS_FULL', 'Оба слота Рук заняты — некуда положить Тяжёлый объект (стр. 22).');
+  if (!hasFreeHandSlot(player)) {
+    throw new EngineError('HAND_SLOTS_FULL', 'Свободного слота Руки нет — некуда положить Тяжёлый объект (стр. 22).');
   }
 
   const room = state.ship.rooms[player.roomId]!;
@@ -43,11 +44,7 @@ export function executePickUpObject(
   queueActionCompletion(state, actorId);
 }
 
-/**
- * Сброс тяжёлого предмета/объекта из руки (Шаг 7, долг 22):
- * «Сброс — в любой момент хода без действия: объект — в комнату, предмет — теряется (в сброс колоды)» (ITEMS_AND_GEAR.md).
- * Реализовано как действие без стоимости (0 карт), но допускает оплату если передана.
- */
+/** «Сброс» (стр. 22): в любой момент своего хода, не тратя Действия. */
 export function executeDiscardHeavyItem(
   state: GameState,
   action: Extract<EngineAction, { type: 'ACTION_DISCARD_HEAVY_ITEM' }>,
@@ -86,5 +83,4 @@ export function executeDiscardHeavyItem(
   }
 
   player.handSlots.splice(slotIndex, 1);
-  queueActionCompletion(state, actorId);
 }

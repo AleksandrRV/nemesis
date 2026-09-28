@@ -1,31 +1,52 @@
-import type { SeriousWoundCard } from '../types/cards.js';
+import type { SeriousWoundCard, SeriousWoundKind } from '../types/cards.js';
+
+interface SeriousWoundSpec {
+  kind: SeriousWoundKind;
+  name: string;
+  count: number;
+  description: string;
+}
+
+function seriousWounds(spec: SeriousWoundSpec): SeriousWoundCard[] {
+  return Array.from({ length: spec.count }, (_, index) => ({
+    id: `SERIOUS_WOUND_${spec.kind}_${index + 1}`,
+    kind: spec.kind,
+    name: spec.name,
+    description: spec.description,
+    isTreated: false,
+  }));
+}
 
 export const SERIOUS_WOUND_CARDS: readonly SeriousWoundCard[] = [
-  ...Array.from({ length: 4 }, (_, i) => ({
-    id: `SERIOUS_WOUND_LEG_${i + 1}`,
-    name: 'Травма ноги',
-    description: 'С этого момента цена Действия «Побег» равна 2.',
-    isTreated: false,
-  })),
-
-  ...Array.from({ length: 4 }, (_, i) => ({
-    id: `SERIOUS_WOUND_ARM_${i + 1}`,
-    name: 'Травма руки',
-    description: 'С этого момента цена использования ваших Предметов увеличена на 1.',
-    isTreated: false,
-  })),
-
-  ...Array.from({ length: 4 }, (_, i) => ({
-    id: `SERIOUS_WOUND_BODY_${i + 1}`,
+  ...seriousWounds({
+    kind: 'BACK',
     name: 'Травма спины',
+    count: 4,
     description: 'В начале Фазы Игроков вы добираете на руку до 4 карт вместо 5.',
-    isTreated: false,
-  })),
-
-  ...Array.from({ length: 4 }, (_, i) => ({
-    id: `SERIOUS_WOUND_BLEEDING_${i + 1}`,
+  }),
+  ...seriousWounds({
+    kind: 'LEG',
+    name: 'Травма ноги',
+    count: 3,
+    description: 'С этого момента цена Действия «Побег» равна 2.',
+  }),
+  ...seriousWounds({
+    kind: 'HAND',
+    name: 'Травма кисти',
+    count: 3,
+    description: 'С этого момента цена использования ваших Предметов увеличена на 1.',
+  }),
+  ...seriousWounds({
+    kind: 'BLEEDING',
     name: 'Кровотечение',
-    description: 'Каждый раз, когда вы пасуете во время Фазы Игроков, вы получаете 1 Лёгкую Травму.',
-    isTreated: false,
-  })),
+    count: 3,
+    description: 'Каждый раз, когда вы пасуете во время Фазы Игроков, вы получаете 1 Легкую Травму.',
+  }),
+  ...seriousWounds({
+    kind: 'ARM',
+    name: 'Травма руки',
+    count: 3,
+    description:
+      'У вас остается только 1 слот руки для Тяжелых Предметов/Объектов. Если вы несете 2 Тяжелых Предмета, вы должны бросить один из них.',
+  }),
 ];

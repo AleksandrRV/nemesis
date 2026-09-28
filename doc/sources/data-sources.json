@@ -2,7 +2,7 @@
   "meta": {
     "version": 2,
     "updated": "2026-09-28",
-    "updatedFor": "0.6.0 (Этап 4 плана doc/fix-plan-scans.md)",
+    "updatedFor": "0.6.0 (Этап 5 плана doc/fix-plan-scans.md)",
     "note": "Пакет источника: откуда взято каждое число в таблицах данных. Golden-тест packages/shared/src/data/sources.golden.test.ts сверяет код с этим файлом, поэтому изменение таблицы без изменения источника роняет тест. Сканы оригинальных компонентов лежат в doc/original/, их транскрипт — doc/sources/scan-transcript.md (статус SCAN_VERIFIED). Расхождения кода со сканом перечислены в scanDiscrepancies таблицы с меткой задачи из doc/fix-plan-scans.md. Остальное, что читается только с картона, помечено статусом USER_CONFIRMED (подтверждено владельцем проекта) или EXTERNAL_UNVERIFIED (внешний источник, физической сверки не было).",
     "statuses": {
       "RULES_LOCAL": "Напечатано в книге правил; рядом указаны строки doc/rules.md.",
@@ -471,8 +471,8 @@
       }
     },
     "room-definitions": {
-      "file": "packages/shared/src/data/roomDefinitions.ts",
-      "status": "RULES_LOCAL",
+      "file": "packages/shared/src/data/roomDefinitions.ts, packages/shared/src/logic/setup.ts",
+      "status": "SCAN_VERIFIED",
       "facts": [
         {
           "claim": "11 базовых отсеков типа ROOM_1, 9 дополнительных ROOM_2 и 5 напечатанных особых отсеков",
@@ -483,6 +483,22 @@
           "claim": "Действия отсеков (Компьютер, Поиск, Комната) описаны на стр. 20–26",
           "source": "rules-md",
           "lines": "1509-1560"
+        },
+        {
+          "claim": "Цвет тайла — фон плашки с названием; белые Комнаты несут три цветных значка. Компьютер — значок монитора под плашкой: Радиорубка, Комната пожарной безопасности, Генератор, Лаборатория, Центр управления, Машинное отделение, Комната наблюдения. Операционная, Контроль воздушных шлюзов и Система блокировки капсул — без Компьютера; Центр управления — красный, Система блокировки капсул — белая.",
+          "source": "pnp-scans",
+          "page": "rooms.pdf, стр. 2, 4, 6 (scan-transcript §11)"
+        },
+        {
+          "claim": "Улей и Комната, покрытая слизью, — без цвета и без значков колод (цвет NONE, Поиска нет).",
+          "source": "pnp-scans",
+          "page": "rooms.pdf, стр. 4"
+        },
+        {
+          "claim": "Особые Комнаты поля (Мостик, Криогенный Отсек, Машинные Отсеки 1–3) — без цветной плашки и без значка Компьютера; так же они показаны в описании Комнат.",
+          "source": "pnp-scans",
+          "page": "map_full.jpg; rules.pdf, стр. 26",
+          "note": "Текст «Пилотирования» различает «Исправный Мостик» и «Комнату с Компьютером»; раньше код ставил Мостику Компьютер."
         }
       ],
       "expectation": {
@@ -492,15 +508,35 @@
         "forbiddenMalfunctionRooms": [
           "NEST",
           "SLIME_ROOM"
-        ]
-      },
-      "scanDiscrepancies": [
-        {
-          "task": "С5-2",
-          "page": "rooms.pdf, стр. 2, 4, 6",
-          "reading": "Операционная и Контроль шлюзов без Компьютера; Центр управления красный; Система блокировки капсул белая без Компьютера; Улей и Комната со слизью без цвета"
+        ],
+        "rooms": {
+          "ARMORY": { "color": "RED", "hasComputer": false },
+          "COMM_ROOM": { "color": "YELLOW", "hasComputer": true },
+          "INFIRMARY": { "color": "GREEN", "hasComputer": false },
+          "LABORATORY": { "color": "GREEN", "hasComputer": true },
+          "GENERATOR": { "color": "YELLOW", "hasComputer": true },
+          "ESCAPE_POD_A": { "color": "WHITE", "hasComputer": false },
+          "ESCAPE_POD_B": { "color": "WHITE", "hasComputer": false },
+          "FIRE_CONTROL": { "color": "YELLOW", "hasComputer": true },
+          "NEST": { "color": "NONE", "hasComputer": false },
+          "STORAGE": { "color": "RED", "hasComputer": false },
+          "SURGERY": { "color": "GREEN", "hasComputer": false },
+          "AIRLOCK_CONTROL": { "color": "YELLOW", "hasComputer": false },
+          "CABINS": { "color": "WHITE", "hasComputer": false },
+          "CANTEEN": { "color": "GREEN", "hasComputer": false },
+          "COMMAND_CENTER": { "color": "RED", "hasComputer": true },
+          "ENGINE_CONTROL": { "color": "YELLOW", "hasComputer": true },
+          "HATCH_CONTROL": { "color": "WHITE", "hasComputer": false },
+          "OBSERVATION_ROOM": { "color": "RED", "hasComputer": true },
+          "SLIME_ROOM": { "color": "NONE", "hasComputer": false },
+          "SHOWER": { "color": "WHITE", "hasComputer": false },
+          "COCKPIT": { "color": "NONE", "hasComputer": false },
+          "HIBERNATORIUM": { "color": "NONE", "hasComputer": false },
+          "ENGINE_03": { "color": "NONE", "hasComputer": false },
+          "ENGINE_02": { "color": "NONE", "hasComputer": false },
+          "ENGINE_01": { "color": "NONE", "hasComputer": false }
         }
-      ]
+      }
     },
     "setup-plan": {
       "file": "packages/shared/src/data/setup.ts",
@@ -552,19 +588,79 @@
         "handSlotCount": 2,
         "questItemCount": 2,
         "characterCount": 6
-      },
-      "scanDiscrepancies": [
+      }
+    },
+    "board-tracks": {
+      "file": "packages/shared/src/data/evacuation.ts, packages/shared/src/data/setup.ts, packages/shared/src/logic/eventsPhase.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
         {
-          "task": "С5-1",
-          "page": "map_full.jpg",
-          "reading": "Самоуничтожение: 6 делений и череп, жёлтая зона с позиции 3, взрыв на 6; Время: первое синее деление «8» — позиция 7"
+          "claim": "Счетчик Самоуничтожения: зеленое «6», белые «5», «4», значок замка, желтые «3», «2», «1», череп. Маркер ставится на зеленое поле (позиция 0): желтая зона — позиции 3–5, череп — позиция 6.",
+          "source": "pnp-scans",
+          "page": "map_full.jpg, левый нижний угол (scan-transcript §13)"
         },
         {
-          "task": "С5-3",
-          "page": "cards_additional.pdf, стр. 13, 15",
-          "reading": "8 карт Координат, на каждой Земля, Марс, Венера, Глубокий космос (scan-transcript §7)"
+          "claim": "Счетчик Времени: зеленое «15», белые «14»…«9», значок Анабиоза, синие «8»…«1», красное поле прыжка. Старт — позиция 0: первое синее поле — позиция 7, прыжок — позиция 15.",
+          "source": "pnp-scans",
+          "page": "map_full.jpg, правый нижний угол (scan-transcript §13)"
+        },
+        {
+          "claim": "Камеры Анабиоза открываются, когда маркер Времени достигает любого синего поля; на любом желтом поле Самоуничтожение необратимо и все Капсулы разблокируются; череп — взрыв корабля.",
+          "source": "rules-md",
+          "lines": "626-627, 1558-1562, 1723"
+        },
+        {
+          "claim": "Гиперпрыжок при включенном Самоуничтожении уничтожает корабль: гибнут все на борту, включая Анабиоз.",
+          "source": "rules-md",
+          "lines": "1565"
+        },
+        {
+          "claim": "Маркер Курса при подготовке ставится на «B».",
+          "source": "rules-md",
+          "lines": "271, 339"
         }
-      ]
+      ],
+      "expectation": {
+        "timeTrackLength": 15,
+        "hibernationOpensAtTime": 7,
+        "selfDestructIrreversibleAt": 3,
+        "selfDestructExplodesAt": 6,
+        "startingCourseMarker": "B"
+      }
+    },
+    "coordinate-cards": {
+      "file": "packages/shared/src/data/coordinateCards.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
+        {
+          "claim": "8 карт Координат; на каждой четыре пункта назначения — Земля, Марс, Венера, Глубокий космос — по одному на каждую позицию маркера Курса A–D.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 13 (карты 1–2), 15 (карты 3–8); scan-transcript §7"
+        },
+        {
+          "claim": "При подготовке случайная карта Координат кладется у Мостика; пункт назначения — пункт карты под текущей позицией маркера Курса.",
+          "source": "rules-md",
+          "lines": "268, 1700"
+        },
+        {
+          "claim": "Если пунктом назначения является что-то, кроме Земли, все Персонажи в Анабиозе погибают; исключение — Цель «Карантин» при Марсе.",
+          "source": "rules-md",
+          "lines": "571-572",
+          "note": "Финальная проверка Координат — Этап 7 дорожной карты; сейчас карта и пункт назначения только хранятся и вычисляются."
+        }
+      ],
+      "expectation": {
+        "cards": {
+          "COORDINATES_1": { "A": "VENUS", "B": "DEEP_SPACE", "C": "MARS", "D": "EARTH" },
+          "COORDINATES_2": { "A": "MARS", "B": "VENUS", "C": "DEEP_SPACE", "D": "EARTH" },
+          "COORDINATES_3": { "A": "DEEP_SPACE", "B": "MARS", "C": "EARTH", "D": "VENUS" },
+          "COORDINATES_4": { "A": "MARS", "B": "VENUS", "C": "EARTH", "D": "DEEP_SPACE" },
+          "COORDINATES_5": { "A": "VENUS", "B": "EARTH", "C": "DEEP_SPACE", "D": "MARS" },
+          "COORDINATES_6": { "A": "DEEP_SPACE", "B": "EARTH", "C": "VENUS", "D": "MARS" },
+          "COORDINATES_7": { "A": "EARTH", "B": "DEEP_SPACE", "C": "MARS", "D": "VENUS" },
+          "COORDINATES_8": { "A": "EARTH", "B": "MARS", "C": "VENUS", "D": "DEEP_SPACE" }
+        }
+      }
     },
     "crafting-recipes": {
       "file": "packages/shared/src/data/crafting.ts",
@@ -633,7 +729,7 @@
           "lines": "114, 1276-1300"
         },
         {
-          "claim": "16 карт Тяжёлых Травм в колоде Травм (4 типа ×4)",
+          "claim": "16 карт Тяжёлых Травм в колоде Травм; состав и тексты — таблица serious-wounds.",
           "source": "rules-md",
           "lines": "116, 1342-1360"
         }
@@ -677,14 +773,62 @@
         "seriousWoundsCount": 16,
         "eventCardsCount": 20,
         "startingWeaponsCount": 6
-      },
-      "scanDiscrepancies": [
+      }
+    },
+    "serious-wounds": {
+      "file": "packages/shared/src/data/seriousWounds.ts, packages/shared/src/logic/seriousWoundEffects.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
         {
-          "task": "С5-4",
-          "page": "cards_base.pdf, стр. 7, 9, 33",
-          "reading": "16 Тяжёлых Травм пяти видов: Спина 4, Нога 3, Кисть 3, Кровотечение 3, Рука 3 («остаётся 1 слот руки»)"
+          "claim": "16 карт Тяжелых Травм пяти видов: Травма спины 4, Травма ноги 3, Травма кисти 3, Кровотечение 3, Травма руки 3; тексты — дословно с карт.",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 7, 9, 33 (scan-transcript §10)"
+        },
+        {
+          "claim": "Эффект карты действует, пока Травма не Обработана; копии одной карты не суммируются.",
+          "source": "rules-md",
+          "lines": "1325-1352"
+        },
+        {
+          "claim": "Сброс Предмета/Объекта — в любой момент своего хода, не тратя Действия; Объект остается в Комнате, Предмет уходит в сброс.",
+          "source": "rules-md",
+          "lines": "1425-1428"
+        },
+        {
+          "claim": "Трактовки (решение владельца: реализовать все 5 эффектов): Травма спины с Каютами — добор до 5 (+1 к уменьшенному лимиту); Травма ноги — цена Побега 2 и при «Адреналине»; Травма кисти — +1 к цене любого применения Предмета, в том числе без цены (Увеличенный магазин) и после обнуления цены Автозарядчиком; Кровотечение — Лёгкая Травма при любом Пасе Фазы Игроков, включая Пас по тексту карты или Комнаты; Травма руки — пока в руках 2 Тяжелых при 1 слоте, любое действие, кроме сброса Тяжелого, отклоняется.",
+          "source": "owner-decision-2026-09-28",
+          "note": "Выбор, что бросить при Травме руки, делает игрок сбросом на своем ходу; книга правил момент сброса не уточняет."
         }
-      ]
+      ],
+      "expectation": {
+        "cards": {
+          "BACK": {
+            "name": "Травма спины",
+            "count": 4,
+            "description": "В начале Фазы Игроков вы добираете на руку до 4 карт вместо 5."
+          },
+          "LEG": {
+            "name": "Травма ноги",
+            "count": 3,
+            "description": "С этого момента цена Действия «Побег» равна 2."
+          },
+          "HAND": {
+            "name": "Травма кисти",
+            "count": 3,
+            "description": "С этого момента цена использования ваших Предметов увеличена на 1."
+          },
+          "BLEEDING": {
+            "name": "Кровотечение",
+            "count": 3,
+            "description": "Каждый раз, когда вы пасуете во время Фазы Игроков, вы получаете 1 Легкую Травму."
+          },
+          "ARM": {
+            "name": "Травма руки",
+            "count": 3,
+            "description": "У вас остается только 1 слот руки для Тяжелых Предметов/Объектов. Если вы несете 2 Тяжелых Предмета, вы должны бросить один из них."
+          }
+        }
+      }
     },
     "combat-die": {
       "file": "packages/shared/src/data/combatDie.ts",

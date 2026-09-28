@@ -51,7 +51,7 @@ describe('filterStateForPlayer: двигатели и Координаты (ст
     const state = freshState();
     const view = filterStateForPlayer(state, VIEWER);
 
-    expect(view.ship.coordinates.destination).toBeNull();
+    expect(view.ship.coordinates.cardId).toBeNull();
     expect(view.ship.coordinates.currentCourseMarker).toBe(state.ship.coordinates.currentCourseMarker);
   });
 
@@ -61,7 +61,7 @@ describe('filterStateForPlayer: двигатели и Координаты (ст
 
     if (player) player.inspectedCoordinates = true;
 
-    expect(filterStateForPlayer(state, VIEWER).ship.coordinates.destination).toBe(state.ship.coordinates.destination);
+    expect(filterStateForPlayer(state, VIEWER).ship.coordinates.cardId).toBe(state.ship.coordinates.cardId);
   });
 });
 
@@ -378,13 +378,13 @@ describe('filterStateForPlayer: границы', () => {
     const state = freshState();
     const json = JSON.stringify(filterStateForPlayer(state, VIEWER));
     const parsed = JSON.parse(json) as {
-      ship: { coordinates: { destination: unknown }; engines: Record<string, { isWorking: unknown }> };
+      ship: { coordinates: { cardId: unknown }; engines: Record<string, { isWorking: unknown }> };
     };
 
     // Скрытое значение кодируется как null: ключи контракта обязаны остаться
     // на месте, а вот истина за ними уходить в JSON не должна.
-    expect(parsed.ship.coordinates.destination).toBeNull();
-    expect(['EARTH', 'MARS', 'DEEP_SPACE_1', 'DEEP_SPACE_2']).not.toContain(parsed.ship.coordinates.destination);
+    expect(parsed.ship.coordinates.cardId).toBeNull();
+    expect(json).not.toContain(state.ship.coordinates.cardId);
     expect(Object.values(parsed.ship.engines).map((engine) => engine.isWorking)).toEqual([null, null, null]);
     expect(json).toContain('"coordinates"');
   });

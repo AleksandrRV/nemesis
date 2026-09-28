@@ -165,7 +165,10 @@ export interface CardDefinition {
   description: string;
 }
 
+export type SeriousWoundKind = 'BACK' | 'LEG' | 'HAND' | 'BLEEDING' | 'ARM';
+
 export interface SeriousWoundCard extends CardDefinition {
+  kind: SeriousWoundKind;
   /** Обработана в Лазарете (стр. 21). */
   isTreated: boolean;
 }

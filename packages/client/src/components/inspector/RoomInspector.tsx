@@ -1,9 +1,17 @@
 import React from 'react';
 import type { SanitizedRoomState } from '@nemesis/shared';
-import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS, findAdjacentOpenRoomIds } from '@nemesis/shared';
+import {
+  ADDITIONAL_ROOMS_2,
+  BASIC_ROOMS_1,
+  SPECIAL_ROOMS,
+  escapeCost,
+  findAdjacentOpenRoomIds,
+  hasFreeHandSlot as playerHasFreeHandSlot,
+} from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { intrudersInRoom } from '../board/intruderMapModel';
 import { LaboratoryActions } from './LaboratoryPanel';
+import { laboratoryStudyKinds } from './laboratoryModel';
 import { EscapeConfirmDialog } from './EscapeConfirmDialog';
 import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
@@ -109,25 +117,13 @@ export const RoomInspector: React.FC = () => {
   // Шаг 6: подбор Тяжёлых объектов [1] (стр. 13, 22) — свободный слот Рук
   // и выделенная карта цены; движение в Бою не запрещает базовые действия.
   const paymentReady = selectedCardIds.length + convertedCardIds.length >= 1;
-  const hasFreeHandSlot = (activePlayer?.handSlots.length ?? 2) < 2;
+  const hasFreeHandSlot = activePlayer ? playerHasFreeHandSlot(activePlayer) : false;
+  const escapePrice = activePlayer ? escapeCost(activePlayer) : 1;
 
   // Шаг 6: Лаборатория [2] (стр. 16) — изучение объекта с пола или из рук.
   const isLaboratory = room.definitionId === 'LABORATORY';
   const isEvacuationRoom = EVACUATION_ROOMS.has(room.definitionId ?? '');
-  const floorKinds = [...new Set(room.objects.map((object) => object.kind))];
-  const handKinds = isPlayerHere
-    ? [
-        ...new Set(
-          activePlayer?.handSlots
-            .filter((slot): slot is Extract<typeof slot, { source: 'OBJECT' }> => slot.source === 'OBJECT')
-            .map((slot) => slot.object.kind) ?? [],
-        ),
-      ]
-    : [];
-  const studyKinds = [...new Set([...floorKinds, ...handKinds])].filter((kind) => {
-    const slot = view.intrudersPool.weaknessSlots.find((entry) => entry.objectKind === kind);
-    return slot ? slot.visibility === 'FACE_DOWN' : false;
-  });
+  const studyKinds = laboratoryStudyKinds(view, room.id, activePlayer);
 
   // Раскладка «Осторожного движения» (стр. 13) — для статуса выбора (F15 diegetic на карте).
   const isCarefulSelecting = carefulTargetRoomId === room.id;
@@ -150,7 +146,7 @@ export const RoomInspector: React.FC = () => {
 
   const confirmEscape = () => {
     setEscapePromptOpen(false);
-    const discardCardIds = consumePaymentCards(1);
+    const discardCardIds = consumePaymentCards(escapePrice);
     dispatch({
       type: 'ACTION_MOVE',
       payload: {
@@ -164,7 +160,7 @@ export const RoomInspector: React.FC = () => {
   // после атак и Шума персонаж берёт карту Действия.
   const adrenalineEscape = () => {
     setEscapePromptOpen(false);
-    const discardCardIds = consumePaymentCards(1);
+    const discardCardIds = consumePaymentCards(escapePrice);
     dispatch({
       type: 'ACTION_PLAY_CARD',
       payload: {
@@ -512,7 +508,7 @@ export const RoomInspector: React.FC = () => {
                   : 'bg-cyan-600 hover:bg-cyan-500 text-slate-950'
               } font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 active:scale-95 transition`}
             >
-              <Footprints size={14} /> {movingFromCombat ? 'Побег [цена: 1]' : 'Движение [цена: 1]'}
+              <Footprints size={14} /> {movingFromCombat ? `Побег [цена: ${escapePrice}]` : 'Движение [цена: 1]'}
             </button>
             <button
               onClick={() => setCarefulTargetRoomId(room.id)}

@@ -8,6 +8,7 @@ import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
   SPECIAL_ROOMS,
+  SELF_DESTRUCT_EXPLODES_AT,
   TIME_TRACK_LENGTH,
   type SanitizedGameLogEntry,
   type SanitizedGameLogEvent,
@@ -198,6 +199,12 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
         { text: '.' },
       ];
 
+    case 'BLEEDING_WOUND_TAKEN':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' пасует с «Кровотечением» и получает 1 Лёгкую Травму.', tone: 'warning' },
+      ];
+
     case 'SEARCH_PERFORMED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },
@@ -346,18 +353,14 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
         { text: '.' },
       ];
 
-    case 'TIME_TRACK_ADVANCED':
+    case 'TIME_TRACK_ADVANCED': {
+      const selfDestruct = event.selfDestructTrackPosition;
+      const selfDestructText = ` Самоуничтожение — позиция ${selfDestruct} из ${SELF_DESTRUCT_EXPLODES_AT}.`;
       return [
         { text: `Фаза Событий: маркер Времени — позиция ${event.timeTrackPosition} из ${TIME_TRACK_LENGTH}.` },
-        ...(event.selfDestructTrackPosition !== null
-          ? [
-              {
-                text: ` Самоуничтожение — позиция ${event.selfDestructTrackPosition} из 8.`,
-                tone: 'warning' as const,
-              },
-            ]
-          : []),
+        ...(selfDestruct !== null ? [{ text: selfDestructText, tone: 'warning' as const }] : []),
       ];
+    }
 
     case 'EVENT_CARD_DRAWN': {
       const direction = `Коридор ${event.card.corridorNumber}`;

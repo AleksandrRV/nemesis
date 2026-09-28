@@ -119,3 +119,43 @@ describe('Определения комнат: связь с отсеками п
     expect(SPECIAL_ROOMS.map((room) => room.id).sort()).toEqual(Object.keys(SPECIAL_ROOM_NODES).sort());
   });
 });
+
+describe('Определения комнат: цвет и Компьютер по тайлам (rooms.pdf, стр. 2, 4, 6; map_full.jpg)', () => {
+  const byId = (id: string) => allDefinitions.find((room) => room.id === id)!;
+
+  it('исправляет расхождения со сканом: Операционная, Контроль шлюзов, Центр управления, Блокировка капсул', () => {
+    expect(byId('SURGERY')).toMatchObject({ color: 'GREEN', hasComputer: false });
+    expect(byId('AIRLOCK_CONTROL')).toMatchObject({ color: 'YELLOW', hasComputer: false });
+    expect(byId('COMMAND_CENTER')).toMatchObject({ color: 'RED', hasComputer: true });
+    expect(byId('HATCH_CONTROL')).toMatchObject({ color: 'WHITE', hasComputer: false });
+  });
+
+  it('Улей, Комната со слизью и особые Комнаты поля — без цвета', () => {
+    for (const id of ['NEST', 'SLIME_ROOM', ...Object.keys(SPECIAL_ROOM_NODES)]) {
+      expect(byId(id).color, id).toBe('NONE');
+    }
+  });
+
+  it('на поле у особых Комнат, включая Мостик, нет символа Компьютера', () => {
+    expect(SPECIAL_ROOMS.every((room) => !room.hasComputer)).toBe(true);
+  });
+
+  it('Компьютер — ровно у 7 тайлов', () => {
+    expect(
+      [...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2]
+        .filter((room) => room.hasComputer)
+        .map((room) => room.id)
+        .sort(),
+    ).toEqual(
+      [
+        'COMM_ROOM',
+        'FIRE_CONTROL',
+        'GENERATOR',
+        'LABORATORY',
+        'COMMAND_CENTER',
+        'ENGINE_CONTROL',
+        'OBSERVATION_ROOM',
+      ].sort(),
+    );
+  });
+});

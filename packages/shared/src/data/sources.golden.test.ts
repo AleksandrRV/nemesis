@@ -17,7 +17,6 @@ import {
 import { NOISE_DIE_FACES } from './noiseDie.js';
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from './roomDefinitions.js';
 import {
-  COORDINATE_DESTINATIONS,
   ESCAPE_POD_CAPACITY,
   ESCAPE_POD_NUMBERS,
   ESCAPE_PODS_BY_PLAYER_COUNT,
@@ -136,6 +135,9 @@ describe('Пакет источника: структура и статусы (�
       'weapon-modifiers',
       'action-cards',
       'quest-items',
+      'board-tracks',
+      'coordinate-cards',
+      'serious-wounds',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -409,10 +411,6 @@ describe('Golden: подготовка стола (Э2-1)', () => {
     expect(HAND_SLOT_COUNT).toBe(expectation.handSlotCount);
     expect(QUEST_ITEM_COUNT).toBe(expectation.questItemCount);
     expect(CHARACTERS).toHaveLength(expectation.characterCount);
-  });
-
-  it('знает пункты назначения Координат', () => {
-    expect(COORDINATE_DESTINATIONS.length).toBeGreaterThan(0);
   });
 });
 

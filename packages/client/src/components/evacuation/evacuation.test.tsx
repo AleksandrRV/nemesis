@@ -145,7 +145,7 @@ describe('Интерфейс эвакуации', () => {
     expect(
       text({ type: 'ESCAPE_POD_EXITED', playerId: 'player-1', podId: 'pod-1', podNumber: 1, reason: 'INTRUDER' }),
     ).toContain('ворвался Чужой');
-    expect(text({ type: 'HIBERNATION_OPENED', round: 8, timeTrackPosition: 8 })).toContain('Камеры Анабиоза открыты');
+    expect(text({ type: 'HIBERNATION_OPENED', round: 8, timeTrackPosition: 7 })).toContain('Камеры Анабиоза открыты');
     expect(
       text({
         type: 'ESCAPE_POD_TOGGLED',

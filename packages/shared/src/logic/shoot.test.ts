@@ -238,6 +238,7 @@ describe('Стрельба: оплата, боезапас и бросок (ст
 
   it('энергетическое оружие тратит заряды тем же порядком', () => {
     const state = combatReady('shoot-energy');
+    state.players['player-1']!.handSlots = [];
     const weaponId = giveWeapon(state, 2, { id: 'w-laser', name: 'Лазер', isEnergyWeapon: true, ammo: 2, maxAmmo: 4 });
     forceCombatDie('MISS');
 
@@ -367,12 +368,14 @@ describe('Отказы Стрельбы', () => {
 
   it('карта без признака Оружия не стреляет', () => {
     const state = combatReady();
+    state.players['player-1']!.handSlots = [];
     const weaponId = giveWeapon(state, 4, { id: 'w-not-weapon', isWeapon: false, ammo: null, maxAmmo: null });
     expectEngineError(() => shoot(state, { weaponItemId: weaponId }), 'WEAPON_NOT_AVAILABLE');
   });
 
   it('пустое Оружие не стреляет', () => {
     const state = combatReady();
+    state.players['player-1']!.handSlots = [];
     const weaponId = giveWeapon(state, 0, { id: 'w-empty' });
     expectEngineError(() => shoot(state, { weaponItemId: weaponId }), 'WEAPON_NO_AMMO');
   });

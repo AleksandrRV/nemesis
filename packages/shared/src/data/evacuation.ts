@@ -1,4 +1,8 @@
-export const HIBERNATION_OPENS_AT_TIME = 8;
+export const HIBERNATION_OPENS_AT_TIME = 7;
+
+export const SELF_DESTRUCT_IRREVERSIBLE_AT = 3;
+
+export const SELF_DESTRUCT_EXPLODES_AT = 6;
 
 export const ESCAPE_POD_SEATS = 2;
 

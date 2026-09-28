@@ -20,6 +20,7 @@ import { queueActionCompletion } from './actionCompletion.js';
 import { executeCraftItem } from './crafting.js';
 import { executeActivateQuest } from './questItems.js';
 import { executeEscapePodCommand, isPlayerInPod } from './evacuation.js';
+import { escapeCost, mustDropHeavyForArmWound } from './seriousWoundEffects.js';
 
 export { EngineError } from './engineErrors.js';
 export type { EngineErrorCode } from './engineErrors.js';
@@ -69,6 +70,12 @@ function validateActor(state: GameState, action: EngineAction, actorId: string, 
       'Персонаж ждёт в Спасательной Капсуле: запустите её, выйдите из неё или продолжайте ждать (Пас).',
     );
   }
+  if (mustDropHeavyForArmWound(player) && action.type !== 'ACTION_DISCARD_HEAVY_ITEM') {
+    throw new EngineError(
+      'HEAVY_DROP_REQUIRED',
+      '«Травма руки»: остался 1 слот руки — сначала бросьте один из двух Тяжелых Предметов/Объектов.',
+    );
+  }
 }
 
 function handleAction(state: GameState, action: EngineAction, actorId: string): void {
@@ -76,8 +83,9 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
   switch (action.type) {
     case 'ACTION_MOVE': {
       const path = requireOpenPath(state, player.roomId, action.payload.targetRoomId);
-      executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
-      if (isPlayerInCombat(state, actorId)) {
+      const isEscape = isPlayerInCombat(state, actorId);
+      executeCardPayment(state, actorId, action.payload.discardCardIds, isEscape ? escapeCost(player) : 1);
+      if (isEscape) {
         // Побег (стр. 19): перед перемещением каждый Чужой отсека атакует
         // убегающего. COMPLETE_ACTION ставит сам resolveEscapeAttack — после
         // шага в целевой отсек и броска Шума.
@@ -111,14 +119,8 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
     case 'ACTION_PICK_UP_OBJECT':
       executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
       return executePickUpObject(state, action, actorId);
-    case 'ACTION_DISCARD_HEAVY_ITEM': {
-      // Сброс тяжёлого — без действия (0), но если переданы карты — списываем
-      const ids = action.payload.discardCardIds ?? [];
-      if (ids.length > 0) {
-        executeCardPayment(state, actorId, ids, ids.length);
-      }
+    case 'ACTION_DISCARD_HEAVY_ITEM':
       return executeDiscardHeavyItem(state, action, actorId);
-    }
 
     case 'ACTION_SEARCH':
       return executeSearch(state, action, actorId);

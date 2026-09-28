@@ -5,13 +5,13 @@ import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../
 import type { GameMode, GameState } from '../types/state.js';
 import { createActionDeckForCharacter, createInitialDecks } from '../data/cardsSetup.js';
 import { STARTING_WEAPONS } from '../data/startingItems.js';
-import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
+import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
+import { COORDINATE_CARDS } from '../data/coordinateCards.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { createIntruderSupply, splitIntruderBag } from '../data/intruderPool.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import {
   CHARACTERS,
-  COORDINATE_DESTINATIONS,
   ESCAPE_PODS_BY_PLAYER_COUNT,
   ESCAPE_POD_NUMBERS,
   MAX_PLAYER_COUNT,
@@ -192,7 +192,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   // (стр. 6, шаг 4).
   const explorationPool = shuffle(rng, EXPLORATION_TOKENS);
   const podNumbers = shuffle(rng, ESCAPE_POD_NUMBERS);
-  const destinations = shuffle(rng, COORDINATE_DESTINATIONS);
+  const coordinateCards = shuffle(rng, COORDINATE_CARDS);
 
   const bagRng = trackedRng('bag');
   const { bag: bagTokens, supply: intruderSupply } = splitIntruderBag(
@@ -250,7 +250,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     if (node.category === 'SPECIAL') {
       isExplored = true;
       definitionId = SPECIAL_ROOM_DEFINITIONS[node.id] ?? null;
-      hasComputer = node.id === 1;
+      hasComputer = SPECIAL_ROOMS.find((definition) => definition.id === definitionId)?.hasComputer ?? false;
     } else if (node.category === 'ROOM_1') {
       const def = shuffledRooms1[room1Idx++]!;
       const token = drawExplorationToken();
@@ -336,8 +336,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       technicalCorridorNoise: false,
       engines,
       coordinates: {
-        // Случайная карта Координат из пула (стр. 6, шаг 5).
-        destination: destinations[0] ?? 'EARTH',
+        cardId: coordinateCards[0]!.id,
         currentCourseMarker: 'B',
       },
       escapePods: createEscapePods(playerCount, podNumbers),

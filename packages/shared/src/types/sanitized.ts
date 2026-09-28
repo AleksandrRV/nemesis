@@ -39,9 +39,9 @@ export interface SanitizedEngineState {
   isWorking: EngineState['isWorking'] | null;
 }
 
-export interface SanitizedCoordinatesState extends Omit<CoordinatesState, 'destination'> {
+export interface SanitizedCoordinatesState extends Omit<CoordinatesState, 'cardId'> {
   /** null — карта Координат ещё не открывалась на Мостике. */
-  destination: CoordinatesState['destination'] | null;
+  cardId: CoordinatesState['cardId'] | null;
 }
 
 export interface SanitizedRoomState extends Omit<

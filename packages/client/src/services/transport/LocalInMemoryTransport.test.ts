@@ -53,12 +53,12 @@ describe('LocalInMemoryTransport: первое состояние', () => {
     const [view] = await initAndCapture(transport);
 
     expect(view?.ship.engines[1]?.isWorking).toBeNull();
-    expect(view?.ship.coordinates.destination).toBeNull();
+    expect(view?.ship.coordinates.cardId).toBeNull();
     expect(view?.ship.rooms[2]?.definitionId).toBeNull();
 
     // Истина лежит в движке и в интерфейс не попадает.
     expect(typeof transport.getLocalState().ship.engines[1]?.isWorking).toBe('boolean');
-    expect(transport.getLocalState().ship.coordinates.destination).not.toBeNull();
+    expect(transport.getLocalState().ship.coordinates.cardId).not.toBeNull();
   });
 
   it('сразу сохраняет только что начатую партию', async () => {

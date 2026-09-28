@@ -404,13 +404,15 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
 
   describe('Короткое замыкание', () => {
     it('Неисправность получают все жёлтые отсеки с Компьютером', () => {
-      const state = freshState('dump'); // жёлтые с Компьютером: 4, 7, 12, 18
+      const state = freshState('dump');
 
       const result = outcome(state, 'EVT_SHORT_CIRCUIT');
 
-      expect(result).toEqual({ kind: 'SHORT_CIRCUIT', malfunctionRoomIds: [4, 7, 12, 18] });
-      expect([4, 7, 12, 18].every((roomId) => state.ship.rooms[roomId]!.hasMalfunction)).toBe(true);
-      expect(state.ship.rooms[8]!.hasMalfunction).toBe(false); // зелёная Столовая
+      expect(result).toEqual({ kind: 'SHORT_CIRCUIT', malfunctionRoomIds: [4, 12, 18] });
+      expect([4, 12, 18].every((roomId) => state.ship.rooms[roomId]!.hasMalfunction)).toBe(true);
+      expect(state.ship.rooms[7]!.definitionId).toBe('COMMAND_CENTER');
+      expect(state.ship.rooms[7]!.hasMalfunction).toBe(false);
+      expect(state.ship.rooms[8]!.hasMalfunction).toBe(false);
     });
   });
 
@@ -437,12 +439,14 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
 
   describe('Неполадка систем жизнеобеспечения', () => {
     it('Неисправность получают все зелёные отсеки', () => {
-      const state = freshState('dump'); // зелёные: 8, 13, 14, 16, 17
+      const state = freshState('dump');
 
       const result = outcome(state, 'EVT_LIFE_SUPPORT_MALFUNCTION');
 
-      expect(result).toEqual({ kind: 'LIFE_SUPPORT_MALFUNCTION', malfunctionRoomIds: [8, 13, 14, 16, 17] });
-      expect([8, 13, 14, 16, 17].every((roomId) => state.ship.rooms[roomId]!.hasMalfunction)).toBe(true);
+      expect(result).toEqual({ kind: 'LIFE_SUPPORT_MALFUNCTION', malfunctionRoomIds: [8, 13, 16, 17] });
+      expect([8, 13, 16, 17].every((roomId) => state.ship.rooms[roomId]!.hasMalfunction)).toBe(true);
+      expect(state.ship.rooms[14]!.definitionId).toBe('HATCH_CONTROL');
+      expect(state.ship.rooms[14]!.hasMalfunction).toBe(false);
     });
   });
 

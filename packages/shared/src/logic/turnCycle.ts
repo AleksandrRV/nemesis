@@ -7,6 +7,7 @@ import type { ActionDeckCard } from '../types/cards.js';
 import { appendGameLog } from './gameLog.js';
 import { drawCardsToLimit } from './cardsPayment.js';
 import { EngineError } from './engineErrors.js';
+import { hasActiveSeriousWound } from './seriousWoundEffects.js';
 
 /**
  * Возвращает отсортированный по orderNumber список живых игроков.
@@ -27,6 +28,13 @@ export function findNextActivePlayer(state: GameState, currentActivePlayerId: st
 
   const currentOrder = state.players[currentActivePlayerId]?.orderNumber ?? 0;
   return activePlayers.find((player) => player.orderNumber > currentOrder) ?? activePlayers[0]!;
+}
+
+export function bleedOnPass(state: GameState, playerId: string): void {
+  const player = state.players[playerId];
+  if (!player || player.isDead || !hasActiveSeriousWound(player, 'BLEEDING')) return;
+  sufferLightWounds(state, playerId, 1);
+  appendGameLog(state, { type: 'BLEEDING_WOUND_TAKEN', playerId });
 }
 
 /**
@@ -72,6 +80,7 @@ export function performPass(state: GameState, playerId: string, discardCardIds: 
   }
   applyFireEndTurnEffect(state, playerId);
   player.hasAdrenalineRush = false;
+  bleedOnPass(state, playerId);
   if (!player.isDead) {
     player.hasPassed = true;
   }

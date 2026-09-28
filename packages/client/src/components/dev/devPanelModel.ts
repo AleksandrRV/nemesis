@@ -124,7 +124,7 @@ export function buildDiagnostics(view: SanitizedGameState): DevDiagnostics {
       destroyed: corridors.filter((corridor) => corridor.doorState === 'DESTROYED').length,
     },
     unknownEngines: engines.filter((engine) => engine.isWorking === null).length,
-    coordinatesHidden: view.ship.coordinates.destination === null,
+    coordinatesHidden: view.ship.coordinates.cardId === null,
     hiddenSecrets: players.filter((player) => player.inventory === null).length,
   };
 }

@@ -1,7 +1,13 @@
 import React from 'react';
 import { Hammer, Hand, Info, Package, Play, Trash2 } from 'lucide-react';
 import { COMPONENT_META } from '../crafting/craftingLabels';
-import type { BoardObject, ItemCard, SanitizedPlayerState } from '@nemesis/shared';
+import {
+  handSlotCapacity,
+  mustDropHeavyForArmWound,
+  type BoardObject,
+  type ItemCard,
+  type SanitizedPlayerState,
+} from '@nemesis/shared';
 import { ACCENT_CLASSES } from './usageIcons';
 import { HAND_SLOT_COUNT } from './playerBoardModel';
 
@@ -101,6 +107,7 @@ export const BoardGearSection: React.FC<BoardGearSectionProps> = ({
   canCraft,
 }) => {
   const inventory = player.inventory ?? [];
+  const capacity = handSlotCapacity(player);
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
       <section aria-labelledby="gear-hands" className="flex flex-col gap-2">
@@ -108,11 +115,26 @@ export const BoardGearSection: React.FC<BoardGearSectionProps> = ({
           id="gear-hands"
           className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
         >
-          <Hand size={12} aria-hidden="true" /> Руки · {player.handSlots.length}/{HAND_SLOT_COUNT}
+          <Hand size={12} aria-hidden="true" /> Руки · {player.handSlots.length}/{capacity}
         </h3>
+        {mustDropHeavyForArmWound(player) && (
+          <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-2 text-xs text-red-200">
+            «Травма руки»: остался 1 слот руки — бросьте один из Тяжелых Предметов/Объектов, иначе действовать нельзя.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: HAND_SLOT_COUNT }, (_, index) => {
             const slot = player.handSlots[index];
+            if (!slot && index >= capacity) {
+              return (
+                <div
+                  key={index}
+                  className="flex h-28 w-56 items-center justify-center rounded-xl border border-dashed border-red-900 bg-red-950/20 text-xs italic text-red-300"
+                >
+                  Рука недоступна: «Травма руки»
+                </div>
+              );
+            }
             if (!slot) {
               return (
                 <div

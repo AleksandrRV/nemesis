@@ -11,8 +11,13 @@ describe('Механика Поиска и экономика предметов
     expect(getRoomDeckColor('ARMORY')).toBe('RED');
     expect(getRoomDeckColor('COMM_ROOM')).toBe('YELLOW');
     expect(getRoomDeckColor('INFIRMARY')).toBe('GREEN');
-    expect(getRoomDeckColor('COCKPIT')).toBe('WHITE');
-    expect(getRoomDeckColor('HIBERNATORIUM')).toBe('WHITE');
+    expect(getRoomDeckColor('SHOWER')).toBe('WHITE');
+    expect(getRoomDeckColor('HATCH_CONTROL')).toBe('WHITE');
+    expect(getRoomDeckColor('COMMAND_CENTER')).toBe('RED');
+    expect(getRoomDeckColor('COCKPIT')).toBeNull();
+    expect(getRoomDeckColor('HIBERNATORIUM')).toBeNull();
+    expect(getRoomDeckColor('NEST')).toBeNull();
+    expect(getRoomDeckColor('SLIME_ROOM')).toBeNull();
   });
 
   it('запрещает поиск в неисследованных комнатах, при 0 предметов или в бою', () => {
@@ -341,7 +346,7 @@ describe('Механика Поиска и экономика предметов
     const room = state.ship.rooms[player.roomId]!;
 
     room.isExplored = true;
-    room.definitionId = 'COCKPIT'; // Белый отсек
+    room.definitionId = 'SHOWER';
     room.itemsCount = 2;
 
     const payCardId = player.actionDeck.hand[0]!.id;

@@ -1,7 +1,7 @@
 import type { ItemDeckColor, SanitizedGameState } from '@nemesis/shared';
 import { playerName, roomLabel } from '../log/gameLogModel';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
-import { OBJECT_KIND_LABELS } from '../inspector/studyObjectLabels';
+import { OBJECT_KIND_LABELS } from '../inspector/laboratoryModel';
 import {
   adjacentCorridors,
   adjacentOpenRoomIds,

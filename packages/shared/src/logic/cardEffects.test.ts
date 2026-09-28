@@ -145,6 +145,7 @@ describe('Эффекты карт Действий', () => {
     const player = state.players['player-1']!;
     const room = state.ship.rooms[player.roomId]!;
     room.isExplored = true;
+    room.definitionId = 'SHOWER';
     room.itemsCount = 3;
     const next = play(state, 'ACT_CAP_SEARCH', { targetDeckColor: 'RED' });
     expect(next.pendingDecision?.type).toBe('CHOOSE_SEARCH_ITEM');
@@ -274,7 +275,7 @@ describe('Эффекты Предметов', () => {
     );
     expectEngineError(() => useItem(structuredClone(state), itemId), 'NO_WOUNDS');
 
-    player.seriousWounds.push({ id: 'sw-1', name: 'Тяжелая травма', description: '', isTreated: false });
+    player.seriousWounds.push({ id: 'sw-1', kind: 'LEG', name: 'Травма ноги', description: '', isTreated: false });
     const treated = useItem(state, itemId);
     expect(treated.players['player-1']!.seriousWounds[0]).toMatchObject({ isTreated: true });
     expect(treated.players['player-1']!.lightWounds).toBe(2);

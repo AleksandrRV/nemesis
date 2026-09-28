@@ -13,6 +13,7 @@ import { CARD_OPTION } from '../types/cardOptions.js';
 import { getItemEffectKind } from '../data/itemEffectKinds.js';
 import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { ownsActiveQuestItem } from './questItems.js';
+import { itemUseSurcharge } from './seriousWoundEffects.js';
 
 export function executePass(
   state: GameState,
@@ -89,7 +90,8 @@ function chargesAssaultRifleWithAutoloader(
 }
 
 function itemUseCost(state: GameState, actorId: string, item: ItemCard, option?: string): number {
-  return chargesAssaultRifleWithAutoloader(state, actorId, item, option) ? 0 : item.actionCost;
+  const printedCost = chargesAssaultRifleWithAutoloader(state, actorId, item, option) ? 0 : item.actionCost;
+  return printedCost + itemUseSurcharge(state.players[actorId]!);
 }
 
 export function executeUseItem(

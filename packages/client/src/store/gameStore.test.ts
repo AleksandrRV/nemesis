@@ -38,7 +38,7 @@ describe('Стор: представление и выбор отсека', () =
     const view = store.getState().view;
 
     expect(view?.ship.engines[1]?.isWorking).toBeNull();
-    expect(view?.ship.coordinates.destination).toBeNull();
+    expect(view?.ship.coordinates.cardId).toBeNull();
     expect(typeof transport.getLocalState().ship.engines[1]?.isWorking).toBe('boolean');
   });
 

@@ -14,6 +14,14 @@ export * from './logic/setup.js';
 export * from './logic/sanitizer.js';
 export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';
+export {
+  escapeCost,
+  handSlotCapacity,
+  hasActiveSeriousWound,
+  hasFreeHandSlot,
+  itemUseSurcharge,
+  mustDropHeavyForArmWound,
+} from './logic/seriousWoundEffects.js';
 export * from './logic/turnCycle.js';
 export * from './logic/search.js';
 export { isHibernationOpen, isPlayerInPod, isPodUsable, podCommandsFor } from './logic/evacuation.js';
@@ -33,6 +41,7 @@ export * from './data/itemCards.js';
 export * from './data/itemEffectKinds.js';
 export * from './data/questItems.js';
 export * from './data/evacuation.js';
+export * from './data/coordinateCards.js';
 export * from './data/startingItems.js';
 export * from './data/contaminationCards.js';
 export * from './data/seriousWounds.js';

@@ -80,13 +80,14 @@
 | Файл | Константы | Назначение |
 |---|---|---|
 | `shipGraph.ts` | `SHIP_ROOM_NODES` 21, `SHIP_CORRIDORS` 29 | Геометрия поля, techNumbers (8 отсеков с входами). |
-| `roomDefinitions.ts` | `BASIC_ROOMS_1` 11, `ADDITIONAL_ROOMS_2` 9, `SPECIAL_ROOMS` 5 | Свойства комнат: цвет, компьютер, действие. Цвета: ARMORY RED, COMM YELLOW, INFIRMARY GREEN, LAB GREEN, GENERATOR YELLOW, ESCAPE WHITE, FIRE_CONTROL YELLOW, NEST RED, STORAGE RED, SURGERY GREEN, AIRLOCK YELLOW, CABINS WHITE, CANTEEN GREEN, COMMAND_CENTER YELLOW, ENGINE_CONTROL YELLOW, HATCH_CONTROL GREEN, OBSERVATION RED, SLIME WHITE, SHOWER WHITE. |
+| `roomDefinitions.ts` | `BASIC_ROOMS_1` 11, `ADDITIONAL_ROOMS_2` 9, `SPECIAL_ROOMS` 5 | Свойства комнат: цвет, компьютер, действие. Цвета по тайлам (`rooms.pdf`): ARMORY RED, COMM YELLOW, INFIRMARY GREEN, LAB GREEN, GENERATOR YELLOW, ESCAPE WHITE, FIRE_CONTROL YELLOW, NEST NONE, STORAGE RED, SURGERY GREEN, AIRLOCK YELLOW, CABINS WHITE, CANTEEN GREEN, COMMAND_CENTER RED, ENGINE_CONTROL YELLOW, HATCH_CONTROL WHITE, OBSERVATION RED, SLIME NONE, SHOWER WHITE; особые Комнаты — NONE, без Компьютера. |
 | `actionCards.ts` | `ACTION_CARDS_BY_CHARACTER` 60 | 6×10 карт действий. |
 | `itemCards.ts` | RED 30, YELLOW 30, GREEN 30 | Колоды стола 90. |
 | `startingItems.ts` | `STARTING_WEAPONS` 6 | Револьвер 6, Дробовик 2, Обрез 2, Боевая винтовка 5, Энерговинтовка 4, Пистолет 3. |
 | `crafting.ts` | 4 рецепта, 12 карт | Антидот, Тазер, Огнемёт 4, Молотов. |
 | `contaminationCards.ts` | 27 (7 инфицированных) | Заражение. |
-| `seriousWounds.ts` | 16 (4×4) | Травмы: нога/рука/спина/кровотечение. |
+| `seriousWounds.ts` | 16: спина 4, нога 3, кисть 3, кровотечение 3, рука 3 | Тяжёлые Травмы по скану; эффекты — `logic/seriousWoundEffects.ts`. |
+| `coordinateCards.ts` | 8 карт × A–D | Карты Координат по скану; `coursedDestination` — пункт назначения по маркеру Курса. |
 | `intruderAttacks.ts` | 20 | Атаки Чужих с эффектами. |
 | `weaknesses.ts` | 8 | Слабости: 3 в слоты при подготовке. |
 | `combatDie.ts` | 6 граней (2 промаха) | Кубик Боя. |
@@ -96,7 +97,7 @@
 | `explorationTokens.ts` | 20 (44 предмета) | Жетоны Исследования: 16 в партии. |
 | `intruderPool.ts` | 27 жетонов, ADULT_ESCAPE_NUMBERS | Пул Чужих: 1 Пустой, 4 Личинки, 1 Крипер, 1 Королева, 3+1×игроков Взрослых + запас. |
 | `cardsSetup.ts` | `createInitialDecks()` | Сборка колод по сиду. |
-| `setup.ts` | константы подготовки | Капсулы по игрокам, треки 15/8, 2 слота рук, 2 цели, 3 взрослых база, координаты 4. |
+| `setup.ts` | константы подготовки | Капсулы по игрокам, трек Времени 15, 2 слота рук, 2 цели, 3 взрослых база; деления Анабиоза и Самоуничтожения — `evacuation.ts` (7; 3 и 6). |
 
 ---
 

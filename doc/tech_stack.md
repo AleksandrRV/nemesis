@@ -101,7 +101,7 @@ export interface GameState {
     activePlayerId: string;
     firstPlayerId: string;
     timeTrackPosition: number; // 0..15, 15=красный прыжок
-    selfDestructTrackPosition: number | null; // null=выкл, 0..8 (8=череп)
+    selfDestructTrackPosition: number | null; // null=выкл, 0..6 (6=череп)
     rngDraws: Record<RngStream, number>; // layout,bag,cards,noise,combat
     gameOverReason: GameOverReason | null; // SHIP_EXPLODED/HULL_BREACH/HYPERSPACE_JUMP/NO_ACTIVE_CHARACTERS
   };
@@ -110,7 +110,7 @@ export interface GameState {
     corridors: Record<string, CorridorConnection>; // 29 коридоров
     technicalCorridorNoise: boolean;
     engines: Record<EngineNumber, EngineState>; // { isWorking: boolean } — второй жетон парный
-    coordinates: { destination: Destination; currentCourseMarker: CourseMarker; }; // EARTH/MARS/DEEP_SPACE_1/2, A/B/C/D
+    coordinates: { cardId: string; currentCourseMarker: CourseMarker; }; // карта Координат 1–8, A/B/C/D → EARTH/MARS/VENUS/DEEP_SPACE
     escapePods: Record<string, EscapePodState>; // 2-4 по числу игроков, LOCKED/UNLOCKED, isDestroyed, occupantIds
   };
   intrudersPool: {

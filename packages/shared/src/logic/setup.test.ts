@@ -6,7 +6,8 @@ import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import { SHIP_CORRIDORS, SHIP_ROOM_NODES } from '../data/shipGraph.js';
 import { EVENT_CARDS } from '../data/eventCards.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
-import { COORDINATE_DESTINATIONS, ESCAPE_POD_NUMBERS } from '../data/setup.js';
+import { ESCAPE_POD_NUMBERS } from '../data/setup.js';
+import { COORDINATE_CARDS } from '../data/coordinateCards.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
 
@@ -403,14 +404,21 @@ describe('createInitialGameState: двигатели и Координаты', (
     expect(new Set(values).size).toBe(2);
   });
 
-  it('выбирает пункт назначения случайно из пула карт Координат', () => {
+  it('выбирает случайную карту Координат из 8, маркер Курса — на «B» (стр. 6, шаги 5–6)', () => {
+    const cardIds = COORDINATE_CARDS.map((card) => card.id);
     for (const seed of SEEDS) {
-      expect(COORDINATE_DESTINATIONS).toContain(createInitialGameState(seed).ship.coordinates.destination);
+      const { coordinates } = createInitialGameState(seed).ship;
+      expect(cardIds).toContain(coordinates.cardId);
+      expect(coordinates.currentCourseMarker).toBe('B');
     }
 
-    const destinations = new Set(SEEDS.map((seed) => createInitialGameState(seed).ship.coordinates.destination));
+    expect(new Set(SEEDS.map((seed) => createInitialGameState(seed).ship.coordinates.cardId)).size).toBeGreaterThan(1);
+  });
 
-    expect(destinations.size).toBeGreaterThan(1);
+  it('Мостик на поле — без Компьютера, Центр управления — с Компьютером', () => {
+    const state = createInitialGameState('dump');
+    expect(state.ship.rooms[1]).toMatchObject({ definitionId: 'COCKPIT', hasComputer: false });
+    expect(state.ship.rooms[7]).toMatchObject({ definitionId: 'COMMAND_CENTER', hasComputer: true });
   });
 
   it('ставит маркер Курса на деление «B» (стр. 6, шаг 6)', () => {

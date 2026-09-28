@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Layers, Zap } from 'lucide-react';
-import type { SanitizedGameState, SanitizedPlayerState } from '@nemesis/shared';
+import { BASE_HAND_SIZE, type SanitizedGameState, type SanitizedPlayerState } from '@nemesis/shared';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 import { CrewToken } from '../board/CrewToken';
 import { toCrewToken } from '../board/crewTokenModel';
@@ -138,10 +138,18 @@ export const PlayerBoardSummaryBar: React.FC<PlayerBoardSummaryProps> = ({
 
         <span
           className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400"
-          title={summary.handLimit === 6 ? 'Каюты: лимит руки 6 (стр. 10, 25)' : 'Лимит руки 5 (стр. 10)'}
+          title={`Лимит руки ${summary.handLimit}: 5 базовый, +1 в Каютах, 4 с «Травмой спины» (стр. 10, 25)`}
         >
           <Layers size={13} className="text-slate-500" aria-hidden="true" />
-          <span className={summary.handLimit === 6 ? 'text-emerald-300' : 'text-slate-200'}>
+          <span
+            className={
+              summary.handLimit > BASE_HAND_SIZE
+                ? 'text-emerald-300'
+                : summary.handLimit < BASE_HAND_SIZE
+                  ? 'text-red-300'
+                  : 'text-slate-200'
+            }
+          >
             {summary.handCount}/{summary.handLimit}
           </span>
           <span className="hidden md:inline">

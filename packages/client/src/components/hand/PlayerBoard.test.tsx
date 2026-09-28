@@ -31,7 +31,7 @@ describe('Модель планшета игрока', () => {
 
   it('раны: обработанные и действующие Тяжёлые Травмы считаются отдельно; с тремя — критично', () => {
     const view = makeView();
-    const wound = { id: 'W', name: 'Сломанная рука', description: 'эффект', isTreated: false };
+    const wound = { id: 'W', kind: 'LEG' as const, name: 'Травма ноги', description: 'эффект', isTreated: false };
     player(view).seriousWounds = [wound, { ...wound, id: 'W2', isTreated: true }, { ...wound, id: 'W3' }];
     expect(vitalsSummary(player(view))).toMatchObject({ serious: 3, treated: 1, untreated: 2, isCritical: true });
   });

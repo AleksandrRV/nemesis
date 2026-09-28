@@ -182,8 +182,8 @@ describe('Действия комнат (Room Abilities)', () => {
     // 1. TREAT_SERIOUS
     player.lightWounds = 2;
     player.seriousWounds = [
-      { id: 'w-1', name: 'Рана руки', isTreated: false, description: 'Штраф к руке' },
-      { id: 'w-2', name: 'Рана ноги', isTreated: false, description: 'Штраф к ноге' },
+      { id: 'w-1', kind: 'LEG', name: 'Травма ноги', isTreated: false, description: '' },
+      { id: 'w-2', kind: 'LEG', name: 'Травма ноги', isTreated: false, description: '' },
     ];
 
     executeRoomAbility(state, 'player-1', {
@@ -229,8 +229,11 @@ describe('Действия комнат (Room Abilities)', () => {
     executeRoomAbility(state, 'player-1', {});
     expect(state.meta.selfDestructTrackPosition).toBeNull();
 
-    // Нельзя остановить если position >= 6
-    state.meta.selfDestructTrackPosition = 6;
+    state.meta.selfDestructTrackPosition = 2;
+    executeRoomAbility(state, 'player-1', {});
+    expect(state.meta.selfDestructTrackPosition).toBeNull();
+
+    state.meta.selfDestructTrackPosition = 3;
     expect(() => {
       executeRoomAbility(state, 'player-1', {});
     }).toThrowError(/желтом делении/);

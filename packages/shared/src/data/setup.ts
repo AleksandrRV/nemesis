@@ -1,5 +1,4 @@
 import type { BoardObject, CharacterClass } from '../types/entities.js';
-import type { Destination } from '../types/state.js';
 
 /** Число Спасательных Капсул в партии по числу игроков (книга правил, стр. 6, шаг 7). */
 export const ESCAPE_PODS_BY_PLAYER_COUNT: Record<number, number> = {
@@ -17,7 +16,6 @@ export const ESCAPE_POD_NUMBERS = [1, 2, 3, 4];
  * Пункты назначения карты Координат: случайная карта определяет, куда прыгнет
  * корабль (стр. 6, шаг 5; стр. 11, проверка Координат в конце игры).
  */
-export const COORDINATE_DESTINATIONS: Destination[] = ['EARTH', 'MARS', 'DEEP_SPACE_1', 'DEEP_SPACE_2'];
 
 /** Мест в одной Спасательной Капсуле (стр. 26). */
 export const ESCAPE_POD_CAPACITY = 2;

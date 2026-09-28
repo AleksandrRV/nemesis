@@ -10,7 +10,7 @@ import { resolveHiveDevelopment } from './hiveDevelopment.js';
 import { drainInterrupts } from './interrupts.js';
 import { checkInjuryResult } from './shoot.js';
 import { getOrderedPlayers, startNewRound } from './turnCycle.js';
-import { HIBERNATION_OPENS_AT_TIME } from '../data/evacuation.js';
+import { HIBERNATION_OPENS_AT_TIME, SELF_DESTRUCT_EXPLODES_AT } from '../data/evacuation.js';
 
 /**
  * Оркестратор Фазы Событий (стр. 10): шаги книги правил исполняются
@@ -65,14 +65,7 @@ function endIfNoActiveCharacters(state: GameState): boolean {
   return true;
 }
 
-/**
- * Шаг 4 Фазы Событий (стр. 10): маркер Времени сдвигается на деление;
- * активный маркер Самоуничтожения сдвигается вместе с ним. Достижение
- * последнего красного поля Времени — немедленный гиперпрыжок (стр. 11):
- * все персонажи на борту вне Анабиоза гибнут от перегрузок. Достижение
- * жёлтой зоны Самоуничтожения (≥6) необратимо разблокирует все Капсулы,
- * последнее деление с черепом (8) взрывает корабль (стр. 11, 24).
- */
+/** Шаг 4 Фазы Событий (стр. 10–11, 24); деления треков — `map_full.jpg` (scan-transcript §13). */
 export function advanceTimeAndSelfDestruct(state: GameState): void {
   state.meta.timeTrackPosition += 1;
   if (state.meta.timeTrackPosition === HIBERNATION_OPENS_AT_TIME) {
@@ -94,15 +87,16 @@ export function advanceTimeAndSelfDestruct(state: GameState): void {
     selfDestructTrackPosition: state.meta.selfDestructTrackPosition,
   });
 
-  if (state.meta.selfDestructTrackPosition === 8) {
+  if (state.meta.selfDestructTrackPosition === SELF_DESTRUCT_EXPLODES_AT) {
     killEveryoneAboard(state, true);
     endGame(state, 'SHIP_EXPLODED');
     return;
   }
 
   if (state.meta.timeTrackPosition >= TIME_TRACK_LENGTH) {
-    killEveryoneAboard(state, false);
-    endGame(state, 'HYPERSPACE_JUMP');
+    const jumpsDuringSelfDestruct = state.meta.selfDestructTrackPosition !== null;
+    killEveryoneAboard(state, jumpsDuringSelfDestruct);
+    endGame(state, jumpsDuringSelfDestruct ? 'SHIP_EXPLODED' : 'HYPERSPACE_JUMP');
   }
 }
 

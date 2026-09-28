@@ -1,13 +1,12 @@
 import type { GameState } from '../types/state.js';
+import { SELF_DESTRUCT_IRREVERSIBLE_AT } from '../data/evacuation.js';
 import { EngineError } from './engineErrors.js';
-
-export const SELF_DESTRUCT_IRREVERSIBLE_POSITION = 6;
 
 export type SelfDestructToggle = 'STARTED' | 'STOPPED';
 
 export function isSelfDestructIrreversible(state: GameState): boolean {
   const position = state.meta.selfDestructTrackPosition;
-  return position !== null && position >= SELF_DESTRUCT_IRREVERSIBLE_POSITION;
+  return position !== null && position >= SELF_DESTRUCT_IRREVERSIBLE_AT;
 }
 
 /** Запуск или остановка Самоуничтожения (Генератор, стр. 24; Ключ самоуничтожения). */

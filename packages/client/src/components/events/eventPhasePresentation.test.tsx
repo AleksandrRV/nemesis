@@ -34,12 +34,14 @@ describe('Кинематографичные виджеты презентаци
   it('шкала Самоуничтожения появляется при активном процессе', () => {
     const html = renderToStaticMarkup(
       <TimeTrackGauge
-        event={{ type: 'TIME_TRACK_ADVANCED', round: 3, timeTrackPosition: 4, selfDestructTrackPosition: 6 }}
+        event={{ type: 'TIME_TRACK_ADVANCED', round: 3, timeTrackPosition: 7, selfDestructTrackPosition: 3 }}
       />,
     );
 
     expect(html).toContain('САМОУНИЧТОЖЕНИЕ');
-    expect(html).toContain('6 / 8');
+    expect(html).toContain('3 / 6');
+    expect(html).toContain('bg-amber-950/70');
+    expect(html).toContain('bg-blue-950/70');
   });
 
   it('карта Атаки Чужих: силуэт, карта и бейдж исхода с травмами жертвы', () => {

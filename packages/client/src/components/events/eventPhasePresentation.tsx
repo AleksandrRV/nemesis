@@ -8,7 +8,12 @@
  */
 import React from 'react';
 import { Flame } from 'lucide-react';
-import { TIME_TRACK_LENGTH } from '@nemesis/shared';
+import {
+  HIBERNATION_OPENS_AT_TIME,
+  SELF_DESTRUCT_EXPLODES_AT,
+  SELF_DESTRUCT_IRREVERSIBLE_AT,
+  TIME_TRACK_LENGTH,
+} from '@nemesis/shared';
 import type { EventCard, SanitizedGameLogEntry } from '@nemesis/shared';
 
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
@@ -47,14 +52,13 @@ function GaugeBar({
   label,
   cells,
   position,
-  dangerFrom,
+  zone,
   fillColor,
 }: {
   label: string;
   cells: number;
   position: number;
-  /** Клетки с этого номера — зона опасности (подкрашиваются). */
-  dangerFrom: number | null;
+  zone: { from: number; className: string };
   fillColor: string;
 }) {
   const reducedMotion = usePrefersReducedMotion();
@@ -73,13 +77,10 @@ function GaugeBar({
         </span>
       </div>
       <div className="relative h-3.5 overflow-hidden rounded-sm border border-slate-700 bg-slate-950">
-        {/* Зона опасности на подложке */}
-        {dangerFrom !== null && (
-          <div
-            className="absolute inset-y-0 right-0 bg-red-950/70"
-            style={{ width: `${((cells - dangerFrom + 1) / cells) * 100}%` }}
-          />
-        )}
+        <div
+          className={`absolute inset-y-0 right-0 ${zone.className}`}
+          style={{ width: `${((cells - zone.from + 1) / cells) * 100}%` }}
+        />
         {/* Заполнение шкалы: анимированный сдвиг маркера на деление */}
         <div
           className="absolute inset-y-0 left-0"
@@ -113,15 +114,15 @@ export const TimeTrackGauge: React.FC<{
       label="МАРКЕР ВРЕМЕНИ"
       cells={TIME_TRACK_LENGTH}
       position={event.timeTrackPosition}
-      dangerFrom={TIME_TRACK_LENGTH - 2}
+      zone={{ from: HIBERNATION_OPENS_AT_TIME, className: 'bg-blue-950/70' }}
       fillColor="linear-gradient(90deg, rgba(0,240,255,0.35), rgba(0,240,255,0.75))"
     />
     {event.selfDestructTrackPosition !== null && (
       <GaugeBar
         label="САМОУНИЧТОЖЕНИЕ"
-        cells={8}
+        cells={SELF_DESTRUCT_EXPLODES_AT}
         position={event.selfDestructTrackPosition}
-        dangerFrom={6}
+        zone={{ from: SELF_DESTRUCT_IRREVERSIBLE_AT, className: 'bg-amber-950/70' }}
         fillColor="linear-gradient(90deg, rgba(255,183,0,0.4), rgba(255,0,60,0.8))"
       />
     )}

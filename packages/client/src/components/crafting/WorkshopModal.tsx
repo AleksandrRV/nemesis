@@ -13,7 +13,13 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import type { ActionCard, CraftComponent, CraftedItemId, SanitizedGameState } from '@nemesis/shared';
+import {
+  hasFreeHandSlot,
+  type ActionCard,
+  type CraftComponent,
+  type CraftedItemId,
+  type SanitizedGameState,
+} from '@nemesis/shared';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { PaymentStep } from '../hand/CardUseSteps';
 import { autoFillPayment, handPaymentCandidates, initialPayment, paymentBlocker } from '../hand/cardUseFlow';
@@ -258,7 +264,7 @@ export const WorkshopModal: React.FC<WorkshopModalProps> = ({
 
   const componentNames = componentIds.map((id) => items.find((entry) => entry.item.id === id)?.item.name ?? id);
   const player = view.players[view.meta.activePlayerId];
-  const heavyBlocked = selected?.recipe.itemId === 'FLAMETHROWER' && (player?.handSlots.length ?? 0) >= 2;
+  const heavyBlocked = selected?.recipe.itemId === 'FLAMETHROWER' && player !== undefined && !hasFreeHandSlot(player);
 
   return (
     <div

@@ -38,7 +38,7 @@ export type CarefulMoveChosenCorridor =
   | { kind: 'CORRIDOR_NUMBER'; corridorNumber: CorridorNumber }
   | { kind: 'TECHNICAL_CORRIDOR' };
 
-export type RoomColor = 'WHITE' | 'RED' | 'YELLOW' | 'GREEN';
+export type RoomColor = 'WHITE' | 'RED' | 'YELLOW' | 'GREEN' | 'NONE';
 
 export interface CorridorConnection {
   id: string;

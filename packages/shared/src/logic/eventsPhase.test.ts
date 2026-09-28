@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { EVENT_CARDS } from '../data/eventCards.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
+import {
+  HIBERNATION_OPENS_AT_TIME,
+  SELF_DESTRUCT_EXPLODES_AT,
+  SELF_DESTRUCT_IRREVERSIBLE_AT,
+} from '../data/evacuation.js';
 import type { GameState } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
 import { advanceTimeAndSelfDestruct, resolveFireDamage, runEventPhase } from './eventsPhase.js';
@@ -56,39 +61,49 @@ describe('Шаг 4 Фазы Событий: Счётчики Времени и �
     );
   });
 
-  it('жёлтая зона Самоуничтожения (>=6) автоматически разблокирует все Капсулы', () => {
+  it('первое жёлтое поле Самоуничтожения (позиция 3, «3» на поле) разблокирует все Капсулы', () => {
     const state = freshState('evp-sd-unlock');
-    state.meta.selfDestructTrackPosition = 5;
+    state.meta.selfDestructTrackPosition = SELF_DESTRUCT_IRREVERSIBLE_AT - 1;
     expect(Object.values(state.ship.escapePods).every((pod) => pod.isLocked)).toBe(true);
 
     advanceTimeAndSelfDestruct(state);
 
-    expect(state.meta.selfDestructTrackPosition).toBe(6);
+    expect(state.meta.selfDestructTrackPosition).toBe(3);
     expect(Object.values(state.ship.escapePods).every((pod) => !pod.isLocked)).toBe(true);
     expect(lastEvents(state)).toContainEqual(
       expect.objectContaining({ type: 'ESCAPE_PODS_UNLOCKED', cause: 'SELF_DESTRUCT' }),
     );
   });
 
+  it('белые поля Самоуничтожения Капсулы не разблокируют', () => {
+    const state = freshState('evp-sd-white');
+    state.meta.selfDestructTrackPosition = 1;
+
+    advanceTimeAndSelfDestruct(state);
+
+    expect(state.meta.selfDestructTrackPosition).toBe(2);
+    expect(Object.values(state.ship.escapePods).every((pod) => pod.isLocked)).toBe(true);
+  });
+
   it('повторное прохождение зоны не дублирует журнал разблокировки', () => {
     const state = freshState('evp-sd-unlock-once');
-    state.meta.selfDestructTrackPosition = 6;
+    state.meta.selfDestructTrackPosition = 3;
     for (const pod of Object.values(state.ship.escapePods)) pod.isLocked = false;
 
     advanceTimeAndSelfDestruct(state);
 
-    expect(state.meta.selfDestructTrackPosition).toBe(7);
+    expect(state.meta.selfDestructTrackPosition).toBe(4);
     expect(lastEvents(state).filter((event) => event.type === 'ESCAPE_PODS_UNLOCKED')).toHaveLength(0);
   });
 
-  it('череп Самоуничтожения взрывает корабль: гибнут все, включая Анабиоз', () => {
+  it('череп Самоуничтожения (позиция 6) взрывает корабль: гибнут все, включая Анабиоз', () => {
     const state = freshState('evp-sd-explode', 2);
-    state.meta.selfDestructTrackPosition = 7;
+    state.meta.selfDestructTrackPosition = SELF_DESTRUCT_EXPLODES_AT - 1;
     state.players['player-2']!.isInHibernation = true;
 
     advanceTimeAndSelfDestruct(state);
 
-    expect(state.meta.selfDestructTrackPosition).toBe(8);
+    expect(state.meta.selfDestructTrackPosition).toBe(6);
     expect(state.players['player-1']!.isDead).toBe(true);
     expect(state.players['player-2']!.isDead).toBe(true);
     expect(state.meta.phase).toBe('GAME_OVER');
@@ -109,9 +124,46 @@ describe('Шаг 4 Фазы Событий: Счётчики Времени и �
     expect(state.meta.gameOverReason).toBe('HYPERSPACE_JUMP');
   });
 
+  it('позиция 5 (жёлтое «1») ещё не взрывает корабль', () => {
+    const state = freshState('evp-sd-last-yellow');
+    state.meta.selfDestructTrackPosition = 4;
+
+    advanceTimeAndSelfDestruct(state);
+
+    expect(state.meta.selfDestructTrackPosition).toBe(5);
+    expect(state.meta.phase).not.toBe('GAME_OVER');
+  });
+
+  it('гиперпрыжок при запущенном Самоуничтожении уничтожает корабль вместе с Анабиозом (стр. 24)', () => {
+    const state = freshState('evp-jump-self-destruct', 2);
+    state.meta.selfDestructTrackPosition = 1;
+    state.meta.timeTrackPosition = TIME_TRACK_LENGTH - 1;
+    state.players['player-2']!.isInHibernation = true;
+
+    advanceTimeAndSelfDestruct(state);
+
+    expect(state.players['player-2']!.isDead).toBe(true);
+    expect(state.meta.gameOverReason).toBe('SHIP_EXPLODED');
+  });
+
+  it('Анабиоз открывается на первом синем поле («8», позиция 7) и пишет HIBERNATION_OPENED', () => {
+    const state = freshState('evp-hibernation-opens');
+    state.meta.timeTrackPosition = HIBERNATION_OPENS_AT_TIME - 2;
+
+    advanceTimeAndSelfDestruct(state);
+    expect(state.meta.timeTrackPosition).toBe(6);
+    expect(lastEvents(state).some((event) => event.type === 'HIBERNATION_OPENED')).toBe(false);
+
+    advanceTimeAndSelfDestruct(state);
+    expect(state.meta.timeTrackPosition).toBe(7);
+    expect(lastEvents(state)).toContainEqual(
+      expect.objectContaining({ type: 'HIBERNATION_OPENED', timeTrackPosition: 7 }),
+    );
+  });
+
   it('взрыв имеет приоритет: при одновременном срабатывании партия кончается Самоуничтожением', () => {
     const state = freshState('evp-explode-first');
-    state.meta.selfDestructTrackPosition = 7;
+    state.meta.selfDestructTrackPosition = SELF_DESTRUCT_EXPLODES_AT - 1;
     state.meta.timeTrackPosition = TIME_TRACK_LENGTH - 1;
 
     advanceTimeAndSelfDestruct(state);
@@ -236,7 +288,7 @@ describe('Оркестратор Фазы Событий: порядок Шаг�
 
   it('аварийный исход Шага 4 завершает партию: Шаги 5-9 не исполняются', () => {
     const state = freshState('evp-orchestrator-explode');
-    state.meta.selfDestructTrackPosition = 7;
+    state.meta.selfDestructTrackPosition = SELF_DESTRUCT_EXPLODES_AT - 1;
     state.meta.phase = 'EVENT_PHASE';
 
     runEventPhase(state);

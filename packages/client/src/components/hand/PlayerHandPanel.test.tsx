@@ -164,7 +164,7 @@ describe('PlayerHandPanel — динамический лимит руки и т
     const html = renderToStaticMarkup(<PlayerHandPanel view={sanitized} />);
 
     expect(html).toMatch(/\d\/6/);
-    expect(html).toContain('Каюты: лимит руки 6');
+    expect(html).toContain('Лимит руки 6');
   });
 
   it('показывает кнопку сброса для тяжёлых объектов CORPSE/EGG/REMAINS (долг 22)', () => {

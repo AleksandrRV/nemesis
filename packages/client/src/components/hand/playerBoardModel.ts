@@ -1,4 +1,9 @@
-import type { SanitizedGameState, SanitizedPlayerState } from '@nemesis/shared';
+import {
+  getSanitizedPlayerHandLimit,
+  mustDropHeavyForArmWound,
+  type SanitizedGameState,
+  type SanitizedPlayerState,
+} from '@nemesis/shared';
 
 export const LIGHT_WOUND_LIMIT = 2;
 export const SERIOUS_WOUND_LIMIT = 3;
@@ -49,16 +54,6 @@ export interface PlayerBoardSummary {
   occupiedHandSlots: number;
 }
 
-function computedHandLimit(view: SanitizedGameState, player: SanitizedPlayerState): number {
-  const room = view.ship.rooms[player.roomId];
-  const cabins =
-    room?.definitionId === 'CABINS' &&
-    room.hasMalfunction === false &&
-    room.hasFire === false &&
-    (room.occupantIntruderIds?.length ?? 0) === 0;
-  return cabins ? 6 : 5;
-}
-
 export function contaminationSummary(player: SanitizedPlayerState): ContaminationSummary {
   const cards = player.actionDeck.hand.filter((card) => !('characterClass' in card));
   return {
@@ -102,6 +97,14 @@ export function boardStatuses(
       tone: 'warning',
     });
   }
+  if (mustDropHeavyForArmWound(player)) {
+    statuses.push({
+      id: 'HEAVY_DROP',
+      label: 'Бросьте Тяжёлый',
+      hint: '«Травма руки»: остался 1 слот руки — сначала бросьте один Тяжёлый Предмет/Объект',
+      tone: 'danger',
+    });
+  }
   if (player.hasSlime)
     statuses.push({ id: 'SLIME', label: 'Слизь', hint: 'Маркер Слизи на планшете (стр. 17)', tone: 'toxic' });
   if (player.hasLarva) {
@@ -123,7 +126,7 @@ export function buildPlayerBoardSummary(
   const isActive = view.meta.activePlayerId === player.id;
   return {
     handCount: player.actionDeck.hand.length,
-    handLimit: player.handLimit ?? computedHandLimit(view, player),
+    handLimit: player.handLimit ?? getSanitizedPlayerHandLimit(view, player.id),
     drawPileCount: player.actionDeck.drawPileCount,
     discardCount: player.actionDeck.discardCount,
     canAct: isActive && !player.hasPassed && view.meta.phase === 'PLAYER_PHASE',

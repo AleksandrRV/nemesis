@@ -4,7 +4,7 @@ import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { drawSearchCards, placeItemToPlayer } from './search.js';
-import { advanceTurnWithoutFire, applyFireEndTurnEffect } from './turnCycle.js';
+import { advanceTurnWithoutFire, applyFireEndTurnEffect, bleedOnPass } from './turnCycle.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 import { sufferLightWounds } from './characterDamage.js';
@@ -14,6 +14,7 @@ import { startHibernationAttempt, startPodBoarding, togglePodLock } from './evac
 import { toggleSelfDestruct } from './selfDestruct.js';
 import { dropHeldObject, studyWeakness } from './weaknessStudy.js';
 import { repelIntruderWithSuppressant } from './fireSuppression.js';
+import { hasFreeHandSlot } from './seriousWoundEffects.js';
 
 function fireControlDetail(roomId: number, extinguished: boolean, repelledCount: number): string {
   const fire = extinguished ? `Маркер Пожара потушен в отсеке #${roomId}` : `В отсеке #${roomId} Пожара не было`;
@@ -247,8 +248,8 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       if (state.intrudersPool.eggsOnBoard <= 0) {
         throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'В Улье не осталось яиц Чужих');
       }
-      if (player.handSlots.length >= 2) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Обе руки персонажа заняты: нельзя взять яйцо');
+      if (!hasFreeHandSlot(player)) {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Свободного слота Руки нет: нельзя взять Яйцо (стр. 22)');
       }
       state.intrudersPool.eggsOnBoard -= 1;
       player.handSlots.push({
@@ -314,6 +315,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       }, remaining.kept);
       sufferLightWounds(state, actorId, 1);
       applyFireEndTurnEffect(state, actorId);
+      bleedOnPass(state, actorId);
       if (!player.isDead) {
         player.hasPassed = true;
       }

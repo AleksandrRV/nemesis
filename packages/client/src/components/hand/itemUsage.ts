@@ -1,6 +1,7 @@
 import {
   CARD_OPTION,
   STARTING_WEAPONS,
+  itemUseSurcharge,
   getItemEffectKind,
   getRoomDeckColor,
   type ItemCard,
@@ -96,7 +97,9 @@ function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
             label: `Полностью зарядить ${weapon?.name ?? 'Энергооружие'}`,
             icon: 'ammo',
             steps: [],
-            ...(chargesWithAutoloader(ctx, weapon) ? { cost: 0, hint: '«Автозарядчик»: цена Действия 0' } : {}),
+            ...(chargesWithAutoloader(ctx, weapon)
+              ? { cost: itemUseSurcharge(ctx.player), hint: '«Автозарядчик»: цена Действия 0' }
+              : {}),
           },
           reason,
         ),
@@ -454,7 +457,7 @@ export function getItemUsage(item: ItemCard, view: SanitizedGameState, location:
     title: item.name,
     typeLine: `Предмет · ${COLOR_LABELS[item.color]}`,
     description: item.description,
-    cost: item.actionCost,
+    cost: item.actionCost + itemUseSurcharge(ctx.player),
     accent: item.color,
     badges: itemBadges(item, location),
     variants: variantsFor(item, ctx),

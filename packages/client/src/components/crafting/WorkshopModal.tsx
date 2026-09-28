@@ -165,12 +165,13 @@ function ComponentRow({
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="truncate text-sm font-semibold text-white">{entry.item.name}</span>
         <span className="flex flex-wrap gap-1">
-          {entry.provides === 'ANY' ? (
+          {entry.provides.map((component) => (
+            <ComponentChip key={component} component={component} tone="blue" />
+          ))}
+          {entry.toolsViaIngenuity && (
             <span className="flex items-center gap-1 rounded-md border border-amber-500/70 bg-amber-950/60 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
-              <Wand2 size={11} aria-hidden="true" /> Любой компонент
+              <Wand2 size={11} aria-hidden="true" /> «Смекалка»: как ключ
             </span>
-          ) : (
-            entry.provides.map((component) => <ComponentChip key={component} component={component} tone="blue" />)
           )}
           <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-400">
             {entry.location === 'HAND_SLOT' ? 'В руке' : 'Инвентарь'}
@@ -277,7 +278,7 @@ export const WorkshopModal: React.FC<WorkshopModalProps> = ({
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-400">
               {mode.kind === 'CARD'
-                ? `Карта «${mode.card.name}» · любой жёлтый Предмет — любой компонент`
+                ? `Карта «${mode.card.name}» · любой желтый Предмет — символ ключа`
                 : `Базовое Действие · цена ${cost}`}
             </p>
             <h2

@@ -1,6 +1,7 @@
 import type { ItemDeckColor, SanitizedGameState } from '@nemesis/shared';
 import { playerName, roomLabel } from '../log/gameLogModel';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
+import { OBJECT_KIND_LABELS } from '../inspector/studyObjectLabels';
 import {
   adjacentCorridors,
   adjacentOpenRoomIds,
@@ -8,10 +9,13 @@ import {
   computerRooms,
   intruderRoomsNearby,
   intrudersInRoom,
+  livingOtherPlayers,
   neighbourRoomIds,
   otherOccupants,
   playersWithSignal,
+  roomDoors,
   roomOccupants,
+  studyableObjectKinds,
   techRooms,
   toggleableDoors,
   unexploredRooms,
@@ -81,7 +85,17 @@ function escapePodTargets(ctx: UsageContext): UsageTarget[] {
     }));
 }
 
-function buildTargets(ctx: UsageContext, kind: UsageTargetKind): UsageTarget[] {
+function roomDoorTargets(ctx: UsageContext, roomId: number | undefined): UsageTarget[] {
+  if (roomId === undefined) return [];
+  return roomDoors(ctx, roomId).map((corridor) => ({
+    id: corridor.id,
+    label: `${roomLabel(ctx.view, corridor.fromRoomId)} ⇄ ${roomLabel(ctx.view, corridor.toRoomId)}`,
+    sublabel: corridor.doorState === 'CLOSED' ? 'Сейчас Закрыта' : 'Сейчас Открыта',
+    icon: 'door' as const,
+  }));
+}
+
+function buildTargets(ctx: UsageContext, kind: UsageTargetKind, chosenRoomId?: number): UsageTarget[] {
   switch (kind) {
     case 'ADJACENT_DOOR':
       return doorTargets(ctx, true);
@@ -125,6 +139,16 @@ function buildTargets(ctx: UsageContext, kind: UsageTargetKind): UsageTarget[] {
       }));
     case 'PLAYER_WITH_SIGNAL':
       return playersWithSignal(ctx).map((id) => ({ id, label: playerName(ctx.view, id), icon: 'player' }));
+    case 'PLAYER_ANY_OTHER':
+      return livingOtherPlayers(ctx).map((id) => ({ id, label: playerName(ctx.view, id), icon: 'player' }));
+    case 'ROOM_DOORS_TO_CLOSE':
+      return roomDoorTargets(ctx, chosenRoomId);
+    case 'STUDY_OBJECT':
+      return studyableObjectKinds(ctx).map((objectKind) => ({
+        id: objectKind,
+        label: OBJECT_KIND_LABELS[objectKind],
+        icon: 'biohazard' as const,
+      }));
     case 'INTRUDER_IN_ROOM':
       return intrudersInRoom(ctx).map((id) => intruderTarget(ctx, id, ctx.room.id));
     case 'INTRUDER_NEARBY':
@@ -165,7 +189,8 @@ export function getStepTargets(
   view: SanitizedGameState,
   kind: UsageTargetKind,
   excludeIds: readonly string[] = [],
+  chosenRoomId?: number,
 ): UsageTarget[] {
   const excluded = new Set(excludeIds);
-  return buildTargets(buildContext(view), kind).filter((target) => !excluded.has(target.id));
+  return buildTargets(buildContext(view), kind, chosenRoomId).filter((target) => !excluded.has(target.id));
 }

@@ -8,107 +8,85 @@ export interface StartingWeaponCard extends ItemCard {
   isEnergyWeapon: boolean;
 }
 
-export const STARTING_WEAPONS: Record<CharacterClass, StartingWeaponCard> = {
-  CAPTAIN: {
-    id: 'WEAPON_CAPTAIN_REVOLVER',
-    name: 'Револьвер',
+interface StartingWeaponSpec {
+  id: string;
+  name: string;
+  characterClass: CharacterClass;
+  isEnergyWeapon: boolean;
+  ammo: number;
+  property: string | null;
+}
+
+function startingWeapon(spec: StartingWeaponSpec): StartingWeaponCard {
+  const kind = spec.isEnergyWeapon ? 'Энергооружие' : 'Классическое оружие';
+  return {
+    id: spec.id,
+    name: spec.name,
     color: 'RED',
     origin: 'STARTING',
     isHeavy: true,
     isSingleUse: false,
     componentSymbols: [],
     actionCost: 1,
-    description:
-      'Классическое оружие. Перезаряжается только Действием «Перезарядка». Выброшенные [2 Раны] наносят 1 Рану.',
+    description: [`${kind}.`, `Боезапас: ${spec.ammo}.`, spec.property].filter(Boolean).join(' '),
     isWeapon: true,
+    characterClass: spec.characterClass,
+    isEnergyWeapon: spec.isEnergyWeapon,
+    ammo: spec.ammo,
+    maxAmmo: spec.ammo,
+  };
+}
+
+const HIT_BONUS_TEXT = 'Каждый раз, когда вы наносите хотя бы 1 Рану, вы наносите 1 дополнительную Рану.';
+
+export const STARTING_WEAPONS: Record<CharacterClass, StartingWeaponCard> = {
+  CAPTAIN: startingWeapon({
+    id: 'WEAPON_CAPTAIN_REVOLVER',
+    name: 'Револьвер',
     characterClass: 'CAPTAIN',
     isEnergyWeapon: false,
     ammo: 6,
-    maxAmmo: 6,
-  },
-
-  PILOT: {
+    property:
+      'Может быть перезаряжен только Действием «Перезарядка». Когда вы выбрасываете [2 Раны], вы наносите 1 доп. Рану.',
+  }),
+  PILOT: startingWeapon({
     id: 'WEAPON_PILOT_SHOTGUN',
     name: 'Дробовик',
-    color: 'RED',
-    origin: 'STARTING',
-    isHeavy: true,
-    isSingleUse: false,
-    componentSymbols: [],
-    actionCost: 1,
-    description: 'Классическое оружие. Каждый раз, когда вы наносите хотя бы 1 Рану, нанесите 1 дополнительную Рану.',
-    isWeapon: true,
     characterClass: 'PILOT',
-    isEnergyWeapon: false,
+    isEnergyWeapon: true,
     ammo: 2,
-    maxAmmo: 2,
-  },
-
-  MECHANIC: {
+    property: HIT_BONUS_TEXT,
+  }),
+  MECHANIC: startingWeapon({
     id: 'WEAPON_MECHANIC_SAWED_OFF',
     name: 'Обрез',
-    color: 'RED',
-    origin: 'STARTING',
-    isHeavy: true,
-    isSingleUse: false,
-    componentSymbols: [],
-    actionCost: 1,
-    description: 'Классическое оружие. Выброшенный символ «Силуэты» считается промахом.',
-    isWeapon: true,
     characterClass: 'MECHANIC',
-    isEnergyWeapon: false,
+    isEnergyWeapon: true,
     ammo: 2,
-    maxAmmo: 2,
-  },
-
-  SOLDIER: {
+    property: 'Выброшенные [1 Рана] считаются [2 Раны].',
+  }),
+  SOLDIER: startingWeapon({
     id: 'WEAPON_SOLDIER_ASSAULT_RIFLE',
     name: 'Боевая винтовка',
-    color: 'RED',
-    origin: 'STARTING',
-    isHeavy: true,
-    isSingleUse: false,
-    componentSymbols: [],
-    actionCost: 1,
-    description: 'Классическое оружие. Каждый раз, когда вы наносите хотя бы 1 Рану, нанесите 1 дополнительную Рану.',
-    isWeapon: true,
     characterClass: 'SOLDIER',
-    isEnergyWeapon: false,
+    isEnergyWeapon: true,
     ammo: 5,
-    maxAmmo: 5,
-  },
-
-  SCOUT: {
+    property: HIT_BONUS_TEXT,
+  }),
+  SCOUT: startingWeapon({
     id: 'WEAPON_SCOUT_ENERGY_RIFLE',
-    name: 'Энерговинтовка',
-    color: 'RED',
-    origin: 'STARTING',
-    isHeavy: true,
-    isSingleUse: false,
-    componentSymbols: [],
-    actionCost: 1,
-    description: 'Энергооружие. Может быть перезаряжено в Оружейной или Энергозарядом.',
-    isWeapon: true,
+    name: 'Винтовка',
     characterClass: 'SCOUT',
     isEnergyWeapon: true,
     ammo: 4,
-    maxAmmo: 4,
-  },
-
-  SCIENTIST: {
+    property: null,
+  }),
+  SCIENTIST: startingWeapon({
     id: 'WEAPON_SCIENTIST_PISTOL',
     name: 'Пистолет',
-    color: 'RED',
-    origin: 'STARTING',
-    isHeavy: true,
-    isSingleUse: false,
-    componentSymbols: [],
-    actionCost: 1,
-    description: 'Классическое оружие. Выброшенные [2 Раны] считаются 1 Раной.',
-    isWeapon: true,
     characterClass: 'SCIENTIST',
-    isEnergyWeapon: false,
+    isEnergyWeapon: true,
     ammo: 3,
-    maxAmmo: 3,
-  },
+    property: 'Выброшенные [2 Раны] считаются [1 Рана].',
+  }),
 };

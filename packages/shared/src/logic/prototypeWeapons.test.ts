@@ -1,75 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COMBAT_DIE_FACES, type CombatDieFace } from '../data/combatDie.js';
 import { ACTION_CARDS_BY_CHARACTER } from '../data/actionCards.js';
-import { CRAFTED_ITEM_CARDS } from '../data/crafting.js';
-import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { RED_ITEM_CARDS } from '../data/itemCards.js';
-import type { EngineAction } from '../types/actions.js';
-import type { GameState } from '../types/state.js';
-import * as rng from '../utils/rng.js';
-import { combatStatusState, expectEngineError, putIntruder } from '../testing/contactFixtures.js';
+import { expectEngineError } from '../testing/contactFixtures.js';
+import {
+  forceCombatDice,
+  lastShot,
+  paymentCards,
+  shoot,
+  weaponAmmo,
+  weaponState as fixtureWeaponState,
+} from '../testing/weaponFixtures.js';
 import { GameEngine } from './fsm.js';
 import { igniteFromWeapon, weaponFaceInjuries } from './shoot.js';
 
-const realDraw = rng.drawFromStream;
-
-function forceCombatDice(state: GameState, faces: readonly CombatDieFace[]): void {
-  const firstDraw = state.meta.rngDraws.combat;
-  vi.spyOn(rng, 'drawFromStream').mockImplementation((seed, stream, drawIndex) => {
-    if (stream !== 'combat') return realDraw(seed, stream, drawIndex);
-    const face = faces[Math.min(drawIndex - firstDraw, faces.length - 1)]!;
-    return (COMBAT_DIE_FACES.indexOf(face) + 0.5) / COMBAT_DIE_FACES.length;
-  });
+function weaponState(seed: string, weaponId: string, ammo?: number) {
+  return fixtureWeaponState(seed, weaponId, { ammo });
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-function weaponState(seed: string, weaponId: string, ammo?: number): { state: GameState; intruderId: string } {
-  const state = combatStatusState(seed);
-  const intruderId = putIntruder(state, 'QUEEN', 11);
-  const toughness = structuredClone(INTRUDER_ATTACK_CARDS.find((card) => card.id === 'IAT_SCRATCH_2')!);
-  const rest = INTRUDER_ATTACK_CARDS.filter((card) => card.id !== toughness.id).map((card) => structuredClone(card));
-  state.decks.intruderAttacks = {
-    drawPile: [toughness, { ...toughness, id: 'IAT_SCRATCH_2_COPY' }, ...rest],
-    discard: [],
-  };
-  const template = [...RED_ITEM_CARDS, ...CRAFTED_ITEM_CARDS].find((card) => card.id === weaponId)!;
-  const weapon = { ...structuredClone(template), ammo: ammo ?? template.ammo };
-  state.players['player-1']!.handSlots = [{ source: 'ITEM', card: weapon }];
-  return { state, intruderId };
-}
-
-function paymentCards(state: GameState, count = 1): string[] {
-  return state.players['player-1']!.actionDeck.hand.filter((card) => 'characterClass' in card)
-    .slice(0, count)
-    .map((card) => card.id);
-}
-
-function shoot(state: GameState, weaponItemId: string, targetIntruderId: string, extra = false): GameState {
-  const action: EngineAction = {
-    type: 'ACTION_SHOOT',
-    payload: {
-      weaponItemId,
-      targetIntruderId,
-      discardCardIds: paymentCards(state),
-      ...(extra ? { spendExtraAmmoOnTwoWounds: true } : {}),
-    },
-  };
-  return new GameEngine().processAction(state, action);
-}
-
-function lastShot(state: GameState) {
-  const entry = [...state.gameLog].reverse().find((candidate) => candidate.event.type === 'SHOOT_RESOLVED');
-  if (!entry || entry.event.type !== 'SHOOT_RESOLVED') throw new Error('SHOOT_RESOLVED не в журнале');
-  return entry.event;
-}
-
-function weaponAmmo(state: GameState): number | null {
-  const slot = state.players['player-1']!.handSlots[0];
-  return slot?.source === 'ITEM' ? slot.card.ammo : null;
-}
 
 const RIFLE = 'ITEM_RED_PROTOTYPE_RIFLE_1';
 const SHOTGUN = 'ITEM_RED_PROTOTYPE_SHOTGUN_1';

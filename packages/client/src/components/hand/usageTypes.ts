@@ -11,6 +11,9 @@ export type UsageTargetKind =
   | 'PLAYER_OTHER_IN_ROOM'
   | 'PLAYER_IN_ROOM_OR_SELF'
   | 'PLAYER_WITH_SIGNAL'
+  | 'PLAYER_ANY_OTHER'
+  | 'ROOM_DOORS_TO_CLOSE'
+  | 'STUDY_OBJECT'
   | 'INTRUDER_IN_ROOM'
   | 'INTRUDER_NEARBY'
   | 'INTRUDER_ROOM'
@@ -63,6 +66,8 @@ export interface UsageVariant {
   hint?: string;
   reason?: string;
   combat?: CombatVariantKind;
+  weaponItemId?: string;
+  cost?: number;
   opensWorkshop?: boolean;
 }
 

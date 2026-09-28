@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 import type { ItemCard } from '../types/cards.js';
 import { CRAFTED_ITEM_CARDS, CRAFTING_RECIPES } from './crafting.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from './itemCards.js';
-import { weaponModifiers } from './weaponModifiers.js';
 
 interface ItemTable {
   status: string;
@@ -121,15 +120,6 @@ describe('Golden: колоды Предметов (cards_additional.pdf, стр.
       Инструменты: ['TOOLS'],
       Энергозаряд: ['BATTERY'],
     });
-  });
-
-  it('модификаторы оружия совпадают с пакетом источника', () => {
-    const expectation = table('item-cards').expectation as { weaponModifiers: Record<string, unknown> };
-    const weapons = [...RED_ITEM_CARDS, ...CRAFTED_ITEM_CARDS].filter((card) => card.isWeapon);
-
-    expect(Object.fromEntries(weapons.map((card) => [card.name, weaponModifiers(card.id)]))).toEqual(
-      expectation.weaponModifiers,
-    );
   });
 
   it('рецепты совпадают с серыми символами синих карт', () => {

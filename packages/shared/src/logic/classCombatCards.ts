@@ -148,6 +148,14 @@ export function executeReposition(
   }
 }
 
+function requireEnergyWeaponInHand(state: GameState, actorId: string, weaponItemId: string): void {
+  const slot = state.players[actorId]!.handSlots.find(
+    (candidate) => candidate.source === 'ITEM' && candidate.card.id === weaponItemId,
+  );
+  if (slot?.source === 'ITEM' && slot.card.isEnergyWeapon) return;
+  throw new EngineError('WEAPON_NOT_AVAILABLE', '«Прицельный огонь» выполняется только Энергооружием в слоте Руки.');
+}
+
 /** Разыгрывание классовой боевой карты со встроенным действием (Шаг 8). */
 export function executeCombatCard(
   state: GameState,
@@ -166,6 +174,7 @@ export function executeCombatCard(
       if (combat.kind !== 'AIMED_SHOOT') {
         throw new EngineError('INVALID_DECISION_OPTION', 'Неверные параметры «Прицельного огня».');
       }
+      requireEnergyWeaponInHand(state, actorId, combat.weaponItemId);
       consumeCard(state, actorId, cardId);
       performShoot(state, actorId, {
         weaponItemId: combat.weaponItemId,

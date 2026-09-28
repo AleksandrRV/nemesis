@@ -132,6 +132,10 @@ describe('Пакет источника: структура и статусы (�
       'crafting-recipes',
       'deck-composition',
       'item-cards',
+      'starting-weapons',
+      'weapon-modifiers',
+      'action-cards',
+      'quest-items',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -425,7 +429,6 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
       eventCardsCount: number;
       startingWeaponsCount: number;
       actionCardEffectKinds: string[];
-      startingWeaponsAmmo: Record<string, { ammo: number; maxAmmo: number; isEnergy: boolean }>;
     };
 
     expect(expectation.actionsPerCharacter).toBe(10);
@@ -462,28 +465,6 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     for (const kind of expectation.actionCardEffectKinds) {
       expect(seen.has(kind), `effect.kind ${kind} не встречается ни в одной карте`).toBe(true);
     }
-  });
-
-  it('стартовое оружие совпадает с источником по боезапасу и энерго-типу (SCOUT 4/4 энерго)', async () => {
-    const expectation = table('deck-composition').expectation as {
-      startingWeaponsAmmo: Record<string, { ammo: number; maxAmmo: number; isEnergy: boolean }>;
-    };
-    const { STARTING_WEAPONS } = await import('./startingItems.js');
-
-    for (const [charClass, ammoInfo] of Object.entries(expectation.startingWeaponsAmmo)) {
-      const weapon = STARTING_WEAPONS[charClass as keyof typeof STARTING_WEAPONS];
-      expect(weapon, `нет оружия для ${charClass}`).toBeDefined();
-      expect(weapon.ammo).toBe(ammoInfo.ammo);
-      expect(weapon.maxAmmo).toBe(ammoInfo.maxAmmo);
-      expect(weapon.isEnergyWeapon).toBe(ammoInfo.isEnergy);
-      expect(weapon.isWeapon).toBe(true);
-      expect(weapon.isHeavy).toBe(true);
-    }
-
-    // Отдельно проверяем критерий из задачи: Разведчик — 4/4 энерго
-    expect(STARTING_WEAPONS.SCOUT.ammo).toBe(4);
-    expect(STARTING_WEAPONS.SCOUT.maxAmmo).toBe(4);
-    expect(STARTING_WEAPONS.SCOUT.isEnergyWeapon).toBe(true);
   });
 });
 

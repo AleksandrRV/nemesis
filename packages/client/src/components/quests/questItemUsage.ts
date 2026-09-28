@@ -1,6 +1,12 @@
 import { getRoomDeckColor, questDefinition, questItemCardId, type ItemCard } from '@nemesis/shared';
 import { blocked, searchReason, whenAvailable } from '../hand/actionCardUsage';
-import { adjacentCorridors, type UsageContext } from '../hand/usageContext';
+import {
+  adjacentCorridors,
+  hasAvailableComputer,
+  livingOtherPlayers,
+  studyableObjectKinds,
+  type UsageContext,
+} from '../hand/usageContext';
 import { singleStep, type UsageVariant } from '../hand/usageTypes';
 
 export function evacuationKeyVariant(ctx: UsageContext): UsageVariant {
@@ -59,12 +65,45 @@ export function questItemVariants(item: ItemCard, ctx: UsageContext): UsageVaria
         whenAvailable(
           {
             id: 'SECURITY',
-            label: 'Переключить все Двери комнаты',
-            hint: 'Если есть открытые — все закроются, иначе все откроются',
+            label: 'Открыть или Закрыть Двери выбранной Комнаты',
+            hint: 'Отмеченные Двери будут Закрыты, остальные — Открыты',
             icon: 'door',
-            steps: [singleStep('ANY_ROOM', 'Выберите комнату')],
+            steps: [
+              singleStep('ANY_ROOM', 'Выберите Комнату'),
+              { kind: 'ROOM_DOORS_TO_CLOSE', title: 'Какие Двери Закрыть', min: 0, max: 6 },
+            ],
           },
           undefined,
+        ),
+      ];
+    case 'SHIP_LOG':
+      return [
+        whenAvailable(
+          {
+            id: 'SHIP_LOG',
+            label: 'Посмотреть карту Цели Персонажа',
+            icon: 'eye',
+            steps: [singleStep('PLAYER_ANY_OTHER', 'Выберите Персонажа')],
+          },
+          !hasAvailableComputer(ctx)
+            ? 'Нужна Комната с исправным Компьютером'
+            : livingOtherPlayers(ctx).length === 0
+              ? 'Нет других живых Персонажей'
+              : undefined,
+        ),
+      ];
+    case 'LAB_EQUIPMENT':
+      return [
+        whenAvailable(
+          {
+            id: 'LAB_EQUIPMENT',
+            label: 'Изучить Слабость Чужих',
+            icon: 'biohazard',
+            steps: [singleStep('STUDY_OBJECT', 'Выберите Объект')],
+          },
+          studyableObjectKinds(ctx).length > 0
+            ? undefined
+            : 'Нет Трупа, Останков или Яйца с неизученной Слабостью в вашей Комнате',
         ),
       ];
     default:

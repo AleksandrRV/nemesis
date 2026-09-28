@@ -37,13 +37,31 @@ export function useCommsKey(state: GameState, actorId: string, targetPlayerId: s
   if (!target || !target.hasSignalSent) {
     throw new EngineError('INVALID_DECISION_OPTION', 'Выберите Персонажа, на чьем Планшете есть маркер Сигнала.');
   }
+  peekObjectives(state, actorId, target.id, 'COMMS_KEY');
+}
+
+export function useShipLog(state: GameState, actorId: string, targetPlayerId: string | undefined): void {
+  requireAvailableComputer(state, actorId, 'Бортовой журнал');
+  const target = targetPlayerId ? state.players[targetPlayerId] : undefined;
+  if (!target || target.isDead) throw new EngineError('INVALID_DECISION_OPTION', 'Выберите 1 Персонажа.');
+  peekObjectives(state, actorId, target.id, 'SHIP_LOG');
+}
+
+function peekObjectives(
+  state: GameState,
+  actorId: string,
+  targetPlayerId: string,
+  source: 'COMMS_KEY' | 'SHIP_LOG',
+): void {
+  const target = state.players[targetPlayerId]!;
   if (target.objectives.length === 0) {
     throw new EngineError('CARD_NOT_USABLE_NOW', 'Карты Целей в этой версии еще не раздаются — смотреть нечего.');
   }
   appendGameLog(state, {
     type: 'OBJECTIVE_PEEKED',
     playerId: actorId,
-    targetPlayerId: target.id,
+    targetPlayerId,
+    source,
     objectiveNames: target.objectives.map((objective) => objective.name),
   });
 }

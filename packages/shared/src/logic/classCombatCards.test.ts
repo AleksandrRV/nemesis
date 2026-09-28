@@ -78,13 +78,13 @@ describe('Классовые боевые карты (Шаг 8)', () => {
     });
 
     const event = next.gameLog.map((entry) => entry.event).find((event) => event.type === 'SHOOT_RESOLVED');
-    expect(event).toMatchObject({ injuries: 2, woundsTotal: 2, killed: false, rifleBonusApplied: true });
+    expect(event).toMatchObject({ injuries: 2, woundsTotal: 2, killed: false, hitBonusWounds: 1 });
   });
 
   it('Прицельный огонь, KEEP: остаётся выпавшая грань, решение публично завершает выстрел', () => {
     const { state, intruderId } = combatState('aimed-keep');
     giveCard(state, 'ACT_SOL_AIMED_FIRE');
-    const weaponId = firstWeaponId(state);
+    const weaponId = giveRifle(state, 5);
     forceCombatDie('MISS');
 
     const suspended = play(state, {
@@ -97,12 +97,12 @@ describe('Классовые боевые карты (Шаг 8)', () => {
     });
 
     expect(suspended.pendingDecision).toMatchObject({ type: 'REROLL_COMBAT_DIE', firstFace: 'MISS' });
-    // Боезапас (6 → 5) и цена списаны до решения (стр. 24: выстрел уже выполнен).
+    // Боезапас (5 → 4) и цена списаны до решения (стр. 24: выстрел уже выполнен).
     expect(
       suspended.players['player-1']!.handSlots.find(
         (slot): slot is HeavyItemRef => slot.source === 'ITEM' && slot.card.id === weaponId,
       )?.card.ammo,
-    ).toBe(5);
+    ).toBe(4);
 
     forceCombatDie('ONE_WOUND');
     const resumed = play(suspended, {
@@ -127,7 +127,7 @@ describe('Классовые боевые карты (Шаг 8)', () => {
       payload: {
         cardId: 'ACT_SOL_AIMED_FIRE',
         discardCardIds: payWith(state, 1),
-        combat: { kind: 'AIMED_SHOOT', weaponItemId: firstWeaponId(state), targetIntruderId: intruderId },
+        combat: { kind: 'AIMED_SHOOT', weaponItemId: giveRifle(state, 5), targetIntruderId: intruderId },
       },
     });
     forceCombatDie('ONE_WOUND');
@@ -137,7 +137,7 @@ describe('Классовые боевые карты (Шаг 8)', () => {
     });
 
     const event = resumed.gameLog.map((entry) => entry.event).find((event) => event.type === 'SHOOT_RESOLVED');
-    expect(event).toMatchObject({ dieFace: 'ONE_WOUND', injuries: 1, rerolled: true });
+    expect(event).toMatchObject({ dieFace: 'ONE_WOUND', injuries: 2, hitBonusWounds: 1, rerolled: true });
   });
 
   it('Стрельба очередью: весь Боезапас сброшен, +1 Рана за каждые 2 ед., бонус винтовки суммируется', () => {
@@ -330,10 +330,28 @@ describe('Классовые боевые карты (Шаг 8)', () => {
     );
   });
 
+  it('Прицельный огонь из классического Револьвера отклоняется: карта требует Энергооружия', () => {
+    const { state, intruderId } = combatState('aimed-revolver');
+    giveCard(state, 'ACT_SOL_AIMED_FIRE');
+
+    expectEngineError(
+      () =>
+        play(state, {
+          type: 'ACTION_PLAY_CARD',
+          payload: {
+            cardId: 'ACT_SOL_AIMED_FIRE',
+            discardCardIds: payWith(state, 1),
+            combat: { kind: 'AIMED_SHOOT', weaponItemId: firstWeaponId(state), targetIntruderId: intruderId },
+          },
+        }),
+      'WEAPON_NOT_AVAILABLE',
+    );
+  });
+
   it('Решение о перебросе с недопустимым вариантом отклоняется честной ошибкой', () => {
     const { state, intruderId } = combatState('reroll-invalid-option');
     giveCard(state, 'ACT_SOL_AIMED_FIRE');
-    const weaponId = firstWeaponId(state);
+    const weaponId = giveRifle(state, 5);
     forceCombatDie('MISS');
 
     const suspended = play(state, {
@@ -358,7 +376,7 @@ describe('Классовые боевые карты (Шаг 8)', () => {
   it('Переброс по цели, сошедшей с поля, отклоняется (UNKNOWN_INTRUDER)', () => {
     const { state, intruderId } = combatState('reroll-target-gone');
     giveCard(state, 'ACT_SOL_AIMED_FIRE');
-    const weaponId = firstWeaponId(state);
+    const weaponId = giveRifle(state, 5);
     forceCombatDie('MISS');
 
     const suspended = play(state, {

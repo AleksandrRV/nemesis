@@ -1,10 +1,5 @@
 import type { SanitizedWeaknessSlotState } from '@nemesis/shared';
-
-const OBJECT_KIND_LABELS: Record<SanitizedWeaknessSlotState['objectKind'], string> = {
-  CORPSE: 'Труп члена экипажа',
-  EGG: 'Яйцо Чужих',
-  INTRUDER_REMAINS: 'Останки Чужого',
-};
+import { OBJECT_KIND_LABELS } from './studyObjectLabels';
 
 interface LaboratoryActionsProps {
   /** Типы объектов, чьи Слабости ещё под рубашкой (стр. 16, 21). */

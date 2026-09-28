@@ -2,13 +2,17 @@ import { queueActionCompletion } from './actionCompletion.js';
 import type { EngineAction } from '../types/actions.js';
 import type { ItemCard } from '../types/cards.js';
 import type { PlayerState } from '../types/entities.js';
-import { discardItemCard } from './cardEffectsShared.js';
+import { discardItemCard, energyWeaponInHandSlots } from './cardEffectsShared.js';
 import { applyActionCardEffect, applyItemEffect } from './cardEffects.js';
 import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { performPass } from './turnCycle.js';
 import { EngineError } from './engineErrors.js';
+import { CARD_OPTION } from '../types/cardOptions.js';
+import { getItemEffectKind } from '../data/itemEffectKinds.js';
+import { STARTING_WEAPONS } from '../data/startingItems.js';
+import { ownsActiveQuestItem } from './questItems.js';
 
 export function executePass(
   state: GameState,
@@ -72,6 +76,22 @@ function removeItem(player: PlayerState, location: ItemLocation): boolean {
   return true;
 }
 
+function chargesAssaultRifleWithAutoloader(
+  state: GameState,
+  actorId: string,
+  item: ItemCard,
+  option?: string,
+): boolean {
+  if (getItemEffectKind(item) !== 'ENERGY_CHARGE' || option === CARD_OPTION.DOOR) return false;
+  const player = state.players[actorId]!;
+  const chargedWeapon = energyWeaponInHandSlots(state, actorId);
+  return chargedWeapon?.id === STARTING_WEAPONS.SOLDIER.id && ownsActiveQuestItem(player, 'AUTOLOADER') !== null;
+}
+
+function itemUseCost(state: GameState, actorId: string, item: ItemCard, option?: string): number {
+  return chargesAssaultRifleWithAutoloader(state, actorId, item, option) ? 0 : item.actionCost;
+}
+
 export function executeUseItem(
   state: GameState,
   action: Extract<EngineAction, { type: 'ACTION_USE_ITEM' }>,
@@ -83,8 +103,9 @@ export function executeUseItem(
     throw new EngineError('NO_ITEMS_LEFT', 'Предмет не найден в инвентаре или слотах рук');
   }
   const item = location.item;
-  if (item.actionCost > 0) {
-    executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], item.actionCost);
+  const cost = itemUseCost(state, actorId, item, action.payload.option);
+  if (cost > 0) {
+    executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], cost);
   }
   appendGameLog(state, { type: 'ITEM_USED', playerId: actorId, itemId: item.id, itemName: item.name });
   const disposal = applyItemEffect(state, actorId, item, action.payload);

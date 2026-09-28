@@ -16,7 +16,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'CAPTAIN',
       name: 'Приказ',
       playCost: 0,
-      description: 'Выберите Персонажа в вашей Комнате и Переместите его в соседнюю Комнату по вашему выбору.',
+      description:
+        'Выберите Персонажа в вашей Комнате и Переместите его в соседнюю Комнату по вашему выбору. Может быть выполнено без согласия выбранного Персонажа.',
       effect: { kind: 'ORDER' },
     },
     {
@@ -32,7 +33,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'CAPTAIN',
       name: 'Огонь на подавление',
       playCost: 0,
-      description: 'Сбросьте 1 ед. Боезапаса. Переместите себя или другого Персонажа в вашей Комнате без Атаки Чужих.',
+      description:
+        'Сбросьте 1 ед. Боезапаса. Переместите себя или другого Персонажа в вашей Комнате (если он согласен), не вызывая Атаки Чужих.',
       effect: { kind: 'SUPPRESSIVE_FIRE', variant: 'CAPTAIN', ammoCost: 1 },
     },
     {
@@ -49,7 +51,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -58,7 +60,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -67,7 +69,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -76,7 +78,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
     {
@@ -84,7 +86,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'CAPTAIN',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
   ],
@@ -96,7 +99,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Знание корабля',
       playCost: 0,
       description:
-        'Откройте или Закройте 1 Дверь в Коридоре вашей Комнаты ИЛИ посмотрите оборот 1 Неисследованной Комнаты.',
+        'Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Посмотрите оборот 1 Неисследованной Комнаты (не смотрите оборот жетона Исследования в ней).',
       effect: { kind: 'SHIP_KNOWLEDGE' },
     },
     {
@@ -104,7 +107,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'PILOT',
       name: 'Пилотирование',
       playCost: 0,
-      description: 'На Мостике или в Комнате с Компьютером выполните Действие бесплатно ИЛИ проверьте Координаты.',
+      description:
+        'Если вы находитесь на Исправном Мостике или в Комнате с Компьютером, выполните Действие этой Комнаты бесплатно ИЛИ Если вы находитесь в Комнате с Компьютером, Проверьте Координаты.',
       effect: { kind: 'PILOTING' },
     },
     {
@@ -112,7 +116,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'PILOT',
       name: 'Старый друг',
       playCost: 0,
-      description: 'В Исправной Комнате без Компьютера выполните Действие этой Комнаты бесплатно.',
+      description:
+        'Если вы находитесь в Исправной Комнате и в ней нет Компьютера, выполните Действие этой Комнаты бесплатно.',
       effect: { kind: 'OLD_FRIEND' },
     },
     {
@@ -120,7 +125,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'PILOT',
       name: 'Владение компьютером',
       playCost: 0,
-      description: 'Откройте или Закройте 1 Дверь ИЛИ в Комнате с Компьютером выполните Действие Комнаты бесплатно.',
+      description:
+        'Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Если вы находитесь в Комнате с Компьютером, выполните Действие этой Комнаты бесплатно.',
       effect: { kind: 'COMPUTER_SKILLS' },
     },
     {
@@ -128,7 +134,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'PILOT',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
     {
@@ -137,7 +144,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -146,7 +153,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
     {
@@ -155,7 +162,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -172,7 +179,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
   ],
@@ -184,7 +191,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Смекалка',
       playCost: 0,
       description:
-        'Сбросьте маркер Неисправности ИЛИ Почините/Повредите Двигатель ИЛИ Создайте Предмет (любой жёлтый как компонент).',
+        'Сбросьте маркер Неисправности из вашей Комнаты ИЛИ Почините/Повредите Двигатель в Машинном Отсеке ИЛИ Создайте Предмет. Вы можете использовать любой желтый предмет в качестве [ключ].',
       effect: { kind: 'INGENUITY' },
     },
     {
@@ -192,7 +199,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'MECHANIC',
       name: 'Пиротехник',
       playCost: 1,
-      description: 'Сбросьте любой Предмет, чтобы поместить маркер Пожара ИЛИ сбросьте маркер Пожара из вашей Комнаты.',
+      description:
+        'Сбросьте любой Предмет, чтобы поместить маркер Пожара в вашу Комнату ИЛИ Сбросьте маркер Пожара из вашей Комнаты.',
       effect: { kind: 'PYROTECHNIC' },
     },
     {
@@ -200,7 +208,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'MECHANIC',
       name: 'Технические коридоры',
       playCost: 1,
-      description: 'Переместитесь в любую другую Комнату с Входом в Технические Коридоры и спасуйте.',
+      description:
+        'Используйте в Комнате, соединенной с Техническими Коридорами. Переместите вашего Персонажа в любую другую Комнату, соединенную с Техническими Коридорами. После этого действия вы обязаны спасовать.',
       effect: { kind: 'TECH_CORRIDORS' },
     },
     {
@@ -208,7 +217,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'MECHANIC',
       name: 'Владение компьютером',
       playCost: 0,
-      description: 'Откройте или Закройте 1 Дверь ИЛИ в Комнате с Компьютером выполните Действие Комнаты бесплатно.',
+      description:
+        'Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Если вы находитесь в Комнате с Компьютером, выполните Действие этой Комнаты бесплатно.',
       effect: { kind: 'COMPUTER_SKILLS' },
     },
     {
@@ -225,7 +235,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
     {
@@ -233,7 +243,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'MECHANIC',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
     {
@@ -242,7 +253,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -251,7 +262,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -260,7 +271,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
   ],
@@ -271,7 +282,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SOLDIER',
       name: 'Стрельба очередью',
       playCost: 0,
-      description: 'Сбросьте весь Боезапас Боевой Винтовки: +1 доп. Рана за каждые 2 потраченные ед. Боезапаса.',
+      description:
+        'Сбросьте весь Боезапас Боевой Винтовки чтобы выполнить Действие Стрельбы. Вы наносите 1 доп. Рану за каждые 2 потраченные ед. Боезапаса, даже если вы промахнулись.',
       effect: { kind: 'BURST_FIRE' },
     },
     {
@@ -279,7 +291,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SOLDIER',
       name: 'Стальные нервы',
       playCost: 0,
-      description: 'Сбросьте эту карту во время Внезапной Атаки, чтобы проигнорировать её эффект.',
+      description: 'Сбросьте эту карту во время Внезапной Атаки, чтобы игнорировать её эффект.',
       effect: { kind: 'STEEL_NERVES' },
     },
     {
@@ -288,7 +300,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Заградительный огонь',
       playCost: 0,
       description:
-        'Сбросьте 1 ед. Боезапаса. Переместите себя и/или другого Персонажа в вашей Комнате без Атаки Чужих.',
+        'Сбросьте 1 ед. Боезапаса. Переместите себя и/или другого Персонажа в вашей Комнате (если он согласен), не вызывая Атаки Чужих.',
       effect: { kind: 'SUPPRESSIVE_FIRE', variant: 'SOLDIER', ammoCost: 1 },
     },
     {
@@ -305,7 +317,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -313,7 +325,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SOLDIER',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
     {
@@ -321,7 +334,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SOLDIER',
       name: 'Прицельный огонь',
       playCost: 0,
-      description: 'Выполните Действие «Стрельба», используя ваше Оружие. Вы можете один раз перебросить кубик Боя.',
+      description:
+        'Выполните Действие «Стрельба», используя ваше Энергооружие. Вы можете один раз перебросить кубик Атаки.',
       effect: { kind: 'AIMED_FIRE' },
     },
     {
@@ -330,7 +344,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
     {
@@ -339,7 +353,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -348,7 +362,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
   ],
@@ -359,7 +373,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCOUT',
       name: 'Адреналин',
       playCost: 0,
-      description: 'Выполните Действие «Стрельба» или «Побег» и возьмите карту Действия.',
+      description:
+        'Выполните Действие «Стрельба» и возьмите карту Действия ИЛИ Выполните Действие «Побег» и возьмите карту Действия.',
       effect: { kind: 'ADRENALINE' },
     },
     {
@@ -376,7 +391,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Мародерство',
       playCost: 1,
       description:
-        'Уменьшите число предметов на 1 (даже если 0). Вытяните 2 карты предметов, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вы можете выполнять это Действие, даже если в Комнате не осталось Предметов. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SCAVENGE' },
     },
     {
@@ -385,7 +400,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -394,7 +409,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -411,7 +426,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -419,7 +434,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCOUT',
       name: 'Огонь на подавление',
       playCost: 0,
-      description: 'Сбросьте 1 ед. Боезапаса. Переместите себя или другого Персонажа без Атаки Чужих.',
+      description:
+        'Сбросьте 1 ед. Боезапаса. Переместите себя или другого Персонажа в вашей Комнате (если он согласен), не вызывая Атаки Чужих.',
       effect: { kind: 'SUPPRESSIVE_FIRE', variant: 'SCOUT', ammoCost: 1 },
     },
     {
@@ -427,7 +443,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCOUT',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
     {
@@ -436,7 +453,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
   ],
@@ -447,7 +464,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCIENTIST',
       name: 'Интранет',
       playCost: 1,
-      description: 'В Комнате с Компьютером выполните Действие любой Исправной Комнаты с Компьютером бесплатно.',
+      description:
+        'Если вы находитесь в Комнате с Компьютером, вы можете выполнить Действие любой Исправной Комнаты с Компьютером бесплатно.',
       effect: { kind: 'INTRANET' },
     },
     {
@@ -456,7 +474,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отставить',
       playCost: 0,
       description:
-        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате ИЛИ отмените «Отставить».',
+        'Сбросьте эту карту, чтобы отменить Действие другого Игрока в вашей Комнате (этот Игрок оплачивает Цену отмененного Действия) ИЛИ Отмените Действие «Отставить» другого Игрока.',
       effect: { kind: 'DISMISS' },
     },
     {
@@ -465,7 +483,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отказ в доступе',
       playCost: 0,
       description:
-        'В Комнате с Компьютером выполните её Действие бесплатно ИЛИ поместите маркер Неисправности в Комнату с Компьютером.',
+        'Если вы находитесь в Комнате с Компьютером, выполните Действие этой Комнаты бесплатно ИЛИ Если вы находитесь в Комнате с Компьютером, поместите маркер Неисправности в 1 Комнату с Компьютером.',
       effect: { kind: 'ACCESS_DENIED' },
     },
     {
@@ -473,7 +491,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCIENTIST',
       name: 'Владение компьютером',
       playCost: 0,
-      description: 'Откройте или Закройте 1 Дверь ИЛИ в Комнате с Компьютером выполните Действие Комнаты бесплатно.',
+      description:
+        'Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Если вы находитесь в Комнате с Компьютером, выполните Действие этой Комнаты бесплатно.',
       effect: { kind: 'COMPUTER_SKILLS' },
     },
     {
@@ -490,7 +509,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Оценка угрозы',
       playCost: 0,
       description:
-        'В Комнате с Компьютером посмотрите верхнюю карту колоды Событий, оставьте её сверху или положите вниз.',
+        'Если вы находитесь в Комнате с Компьютером, посмотрите верхнюю карту колоды Событий. После этого вы можете оставить ее сверху, либо поместить ее под низ колоды.',
       effect: { kind: 'THREAT_ASSESSMENT' },
     },
     {
@@ -498,7 +517,8 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       characterClass: 'SCIENTIST',
       name: 'Разрушение',
       playCost: 0,
-      description: 'Разрушьте 1 Дверь в Коридоре вашей Комнаты ИЛИ поместите маркер Неисправности в вашу Комнату.',
+      description:
+        'Разрушьте 1 Дверь в любом Коридоре, ведущем в вашу Комнату ИЛИ Поместите маркер Неисправности в вашу Комнату.',
       effect: { kind: 'DEMOLITION' },
     },
     {
@@ -507,7 +527,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Отдых',
       playCost: 0,
       description:
-        'Просканируйте карты Заражения в руке и удалите карты без Инфекции. При Инфекции — возьмите Личинку.',
+        'Просканируйте все карты Заражения в своей руке и удалите все карты без ИНФЕКЦИИ. Если хотя бы 1 из карт была с ИНФЕКЦИЕЙ, следуйте процедуре Инфицирования.',
       effect: { kind: 'REST' },
     },
     {
@@ -516,7 +536,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
     {
@@ -525,7 +545,7 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
       name: 'Поиск',
       playCost: 0,
       description:
-        'Уменьшите число предметов на 1. Вытяните 2 карты из колоды цвета Комнаты, возьмите 1, вторую под низ.',
+        'Уменьшите количество Предметов в Комнате на 1. Вытяните 2 карты Предметов из колоды, соответствующей цвету вашей Комнаты. Возьмите 1 из них и поместите другую под низ колоды.',
       effect: { kind: 'SEARCH' },
     },
   ],

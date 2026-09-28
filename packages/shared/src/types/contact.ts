@@ -101,7 +101,7 @@ export type IntruderLogEvent =
       targetIntruderId: string;
       targetType: IntruderType;
       dieFace: CombatDieFace;
-      /** Грань, которой засчитан бросок, если её подменила Слабость («Уязвимые места»). */
+      /** Грань, которой засчитан бросок, если её подменило свойство оружия или Слабость. */
       countedFace?: CombatDieFace;
       woundsBefore: number;
       injuries: number;
@@ -115,8 +115,10 @@ export type IntruderLogEvent =
       rerolled?: boolean;
       /** «Стрельба очередью»: сколько ед. Боезапаса сброшено с винтовки. */
       burstAmmoSpent?: number;
-      /** Бонус Боевой винтовки: ≥1 Раны от выстрела — ещё 1 Рана. */
-      rifleBonusApplied?: boolean;
+      /** Кто засчитал грань иначе: свойство оружия (Обрез, Пистолет) или Слабость. */
+      countedBy?: 'WEAKNESS' | 'WEAPON';
+      /** Доп. Раны «хотя бы 1 Рана»: свойство оружия и «Уязвимость к энергии». */
+      hitBonusWounds?: number;
       /** «Прототип: винтовка»: при «2 Ранах» потрачена доп. ед. Боезапаса на доп. Рану. */
       extraAmmoSpent?: true;
       fireStarted?: true;

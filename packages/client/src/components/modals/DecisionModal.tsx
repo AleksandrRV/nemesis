@@ -297,7 +297,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
             Обе руки заняты тяжёлыми предметами или объектами. Чтобы взять новый тяжёлый предмет (ID:{' '}
-            {decision.newItemId}), выберите, какой из текущих предметов сбросить:
+            {decision.newItem.name}), выберите, какой из текущих предметов сбросить:
           </p>
           <div className="space-y-2">
             {activePlayer?.handSlots.map((slot, index) => {

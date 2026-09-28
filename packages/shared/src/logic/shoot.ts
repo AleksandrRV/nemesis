@@ -205,14 +205,31 @@ export interface ShootParams {
   spendExtraAmmoOnTwoWounds?: boolean;
 }
 
-/** Название Боевой винтовки (стартовое Оружие Солдата, startingItems). */
-export const ASSAULT_RIFLE_NAME = 'Боевая винтовка';
+export type CountedFaceSource = 'WEAKNESS' | 'WEAPON';
 
-export function weaponFaceInjuries(face: CombatDieFace, targetType: IntruderType, weaponItemId: string): number {
+export function shotCountedFace(
+  state: GameState,
+  rolledFace: CombatDieFace,
+  targetType: IntruderType,
+  weaponItemId: string,
+): { face: CombatDieFace; source: CountedFaceSource | null } {
+  const override = weaponModifiers(weaponItemId).rolledFaceOverrides[rolledFace];
+  if (override) return { face: override, source: 'WEAPON' };
+  const counted = countedCombatFace(state, rolledFace, targetType);
+  return { face: counted, source: counted === rolledFace ? null : 'WEAKNESS' };
+}
+
+export function weaponFaceInjuries(
+  rolledFace: CombatDieFace,
+  targetType: IntruderType,
+  weaponItemId: string,
+  weaknessFace: CombatDieFace = rolledFace,
+): number {
   const modifiers = weaponModifiers(weaponItemId);
-  const base = injuriesForFace(face, targetType);
-  const floored = modifiers.minimumOneWoundUnlessMiss && face !== 'MISS' ? Math.max(1, base) : base;
-  return modifiers.bonusWoundFaces.includes(face) ? floored + 1 : floored;
+  const countedFace = modifiers.rolledFaceOverrides[rolledFace] ?? weaknessFace;
+  const base = injuriesForFace(countedFace, targetType);
+  const floored = modifiers.minimumOneWoundUnlessMiss && rolledFace !== 'MISS' ? Math.max(1, base) : base;
+  return modifiers.bonusWoundFaces.includes(rolledFace) ? floored + 1 : floored;
 }
 
 export function igniteFromWeapon(state: GameState, weaponItemId: string, face: CombatDieFace, roomId: RoomId): boolean {
@@ -224,17 +241,11 @@ export function igniteFromWeapon(state: GameState, weaponItemId: string, face: C
   return placement === 'PLACED' || placement === 'SHIP_EXPLODED';
 }
 
-/**
- * Бонус оружия при ≥1 Ране от выстрела: Боевая винтовка всегда добавляет
- * 1 Рану (описание предмета); «Уязвимость к энергии» добавляет 1 Рану
- * Энергооружию (doc/data/WEAKNESSES.md). Взаимоисключимы: винтовка не
- * Энергооружие, поэтому максимум один бонус на выстрел.
- */
-function weaponBonusInjuries(state: GameState, weapon: ItemCard, base: number): number {
+function hitBonusInjuries(state: GameState, weapon: ItemCard, base: number): number {
   if (base <= 0) return 0;
-  if (weapon.name === ASSAULT_RIFLE_NAME) return 1;
-  if (weapon.isEnergyWeapon && isWeaknessRevealed(state, 'ENERGY_WEAKNESS')) return 1;
-  return 0;
+  const weaponBonus = weaponModifiers(weapon.id).bonusWoundOnHit ? 1 : 0;
+  const energyBonus = weapon.isEnergyWeapon && isWeaknessRevealed(state, 'ENERGY_WEAKNESS') ? 1 : 0;
+  return weaponBonus + energyBonus;
 }
 
 function handWeaponCard(state: GameState, playerId: string, weaponItemId: string): ItemCard {
@@ -249,8 +260,8 @@ function handWeaponCard(state: GameState, playerId: string, weaponItemId: string
 
 /**
  * Разрешение выпавшей грани (стр. 18–20): общее для выстрела и переброса.
- * Порядок: подмена грани Слабостью → Раны грани с учётом свойств оружия →
- * бонусы оружия, очереди и доп. Боезапаса → проверка Результата Атаки.
+ * Порядок: засчитанная грань → Раны грани со свойствами оружия → бонусы
+ * «хотя бы 1 Рана», очереди и доп. Боезапаса → проверка Результата Атаки.
  */
 export function resolveShotFace(
   state: GameState,
@@ -264,22 +275,27 @@ export function resolveShotFace(
   const weapon = handWeaponCard(state, playerId, shot.weaponItemId);
   const roomId = state.players[playerId]!.roomId;
 
-  const countedFace = countedCombatFace(state, dieFace, target.type);
-  const baseInjuries = weaponFaceInjuries(countedFace, target.type, weapon.id);
-  const bonus = weaponBonusInjuries(state, weapon, baseInjuries);
+  const counted = shotCountedFace(state, dieFace, target.type, weapon.id);
+  const baseInjuries = weaponFaceInjuries(
+    dieFace,
+    target.type,
+    weapon.id,
+    countedCombatFace(state, dieFace, target.type),
+  );
+  const hitBonus = hitBonusInjuries(state, weapon, baseInjuries);
   const burstBonus = Math.floor(shot.burstAmmoSpent / 2);
   const extraAmmoSpent =
     shot.spendExtraAmmoOnTwoWounds &&
-    weaponModifiers(weapon.id).extraAmmoWoundFace === countedFace &&
+    weaponModifiers(weapon.id).extraAmmoWoundFace === dieFace &&
     (weapon.ammo ?? 0) >= 1;
   if (extraAmmoSpent) weapon.ammo = (weapon.ammo ?? 0) - 1;
-  const injuries = baseInjuries + bonus + burstBonus + (extraAmmoSpent ? 1 : 0);
+  const injuries = baseInjuries + hitBonus + burstBonus + (extraAmmoSpent ? 1 : 0);
 
   const result: InjuryCheckResult =
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, playerId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
-  const fireStarted = igniteFromWeapon(state, weapon.id, countedFace, roomId);
+  const fireStarted = igniteFromWeapon(state, weapon.id, dieFace, roomId);
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -290,7 +306,7 @@ export function resolveShotFace(
     targetIntruderId: target.id,
     targetType: target.type,
     dieFace,
-    ...(countedFace !== dieFace ? { countedFace } : {}),
+    ...(counted.source ? { countedFace: counted.face, countedBy: counted.source } : {}),
     woundsBefore: shot.woundsBefore,
     injuries,
     woundsTotal: shot.woundsBefore + injuries,
@@ -299,7 +315,7 @@ export function resolveShotFace(
     killed: result.killed,
     ...(rerolled ? { rerolled: true as const } : {}),
     ...(shot.burstAmmoSpent > 0 ? { burstAmmoSpent: shot.burstAmmoSpent } : {}),
-    ...(bonus > 0 ? { rifleBonusApplied: weapon.name === ASSAULT_RIFLE_NAME } : {}),
+    ...(hitBonus > 0 ? { hitBonusWounds: hitBonus } : {}),
     ...(extraAmmoSpent ? { extraAmmoSpent: true as const } : {}),
     ...(result.retreat ? { retreat: result.retreat } : {}),
     ...(fireStarted ? { fireStarted: true as const } : {}),

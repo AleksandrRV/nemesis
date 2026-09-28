@@ -6,7 +6,7 @@ import type { CardUseRequest, TargetSelection, UsageVariant } from './usageTypes
 import { getActionCardUsage } from './actionCardUsage';
 import { getItemUsage } from './itemUsage';
 import { getStepTargets } from './usageTargets';
-import { buildCombatPayload, buildUsePayload } from './usagePayload';
+import { buildCombatPayload, buildUsePayload, chosenRoomId } from './usagePayload';
 import {
   autoFillPayment,
   buildFlowSteps,
@@ -45,7 +45,7 @@ function onlyAvailable(variants: readonly UsageVariant[]): UsageVariant | null {
 function targetLabels(view: SanitizedGameState, variant: UsageVariant, selection: TargetSelection): string[] {
   return variant.steps.map((step, index) => {
     const chosen = new Set(selection[index] ?? []);
-    const labels = getStepTargets(view, step.kind)
+    const labels = getStepTargets(view, step.kind, [], chosenRoomId(variant, selection))
       .filter((target) => chosen.has(target.id))
       .map((target) => target.label);
     return `${step.title}: ${labels.length > 0 ? labels.join(', ') : 'ничего'}`;
@@ -84,11 +84,12 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
   const containerRef = React.useRef<HTMLDivElement>(null);
   useFocusTrap(containerRef, { onEscape: onClose });
 
-  const steps = buildFlowSteps(variant, usage.cost);
+  const cost = variant?.cost ?? usage.cost;
+  const steps = buildFlowSteps(variant, cost);
   const step: FlowStep = steps[Math.min(stepIndex, steps.length - 1)]!;
   const candidates = paymentCandidates(view, request, reservedHandCardIds(variant, selection));
-  const chosenPayment = payment ?? initialPayment(candidates, preferredPaymentIds, usage.cost);
-  const blocker = stepBlocker(step, variant, selection, paymentBlocker(candidates, chosenPayment, usage.cost));
+  const chosenPayment = payment ?? initialPayment(candidates, preferredPaymentIds, cost);
+  const blocker = stepBlocker(step, variant, selection, paymentBlocker(candidates, chosenPayment, cost));
   const actionVerb = request.kind === 'ACTION' ? 'Разыграть' : 'Использовать';
 
   const selectVariant = (next: UsageVariant) => {
@@ -104,9 +105,9 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
 
   const confirm = () => {
     if (!variant) return;
-    const discardCardIds = usage.cost > 0 ? chosenPayment : [];
+    const discardCardIds = cost > 0 ? chosenPayment : [];
     if (variant.combat) {
-      const combat = buildCombatPayload(variant, combatWeaponItemId ?? '', selection);
+      const combat = buildCombatPayload(variant, variant.weaponItemId ?? combatWeaponItemId ?? '', selection);
       if (combat)
         onConfirm({ variantLabel: variant.label, payload: { cardId: request.card.id, combat }, discardCardIds });
       return;
@@ -131,6 +132,11 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
     setSelection((current) => {
       const next = [...current];
       next[index] = ids;
+      if (variant?.steps[index]?.kind === 'ANY_ROOM') {
+        variant.steps.forEach((step, stepIndex) => {
+          if (step.kind === 'ROOM_DOORS_TO_CLOSE') next[stepIndex] = [];
+        });
+      }
       return next;
     });
 
@@ -199,7 +205,7 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
             {step.kind === 'TARGET' && variant && (
               <TargetStepView
                 step={variant.steps[step.index]!}
-                targets={getStepTargets(view, variant.steps[step.index]!.kind)}
+                targets={getStepTargets(view, variant.steps[step.index]!.kind, [], chosenRoomId(variant, selection))}
                 selected={selection[step.index] ?? []}
                 onChange={(ids) => updateSelection(step.index, ids)}
               />
@@ -207,11 +213,11 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
 
             {step.kind === 'PAYMENT' && (
               <PaymentStep
-                cost={usage.cost}
+                cost={cost}
                 candidates={candidates}
                 chosen={chosenPayment}
                 onChange={setPayment}
-                onAutoFill={() => setPayment(autoFillPayment(candidates, chosenPayment, usage.cost))}
+                onAutoFill={() => setPayment(autoFillPayment(candidates, chosenPayment, cost))}
               />
             )}
 
@@ -235,7 +241,7 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
                 <div>
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Оплата</dt>
                   <dd className="text-slate-200">
-                    {usage.cost === 0
+                    {cost === 0
                       ? 'Без доплаты'
                       : candidates
                           .filter((candidate) => chosenPayment.includes(candidate.id))

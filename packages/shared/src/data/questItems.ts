@@ -35,6 +35,8 @@ export interface QuestDefinition {
   effectMode: QuestEffectMode;
   actionCost: number;
   isSingleUse: boolean;
+  /** Символ руки на вертикальной стороне карты: Предмет занимает слот Руки (стр. 22). */
+  isHeavy: boolean;
 }
 
 export const QUEST_ACTIVATION_COST = 1;
@@ -51,138 +53,167 @@ const TOOLS_OR_TAPE: QuestActivation = {
 const ENERGY_CHARGE: QuestActivation = { kind: 'SACRIFICE_ITEM', label: 'Энергозаряд', itemKinds: ['ENERGY_CHARGE'] };
 const CHEMICALS: QuestActivation = { kind: 'SACRIFICE_ITEM', label: 'Химикаты', itemKinds: ['CHEMICALS'] };
 
+function activateIn(place: string): string {
+  return `Активируйте этот Предмет ${place}.`;
+}
+
+function discardToActivate(item: string): string {
+  return `Сбросьте ${item}, чтобы Активировать этот Предмет.`;
+}
+
 export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
   {
     key: 'SHIP_LOG',
     characterClass: 'CAPTAIN',
     name: 'Бортовой журнал',
-    questText: 'Выполните Действие активации, находясь в Радиорубке.',
-    itemDescription: 'Посмотрите Цель Персонажа, находящегося в комнате с Компьютером.',
-    activation: room('COMM_ROOM', 'Радиорубка'),
-    effectMode: 'PENDING',
+    questText: activateIn('в Комнате Связи'),
+    itemDescription: 'Если вы находитесь в Комнате с Компьютером, выберите 1 Персонажа и посмотрите его карту Цели.',
+    activation: room('COMM_ROOM', 'Комната Связи'),
+    effectMode: 'ACTION',
     actionCost: 1,
-    isSingleUse: false,
+    isSingleUse: true,
+    isHeavy: false,
   },
   {
     key: 'INTERCOM',
     characterClass: 'CAPTAIN',
     name: 'Интерком',
-    questText: 'Сбросьте Инструменты или Изоленту.',
-    itemDescription: 'Играйте «Приказ» и «Мотивацию» на Персонажей в любой комнате с Компьютером.',
+    questText: discardToActivate('Инструменты или Изоленту'),
+    itemDescription:
+      'Когда вы выполняете Действия «Приказ» или «Мотивация», вы можете выбрать Персонажа в любой Комнате с Компьютером.',
     activation: TOOLS_OR_TAPE,
     effectMode: 'PENDING',
     actionCost: 0,
     isSingleUse: false,
+    isHeavy: false,
   },
   {
     key: 'ORBITAL_MANEUVERING',
     characterClass: 'PILOT',
     name: 'Система орбитального маневрирования',
-    questText: 'Сбросьте Энергозаряд.',
-    itemDescription: 'Все игроки пасуют; раунд заканчивается без Атак Чужих.',
+    questText: discardToActivate('Энергозаряд'),
+    itemDescription:
+      'Каждый Игрок (включая вас) обязан немедленно спасовать. Немедленно закончите этот Раунд, не разыгрывая Атаки Чужих.',
     activation: ENERGY_CHARGE,
     effectMode: 'PENDING',
     actionCost: 1,
     isSingleUse: true,
+    isHeavy: false,
   },
   {
     key: 'EVACUATION_KEY',
     characterClass: 'PILOT',
     name: 'Ключ эвакуации',
-    questText: 'Выполните Действие активации, находясь в Пожарной безопасности.',
-    itemDescription: 'Разблокируйте или заблокируйте Капсулу в Спасательном отсеке, где вы находитесь.',
-    activation: room('FIRE_CONTROL', 'Пожарная безопасность'),
+    questText: activateIn('в Комнате Пожарной Безопасности'),
+    itemDescription:
+      'Если вы находитесь в Спасательном Отсеке, Разблокируйте или Заблокируйте 1 Капсулу в этом Отсеке.',
+    activation: room('FIRE_CONTROL', 'Комната Пожарной Безопасности'),
     effectMode: 'ACTION',
     actionCost: 1,
-    isSingleUse: false,
+    isSingleUse: true,
+    isHeavy: false,
   },
   {
     key: 'PLASMA_TORCH',
     characterClass: 'MECHANIC',
     name: 'Плазменная горелка',
-    questText: 'Выполните Действие активации, находясь на Складе.',
-    itemDescription: 'Откройте или закройте Дверь в Коридоре вашей комнаты — даже Разрушенную (её можно заварить).',
+    questText: activateIn('на Складе'),
+    itemDescription:
+      'Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату. Вы можете Закрывать Разрушенные Двери.',
     activation: room('STORAGE', 'Склад'),
     effectMode: 'ACTION',
     actionCost: 1,
     isSingleUse: false,
+    isHeavy: false,
   },
   {
     key: 'FLASHLIGHT',
     characterClass: 'MECHANIC',
     name: 'Фонарик',
-    questText: 'Сбросьте Энергозаряд.',
-    itemDescription: 'Проведите Поиск в вашей комнате.',
+    questText: discardToActivate('Энергозаряд'),
+    itemDescription: 'Выполните Действие «Поиск» в вашей Комнате.',
     activation: ENERGY_CHARGE,
     effectMode: 'ACTION',
-    actionCost: 1,
+    actionCost: 2,
     isSingleUse: false,
+    isHeavy: false,
   },
   {
     key: 'AUTOLOADER',
     characterClass: 'SOLDIER',
     name: 'Автозарядчик',
-    questText: 'Выполните Действие активации, находясь в Оружейной.',
-    itemDescription: 'Предел Боезапаса Боевой винтовки +1.',
+    questText: activateIn('в Оружейной'),
+    itemDescription:
+      'Прикрепите к Боевой Винтовке. Боевая Винтовка получает +1 к максимальному Боезапасу. Если Боевая Винтовка заряжается с использованием Энергозаряда, цена этого Действия равна 0.',
     activation: room('ARMORY', 'Оружейная'),
     effectMode: 'PASSIVE',
     actionCost: 0,
     isSingleUse: false,
+    isHeavy: false,
   },
   {
     key: 'ARMOR',
     characterClass: 'SOLDIER',
     name: 'Броня',
-    questText: 'Сбросьте Инструменты или Изоленту.',
-    itemDescription: 'Одноразово: следующая Атака Чужого по вам игнорируется, затем Броня сбрасывается.',
+    questText: discardToActivate('Инструменты или Изоленту'),
+    itemDescription: 'Вы можете сбросить броню после Атаки Чужого, чтобы проигнорировать эту Атаку.',
     activation: TOOLS_OR_TAPE,
     effectMode: 'REACTIVE',
     actionCost: 0,
     isSingleUse: true,
+    isHeavy: false,
   },
   {
     key: 'MOTION_SENSOR',
     characterClass: 'SCOUT',
     name: 'Датчик движения',
-    questText: 'Сбросьте Энергозаряд.',
-    itemDescription: 'Перебросьте кубик Шума.',
+    questText: discardToActivate('Энергозаряд'),
+    itemDescription:
+      'Сбросьте 1 карту Действия с руки, чтобы перебросить кубик Шума. Не более 1 раза за бросок кубика Шума.',
     activation: ENERGY_CHARGE,
     effectMode: 'PENDING',
     actionCost: 0,
     isSingleUse: false,
+    isHeavy: true,
   },
   {
     key: 'SECURITY_KEY',
     characterClass: 'SCOUT',
     name: 'Ключ безопасности',
-    questText: 'Выполните Действие активации, находясь на Мостике.',
-    itemDescription: 'Откройте или закройте все Двери выбранной комнаты.',
+    questText: activateIn('на Мостике'),
+    itemDescription:
+      'Выберите 1 Комнату и Закройте или Откройте Двери в любых Коридорах, ведущих в эту Комнату. Вы можете выбрать, какие Двери Открыть, а какие Закрыть.',
     activation: room('COCKPIT', 'Мостик'),
     effectMode: 'ACTION',
     actionCost: 1,
-    isSingleUse: false,
+    isSingleUse: true,
+    isHeavy: false,
   },
   {
     key: 'HOLO_COMPUTER',
     characterClass: 'SCIENTIST',
     name: 'Голографический компьютер',
-    questText: 'Выполните Действие активации, находясь в Генераторе.',
-    itemDescription: '«Оценку угрозы» и «Интранет» можно играть из любой комнаты.',
-    activation: room('GENERATOR', 'Генератор'),
+    questText: activateIn('в Комнате Генератора'),
+    itemDescription:
+      'Вы можете выполнять Действия «Интранет» и «Оценка Угрозы», находясь в любой Комнате (даже если в ней нет Компьютера или она Неисправна).',
+    activation: room('GENERATOR', 'Комната Генератора'),
     effectMode: 'PASSIVE',
     actionCost: 0,
     isSingleUse: false,
+    isHeavy: true,
   },
   {
     key: 'LAB_EQUIPMENT',
     characterClass: 'SCIENTIST',
     name: 'Лабораторное оборудование',
-    questText: 'Сбросьте Химикаты.',
-    itemDescription: 'Изучите Объект в комнате с Трупом, Останками Чужого или Яйцом.',
+    questText: discardToActivate('Химикаты'),
+    itemDescription:
+      'Если вы находитесь в одной Комнате с Трупом Персонажа, Останками Чужого или Яйцом, Изучите соответствующую Слабость Чужих.',
     activation: CHEMICALS,
-    effectMode: 'PENDING',
+    effectMode: 'ACTION',
     actionCost: 1,
-    isSingleUse: false,
+    isSingleUse: true,
+    isHeavy: false,
   },
 ];
 

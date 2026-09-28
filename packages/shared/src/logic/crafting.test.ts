@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contactState, expectEngineError } from '../testing/contactFixtures.js';
-import type { ActionCard, CraftComponent, ItemCard } from '../types/cards.js';
+import type { ActionCard, CraftComponent, CraftedItemId, ItemCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { CRAFTING_RECIPES, craftablePairs, matchesRecipe } from '../data/crafting.js';
 import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from '../data/itemCards.js';
@@ -46,13 +46,17 @@ describe('Рецепты Создания (стр. 23)', () => {
     expect(matchesRecipe(taser, battery, withSymbol('BATTERY', [battery.id]))).toBe(false);
   });
 
-  it('«Смекалка»: любой жёлтый Предмет подходит как компонент', () => {
-    const antidote = CRAFTING_RECIPES[0]!;
-    const yellow = { ...structuredClone(YELLOW_ITEM_CARDS[0]!), componentSymbols: [] };
+  it('«Смекалка»: желтый Предмет закрывает только символ ключа (cards_base.pdf, стр. 19)', () => {
+    const flamethrower = CRAFTING_RECIPES.find((recipe) => recipe.itemId === 'FLAMETHROWER')!;
+    const antidote = CRAFTING_RECIPES.find((recipe) => recipe.itemId === 'ANTIDOTE')!;
+    const yellow = structuredClone(YELLOW_ITEM_CARDS.find((item) => item.name === 'Изолента')!);
+    const flame = withSymbol('FLAME');
     const medkit = withSymbol('MEDKIT');
-    expect(matchesRecipe(antidote, yellow, medkit)).toBe(false);
-    expect(matchesRecipe(antidote, yellow, medkit, true)).toBe(true);
-    expect(craftablePairs(antidote, [yellow, medkit], true)).toEqual([[yellow.id, medkit.id]]);
+
+    expect(matchesRecipe(flamethrower, yellow, flame)).toBe(false);
+    expect(matchesRecipe(flamethrower, yellow, flame, true)).toBe(true);
+    expect(craftablePairs(flamethrower, [yellow, flame], true)).toEqual([[yellow.id, flame.id]]);
+    expect(matchesRecipe(antidote, yellow, medkit, true)).toBe(false);
   });
 });
 
@@ -153,14 +157,13 @@ describe('Базовое Действие «Создание Предмета» 
     expect(next.players['player-1']!.inventory.some((item) => item.name === 'Коктейль Молотова')).toBe(true);
   });
 
-  it('«Смекалка» Механика создаёт Предмет, используя жёлтый Предмет как любой компонент', () => {
+  it('«Смекалка» Механика создает Огнемет, используя желтый Предмет как символ ключа', () => {
     const state = contactState(2, 'craft-ingenuity');
-    const yellow = {
-      ...structuredClone(YELLOW_ITEM_CARDS.find((item) => item.componentSymbols.length === 0) ?? YELLOW_ITEM_CARDS[0]!),
-      componentSymbols: [],
-    };
+    state.players['player-1']!.handSlots = [];
+    const yellow = structuredClone(YELLOW_ITEM_CARDS.find((item) => item.name === 'Изолента')!);
     const chemicals = withSymbol('FLAME');
-    give(state, yellow, chemicals);
+    const medkit = withSymbol('MEDKIT');
+    give(state, yellow, chemicals, medkit);
     const ingenuity: ActionCard = {
       id: 'TEST_INGENUITY',
       characterClass: 'MECHANIC',
@@ -170,16 +173,17 @@ describe('Базовое Действие «Создание Предмета» 
       effect: { kind: 'INGENUITY' },
     };
     state.players['player-1']!.actionDeck.hand.push(ingenuity);
-    const next = new GameEngine().processAction(state, {
-      type: 'ACTION_PLAY_CARD',
-      payload: {
-        cardId: ingenuity.id,
-        option: 'CRAFT',
-        craftRecipeId: 'ANTIDOTE',
-        componentItemIds: [yellow.id, chemicals.id],
-      },
-    });
-    expect(next.players['player-1']!.inventory.some((item) => item.name === 'Антидот')).toBe(true);
+    const play = (recipeId: CraftedItemId, componentItemIds: string[]) =>
+      new GameEngine().processAction(structuredClone(state), {
+        type: 'ACTION_PLAY_CARD',
+        payload: { cardId: ingenuity.id, option: 'CRAFT', craftRecipeId: recipeId, componentItemIds },
+      });
+
+    expectEngineError(() => play('ANTIDOTE', [yellow.id, chemicals.id]), 'INVALID_DECISION_OPTION');
+    const next = play('FLAMETHROWER', [yellow.id, chemicals.id]);
+
+    const slot = next.players['player-1']!.handSlots[0];
+    expect(slot?.source === 'ITEM' && slot.card.name).toBe('Огнемет');
     expect(next.gameLog.map((entry) => entry.event).find((event) => event.type === 'ITEM_CRAFTED')).toMatchObject({
       viaCardName: 'Смекалка',
     });

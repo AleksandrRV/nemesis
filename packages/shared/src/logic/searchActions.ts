@@ -5,9 +5,7 @@ import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { drawSearchCards, placeItemToPlayer, validateSearchConditions } from './search.js';
-import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } from '../data/itemCards.js';
-import { CRAFTED_ITEM_CARDS } from '../data/crafting.js';
-import type { ItemCard, ItemDeckColor } from '../types/cards.js';
+import type { ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
 import { EngineError } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
@@ -267,12 +265,7 @@ export function executeDecision(
       discardItemCard(state, oldSlot.card);
     }
 
-    const allTemplates = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
-    const newCard = allTemplates.find((c) => c.id === decision.newItemId) as ItemCard | undefined;
-
-    if (newCard) {
-      player.handSlots[slotIndex] = { source: 'ITEM', card: { ...newCard } };
-    }
+    player.handSlots[slotIndex] = { source: 'ITEM', card: decision.newItem };
 
     const roomIdForFinish = decision.roomId ?? player.roomId;
     const currentRoom = state.ship.rooms[roomIdForFinish];

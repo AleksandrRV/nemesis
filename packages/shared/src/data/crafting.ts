@@ -103,10 +103,10 @@ export function recipeById(recipeId: CraftedItemId): CraftingRecipe | undefined 
 export function canProvideComponent(
   item: CraftComponentSource,
   component: CraftComponent,
-  yellowIsWildcard: boolean,
+  yellowCountsAsTools: boolean,
 ): boolean {
   if (item.origin === 'CRAFTED') return false;
-  if (yellowIsWildcard && item.color === 'YELLOW') return true;
+  if (yellowCountsAsTools && item.color === 'YELLOW' && component === 'TOOLS') return true;
   return item.componentSymbols.includes(component);
 }
 
@@ -114,25 +114,25 @@ export function matchesRecipe(
   recipe: CraftingRecipe,
   first: CraftComponentSource,
   second: CraftComponentSource,
-  yellowIsWildcard = false,
+  yellowCountsAsTools = false,
 ): boolean {
   if (first.id === second.id) return false;
   const [a, b] = recipe.components;
   return (
-    (canProvideComponent(first, a, yellowIsWildcard) && canProvideComponent(second, b, yellowIsWildcard)) ||
-    (canProvideComponent(first, b, yellowIsWildcard) && canProvideComponent(second, a, yellowIsWildcard))
+    (canProvideComponent(first, a, yellowCountsAsTools) && canProvideComponent(second, b, yellowCountsAsTools)) ||
+    (canProvideComponent(first, b, yellowCountsAsTools) && canProvideComponent(second, a, yellowCountsAsTools))
   );
 }
 
 export function craftablePairs(
   recipe: CraftingRecipe,
   items: readonly CraftComponentSource[],
-  yellowIsWildcard = false,
+  yellowCountsAsTools = false,
 ): [string, string][] {
   const pairs: [string, string][] = [];
   items.forEach((first, index) => {
     items.slice(index + 1).forEach((second) => {
-      if (matchesRecipe(recipe, first, second, yellowIsWildcard)) pairs.push([first.id, second.id]);
+      if (matchesRecipe(recipe, first, second, yellowCountsAsTools)) pairs.push([first.id, second.id]);
     });
   });
   return pairs;

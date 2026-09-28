@@ -56,7 +56,8 @@ export type PendingDecision =
       id: string;
       playerId: string;
       type: 'DISCARD_HEAVY_ITEM_FOR_NEW';
-      newItemId: string;
+      /** Сам новый Тяжелый Предмет: найденный, созданный или квестовый — Тяжелые Предметы видны всем (стр. 22). */
+      newItem: ItemCard;
       /** Комната, в которой был поиск — чтобы после сброса завершить поиск (Шаг 5, долг 12) */
       roomId?: RoomId;
     }

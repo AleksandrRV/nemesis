@@ -17,6 +17,10 @@ export function requirePlayer(state: GameState, actorId: string): PlayerState {
   return player;
 }
 
+export function hasAvailableComputer(room: RoomState): boolean {
+  return room.hasComputer && !room.hasMalfunction;
+}
+
 export function requireRoom(state: GameState, actorId: string): RoomState {
   const player = requirePlayer(state, actorId);
   const room = state.ship.rooms[player.roomId];

@@ -43,7 +43,7 @@ export function performCraft(
   actorId: string,
   recipeId: CraftedItemId,
   componentItemIds: readonly string[],
-  options: { yellowIsWildcard: boolean; viaCardName?: string },
+  options: { yellowCountsAsTools: boolean; viaCardName?: string },
 ): void {
   const player = state.players[actorId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
@@ -60,7 +60,7 @@ export function performCraft(
     throw new EngineError('NO_ITEMS_LEFT', 'Одного из Предметов-Компонентов нет у Персонажа.');
   }
   const [first, second] = owned as [OwnedItem, OwnedItem];
-  if (!matchesRecipe(recipe, first.item, second.item, options.yellowIsWildcard)) {
+  if (!matchesRecipe(recipe, first.item, second.item, options.yellowCountsAsTools)) {
     throw new EngineError(
       'INVALID_DECISION_OPTION',
       `Синие символы Компонентов не совпадают с рецептом «${recipe.name}» (стр. 23).`,
@@ -94,6 +94,8 @@ export function executeCraftItem(
   actorId: string,
 ): void {
   executeCardPayment(state, actorId, action.payload.discardCardIds, CRAFT_ACTION_COST);
-  performCraft(state, actorId, action.payload.recipeId, action.payload.componentItemIds, { yellowIsWildcard: false });
+  performCraft(state, actorId, action.payload.recipeId, action.payload.componentItemIds, {
+    yellowCountsAsTools: false,
+  });
   queueActionCompletion(state, actorId);
 }

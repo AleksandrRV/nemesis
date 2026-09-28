@@ -11,6 +11,7 @@ import { logContaminationScan, resolveInfectionFound, scanContaminationCards } f
 import {
   discardInventoryItem,
   fixRoomMalfunction,
+  hasAvailableComputer,
   isContaminationCard,
   isEngineOption,
   moveViaTechnicalCorridors,
@@ -99,8 +100,11 @@ function demolition(state: GameState, actorId: string, payload: PlayCardPayload)
 
 function accessDenied(state: GameState, actorId: string, payload: PlayCardPayload): void {
   const room = requireRoom(state, actorId);
-  if (!room.hasComputer) {
-    throw new EngineError('NO_COMPUTER', '«Отказ в доступе» работает только в комнате с Компьютером.');
+  if (!hasAvailableComputer(room)) {
+    throw new EngineError(
+      'NO_COMPUTER',
+      '«Отказ в доступе» работает только в Комнате с исправным Компьютером (стр. 24).',
+    );
   }
   if (payload.option === CARD_OPTION.ROOM_ACTION) {
     notUsableNow('Бесплатные Действия комнат ещё не реализованы — используйте маркер Неисправности.');
@@ -175,7 +179,7 @@ export function applyActionCardEffect(
       if (payload.option === CARD_OPTION.CRAFT) {
         if (!payload.craftRecipeId) throw new EngineError('INVALID_DECISION_OPTION', 'Выберите Создаваемый Предмет.');
         return performCraft(state, actorId, payload.craftRecipeId, payload.componentItemIds ?? [], {
-          yellowIsWildcard: true,
+          yellowCountsAsTools: true,
           viaCardName: card.name,
         });
       }

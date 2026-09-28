@@ -1,4 +1,5 @@
 import type { CombatCardPayload, ItemDeckColor, PlayCardActionPayload, UseItemActionPayload } from '@nemesis/shared';
+import type { StudyObjectKind } from './usageContext';
 import type { CardUseRequest, TargetSelection, UsageTargetKind, UsageVariant } from './usageTypes';
 
 export type BuiltCardPayload = Omit<PlayCardActionPayload, 'cardId' | 'discardCardIds' | 'combat'> &
@@ -6,7 +7,7 @@ export type BuiltCardPayload = Omit<PlayCardActionPayload, 'cardId' | 'discardCa
 
 function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: readonly string[]): void {
   const first = ids[0];
-  if (first === undefined && kind !== 'HAND_CARD') return;
+  if (first === undefined && kind !== 'HAND_CARD' && kind !== 'ROOM_DOORS_TO_CLOSE') return;
   switch (kind) {
     case 'ADJACENT_DOOR':
     case 'ADJACENT_DOOR_ANY_STATE':
@@ -32,6 +33,7 @@ function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: re
     case 'PLAYER_OTHER_IN_ROOM':
     case 'PLAYER_IN_ROOM_OR_SELF':
     case 'PLAYER_WITH_SIGNAL':
+    case 'PLAYER_ANY_OTHER':
       payload.targetPlayerId = first;
       return;
     case 'INTRUDER_IN_ROOM':
@@ -43,6 +45,12 @@ function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: re
       return;
     case 'INVENTORY_ITEM':
       payload.targetItemId = first;
+      return;
+    case 'ROOM_DOORS_TO_CLOSE':
+      payload.closedCorridorIds = [...ids];
+      return;
+    case 'STUDY_OBJECT':
+      payload.targetObjectKind = first as StudyObjectKind;
       return;
     case 'HAND_CARD':
     case 'CONTAMINATION_CARD':
@@ -91,4 +99,10 @@ export function isSelectionComplete(variant: UsageVariant, selection: TargetSele
     const count = selection[index]?.length ?? 0;
     return count >= step.min && count <= step.max;
   });
+}
+
+export function chosenRoomId(variant: UsageVariant, selection: TargetSelection): number | undefined {
+  const roomStepIndex = variant.steps.findIndex((step) => step.kind === 'ANY_ROOM');
+  const roomId = selection[roomStepIndex]?.[0];
+  return roomId === undefined ? undefined : Number(roomId);
 }

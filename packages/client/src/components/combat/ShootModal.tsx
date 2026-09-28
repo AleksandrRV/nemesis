@@ -59,7 +59,12 @@ export function ShootModal() {
   const hasAdrenaline = handCardIds.includes('ACT_SCO_ADRENALINE');
   const modes: { id: 'BASIC' | 'AIMED' | 'BURST' | 'ADRENALINE'; label: string; hint: string; owned: boolean }[] = [
     { id: 'BASIC', label: 'Стрельба', hint: 'базовое действие (стр. 19)', owned: true },
-    { id: 'AIMED', label: 'Прицельный огонь', hint: 'переброс кубика (карта Солдата)', owned: hasAimed },
+    {
+      id: 'AIMED',
+      label: 'Прицельный огонь',
+      hint: 'Энергооружием, переброс кубика (карта Солдата)',
+      owned: hasAimed && (!activeWeapon || activeWeapon.isEnergyWeapon === true),
+    },
     {
       id: 'BURST',
       label: 'Стрельба очередью',

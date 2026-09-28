@@ -7,7 +7,8 @@ import { performRoomSearch } from './actionCardSupport.js';
 import { requirePlayer, requireRoom, requireTargetRoom, toggleDoor } from './cardEffectsShared.js';
 import { questKeyOfItem } from './questItems.js';
 import type { ItemDisposal, UseItemPayload } from './itemEffects.js';
-import { useEvacuationKey } from './keyItemEffects.js';
+import { useEvacuationKey, useShipLog } from './keyItemEffects.js';
+import { studyWeakness } from './weaknessStudy.js';
 
 function notUsableNow(message: string): never {
   throw new EngineError('CARD_NOT_USABLE_NOW', message);
@@ -33,17 +34,29 @@ function plasmaTorch(state: GameState, actorId: string, corridorId: string | und
   toggleDoor(state, actorId, corridor.id, true);
 }
 
-function securityKey(state: GameState, targetRoomId: number | undefined): void {
+/**
+ * «Ключ безопасности»: Двери всех Коридоров выбранной Комнаты — перечисленные
+ * Закрываются, остальные Открываются. Без списка — все целые Двери в одно
+ * положение: Закрыть, если хотя бы одна открыта, иначе Открыть.
+ */
+function securityKey(state: GameState, targetRoomId: number | undefined, closedCorridorIds?: readonly string[]): void {
   const target = requireTargetRoom(state, targetRoomId, 'Выберите комнату, Двери которой нужно переключить.');
   const doors = Object.values(state.ship.corridors).filter(
     (corridor) =>
       (corridor.fromRoomId === target.id || corridor.toRoomId === target.id) && corridor.doorState !== 'DESTROYED',
   );
   if (doors.length === 0) throw new EngineError('DOOR_DESTROYED', 'У этой комнаты нет целых Дверей.');
-  const closing = doors.some((corridor) => corridor.doorState === 'OPEN');
+  const doorIds = new Set(doors.map((corridor) => corridor.id));
+  if (closedCorridorIds?.some((id) => !doorIds.has(id))) {
+    throw new EngineError('INVALID_DECISION_OPTION', 'Закрывать можно только целые Двери выбранной Комнаты.');
+  }
+  const toClose = new Set(
+    closedCorridorIds ??
+      (doors.some((corridor) => corridor.doorState === 'OPEN') ? doors.map((corridor) => corridor.id) : []),
+  );
   for (const corridor of doors) {
-    if (closing && corridor.doorState === 'OPEN') closeWithToken(state, corridor.id);
-    if (!closing) corridor.doorState = 'OPEN';
+    if (toClose.has(corridor.id) && corridor.doorState === 'OPEN') closeWithToken(state, corridor.id);
+    if (!toClose.has(corridor.id)) corridor.doorState = 'OPEN';
   }
 }
 
@@ -67,7 +80,13 @@ export function applyQuestItemEffect(
       performRoomSearch(state, actorId, payload.targetDeckColor);
       break;
     case 'SECURITY_KEY':
-      securityKey(state, payload.targetRoomId);
+      securityKey(state, payload.targetRoomId, payload.closedCorridorIds);
+      break;
+    case 'SHIP_LOG':
+      useShipLog(state, actorId, payload.targetPlayerId);
+      break;
+    case 'LAB_EQUIPMENT':
+      studyWeakness(state, actorId, payload.targetObjectKind, 'CARD_NOT_USABLE_NOW');
       break;
     default:
       if (definition.effectMode === 'PASSIVE')

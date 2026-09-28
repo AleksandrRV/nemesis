@@ -12,6 +12,7 @@ import { drawFromStream, shuffle } from '../utils/rng.js';
 import { logContaminationScan, removeInfectedCards, scanContaminationCards } from './infectionScanner.js';
 import { startHibernationAttempt, startPodBoarding, togglePodLock } from './evacuation.js';
 import { toggleSelfDestruct } from './selfDestruct.js';
+import { dropHeldObject, studyWeakness } from './weaknessStudy.js';
 import { repelIntruderWithSuppressant } from './fireSuppression.js';
 
 function fireControlDetail(roomId: number, extinguished: boolean, repelledCount: number): string {
@@ -265,64 +266,16 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     }
 
     case 'LABORATORY': {
-      // Лаборатория [2] «Изучите 1 объект» (стр. 16): в отсеке должен быть
-      // Труп, Останки или Яйцо — на полу или в руках любого Персонажа («например,
-      // в руках Персонажа»). Объект не удаляется из игры; после изучения можно
-      // сбросить свой объект с руки, не тратя Действия (стр. 16).
-      const targetKind = payload.targetObjectKind;
-      if (!targetKind) {
-        throw new EngineError(
-          'ROOM_ABILITY_NOT_ALLOWED',
-          'Не указан тип объекта для изучения: Труп, Останки или Яйцо (стр. 16).',
-        );
+      const weaknessName = studyWeakness(state, actorId, payload.targetObjectKind, 'ROOM_ABILITY_NOT_ALLOWED');
+      if (payload.discardObjectAfterStudy && payload.targetObjectKind) {
+        dropHeldObject(state, actorId, payload.targetObjectKind);
       }
-      const weaknessSlot = state.intrudersPool.weaknessSlots.find((slot) => slot.objectKind === targetKind);
-      if (!weaknessSlot) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `Слота Слабостей для объекта ${targetKind} не существует.`);
-      }
-      if (!weaknessSlot.card) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'В этом слоте Планшета Чужих нет карты Слабости.');
-      }
-      if (weaknessSlot.card.isRevealed) {
-        throw new EngineError(
-          'WEAKNESS_ALREADY_REVEALED',
-          `Слабость «${weaknessSlot.card.name}» уже изучена — раскрывать больше нечего (стр. 21).`,
-        );
-      }
-      const onFloor = room.objects.some((object) => object.kind === targetKind);
-      const inHands = room.occupantPlayerIds.some((occupantId) =>
-        state.players[occupantId]!.handSlots.some(
-          (slot) => slot.source === 'OBJECT' && slot.object.kind === targetKind,
-        ),
-      );
-      if (!onFloor && !inHands) {
-        throw new EngineError(
-          'ROOM_ABILITY_NOT_ALLOWED',
-          `В Лаборатории нет объекта типа ${targetKind} ни на полу, ни в руках Персонажей (стр. 16).`,
-        );
-      }
-
-      weaknessSlot.card.isRevealed = true;
-
-      if (payload.discardObjectAfterStudy) {
-        const slotIndex = player.handSlots.findIndex(
-          (slot) => slot.source === 'OBJECT' && slot.object.kind === targetKind,
-        );
-        if (slotIndex > -1) {
-          const dropped = player.handSlots.splice(slotIndex, 1)[0];
-          if (dropped && dropped.source === 'OBJECT') {
-            // Сброшенный объект — жетон в текущую Комнату (стр. 22).
-            room.objects.push(dropped.object);
-          }
-        }
-      }
-
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
         playerId: actorId,
         roomId: room.id,
         roomDefinitionId: 'LABORATORY',
-        detail: `Изучен объект (${targetKind}): раскрыта Слабость «${weaknessSlot.card.name}»`,
+        detail: `Изучен объект (${payload.targetObjectKind}): раскрыта Слабость «${weaknessName}»`,
       });
       break;
     }

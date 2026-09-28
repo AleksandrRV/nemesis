@@ -114,13 +114,11 @@ describe('Стартовые предметы (Starting Weapons)', () => {
     }
   });
 
-  it('различает энергооружие (Скаут) и классическое оружие (остальные)', () => {
-    expect(STARTING_WEAPONS.SCOUT.isEnergyWeapon).toBe(true);
+  it('Энергооружие — все стартовые, кроме классического Револьвера Капитана (cards_additional.pdf, стр. 15, 17)', () => {
     expect(STARTING_WEAPONS.CAPTAIN.isEnergyWeapon).toBe(false);
-    expect(STARTING_WEAPONS.PILOT.isEnergyWeapon).toBe(false);
-    expect(STARTING_WEAPONS.MECHANIC.isEnergyWeapon).toBe(false);
-    expect(STARTING_WEAPONS.SOLDIER.isEnergyWeapon).toBe(false);
-    expect(STARTING_WEAPONS.SCIENTIST.isEnergyWeapon).toBe(false);
+    for (const characterClass of ['PILOT', 'MECHANIC', 'SOLDIER', 'SCOUT', 'SCIENTIST'] as const) {
+      expect(STARTING_WEAPONS[characterClass].isEnergyWeapon, characterClass).toBe(true);
+    }
   });
 });
 

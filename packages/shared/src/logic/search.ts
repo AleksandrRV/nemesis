@@ -104,7 +104,7 @@ export function placeItemToPlayer(state: GameState, playerId: string, item: Item
       id: allocateEntityId(state, 'item-choice'),
       playerId,
       type: 'DISCARD_HEAVY_ITEM_FOR_NEW',
-      newItemId: item.id,
+      newItem: item,
       roomId,
     };
     return false;

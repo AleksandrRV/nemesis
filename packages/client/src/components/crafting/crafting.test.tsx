@@ -64,10 +64,17 @@ describe('Модель мастерской', () => {
     expect(taser.reason).toContain('не осталось');
   });
 
-  it('«Смекалка»: жёлтый Предмет — любой компонент, вариант открывает мастерскую', () => {
+  it('«Смекалка»: желтый Предмет закрывает символ ключа, вариант открывает мастерскую', () => {
     const yellow = { ...structuredClone(YELLOW_ITEM_CARDS[0]!), componentSymbols: [] };
     const view = makeView([yellow, withSymbol('FLAME')]);
-    expect(componentItems(view, true).find((entry) => entry.item.id === yellow.id)?.provides).toBe('ANY');
+    expect(componentItems(view, true).find((entry) => entry.item.id === yellow.id)).toMatchObject({
+      provides: ['TOOLS'],
+      toolsViaIngenuity: true,
+    });
+    expect(componentItems(view, false).find((entry) => entry.item.id === yellow.id)).toBeUndefined();
+    const flamethrower = buildWorkshop(view, true).find((entry) => entry.recipe.itemId === 'FLAMETHROWER')!;
+    expect(flamethrower.available).toBe(true);
+    expect(buildWorkshop(view, true).find((entry) => entry.recipe.itemId === 'ANTIDOTE')!.available).toBe(false);
     const craft = getActionCardUsage(INGENUITY, view).variants.find((variant) => variant.id === 'CRAFT')!;
     expect(craft).toMatchObject({ available: true, opensWorkshop: true });
   });

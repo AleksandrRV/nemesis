@@ -1,5 +1,6 @@
 import {
   CARD_OPTION,
+  STARTING_WEAPONS,
   getItemEffectKind,
   getRoomDeckColor,
   type ItemCard,
@@ -11,6 +12,7 @@ import {
   hasDrawableCards,
   intruderRoomsNearby,
   intrudersInRoom,
+  hasActiveQuestItem,
   hasAvailableComputer,
   neighbourRoomIds,
   otherOccupants,
@@ -70,6 +72,10 @@ function nearbyIntruderReason(ctx: UsageContext): string | undefined {
   return intruderRoomsNearby(ctx).length > 0 ? undefined : 'Ни в вашем, ни в соседних отсеках нет Чужих';
 }
 
+function chargesWithAutoloader(ctx: UsageContext, weapon: ItemCard | null): boolean {
+  return weapon?.id === STARTING_WEAPONS.SOLDIER.id && hasActiveQuestItem(ctx, 'AUTOLOADER');
+}
+
 function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
   const kind = getItemEffectKind(item);
   switch (kind) {
@@ -90,6 +96,7 @@ function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
             label: `Полностью зарядить ${weapon?.name ?? 'Энергооружие'}`,
             icon: 'ammo',
             steps: [],
+            ...(chargesWithAutoloader(ctx, weapon) ? { cost: 0, hint: '«Автозарядчик»: цена Действия 0' } : {}),
           },
           reason,
         ),

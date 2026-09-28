@@ -67,18 +67,24 @@ function engineToggled(
   ];
 }
 
+const OBJECTIVE_PEEK_SOURCES: Record<Extract<PrivateLogEvent, { type: 'OBJECTIVE_PEEKED' }>['source'], string> = {
+  COMMS_KEY: 'Ключом связи',
+  SHIP_LOG: 'Бортовым журналом',
+};
+
 function objectivePeeked(
   event: Extract<PrivateLogEvent, { type: 'OBJECTIVE_PEEKED' }>,
   view: SanitizedGameState,
 ): GameLogSegment[] {
   const actor: GameLogSegment = { text: playerName(view, event.playerId), tone: 'player', strong: true };
   const target: GameLogSegment = { text: playerName(view, event.targetPlayerId), tone: 'player', strong: true };
+  const source = OBJECTIVE_PEEK_SOURCES[event.source];
   if (event.objectiveNames === null) {
-    return [actor, { text: ' Ключом связи тайно смотрит карты Цели: ' }, target, { text: '.' }];
+    return [actor, { text: ` ${source} тайно смотрит карты Цели: ` }, target, { text: '.' }];
   }
   return [
     actor,
-    { text: ' Ключом связи смотрит карты Цели: ' },
+    { text: ` ${source} смотрит карты Цели: ` },
     target,
     { text: ' — ' },
     { text: event.objectiveNames.map((name) => `«${name}»`).join(', '), tone: 'warning', strong: true },

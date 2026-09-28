@@ -16,7 +16,7 @@ import { appendGameLog } from './gameLog.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { placeItemToPlayer } from './search.js';
-import { ASSAULT_RIFLE_NAME } from './shoot.js';
+import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { discardItemCard } from './cardEffectsShared.js';
 
 export type QuestBlocker = 'ALREADY_ACTIVE' | 'WRONG_ROOM' | 'ROOM_MALFUNCTION' | 'NO_SACRIFICE';
@@ -72,7 +72,7 @@ export function buildQuestItemCard(quest: QuestItemState): ItemCard {
     name: definition.name,
     color: 'QUEST',
     origin: 'QUEST',
-    isHeavy: false,
+    isHeavy: definition.isHeavy,
     isSingleUse: definition.isSingleUse,
     componentSymbols: [],
     actionCost: definition.actionCost,
@@ -103,7 +103,7 @@ function removeSacrifice(state: GameState, player: PlayerState, itemId: string):
 function applyActivationBonus(player: PlayerState, questKey: QuestKey): void {
   if (questKey !== 'AUTOLOADER') return;
   for (const slot of player.handSlots) {
-    if (slot.source === 'ITEM' && slot.card.name === ASSAULT_RIFLE_NAME && slot.card.maxAmmo !== null) {
+    if (slot.source === 'ITEM' && slot.card.id === STARTING_WEAPONS.SOLDIER.id && slot.card.maxAmmo !== null) {
       slot.card.maxAmmo += 1;
     }
   }
@@ -163,5 +163,9 @@ export function questKeyOfItem(
 }
 
 export function ownsActiveQuestItem(player: PlayerState, questKey: QuestKey): ItemCard | null {
-  return player.inventory.find((item) => questKeyOfItem(item, player) === questKey) ?? null;
+  const owned = [
+    ...player.inventory,
+    ...player.handSlots.flatMap((slot) => (slot.source === 'ITEM' ? [slot.card] : [])),
+  ];
+  return owned.find((item) => questKeyOfItem(item, player) === questKey) ?? null;
 }

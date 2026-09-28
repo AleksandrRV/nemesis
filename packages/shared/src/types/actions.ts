@@ -84,6 +84,10 @@ export type UseItemActionPayload = {
   targetCardIds?: string[];
   targetIntruderId?: string;
   targetEscapePodId?: string;
+  /** «Лабораторное оборудование»: какой Объект изучить. */
+  targetObjectKind?: RoomAbilityPayload['targetObjectKind'];
+  /** «Ключ безопасности»: какие Двери выбранной Комнаты Закрыть; остальные Открываются. */
+  closedCorridorIds?: string[];
 };
 
 export type GameAction =

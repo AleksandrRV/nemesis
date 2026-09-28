@@ -5,7 +5,10 @@ import {
   adjacentOpenRoomIds,
   buildContext,
   combatWeapon,
+  loadedEnergyWeapon,
   computerRooms,
+  hasActiveQuestItem,
+  hasAvailableComputer,
   engineRoomNumber,
   intrudersInRoom,
   otherOccupants,
@@ -94,9 +97,20 @@ function shootVariant(
   label: string,
   hint: string,
 ): UsageVariant {
-  const reason = weaponReason(ctx) ?? (intrudersInRoom(ctx).length === 0 ? 'В вашем отсеке нет Чужих' : undefined);
+  const weapon = combat === 'AIMED_SHOOT' ? loadedEnergyWeapon(ctx) : combatWeapon(ctx);
+  const reason =
+    (combat === 'AIMED_SHOOT' && !weapon ? 'В слотах рук нет заряженного Энергооружия' : weaponReason(ctx)) ??
+    (intrudersInRoom(ctx).length === 0 ? 'В вашем отсеке нет Чужих' : undefined);
   return whenAvailable(
-    { id: combat, combat, label, hint, icon: 'ammo', steps: [singleStep('INTRUDER_IN_ROOM', 'Выберите Чужого')] },
+    {
+      id: combat,
+      combat,
+      label,
+      hint,
+      icon: 'ammo',
+      steps: [singleStep('INTRUDER_IN_ROOM', 'Выберите Чужого')],
+      ...(weapon ? { weaponItemId: weapon.id } : {}),
+    },
     reason,
   );
 }
@@ -112,7 +126,7 @@ function repositionVariant(ctx: UsageContext, maxMoves: number): UsageVariant {
       id: 'REPOSITION',
       combat: 'REPOSITION',
       label: maxMoves === 2 ? 'Отход: себя и/или другого Персонажа' : 'Отход: себя или другого Персонажа',
-      hint: `Цена — 1 ед. Боезапаса «${combatWeapon(ctx)?.name ?? 'Оружия'}», без Атак Чужих`,
+      hint: `Цена — 1 ед. Боезапаса «${combatWeapon(ctx)?.name ?? 'Оружия'}», без Атак Чужих. Согласие другого Персонажа пока не запрашивается`,
       icon: 'move',
       steps: [
         singleStep('PLAYER_IN_ROOM_OR_SELF', 'Кого переместить'),
@@ -329,8 +343,8 @@ function variantsFor(card: ActionCard, ctx: UsageContext): UsageVariant[] {
             icon: 'bolt',
             steps: [singleStep('COMPUTER_ROOM', 'Выберите отсек')],
           },
-          !ctx.room.hasComputer
-            ? 'Играется только в отсеке с Компьютером'
+          !hasAvailableComputer(ctx)
+            ? 'Играется только в отсеке с исправным Компьютером'
             : computerRooms(ctx).length === 0
               ? 'Нет отсеков с Компьютером без Неисправности'
               : undefined,
@@ -342,11 +356,12 @@ function variantsFor(card: ActionCard, ctx: UsageContext): UsageVariant[] {
         ),
       ];
     case 'THREAT_ASSESSMENT': {
-      const reason = !ctx.room.hasComputer
-        ? 'Играется только в отсеке с Компьютером'
-        : ctx.view.decks.events.drawPileCount + ctx.view.decks.events.discard.length === 0
-          ? 'Колода Событий пуста'
-          : undefined;
+      const reason =
+        !hasAvailableComputer(ctx) && !hasActiveQuestItem(ctx, 'HOLO_COMPUTER')
+          ? 'Играется только в отсеке с исправным Компьютером'
+          : ctx.view.decks.events.drawPileCount + ctx.view.decks.events.discard.length === 0
+            ? 'Колода Событий пуста'
+            : undefined;
       return [
         whenAvailable(
           {
@@ -431,7 +446,9 @@ function variantsFor(card: ActionCard, ctx: UsageContext): UsageVariant[] {
     case 'BURST_FIRE':
       return [shootVariant(ctx, 'BURST_SHOOT', 'Очередь по Чужому', 'Весь Боезапас: +1 Рана за каждые 2 ед.')];
     case 'AIMED_FIRE':
-      return [shootVariant(ctx, 'AIMED_SHOOT', 'Прицельный выстрел', 'Можно один раз перебросить кубик Боя')];
+      return [
+        shootVariant(ctx, 'AIMED_SHOOT', 'Прицельный выстрел', 'Энергооружием; можно один раз перебросить кубик Атаки'),
+      ];
     case 'ADRENALINE':
       return [
         shootVariant(ctx, 'ADRENALINE_SHOOT', 'Стрельба и добор карты', 'Обычная Стрельба, затем 1 карта Действия'),

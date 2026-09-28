@@ -206,7 +206,7 @@ describe('Механика Поиска и экономика предметов
     // Должно выставить DISCARD_HEAVY, а не потерять карту
     expect(s1.pendingDecision?.type).toBe('DISCARD_HEAVY_ITEM_FOR_NEW');
     if (s1.pendingDecision?.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
-      expect(s1.pendingDecision.newItemId).toBe(heavyCard.id);
+      expect(s1.pendingDecision.newItem.id).toBe(heavyCard.id);
       expect(s1.pendingDecision.roomId).toBe(room.id);
       // itemsCount ещё не уменьшен — поиск не завершён до сброса
       expect(s1.ship.rooms[room.id]?.itemsCount).toBe(1);

@@ -1,4 +1,4 @@
-import type { ItemCard, SanitizedGameState } from '@nemesis/shared';
+import type { ItemCard, QuestKey, SanitizedGameState, SanitizedWeaknessSlotState } from '@nemesis/shared';
 import { getRoomDeckColor } from '@nemesis/shared';
 
 export type RoomView = SanitizedGameState['ship']['rooms'][number];
@@ -96,6 +96,35 @@ export function playersWithSignal(ctx: UsageContext): string[] {
     .map((player) => player.id);
 }
 
+export function livingOtherPlayers(ctx: UsageContext): string[] {
+  return Object.values(ctx.view.players)
+    .filter((player) => player.id !== ctx.player.id && !player.isDead)
+    .map((player) => player.id);
+}
+
+export function roomDoors(ctx: UsageContext, roomId: number) {
+  return Object.values(ctx.view.ship.corridors).filter(
+    (corridor) =>
+      (corridor.fromRoomId === roomId || corridor.toRoomId === roomId) && corridor.doorState !== 'DESTROYED',
+  );
+}
+
+export type StudyObjectKind = SanitizedWeaknessSlotState['objectKind'];
+
+export function studyableObjectKinds(ctx: UsageContext): StudyObjectKind[] {
+  const floorKinds = (ctx.room.objects ?? []).map((object) => object.kind);
+  const heldKinds = roomOccupants(ctx).flatMap((id) =>
+    (ctx.view.players[id]?.handSlots ?? []).flatMap((slot) => (slot.source === 'OBJECT' ? [slot.object.kind] : [])),
+  );
+  return [...new Set([...floorKinds, ...heldKinds])].filter((kind) =>
+    ctx.view.intrudersPool.weaknessSlots.some((slot) => slot.objectKind === kind && slot.visibility === 'FACE_DOWN'),
+  );
+}
+
+export function hasActiveQuestItem(ctx: UsageContext, questKey: QuestKey): boolean {
+  return (ctx.player.questItems ?? []).some((quest) => quest.questKey === questKey && quest.isActivated);
+}
+
 export function hasAvailableComputer(ctx: UsageContext): boolean {
   return ctx.room.hasComputer === true && !ctx.room.hasMalfunction;
 }
@@ -110,6 +139,10 @@ export function intruderRoomsNearby(ctx: UsageContext): number[] {
 
 export function combatWeapon(ctx: UsageContext): ItemCard | null {
   return ctx.weapons.find((weapon) => (weapon.ammo ?? 0) > 0) ?? null;
+}
+
+export function loadedEnergyWeapon(ctx: UsageContext): ItemCard | null {
+  return ctx.weapons.find((weapon) => weapon.isEnergyWeapon === true && (weapon.ammo ?? 0) > 0) ?? null;
 }
 
 export function weaponReason(ctx: UsageContext): string | undefined {

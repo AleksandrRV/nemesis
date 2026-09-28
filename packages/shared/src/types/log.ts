@@ -131,10 +131,11 @@ export type GameLogEvent =
       itemName: string;
     }
   | {
-      /** «Ключ связи»: владелец ключа смотрит карты Цели Персонажа с маркером Сигнала. */
+      /** «Ключ связи» или «Бортовой журнал»: владелец Предмета смотрит карты Цели другого Персонажа. */
       type: 'OBJECTIVE_PEEKED';
       playerId: string;
       targetPlayerId: string;
+      source: 'COMMS_KEY' | 'SHIP_LOG';
       objectiveNames: string[];
     }
   | {

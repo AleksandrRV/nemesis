@@ -142,7 +142,7 @@ describe('Варианты Предметов', () => {
     });
   });
 
-  it('Бинты не предлагают лечить Обработанную Травму, Аптечка — предлагает', () => {
+  it('Бинты лечат Легкие Травмы, Аптечка — только Тяжелые (обработать или вылечить Обработанную)', () => {
     const view = makeView();
     expect(getItemUsage(item('ITEM_GRE_BANDAGES_'), view, 'INVENTORY').variants.map((variant) => variant.id)).toEqual([
       'TREAT_SERIOUS',
@@ -151,13 +151,36 @@ describe('Варианты Предметов', () => {
     expect(getItemUsage(item('ITEM_GRE_MEDKIT_'), view, 'INVENTORY').variants.map((variant) => variant.id)).toEqual([
       'TREAT_SERIOUS',
       'HEAL_TREATED',
-      'HEAL_LIGHT',
     ]);
+  });
+
+  it('Химикаты заряжают Огнемет, Ключи требуют Компьютера или Спасательного Отсека', () => {
+    const view = makeView();
+    const room = view.ship.rooms[view.players['player-1']!.roomId]!;
+    room.hasComputer = false;
+    const chemicals = getItemUsage(item('ITEM_YEL_CHEMICALS_'), view, 'INVENTORY').variants[0]!;
+    expect(chemicals).toMatchObject({ id: 'CHARGE_FLAMETHROWER', available: false });
+    expect(getItemUsage(item('ITEM_RED_SELF_DESTRUCT_KEY_'), view, 'INVENTORY').variants[0]).toMatchObject({
+      label: 'Запустить Самоуничтожение',
+      available: false,
+    });
+    expect(getItemUsage(item('ITEM_RED_EVACUATION_KEY_'), view, 'INVENTORY').variants[0]).toMatchObject({
+      id: 'EVAC_KEY',
+      available: false,
+    });
+
+    room.hasComputer = true;
+    room.hasMalfunction = false;
+    expect(getItemUsage(item('ITEM_RED_SELF_DESTRUCT_KEY_'), view, 'INVENTORY').variants[0]).toMatchObject({
+      available: true,
+    });
+    const comms = getItemUsage(item('ITEM_RED_COMMS_KEY_'), view, 'INVENTORY').variants[0]!;
+    expect(comms).toMatchObject({ available: false, reason: 'Ни у кого нет маркера Сигнала' });
   });
 
   it('Военные препараты разрешают сбросить 0 карт', () => {
     const view = makeView();
-    const variant = getItemUsage(item('ITEM_RED_MILITARY_STIMULANTS_'), view, 'INVENTORY').variants[0]!;
+    const variant = getItemUsage(item('ITEM_GRE_MILITARY_STIMULANTS_'), view, 'INVENTORY').variants[0]!;
     expect(variant.steps[0]!.min).toBe(0);
   });
 

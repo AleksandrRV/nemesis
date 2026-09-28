@@ -90,6 +90,16 @@ export function otherOccupants(ctx: UsageContext): string[] {
   return roomOccupants(ctx).filter((id) => id !== ctx.player.id);
 }
 
+export function playersWithSignal(ctx: UsageContext): string[] {
+  return Object.values(ctx.view.players)
+    .filter((player) => player.hasSignalSent && !player.isDead)
+    .map((player) => player.id);
+}
+
+export function hasAvailableComputer(ctx: UsageContext): boolean {
+  return ctx.room.hasComputer === true && !ctx.room.hasMalfunction;
+}
+
 export function intrudersInRoom(ctx: UsageContext, roomId = ctx.room.id): string[] {
   return ctx.view.ship.rooms[roomId]?.occupantIntruderIds ?? [];
 }

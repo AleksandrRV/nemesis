@@ -258,6 +258,8 @@ function sanitizeLogEntry(entry: GameLogEntry, viewingPlayerId: string): Sanitiz
       return { ...entry, event: { ...event, cardName: null } };
     case 'ENGINE_TOGGLED':
       return { ...entry, event: { ...event, isWorking: null } };
+    case 'OBJECTIVE_PEEKED':
+      return { ...entry, event: { ...event, objectiveNames: null } };
     default:
       return { ...entry, event: { ...event } };
   }

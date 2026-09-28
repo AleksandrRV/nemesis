@@ -27,7 +27,6 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'resolveRerollCombatDie',
   'WEAKNESS_CARDS',
   'WEAKNESS_CARDS_COUNT',
-  'COMPONENT_FAMILY',
   'CONTAMINATION_CARDS',
   'CONTAMINATION_CARDS_COUNT',
   'CONTAMINATION_CARDS_INFECTED_COUNT',
@@ -51,6 +50,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'EngineError',
   'escapeAttackerIds',
   'FIRE_MARKER_SUPPLY',
+  'FOUND_WEAPON_AMMO',
   'GAME_STATE_SCHEMA_VERSION',
   'ENGINE_OPTIONS',
   'ESCAPE_POD_SEATS',
@@ -162,6 +162,7 @@ const PUBLIC_RUNTIME_EXPORTS = [
   'splitIntruderBag',
   'validatePayment',
   'validateSearchConditions',
+  'weaponModifiers',
 ];
 
 describe('Публичное API ядра', () => {

@@ -31,6 +31,7 @@ function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: re
       return;
     case 'PLAYER_OTHER_IN_ROOM':
     case 'PLAYER_IN_ROOM_OR_SELF':
+    case 'PLAYER_WITH_SIGNAL':
       payload.targetPlayerId = first;
       return;
     case 'INTRUDER_IN_ROOM':

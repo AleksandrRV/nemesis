@@ -3,7 +3,7 @@ import { contactState, existingIntruder, expectEngineError } from '../testing/co
 import type { ActionCard, ItemCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { QUEST_DEFINITIONS, questItemCardId, type QuestKey } from '../data/questItems.js';
-import { YELLOW_ITEM_CARDS, RED_ITEM_CARDS } from '../data/itemCards.js';
+import { GREEN_ITEM_CARDS, YELLOW_ITEM_CARDS, RED_ITEM_CARDS } from '../data/itemCards.js';
 import { GameEngine } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { performIntruderAttack } from './intruderAttacks.js';
@@ -113,6 +113,20 @@ describe('Активация квеста [1]', () => {
     expect(names).toContain('Броня');
     expect(names).toContain(charge.name);
     expect(names).not.toContain(tools.name);
+  });
+
+  it('Лабораторное оборудование: сбросить нужно Химикаты, Алкоголь с тем же символом не подходит', () => {
+    const state = contactState(2, 'quest-chemicals');
+    const questId = giveQuest(state, 'LAB_EQUIPMENT');
+    const chemicals = item('ITEM_YEL_CHEMICALS_', YELLOW_ITEM_CARDS);
+    const alcohol = item('ITEM_GRE_ALCOHOL_', GREEN_ITEM_CARDS);
+    state.players['player-1']!.inventory.push(chemicals, alcohol);
+    expectEngineError(() => activate(structuredClone(state), questId, alcohol.id), 'INVALID_DECISION_OPTION');
+
+    const next = activate(state, questId, chemicals.id);
+
+    expect(next.decks.items.YELLOW.discard.map((entry) => entry.id)).toEqual([chemicals.id]);
+    expect(next.players['player-1']!.inventory.map((entry) => entry.name)).toContain('Лабораторное оборудование');
   });
 });
 

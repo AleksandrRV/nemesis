@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { CRAFTING_RECIPES } from './crafting.js';
 import { INTRUDER_MINIATURE_LIMITS } from './intruderMiniatures.js';
 import { EVENT_CARDS } from './eventCards.js';
 import { EXPLORATION_TOKENS } from './explorationTokens.js';
@@ -132,6 +131,7 @@ describe('Пакет источника: структура и статусы (�
       'setup-plan',
       'crafting-recipes',
       'deck-composition',
+      'item-cards',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());
@@ -407,10 +407,7 @@ describe('Golden: подготовка стола (Э2-1)', () => {
     expect(CHARACTERS).toHaveLength(expectation.characterCount);
   });
 
-  it('совпадает с источником по числу рецептов Изготовления', () => {
-    const expectation = table('crafting-recipes').expectation as { recipeCount: number };
-
-    expect(CRAFTING_RECIPES).toHaveLength(expectation.recipeCount);
+  it('знает пункты назначения Координат', () => {
     expect(COORDINATE_DESTINATIONS.length).toBeGreaterThan(0);
   });
 });
@@ -487,66 +484,6 @@ describe('Golden: состав колод (v0.3.0 Шаг 2)', () => {
     expect(STARTING_WEAPONS.SCOUT.ammo).toBe(4);
     expect(STARTING_WEAPONS.SCOUT.maxAmmo).toBe(4);
     expect(STARTING_WEAPONS.SCOUT.isEnergyWeapon).toBe(true);
-  });
-
-  it('карты Предметов имеют типизированные componentSymbols и валидные свойства isHeavy/isWeapon/actionCost', async () => {
-    const { RED_ITEM_CARDS, YELLOW_ITEM_CARDS, GREEN_ITEM_CARDS } = await import('./itemCards.js');
-    const { CRAFTED_ITEM_CARDS } = await import('./crafting.js');
-    const all = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
-    const allowedComponents = new Set(['CHEMICALS', 'ALCOHOL', 'FABRIC', 'ELECTRONICS', 'POWER_CELL', 'TOOLS']);
-
-    expect(RED_ITEM_CARDS).toHaveLength(30);
-    expect(YELLOW_ITEM_CARDS).toHaveLength(30);
-    expect(GREEN_ITEM_CARDS).toHaveLength(30);
-    expect(CRAFTED_ITEM_CARDS).toHaveLength(12);
-
-    const ids = new Set<string>();
-    for (const card of all) {
-      expect(card.id, 'дубликат id').toBeDefined();
-      expect(ids.has(card.id), `дубликат id ${card.id}`).toBe(false);
-      ids.add(card.id);
-
-      // isHeavy/isWeapon boolean, actionCost 0-2, isSingleUse boolean
-      expect(typeof card.isHeavy).toBe('boolean');
-      expect(typeof card.isWeapon).toBe('boolean');
-      expect(typeof card.isSingleUse).toBe('boolean');
-      expect(card.actionCost).toBeGreaterThanOrEqual(0);
-      expect(card.actionCost).toBeLessThanOrEqual(2);
-
-      // componentSymbols типизированы и содержат только известные символы
-      expect(Array.isArray(card.componentSymbols)).toBe(true);
-      for (const sym of card.componentSymbols) {
-        expect(allowedComponents.has(sym as string), `${card.id}: неизвестный componentSymbol ${sym}`).toBe(true);
-      }
-
-      // не-оружие не имеет ammo
-      if (!card.isWeapon) {
-        expect(card.ammo).toBeNull();
-        expect(card.maxAmmo).toBeNull();
-      } else {
-        expect(card.maxAmmo).toBeGreaterThan(0);
-      }
-    }
-
-    // Проверка что колоды Предметов — все лёгкие (isHeavy=false), кроме синего огнемёта
-    for (const card of [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS]) {
-      expect(card.isHeavy, `${card.id}: должен быть лёгким`).toBe(false);
-    }
-    // В синей колоде только огнемёт тяжёлый
-    for (const card of CRAFTED_ITEM_CARDS) {
-      if (card.recipeId === 'FLAMETHROWER') {
-        expect(card.isHeavy).toBe(true);
-      } else {
-        expect(card.isHeavy).toBe(false);
-      }
-    }
-  });
-
-  it('таблица deck-composition помечает непроверенные символы как UNVERIFIED', () => {
-    const entry = table('deck-composition');
-    expect(entry.unverified && entry.unverified.length > 0, 'нет списка unverified').toBe(true);
-    const joined = (entry.unverified ?? []).join(' ').toLowerCase();
-    expect(joined.includes('component')).toBe(true);
   });
 });
 

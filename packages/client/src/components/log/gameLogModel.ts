@@ -212,6 +212,16 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
         { text: '.' },
       ];
 
+    case 'SELF_DESTRUCT_TOGGLED':
+      return [
+        { text: playerName(view, event.playerId), tone: 'player', strong: true },
+        { text: ' Ключом самоуничтожения ' },
+        event.isActive
+          ? { text: 'запускает процесс Самоуничтожения', tone: 'error', strong: true }
+          : { text: 'останавливает процесс Самоуничтожения', tone: 'success', strong: true },
+        { text: '.' },
+      ];
+
     case 'ACTION_CARD_PLAYED':
       return [
         { text: playerName(view, event.playerId), tone: 'player', strong: true },

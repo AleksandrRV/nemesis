@@ -176,10 +176,11 @@ export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'b
 type PrivateLogEvent<TType extends GameLogEvent['type']> = Extract<GameLogEvent, { type: TType }>;
 
 export type SanitizedGameLogEvent =
-  | Exclude<GameLogEvent, { type: 'ROOM_PEEKED' | 'EVENT_PEEKED' | 'ENGINE_TOGGLED' }>
+  | Exclude<GameLogEvent, { type: 'ROOM_PEEKED' | 'EVENT_PEEKED' | 'ENGINE_TOGGLED' | 'OBJECTIVE_PEEKED' }>
   | (Omit<PrivateLogEvent<'ROOM_PEEKED'>, 'itemsCount'> & { itemsCount: number | null })
   | (Omit<PrivateLogEvent<'EVENT_PEEKED'>, 'cardName'> & { cardName: string | null })
-  | (Omit<PrivateLogEvent<'ENGINE_TOGGLED'>, 'isWorking'> & { isWorking: boolean | null });
+  | (Omit<PrivateLogEvent<'ENGINE_TOGGLED'>, 'isWorking'> & { isWorking: boolean | null })
+  | (Omit<PrivateLogEvent<'OBJECTIVE_PEEKED'>, 'objectiveNames'> & { objectiveNames: string[] | null });
 
 export interface SanitizedGameLogEntry {
   id: string;

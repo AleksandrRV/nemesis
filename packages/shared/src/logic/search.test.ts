@@ -59,6 +59,17 @@ describe('Механика Поиска и экономика предметов
     expect(state.decks.items.RED.drawPile).toHaveLength(28);
   });
 
+  it('найденное Оружие входит в игру с 1 ед. Боезапаса (стр. 22)', () => {
+    const state = createInitialGameState('test-search-weapon');
+    const pile = state.decks.items.RED;
+    const prototype = pile.drawPile.find((card) => card.name === 'Прототип: винтовка')!;
+    pile.drawPile = [prototype, ...pile.drawPile.filter((card) => card.id !== prototype.id)];
+
+    const [found] = drawSearchCards(state, 'RED');
+
+    expect(found).toMatchObject({ name: 'Прототип: винтовка', ammo: 1, maxAmmo: 6 });
+  });
+
   it('выполняет двухэтапный поиск в цветном отсеке: вытягивание -> pendingDecision -> выбор', () => {
     const engine = new GameEngine();
     const state = createInitialGameState('test-search-flow');
@@ -170,16 +181,16 @@ describe('Механика Поиска и экономика предметов
     // Делаем колоду с одной тяжёлой картой — берём реальную карту из CRAFTED чтобы DISCARD_HEAVY мог её найти в шаблонах
     const heavyCard: CraftedItemCard = {
       id: 'CRAFTED_FLAMETHROWER_1',
-      name: 'Огнемёт',
+      name: 'Огнемет',
       color: 'BLUE' as const,
       origin: 'CRAFTED' as const,
       recipeId: 'FLAMETHROWER' as const,
-      components: ['TOOLS', 'CHEMICALS'],
+      components: ['FLAME', 'TOOLS'],
       isHeavy: true,
       isSingleUse: false,
       componentSymbols: [],
       actionCost: 1,
-      description: 'Огнемёт',
+      description: 'Огнемет',
       isWeapon: true,
       ammo: 4,
       maxAmmo: 4,

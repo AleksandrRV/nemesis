@@ -1,20 +1,11 @@
 import type { CharacterClass, IntruderType } from './entities.js';
 
-/** Семейство компонента крафта (GDD §2.4). */
-export type ComponentFamily = 'MEDICAL' | 'TECH';
-
-/** Синие символы компонентов, напечатанные на картах предметов. */
-export type CraftComponent = 'CHEMICALS' | 'ALCOHOL' | 'FABRIC' | 'ELECTRONICS' | 'POWER_CELL' | 'TOOLS';
-
-/** Принадлежность каждого компонента своему семейству. */
-export const COMPONENT_FAMILY: Record<CraftComponent, ComponentFamily> = {
-  CHEMICALS: 'MEDICAL',
-  ALCOHOL: 'MEDICAL',
-  FABRIC: 'MEDICAL',
-  ELECTRONICS: 'TECH',
-  POWER_CELL: 'TECH',
-  TOOLS: 'TECH',
-};
+/**
+ * Синий символ компонента в левом верхнем углу карты Предмета (стр. 23):
+ * пламя (Химикаты, Алкоголь), ткань (Одежда, Бинты), крест (Аптечка),
+ * ключ (Инструменты), батарея (Энергозаряд).
+ */
+export type CraftComponent = 'FLAME' | 'FABRIC' | 'MEDKIT' | 'TOOLS' | 'BATTERY';
 
 /** Цвет колоды Предметов, лежащей у поля: Красная, Жёлтая, Зелёная (стр. 7, шаг 11). */
 export type ItemDeckColor = 'RED' | 'YELLOW' | 'GREEN';

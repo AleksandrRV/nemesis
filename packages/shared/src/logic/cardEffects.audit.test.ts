@@ -175,7 +175,7 @@ describe('Подглядывание остаётся тайной (анти-ч�
 });
 
 describe('Граната и Огнетушитель: выбор конкретного Чужого', () => {
-  it('выбранный Чужой получает 2 Раны, остальные в комнате — по 1, Персонажи — Лёгкую Травму', () => {
+  it('выбранный Чужой получает 2 Раны, остальные в комнате — по 1, Персонажи — Тяжелую Травму', () => {
     const state = contactState(1, 'grenade');
     const roomId = state.players['player-1']!.roomId;
     const larvaA = existingIntruder(state, 'LARVA', roomId);
@@ -189,7 +189,8 @@ describe('Граната и Огнетушитель: выбор конкрет�
     const alive = next.intrudersPool.boardTokens.map((token) => token.id);
     expect(alive).not.toContain(larvaA);
     expect(alive).not.toContain(larvaB);
-    expect(next.players['player-1']!.lightWounds).toBe(1);
+    expect(next.players['player-1']!.seriousWounds).toHaveLength(1);
+    expect(next.players['player-1']!.lightWounds).toBe(0);
   });
 
   it('Огнетушитель прогоняет именно выбранного Чужого', () => {
@@ -226,9 +227,9 @@ describe('Медицинские Предметы и препараты по п�
 
   it('Военные препараты: можно сбросить 0 карт и взять 1', () => {
     const state = contactState(1, 'stimulants');
-    give(state, 'ITEM_RED_MILITARY_STIMULANTS_1');
+    give(state, 'ITEM_GRE_MILITARY_STIMULANTS_1');
     const handBefore = state.players['player-1']!.actionDeck.hand.length;
-    const next = useItem(state, 'ITEM_RED_MILITARY_STIMULANTS_1', { targetCardIds: [] });
+    const next = useItem(state, 'ITEM_GRE_MILITARY_STIMULANTS_1', { targetCardIds: [] });
     expect(next.players['player-1']!.actionDeck.hand.length).toBe(handBefore - 1 + 1);
   });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Crosshair, X, Zap } from 'lucide-react';
+import { weaponModifiers } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { INTRUDER_NAMES } from '../contact/contactPresentationModel';
 import { intrudersInRoom } from '../board/intruderMapModel';
@@ -35,6 +36,7 @@ export function ShootModal() {
   const [targetIntruderId, setTargetIntruderId] = React.useState<string | null>(null);
   // Классовые боевые карты в руке (Шаг 8): режим выстрела — базовый или картой.
   const [mode, setMode] = React.useState<'BASIC' | 'AIMED' | 'BURST' | 'ADRENALINE'>('BASIC');
+  const [spendExtraAmmo, setSpendExtraAmmo] = React.useState(false);
 
   if (!open || !view) return null;
 
@@ -69,15 +71,19 @@ export function ShootModal() {
   const activeMode = modes.find((entry) => entry.id === mode) ?? modes[0]!;
   // Бустерный режим требует свою карту в руке; при её исчезновении — базовый.
   const effectiveMode = activeMode.owned ? activeMode.id : 'BASIC';
+  const offersExtraAmmo = usableWeapon !== null && weaponModifiers(usableWeapon.id).extraAmmoWoundFace !== null;
+  const extraAmmoAvailable = offersExtraAmmo && effectiveMode !== 'BURST' && (usableWeapon?.ammo ?? 0) >= 2;
+  const declaresExtraAmmo = extraAmmoAvailable && spendExtraAmmo;
 
   const fire = () => {
     if (!usableWeapon || !activeTarget) return;
     const discardCardIds = consumePaymentCards(1);
     if (discardCardIds.length < 1) return;
     const shoot = { weaponItemId: usableWeapon.id, targetIntruderId: activeTarget.id };
+    const extraAmmo = declaresExtraAmmo ? { spendExtraAmmoOnTwoWounds: true } : {};
     dispatch(
       effectiveMode === 'BASIC'
-        ? { type: 'ACTION_SHOOT', payload: { ...shoot, discardCardIds } }
+        ? { type: 'ACTION_SHOOT', payload: { ...shoot, ...extraAmmo, discardCardIds } }
         : {
             type: 'ACTION_PLAY_CARD',
             payload: {
@@ -90,10 +96,10 @@ export function ShootModal() {
               discardCardIds,
               combat:
                 effectiveMode === 'ADRENALINE'
-                  ? { kind: 'ADRENALINE_SHOOT', ...shoot }
+                  ? { kind: 'ADRENALINE_SHOOT', ...shoot, ...extraAmmo }
                   : effectiveMode === 'BURST'
                     ? { kind: 'BURST_SHOOT', ...shoot }
-                    : { kind: 'AIMED_SHOOT', ...shoot },
+                    : { kind: 'AIMED_SHOOT', ...shoot, ...extraAmmo },
             },
           },
     );
@@ -207,6 +213,32 @@ export function ShootModal() {
               ))}
             </div>
           </fieldset>
+
+          {offersExtraAmmo && (
+            <label
+              className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${
+                extraAmmoAvailable
+                  ? 'border-cyan-800 bg-cyan-950/30 text-cyan-100'
+                  : 'border-slate-800 bg-slate-950/40 text-slate-500'
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={declaresExtraAmmo}
+                disabled={!extraAmmoAvailable}
+                onChange={(event) => setSpendExtraAmmo(event.target.checked)}
+              />
+              <span>
+                При «2 Ранах» потратить 1 доп. ед. Боезапаса и нанести 1 доп. Рану
+                <span className="block text-[10px] text-slate-400">
+                  {extraAmmoAvailable
+                    ? 'Решение объявляется вместе с выстрелом'
+                    : 'Нужна еще 1 ед. Боезапаса сверх выстрела; при Стрельбе очередью недоступно'}
+                </span>
+              </span>
+            </label>
+          )}
 
           <fieldset>
             <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-cyan-400">Цель в отсеке</legend>

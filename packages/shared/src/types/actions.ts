@@ -41,13 +41,13 @@ export type RoomAbilityPayload = {
  */
 export type CombatCardPayload =
   /** Стрельба с перебросом кубика («Прицельный огонь»). */
-  | { kind: 'AIMED_SHOOT'; weaponItemId: string; targetIntruderId: string }
+  | { kind: 'AIMED_SHOOT'; weaponItemId: string; targetIntruderId: string; spendExtraAmmoOnTwoWounds?: boolean }
   /** Стрельба со сбросом всего Боезапаса винтовки («Стрельба очередью»). */
   | { kind: 'BURST_SHOOT'; weaponItemId: string; targetIntruderId: string }
   /** Отход без Атаки Чужих («Заградительный огонь» / «Огонь на подавление»). */
   | { kind: 'REPOSITION'; weaponItemId: string; moves: { playerId: string; targetRoomId: RoomId }[] }
   /** «Адреналин»: Стрельба или Побег, затем добор 1 карты Действия. */
-  | { kind: 'ADRENALINE_SHOOT'; weaponItemId: string; targetIntruderId: string }
+  | { kind: 'ADRENALINE_SHOOT'; weaponItemId: string; targetIntruderId: string; spendExtraAmmoOnTwoWounds?: boolean }
   | { kind: 'ADRENALINE_ESCAPE'; targetRoomId: RoomId };
 
 export type PlayCardActionPayload = {
@@ -106,7 +106,13 @@ export type GameAction =
    */
   | {
       type: 'ACTION_SHOOT';
-      payload: { weaponItemId: string; targetIntruderId: string; discardCardIds: string[] };
+      payload: {
+        weaponItemId: string;
+        targetIntruderId: string;
+        discardCardIds: string[];
+        /** «Прототип: винтовка»: при выпавших «2 Ранах» потратить 1 доп. ед. Боезапаса. */
+        spendExtraAmmoOnTwoWounds?: boolean;
+      };
     }
   | {
       /** Базовое действие «Рукопашная атака» (стр. 19): без Оружия, цена — 1 карта Действия. */

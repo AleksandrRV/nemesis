@@ -87,16 +87,19 @@ describe('DecisionModal: переброс кубика «Прицельного 
           playerId: 'player-1',
           type: 'REROLL_COMBAT_DIE',
           firstFace: 'ONE_WOUND',
+          rerollsLeft: 1,
+          weaponItemId: 'WEAPON_SCIENTIST_PISTOL',
           weaponName: 'Пистолет учёного',
-          ammoLeft: 4,
           targetIntruderId: 'adult-ui',
           woundsBefore: 0,
-          weaponBonusEligible: false,
+          burstAmmoSpent: 0,
+          spendExtraAmmoOnTwoWounds: false,
         }}
       />,
     );
 
-    expect(html).toContain('ПРИЦЕЛЬНЫЙ ОГОНЬ: ПЕРЕБРОС?');
+    expect(html).toContain('ПЕРЕБРОС КУБИКА БОЯ?');
+    expect(html).toContain('Осталось перебросов: 1');
     expect(html).toContain('1 РАНА');
     expect(html).toContain('Перебросить');
     expect(html).toContain('Оставить грань');

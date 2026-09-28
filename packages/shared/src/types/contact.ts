@@ -117,6 +117,8 @@ export type IntruderLogEvent =
       burstAmmoSpent?: number;
       /** Бонус Боевой винтовки: ≥1 Раны от выстрела — ещё 1 Рана. */
       rifleBonusApplied?: boolean;
+      /** «Прототип: винтовка»: при «2 Ранах» потрачена доп. ед. Боезапаса на доп. Рану. */
+      extraAmmoSpent?: true;
       fireStarted?: true;
       /** Стрелка Отступления у выжившего: розыгрыш направления по колоде Событий (стр. 20). */
       retreat?: IntruderRetreatRecord;

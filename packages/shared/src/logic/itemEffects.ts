@@ -7,8 +7,9 @@ import { EngineError } from './engineErrors.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { checkInjuryResult } from './shoot.js';
-import { sufferLightWounds } from './characterDamage.js';
-import { resolveIntruderRetreat } from './intruderRetreat.js';
+import { sufferSeriousWound } from './characterDamage.js';
+import { repelIntruderWithSuppressant } from './fireSuppression.js';
+import { useCommsKey, useEvacuationKey, useSelfDestructKey } from './keyItemEffects.js';
 import { requireIntruder } from './intruderPlacement.js';
 import { getRoomDeckColor } from './search.js';
 import { drawSharedCard } from './cardPiles.js';
@@ -40,6 +41,8 @@ import { applyQuestItemEffect } from './questItemEffects.js';
 export type UseItemPayload = Extract<EngineAction, { type: 'ACTION_USE_ITEM' }>['payload'];
 
 export type ItemDisposal = 'KEEP' | 'DISCARD' | 'ATTACHED';
+
+const FLAMETHROWER_ID_PREFIX = 'CRAFTED_FLAMETHROWER_';
 
 function notUsableNow(message: string): never {
   throw new EngineError('CARD_NOT_USABLE_NOW', message);
@@ -77,7 +80,7 @@ function grenade(state: GameState, actorId: string, payload: UseItemPayload): vo
   const characters = livingCharactersInRoom(state, target);
   woundIntruder(state, chosenId, 2, actorId);
   for (const intruderId of bystanders) woundIntruder(state, intruderId, 1, actorId);
-  for (const characterId of characters) sufferLightWounds(state, characterId, 1);
+  for (const characterId of characters) sufferSeriousWound(state, characterId);
 }
 
 function smokeGrenade(state: GameState, actorId: string, targetRoomId: number | undefined): void {
@@ -157,8 +160,7 @@ function repairTools(state: GameState, actorId: string, payload: UseItemPayload,
 function fireExtinguisher(state: GameState, actorId: string, payload: UseItemPayload): void {
   const room = requireRoom(state, actorId);
   if (payload.option === CARD_OPTION.RETREAT) {
-    const intruderId = chooseIntruderInRoom(room, payload.targetIntruderId);
-    resolveIntruderRetreat(state, intruderId, null);
+    repelIntruderWithSuppressant(state, chooseIntruderInRoom(room, payload.targetIntruderId), actorId);
     return;
   }
   if (!room.hasFire) throw new EngineError('NO_FIRE', 'В вашем отсеке нет маркера Пожара.');
@@ -220,20 +222,39 @@ function healTreated(state: GameState, actorId: string): void {
   if (healed) state.decks.seriousWounds.discard.push({ ...healed, isTreated: false });
 }
 
-function medical(state: GameState, actorId: string, option: string | undefined, allowsHealTreated: boolean): void {
+function bandages(state: GameState, actorId: string, option: string | undefined): void {
   if (option === CARD_OPTION.HEAL_TREATED) {
-    if (!allowsHealTreated) {
-      throw new EngineError(
-        'INVALID_DECISION_OPTION',
-        'Бинты не вылечивают Обработанные Тяжёлые Травмы — это умеет Аптечка.',
-      );
-    }
-    return healTreated(state, actorId);
+    throw new EngineError(
+      'INVALID_DECISION_OPTION',
+      'Бинты не вылечивают Обработанные Тяжелые Травмы — это умеет Аптечка.',
+    );
   }
   if (option === CARD_OPTION.TREAT_SERIOUS) return treatSerious(state, actorId);
   if (option === CARD_OPTION.HEAL_LIGHT) return healLight(state, actorId);
   if (untreatedWound(state, actorId)) return treatSerious(state, actorId);
   return healLight(state, actorId);
+}
+
+function medkit(state: GameState, actorId: string, option: string | undefined): void {
+  if (option === CARD_OPTION.HEAL_LIGHT) {
+    throw new EngineError('INVALID_DECISION_OPTION', 'Аптечка не лечит Легкие Травмы — это умеют Бинты.');
+  }
+  if (option === CARD_OPTION.HEAL_TREATED) return healTreated(state, actorId);
+  if (option === CARD_OPTION.TREAT_SERIOUS) return treatSerious(state, actorId);
+  if (untreatedWound(state, actorId)) return treatSerious(state, actorId);
+  return healTreated(state, actorId);
+}
+
+function chemicals(state: GameState, actorId: string): void {
+  const flamethrowers = requirePlayer(state, actorId).handSlots.flatMap((slot) =>
+    slot.source === 'ITEM' && slot.card.id.startsWith(FLAMETHROWER_ID_PREFIX) ? [slot.card] : [],
+  );
+  if (flamethrowers.length === 0) {
+    throw new EngineError('WEAPON_NOT_AVAILABLE', 'Химикаты заряжают Огнемет — в слотах рук его нет.');
+  }
+  const rechargeable = flamethrowers.find((weapon) => (weapon.ammo ?? 0) < (weapon.maxAmmo ?? 0));
+  if (!rechargeable) throw new EngineError('WEAPON_FULL', 'Огнемет уже заряжен полностью.');
+  rechargeable.ammo = rechargeable.maxAmmo;
 }
 
 function alcohol(state: GameState, actorId: string, cardIds: readonly string[] | undefined): void {
@@ -333,10 +354,22 @@ export function applyItemEffect(
       nemesisPlans(state, actorId, payload);
       break;
     case 'BANDAGES':
-      medical(state, actorId, payload.option, false);
+      bandages(state, actorId, payload.option);
       break;
     case 'MEDKIT':
-      medical(state, actorId, payload.option, true);
+      medkit(state, actorId, payload.option);
+      break;
+    case 'CHEMICALS':
+      chemicals(state, actorId);
+      break;
+    case 'COMMS_KEY':
+      useCommsKey(state, actorId, payload.targetPlayerId);
+      break;
+    case 'EVACUATION_KEY':
+      useEvacuationKey(state, actorId, payload.targetEscapePodId);
+      break;
+    case 'SELF_DESTRUCT_KEY':
+      useSelfDestructKey(state, actorId);
       break;
     case 'ALCOHOL':
       alcohol(state, actorId, payload.targetCardIds);

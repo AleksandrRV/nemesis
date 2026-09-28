@@ -29,7 +29,6 @@ export interface QuestReadiness {
 
 function sacrificeMatches(activation: Extract<QuestActivation, { kind: 'SACRIFICE_ITEM' }>, item: ItemCard): boolean {
   if (item.origin === 'QUEST') return false;
-  if (activation.componentSymbol && item.componentSymbols.includes(activation.componentSymbol)) return true;
   return activation.itemKinds.includes(getItemEffectKind(item));
 }
 

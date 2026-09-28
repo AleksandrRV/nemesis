@@ -11,6 +11,13 @@ import { sufferLightWounds } from './characterDamage.js';
 import { drawFromStream, shuffle } from '../utils/rng.js';
 import { logContaminationScan, removeInfectedCards, scanContaminationCards } from './infectionScanner.js';
 import { startHibernationAttempt, startPodBoarding, togglePodLock } from './evacuation.js';
+import { toggleSelfDestruct } from './selfDestruct.js';
+import { repelIntruderWithSuppressant } from './fireSuppression.js';
+
+function fireControlDetail(roomId: number, extinguished: boolean, repelledCount: number): string {
+  const fire = extinguished ? `Маркер Пожара потушен в отсеке #${roomId}` : `В отсеке #${roomId} Пожара не было`;
+  return repelledCount > 0 ? `${fire}; Чужих Отступает: ${repelledCount}` : fire;
+}
 
 export function executeRoomAbility(state: GameState, actorId: string, payload: RoomAbilityPayload): void {
   const player = state.players[actorId]!;
@@ -147,65 +154,38 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     }
 
     case 'GENERATOR': {
-      // Генератор: запуск / остановка таймера самоуничтожения (стр. 25).
-      // Запрещено, если хотя бы один персонаж находится в Анабиозе.
-      // Запрещено выключать, если таймер находится в жёлтой зоне (<= 3).
-      const someoneInHibernation = Object.values(state.players).some((p) => p.isInHibernation);
-      if (someoneInHibernation) {
-        throw new EngineError(
-          'ROOM_ABILITY_NOT_ALLOWED',
-          'Нельзя управлять Генератором, пока персонажи находятся в Анабиозе',
-        );
-      }
-
-      const currentPos = state.meta.selfDestructTrackPosition;
-      if (currentPos === null) {
-        // Запуск
-        state.meta.selfDestructTrackPosition = 0;
-        appendGameLog(state, {
-          type: 'ROOM_ABILITY_USED',
-          playerId: actorId,
-          roomId: room.id,
-          roomDefinitionId: 'GENERATOR',
-          detail: 'Взведён таймер самоуничтожения корабля',
-        });
-      } else {
-        // Остановка (если не в жёлтой/критической зоне)
-        if (currentPos >= 6) {
-          throw new EngineError(
-            'ROOM_ABILITY_NOT_ALLOWED',
-            'Таймер самоуничтожения находится в необратимой зоне и не может быть остановлен',
-          );
-        }
-        state.meta.selfDestructTrackPosition = null;
-        appendGameLog(state, {
-          type: 'ROOM_ABILITY_USED',
-          playerId: actorId,
-          roomId: room.id,
-          roomDefinitionId: 'GENERATOR',
-          detail: 'Таймер самоуничтожения корабля остановлен',
-        });
-      }
+      const toggle = toggleSelfDestruct(state);
+      appendGameLog(state, {
+        type: 'ROOM_ABILITY_USED',
+        playerId: actorId,
+        roomId: room.id,
+        roomDefinitionId: 'GENERATOR',
+        detail:
+          toggle === 'STARTED' ? 'Взведён таймер самоуничтожения корабля' : 'Таймер самоуничтожения корабля остановлен',
+      });
       break;
     }
 
     case 'FIRE_CONTROL': {
-      // Пожарная безопасность: сброс маркера Пожара из любого выбранного отсека
       const targetRoomId = payload.targetRoomId;
-      if (!targetRoomId || !state.ship.rooms[targetRoomId]) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Не указан целевой отсек для системы пожаротушения');
+      const targetRoom = targetRoomId === undefined ? undefined : state.ship.rooms[targetRoomId];
+      if (!targetRoom) {
+        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Выберите Комнату для Системы Пожаротушения.');
       }
-      const targetRoom = state.ship.rooms[targetRoomId]!;
-      if (!targetRoom.hasFire) {
-        throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', `В отсеке #${targetRoomId} нет маркера Пожара`);
-      }
+      const extinguished = targetRoom.hasFire;
       targetRoom.hasFire = false;
+      const repelledIntruderIds = [...targetRoom.occupantIntruderIds];
+      for (const intruderId of repelledIntruderIds) {
+        if (state.intrudersPool.boardTokens.some((token) => token.id === intruderId)) {
+          repelIntruderWithSuppressant(state, intruderId, actorId);
+        }
+      }
       appendGameLog(state, {
         type: 'ROOM_ABILITY_USED',
         playerId: actorId,
         roomId: room.id,
         roomDefinitionId: 'FIRE_CONTROL',
-        detail: `Маркер Пожара потушен в отсеке #${targetRoomId}`,
+        detail: fireControlDetail(targetRoom.id, extinguished, repelledIntruderIds.length),
       });
       break;
     }

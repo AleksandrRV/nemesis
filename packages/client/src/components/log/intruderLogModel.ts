@@ -85,7 +85,8 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
       text += event.injuries === 0 ? 'Без ран.' : injuryCheckText(event);
       text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
       if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
-      if (event.fireStarted) text += ' Огнемёт поджёг отсек: маркер Пожара.';
+      if (event.extraAmmoSpent) text += ' Потрачена доп. ед. Боезапаса: +1 Рана.';
+      if (event.fireStarted) text += ' Огнемет поджег отсек: маркер Пожара.';
       break;
     }
     case 'MELEE_RESOLVED': {

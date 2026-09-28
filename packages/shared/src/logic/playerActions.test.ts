@@ -176,7 +176,9 @@ describe('Использование Предметов (стр. 10, 22)', () =>
     const state = playState();
     const single = item(state, 'ITEM_GRE_MEDKIT_1');
     const multi = item(state, 'ITEM_GRE_CLOTHES_1', { isSingleUse: false });
-    state.players['player-1']!.lightWounds = 1; // Аптечке нужно, что лечить
+    state.players['player-1']!.seriousWounds = [
+      { id: 'SW_TEST', name: 'Тяжелая Травма', description: '', isTreated: false },
+    ]; // Аптечке нужно, что обрабатывать
     state.players['player-1']!.hasSlime = true; // Одежде нужна Слизь
     state.players['player-1']!.inventory = [single, multi];
     const next = use(state, single.id, [card(state, 'ACT_CAP_RELOAD')]);
@@ -187,12 +189,12 @@ describe('Использование Предметов (стр. 10, 22)', () =>
     expect(use(again, multi.id, [card(next, 'ACT_CAP_ORDER')]).players['player-1']!.inventory).toHaveLength(1);
   });
 
-  it('Аптечка лечит Лёгкие Травмы, Алкоголь удаляет карту Заражения из руки', () => {
+  it('Бинты лечат Легкие Травмы, Алкоголь удаляет карту Заражения из руки', () => {
     const state = playState();
     state.players['player-1']!.lightWounds = 2;
-    state.players['player-1']!.inventory = [item(state, 'ITEM_GRE_MEDKIT_1'), item(state, 'ITEM_GRE_ALCOHOL_1')];
+    state.players['player-1']!.inventory = [item(state, 'ITEM_GRE_BANDAGES_1'), item(state, 'ITEM_GRE_ALCOHOL_1')];
     state.players['player-1']!.actionDeck.hand.push({ id: 'CONTAMINATION_4', isInfected: false, isScanned: false });
-    const healed = use(state, 'ITEM_GRE_MEDKIT_1', [card(state, 'ACT_CAP_RELOAD')]);
+    const healed = use(state, 'ITEM_GRE_BANDAGES_1', [card(state, 'ACT_CAP_RELOAD')]);
     expect(healed.players['player-1']!.lightWounds).toBe(0);
     const withoutContamination = use(healed, 'ITEM_GRE_ALCOHOL_1', [card(healed, 'ACT_CAP_ORDER')]);
     expect(

@@ -1,12 +1,6 @@
 import type { CraftComponent, CraftedItemCard, CraftedItemId, ItemCard } from '../types/cards.js';
 
-/**
- * Фиксированные рецепты создания предметов (GDD §2.4, стр. 23).
- *
- * В игре ровно 4 создаваемых предмета, каждый собирается сбросом 2 карт
- * с синими символами компонентов. Состав рецептов перенесён по книге правил
- * без изменений и не подлежит «балансировке».
- */
+/** Рецепты — серые символы на синих картах и планшетах персонажей (стр. 23; scan-transcript §5.4). */
 export interface CraftingRecipe {
   /** Идентификатор создаваемого предмета: совпадает с `CraftedItemId` его карты. */
   itemId: CraftedItemId;
@@ -16,10 +10,10 @@ export interface CraftingRecipe {
 }
 
 export const CRAFTING_RECIPES: CraftingRecipe[] = [
-  { itemId: 'ANTIDOTE', name: 'Антидот', components: ['CHEMICALS', 'CHEMICALS'] },
-  { itemId: 'TASER', name: 'Тазер', components: ['ELECTRONICS', 'POWER_CELL'] },
-  { itemId: 'FLAMETHROWER', name: 'Огнемёт', components: ['TOOLS', 'CHEMICALS'] },
-  { itemId: 'MOLOTOV_COCKTAIL', name: 'Коктейль Молотова', components: ['ALCOHOL', 'FABRIC'] },
+  { itemId: 'ANTIDOTE', name: 'Антидот', components: ['FLAME', 'MEDKIT'] },
+  { itemId: 'TASER', name: 'Тазер', components: ['BATTERY', 'TOOLS'] },
+  { itemId: 'FLAMETHROWER', name: 'Огнемет', components: ['FLAME', 'TOOLS'] },
+  { itemId: 'MOLOTOV_COCKTAIL', name: 'Коктейль Молотова', components: ['FLAME', 'FABRIC'] },
 ];
 
 /**
@@ -33,13 +27,13 @@ export const CRAFTED_ITEM_CARDS: readonly CraftedItemCard[] = [
     color: 'BLUE' as const,
     origin: 'CRAFTED' as const,
     recipeId: 'ANTIDOTE' as const,
-    components: ['CHEMICALS', 'CHEMICALS'] as [CraftComponent, CraftComponent],
+    components: ['FLAME', 'MEDKIT'] as [CraftComponent, CraftComponent],
     isHeavy: false,
     isSingleUse: true,
     componentSymbols: [] as const,
     actionCost: 1,
     description:
-      'Просканируйте колоду, удалите карты с Инфекцией и Личинку. Возьмите 1 карту Заражения, перемешайте колоду и спасуйте.',
+      'Просканируйте все карты в вашей колоде. Удалите все карты с ИНФЕКЦИЕЙ (и Личинку, если она у вас была). Затем возьмите 1 карту Заражения и перемешайте все ваши карты Действий. Затем вы обязаны спасовать.',
     isWeapon: false,
     ammo: null,
     maxAmmo: null,
@@ -51,13 +45,13 @@ export const CRAFTED_ITEM_CARDS: readonly CraftedItemCard[] = [
     color: 'BLUE' as const,
     origin: 'CRAFTED' as const,
     recipeId: 'TASER' as const,
-    components: ['ELECTRONICS', 'POWER_CELL'] as [CraftComponent, CraftComponent],
+    components: ['BATTERY', 'TOOLS'] as [CraftComponent, CraftComponent],
     isHeavy: false,
     isSingleUse: true,
     componentSymbols: [] as const,
     actionCost: 1,
     description:
-      '1 Чужой в вашей Комнате получает 1 Рану и Отступает ИЛИ выбранный Персонаж сбрасывает все карты с руки.',
+      'Выберите 1 Чужого в вашей Комнате. Он получает 1 Рану и Отступает ИЛИ Выберите 1 Персонажа в вашей Комнате. Он должен сбросить все карты с руки.',
     isWeapon: false,
     ammo: null,
     maxAmmo: null,
@@ -65,17 +59,17 @@ export const CRAFTED_ITEM_CARDS: readonly CraftedItemCard[] = [
 
   ...Array.from({ length: 3 }, (_, i) => ({
     id: `CRAFTED_FLAMETHROWER_${i + 1}`,
-    name: 'Огнемёт',
+    name: 'Огнемет',
     color: 'BLUE' as const,
     origin: 'CRAFTED' as const,
     recipeId: 'FLAMETHROWER' as const,
-    components: ['TOOLS', 'CHEMICALS'] as [CraftComponent, CraftComponent],
+    components: ['FLAME', 'TOOLS'] as [CraftComponent, CraftComponent],
     isHeavy: true,
     isSingleUse: false,
     componentSymbols: [] as const,
     actionCost: 1,
     description:
-      'Классическое оружие. Всегда наносит как минимум 1 Рану (кроме Промаха). При [2 Ранах] поместите маркер Пожара в Комнату.',
+      'Классическое оружие. Боезапас: 4. Вы всегда наносите как минимум 1 Рану (кроме [Промах]). Если вы выбросили [2 Раны], поместите маркер Пожара в вашу Комнату.',
     isWeapon: true,
     ammo: 4,
     maxAmmo: 4,
@@ -87,12 +81,13 @@ export const CRAFTED_ITEM_CARDS: readonly CraftedItemCard[] = [
     color: 'BLUE' as const,
     origin: 'CRAFTED' as const,
     recipeId: 'MOLOTOV_COCKTAIL' as const,
-    components: ['ALCOHOL', 'FABRIC'] as [CraftComponent, CraftComponent],
+    components: ['FLAME', 'FABRIC'] as [CraftComponent, CraftComponent],
     isHeavy: false,
     isSingleUse: true,
     componentSymbols: [] as const,
     actionCost: 1,
-    description: 'В Комнату с Чужим поместите маркер Пожара. Все в этой Комнате получают 1 Рану / Тяжёлую Травму.',
+    description:
+      'Выберите 1 Комнату, в которой есть Чужой (вашу или соседнюю). Поместите в нее маркер Пожара. Все, кто находятся в этой Комнате, получают 1 Рану/Тяжелую Травму.',
     isWeapon: false,
     ammo: null,
     maxAmmo: null,

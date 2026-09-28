@@ -261,29 +261,23 @@ describe('Эффекты Предметов', () => {
     expect(next.gameLog.length).toBeGreaterThan(state.gameLog.length);
   });
 
-  it('Аптечка: без варианта лечит Лёгкие Травмы, с вариантом — обрабатывает Тяжёлую', () => {
+  it('Аптечка не лечит Легкие Травмы: обрабатывает Тяжелую или вылечивает Обработанную', () => {
     const state = captainState();
     giveItem(state, 'ITEM_GRE_MEDKIT_1');
     const itemId = state.players['player-1']!.inventory[0]!.id;
     const player = state.players['player-1']!;
     player.lightWounds = 2;
 
-    const healed = useItem(state, itemId);
-    expect(healed.players['player-1']!.lightWounds).toBe(0);
+    expectEngineError(
+      () => useItem(structuredClone(state), itemId, { option: 'HEAL_LIGHT' }),
+      'INVALID_DECISION_OPTION',
+    );
+    expectEngineError(() => useItem(structuredClone(state), itemId), 'NO_WOUNDS');
 
-    const healedCopy = structuredClone(healed);
-    giveItem(healedCopy, 'ITEM_GRE_MEDKIT_2'); // первая Аптечка одноразовая — уже списана
-    const secondId = healedCopy.players['player-1']!.inventory[0]!.id;
-    const wounded = healedCopy;
-    wounded.players['player-1']!.seriousWounds.push({
-      id: 'sw-1',
-      name: 'Тяжёлая травма',
-      description: '',
-      isTreated: false,
-    });
-    const payment = wounded.players['player-1']!.actionDeck.hand[0]!.id;
-    const treated = useItem(wounded, secondId, { option: 'TREAT_SERIOUS', discardCardIds: [payment] });
+    player.seriousWounds.push({ id: 'sw-1', name: 'Тяжелая травма', description: '', isTreated: false });
+    const treated = useItem(state, itemId);
     expect(treated.players['player-1']!.seriousWounds[0]).toMatchObject({ isTreated: true });
+    expect(treated.players['player-1']!.lightWounds).toBe(2);
   });
 
   it('Алкоголь: удаляет карту Заражения; за Инфекцию берётся новая карта Заражения', () => {

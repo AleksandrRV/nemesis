@@ -131,6 +131,19 @@ export type GameLogEvent =
       itemName: string;
     }
   | {
+      /** «Ключ связи»: владелец ключа смотрит карты Цели Персонажа с маркером Сигнала. */
+      type: 'OBJECTIVE_PEEKED';
+      playerId: string;
+      targetPlayerId: string;
+      objectiveNames: string[];
+    }
+  | {
+      /** «Ключ самоуничтожения»: процесс Самоуничтожения запущен или остановлен. */
+      type: 'SELF_DESTRUCT_TOGGLED';
+      playerId: string;
+      isActive: boolean;
+    }
+  | {
       /** Разыграно подглядывание («Знание корабля», Дрон-разведчик, Планы «Немезиды»). */
       type: 'ROOM_PEEKED';
       playerId: string;

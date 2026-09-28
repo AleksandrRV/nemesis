@@ -332,16 +332,16 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
           tabIndex={-1}
           role="dialog"
           aria-modal="true"
-          aria-label="Прицельный огонь: переброс"
+          aria-label="Переброс кубика Боя"
           className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4 outline-none"
         >
           <div className="flex items-center gap-2 text-amber-400 border-b border-slate-800 pb-3">
             <Dices size={20} />
-            <h3 className="text-lg font-heading tracking-wider text-white">ПРИЦЕЛЬНЫЙ ОГОНЬ: ПЕРЕБРОС?</h3>
+            <h3 className="text-lg font-heading tracking-wider text-white">ПЕРЕБРОС КУБИКА БОЯ?</h3>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Кубик Боя показал грань — можно один раз перебросить её (стр. 24). Оружие: «{decision.weaponName}», цель уже
-            выбрана.
+            Кубик Боя показал грань — ее можно перебросить («Прицельный огонь», стр. 24; «Прототип: пистолет»). Осталось
+            перебросов: {decision.rerollsLeft}. Оружие: «{decision.weaponName}», цель уже выбрана.
           </p>
           <div
             role="img"

@@ -11,8 +11,10 @@ import {
   hasDrawableCards,
   intruderRoomsNearby,
   intrudersInRoom,
+  hasAvailableComputer,
   neighbourRoomIds,
   otherOccupants,
+  playersWithSignal,
   techRooms,
   unexploredRooms,
   yellowRooms,
@@ -20,7 +22,7 @@ import {
 } from './usageContext';
 import { blocked, doorVariant, engineVariants, fixRoomVariant, whenAvailable } from './actionCardUsage';
 import { singleStep, type CardUsage, type UsageVariant } from './usageTypes';
-import { questItemVariants } from '../quests/questItemUsage';
+import { evacuationKeyVariant, questItemVariants } from '../quests/questItemUsage';
 
 const COLOR_LABELS: Record<ItemCard['color'], string> = {
   RED: 'Красная колода',
@@ -113,7 +115,7 @@ function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
           {
             id: 'THROW',
             label: 'Бросить в Чужого',
-            hint: 'Цель — 2 Раны; остальные в отсеке, включая Персонажей, — по 1',
+            hint: 'Цель — 2 Раны; остальные Чужие в отсеке — 1 Рана, Персонажи — Тяжелая Травма',
             icon: 'intruder',
             steps: [singleStep('INTRUDER_NEARBY', 'Выберите Чужого')],
           },
@@ -279,8 +281,53 @@ function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
           },
           treated(ctx) ? undefined : 'Обработанных Тяжёлых Травм нет',
         ),
-        healLightVariant(ctx),
       ];
+    case 'CHEMICALS': {
+      const flamethrower = ctx.weapons.find((weapon) => weapon.id.startsWith('CRAFTED_FLAMETHROWER_'));
+      return [
+        whenAvailable(
+          { id: 'CHARGE_FLAMETHROWER', label: 'Полностью зарядить Огнемет', icon: 'ammo', steps: [] },
+          !flamethrower
+            ? 'В слотах рук нет Огнемета'
+            : (flamethrower.ammo ?? 0) >= (flamethrower.maxAmmo ?? 0)
+              ? 'Огнемет уже заряжен полностью'
+              : undefined,
+        ),
+      ];
+    }
+    case 'COMMS_KEY':
+      return [
+        whenAvailable(
+          {
+            id: 'COMMS_KEY',
+            label: 'Посмотреть карту Цели',
+            hint: 'Персонажа с маркером Сигнала; видите только вы',
+            icon: 'eye',
+            steps: [singleStep('PLAYER_WITH_SIGNAL', 'Выберите Персонажа')],
+          },
+          !hasAvailableComputer(ctx)
+            ? 'Нужна Комната с исправным Компьютером'
+            : playersWithSignal(ctx).length === 0
+              ? 'Ни у кого нет маркера Сигнала'
+              : undefined,
+        ),
+      ];
+    case 'EVACUATION_KEY':
+      return [evacuationKeyVariant(ctx)];
+    case 'SELF_DESTRUCT_KEY': {
+      const isActive = ctx.view.meta.selfDestructTrackPosition !== null;
+      return [
+        whenAvailable(
+          {
+            id: 'SELF_DESTRUCT_KEY',
+            label: isActive ? 'Остановить Самоуничтожение' : 'Запустить Самоуничтожение',
+            icon: 'bolt',
+            steps: [],
+          },
+          hasAvailableComputer(ctx) ? undefined : 'Нужна Комната с исправным Компьютером',
+        ),
+      ];
+    }
     case 'ALCOHOL':
       return [
         whenAvailable(

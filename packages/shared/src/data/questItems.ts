@@ -1,5 +1,4 @@
 import type { CharacterClass } from '../types/entities.js';
-import type { CraftComponent } from '../types/cards.js';
 import type { ItemEffectKind } from './itemEffectKinds.js';
 
 export type QuestKey =
@@ -22,7 +21,6 @@ export type QuestActivation =
       kind: 'SACRIFICE_ITEM';
       label: string;
       itemKinds: readonly ItemEffectKind[];
-      componentSymbol?: CraftComponent;
     };
 
 export type QuestEffectMode = 'ACTION' | 'PASSIVE' | 'REACTIVE' | 'PENDING';
@@ -51,12 +49,7 @@ const TOOLS_OR_TAPE: QuestActivation = {
   itemKinds: ['TOOLS', 'DUCT_TAPE'],
 };
 const ENERGY_CHARGE: QuestActivation = { kind: 'SACRIFICE_ITEM', label: 'Энергозаряд', itemKinds: ['ENERGY_CHARGE'] };
-const CHEMICALS: QuestActivation = {
-  kind: 'SACRIFICE_ITEM',
-  label: 'Предмет с компонентом «Химикаты»',
-  itemKinds: [],
-  componentSymbol: 'CHEMICALS',
-};
+const CHEMICALS: QuestActivation = { kind: 'SACRIFICE_ITEM', label: 'Химикаты', itemKinds: ['CHEMICALS'] };
 
 export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
   {
@@ -184,7 +177,7 @@ export const QUEST_DEFINITIONS: readonly QuestDefinition[] = [
     key: 'LAB_EQUIPMENT',
     characterClass: 'SCIENTIST',
     name: 'Лабораторное оборудование',
-    questText: 'Сбросьте Предмет с компонентом «Химикаты».',
+    questText: 'Сбросьте Химикаты.',
     itemDescription: 'Изучите Объект в комнате с Трупом, Останками Чужого или Яйцом.',
     activation: CHEMICALS,
     effectMode: 'PENDING',

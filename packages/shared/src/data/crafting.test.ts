@@ -1,69 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
-import { COMPONENT_FAMILY, type CraftComponent, type CraftedItemId } from '../types/cards.js';
-import { CRAFTING_RECIPES } from './crafting.js';
+import type { CraftComponent, CraftedItemId } from '../types/cards.js';
+import { CRAFTED_ITEM_CARDS, CRAFTING_RECIPES } from './crafting.js';
 
-/** Рецепты из GDD §2.4: ровно 4 создаваемых предмета. */
-const EXPECTED_RECIPES: Record<string, CraftComponent[]> = {
-  ANTIDOTE: ['CHEMICALS', 'CHEMICALS'],
-  TASER: ['ELECTRONICS', 'POWER_CELL'],
-  FLAMETHROWER: ['TOOLS', 'CHEMICALS'],
-  MOLOTOV_COCKTAIL: ['ALCOHOL', 'FABRIC'],
+const SCAN_RECIPES: Record<CraftedItemId, CraftComponent[]> = {
+  ANTIDOTE: ['FLAME', 'MEDKIT'],
+  TASER: ['BATTERY', 'TOOLS'],
+  FLAMETHROWER: ['FLAME', 'TOOLS'],
+  MOLOTOV_COCKTAIL: ['FLAME', 'FABRIC'],
 };
 
-describe('Рецепты создания предметов', () => {
-  it('содержит ровно 4 создаваемых предмета', () => {
-    expect(CRAFTING_RECIPES).toHaveLength(4);
-  });
-
-  it('совпадает с рецептами из GDD §2.4', () => {
+describe('Рецепты создания предметов (стр. 23; cards_additional.pdf, стр. 11, 13)', () => {
+  it('четыре рецепта — серые символы синих карт', () => {
     const actual = Object.fromEntries(CRAFTING_RECIPES.map((recipe) => [recipe.itemId, [...recipe.components].sort()]));
     const expected = Object.fromEntries(
-      Object.entries(EXPECTED_RECIPES).map(([itemId, components]) => [itemId, [...components].sort()]),
+      Object.entries(SCAN_RECIPES).map(([itemId, components]) => [itemId, [...components].sort()]),
     );
 
     expect(actual).toEqual(expected);
   });
 
-  it('требует ровно два компонента и не повторяет предметы', () => {
+  it('синие карты собираются по своему рецепту: по 3 экземпляра каждого предмета', () => {
     for (const recipe of CRAFTING_RECIPES) {
-      expect(recipe.components).toHaveLength(2);
-      expect(recipe.name.length).toBeGreaterThan(0);
-    }
-
-    const itemIds = CRAFTING_RECIPES.map((recipe) => recipe.itemId);
-
-    expect(new Set(itemIds).size).toBe(itemIds.length);
-  });
-
-  it('покрывает все четыре создаваемых предмета как единый набор', () => {
-    const expected: CraftedItemId[] = ['ANTIDOTE', 'TASER', 'FLAMETHROWER', 'MOLOTOV_COCKTAIL'];
-
-    expect(CRAFTING_RECIPES.map((recipe) => recipe.itemId).sort()).toEqual([...expected].sort());
-  });
-
-  it('использует только существующие компоненты с известным семейством', () => {
-    for (const recipe of CRAFTING_RECIPES) {
-      for (const component of recipe.components) {
-        expect(Object.keys(COMPONENT_FAMILY)).toContain(component);
-        expect(['MEDICAL', 'TECH']).toContain(COMPONENT_FAMILY[component]);
-      }
+      const cards = CRAFTED_ITEM_CARDS.filter((card) => card.recipeId === recipe.itemId);
+      expect(cards, recipe.itemId).toHaveLength(3);
+      for (const card of cards) expect(card.components, card.id).toEqual(recipe.components);
     }
   });
 
-  it('покрывает все шесть символов компонентов, включая сдвоенный символ Антидота', () => {
+  it('пять символов компонентов, у каждого рецепта два разных символа', () => {
     const used = new Set(CRAFTING_RECIPES.flatMap((recipe) => recipe.components));
 
-    expect([...used].sort()).toEqual(['ALCOHOL', 'CHEMICALS', 'ELECTRONICS', 'FABRIC', 'POWER_CELL', 'TOOLS'].sort());
-  });
-
-  it('делит компоненты на медицинское и техническое семейства', () => {
-    const byFamily = Object.entries(COMPONENT_FAMILY).reduce<Record<string, string[]>>((acc, [component, family]) => {
-      acc[family] = [...(acc[family] ?? []), component];
-      return acc;
-    }, {});
-
-    expect(byFamily.MEDICAL).toHaveLength(3);
-    expect(byFamily.TECH).toHaveLength(3);
+    expect([...used].sort()).toEqual(['BATTERY', 'FABRIC', 'FLAME', 'MEDKIT', 'TOOLS']);
+    for (const recipe of CRAFTING_RECIPES) expect(new Set(recipe.components).size, recipe.itemId).toBe(2);
   });
 });

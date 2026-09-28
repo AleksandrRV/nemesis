@@ -3,6 +3,19 @@ import { blocked, searchReason, whenAvailable } from '../hand/actionCardUsage';
 import { adjacentCorridors, type UsageContext } from '../hand/usageContext';
 import { singleStep, type UsageVariant } from '../hand/usageTypes';
 
+export function evacuationKeyVariant(ctx: UsageContext): UsageVariant {
+  const inPodRoom = ctx.room.definitionId === 'ESCAPE_POD_A' || ctx.room.definitionId === 'ESCAPE_POD_B';
+  return whenAvailable(
+    {
+      id: 'EVAC_KEY',
+      label: 'Разблокировать или заблокировать Капсулу',
+      icon: 'lock',
+      steps: [singleStep('ESCAPE_POD', 'Выберите Капсулу')],
+    },
+    inPodRoom ? undefined : 'Нужно находиться в Спасательном Отсеке',
+  );
+}
+
 function questKeyOf(item: ItemCard, ctx: UsageContext) {
   return (ctx.player.questItems ?? []).find((quest) => questItemCardId(quest.id) === item.id)?.questKey ?? null;
 }
@@ -12,20 +25,8 @@ export function questItemVariants(item: ItemCard, ctx: UsageContext): UsageVaria
   if (!key) return [blocked('QUEST', 'Использовать', 'Квестовый Предмет принадлежит другому Персонажу')];
   const definition = questDefinition(key);
   switch (key) {
-    case 'EVACUATION_KEY': {
-      const inPodRoom = ctx.room.definitionId === 'ESCAPE_POD_A' || ctx.room.definitionId === 'ESCAPE_POD_B';
-      return [
-        whenAvailable(
-          {
-            id: 'EVAC_KEY',
-            label: 'Разблокировать или заблокировать Капсулу',
-            icon: 'lock',
-            steps: [singleStep('ESCAPE_POD', 'Выберите Капсулу')],
-          },
-          inPodRoom ? undefined : 'Нужно находиться в Спасательном отсеке',
-        ),
-      ];
-    }
+    case 'EVACUATION_KEY':
+      return [evacuationKeyVariant(ctx)];
     case 'PLASMA_TORCH':
       return [
         whenAvailable(

@@ -64,6 +64,9 @@ export function validateSearchConditions(
 /**
  * Вытягивает до 2 карт из выбранной колоды предметов.
  */
+/** «Каждое Оружие, найденное в ходе Поиска, входит в игру с 1 ед. Боезапаса» (стр. 22). */
+export const FOUND_WEAPON_AMMO = 1;
+
 export function drawSearchCards(state: GameState, deckColor: ItemDeckColor): ItemCard[] {
   const pile = state.decks.items[deckColor];
   if (!pile) {
@@ -74,6 +77,9 @@ export function drawSearchCards(state: GameState, deckColor: ItemDeckColor): Ite
   while (drawn.length < 2 && pile.drawPile.length > 0) {
     const card = pile.drawPile.shift();
     if (card) drawn.push(card);
+  }
+  for (const card of drawn) {
+    if (card.isWeapon) card.ammo = FOUND_WEAPON_AMMO;
   }
 
   return drawn;

@@ -9,17 +9,11 @@ import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { isPlayerInCombat } from './combatStatus.js';
-import {
-  checkInjuryResult,
-  igniteFromWeapon,
-  performShoot,
-  weaponFaceInjuries,
-  type InjuryCheckResult,
-} from './shoot.js';
+import { performShoot, resolveShotFace } from './shoot.js';
+import { allocateEntityId } from './stateIds.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
-import { countedCombatFace } from './weaknesses.js';
 
 /**
  * Классовые боевые карты Действий (Шаг 8 этапа 0.4.0; стр. 19, 24–28):
@@ -178,7 +172,9 @@ export function executeCombatCard(
         targetIntruderId: combat.targetIntruderId,
         discardCardIds: payment,
         suspendForReroll: true,
+        spendExtraAmmoOnTwoWounds: combat.spendExtraAmmoOnTwoWounds,
       });
+      queueActionCompletion(state, actorId);
       return;
     }
     case BURST_FIRE: {
@@ -219,6 +215,7 @@ export function executeCombatCard(
           weaponItemId: combat.weaponItemId,
           targetIntruderId: combat.targetIntruderId,
           discardCardIds: payment,
+          spendExtraAmmoOnTwoWounds: combat.spendExtraAmmoOnTwoWounds,
         });
         queueActionCompletion(state, actorId);
         return;
@@ -254,9 +251,9 @@ function peekCombatDieFace(state: GameState): CombatDieFace {
 }
 
 /**
- * Продолжение «Прицельного огня» после решения игрока (стр. 24): KEEP —
- * остаётся выпавшая грань, REROLL — новый бросок кубика Боя (стр. 18).
- * Дальше — обычная проверка Результата Атаки и завершение действия.
+ * Решение о перебросе кубика Боя (стр. 18, 24): KEEP — остаётся выпавшая
+ * грань, REROLL — новый бросок; если перебросов больше одного, игрок
+ * решает снова по новой грани. Затем — проверка Результата Атаки.
  */
 export function resolveRerollCombatDie(
   state: GameState,
@@ -268,48 +265,17 @@ export function resolveRerollCombatDie(
   }
   const rerolled = selectedOption === 'REROLL';
   const dieFace = rerolled ? peekCombatDieFace(state) : decision.firstFace;
-  state.meta.rngDraws.combat += 1;
+  if (rerolled) state.meta.rngDraws.combat += 1;
   state.pendingDecision = null;
 
-  const target = state.intrudersPool.boardTokens.find((entry) => entry.id === decision.targetIntruderId);
-  if (!target) {
-    throw new EngineError('UNKNOWN_INTRUDER', 'Цель «Прицельного огня» больше не на поле.');
+  if (rerolled && decision.rerollsLeft > 1) {
+    state.pendingDecision = {
+      ...decision,
+      id: allocateEntityId(state, 'reroll-combat-die'),
+      firstFace: dieFace,
+      rerollsLeft: decision.rerollsLeft - 1,
+    };
+    return;
   }
-  const countedFace = countedCombatFace(state, dieFace, target.type);
-  let injuries = weaponFaceInjuries(countedFace, target.type, decision.weaponName);
-  if (injuries > 0 && decision.weaponBonusEligible) injuries += 1;
-
-  const result: InjuryCheckResult =
-    injuries > 0
-      ? checkInjuryResult(state, target.id, target.type, injuries, decision.playerId)
-      : { toughnessCards: [], toughnessTotal: 0, killed: false };
-  const fireStarted = igniteFromWeapon(
-    state,
-    decision.weaponName,
-    countedFace,
-    state.players[decision.playerId]!.roomId,
-  );
-
-  appendGameLog(state, {
-    type: 'SHOOT_RESOLVED',
-    playerId: decision.playerId,
-    roomId: state.players[decision.playerId]!.roomId,
-    weaponName: decision.weaponName,
-    ammoLeft: decision.ammoLeft,
-    targetIntruderId: target.id,
-    targetType: target.type,
-    dieFace,
-    ...(countedFace !== dieFace ? { countedFace } : {}),
-    woundsBefore: decision.woundsBefore,
-    injuries,
-    woundsTotal: decision.woundsBefore + injuries,
-    toughnessCards: result.toughnessCards,
-    toughnessTotal: result.toughnessTotal,
-    killed: result.killed,
-    ...(rerolled ? { rerolled: true as const } : {}),
-    ...(injuries > 0 && decision.weaponBonusEligible ? { rifleBonusApplied: true } : {}),
-    ...(result.retreat ? { retreat: result.retreat } : {}),
-    ...(fireStarted ? { fireStarted: true as const } : {}),
-  });
-  queueActionCompletion(state, decision.playerId);
+  resolveShotFace(state, decision.playerId, decision, dieFace, rerolled);
 }

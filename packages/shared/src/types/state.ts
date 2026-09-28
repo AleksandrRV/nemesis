@@ -7,8 +7,8 @@ import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
-// Сохранения другой схемы не восстанавливаются (CHANGELOG, «Сверка со сканами, Этап 2»).
-export const GAME_STATE_SCHEMA_VERSION = 21;
+// Сохранения другой схемы не восстанавливаются (CHANGELOG, «Сверка со сканами, Этап 3»).
+export const GAME_STATE_SCHEMA_VERSION = 22;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

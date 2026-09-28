@@ -424,7 +424,7 @@ export const WorkshopModal: React.FC<WorkshopModalProps> = ({
                         .join(', ')}. `
                     : ''}
                   {selected.recipe.itemId === 'FLAMETHROWER'
-                    ? 'Огнемёт — Тяжёлый: он займёт свободную руку. '
+                    ? 'Огнемет — Тяжелый: он займет свободную руку. '
                     : 'Предмет попадёт в инвентарь. '}
                 </p>
                 {heavyBlocked && (

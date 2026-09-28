@@ -42,22 +42,22 @@ describe('Модель мастерской', () => {
     const workshop = buildWorkshop(makeView(), false);
     expect(workshop.map((entry) => entry.remaining)).toEqual([3, 3, 3, 3]);
     expect(workshop.every((entry) => !entry.available)).toBe(true);
-    expect(workshop[1]!.missing).toEqual(['ELECTRONICS', 'POWER_CELL']);
+    expect(workshop[1]!.missing).toEqual(['BATTERY', 'TOOLS']);
   });
 
-  it('с Электроникой и Энергоблоком доступен Тазер и предложена пара', () => {
-    const electronics = withSymbol('ELECTRONICS');
-    const power = withSymbol('POWER_CELL');
-    const view = makeView([electronics, power]);
+  it('с Энергозарядом и Инструментами доступен Тазер и предложена пара', () => {
+    const battery = withSymbol('BATTERY');
+    const tools = withSymbol('TOOLS');
+    const view = makeView([battery, tools]);
     const taser = buildWorkshop(view, false).find((entry) => entry.recipe.itemId === 'TASER')!;
     expect(taser.available).toBe(true);
-    expect(taser.pairs).toEqual([[electronics.id, power.id]]);
-    expect(selectionMatches(taser.recipe, componentItems(view, false), [power.id, electronics.id], false)).toBe(true);
+    expect(taser.pairs).toEqual([[battery.id, tools.id]]);
+    expect(selectionMatches(taser.recipe, componentItems(view, false), [tools.id, battery.id], false)).toBe(true);
     expect(hasCraftableRecipe(view, false)).toBe(true);
   });
 
   it('нет карт рецепта — рецепт недоступен с объяснением', () => {
-    const view = makeView([withSymbol('ELECTRONICS'), withSymbol('POWER_CELL')]);
+    const view = makeView([withSymbol('BATTERY'), withSymbol('TOOLS')]);
     view.decks.craftedItems.remainingByRecipe.TASER = 0;
     const taser = buildWorkshop(view, false).find((entry) => entry.recipe.itemId === 'TASER')!;
     expect(taser.available).toBe(false);
@@ -66,7 +66,7 @@ describe('Модель мастерской', () => {
 
   it('«Смекалка»: жёлтый Предмет — любой компонент, вариант открывает мастерскую', () => {
     const yellow = { ...structuredClone(YELLOW_ITEM_CARDS[0]!), componentSymbols: [] };
-    const view = makeView([yellow, withSymbol('CHEMICALS')]);
+    const view = makeView([yellow, withSymbol('FLAME')]);
     expect(componentItems(view, true).find((entry) => entry.item.id === yellow.id)?.provides).toBe('ANY');
     const craft = getActionCardUsage(INGENUITY, view).variants.find((variant) => variant.id === 'CRAFT')!;
     expect(craft).toMatchObject({ available: true, opensWorkshop: true });
@@ -87,7 +87,17 @@ describe('Окно мастерской и журнал', () => {
     expect(html).toContain('role="dialog"');
     expect(html).toContain('СОЗДАНИЕ ПРЕДМЕТА');
     expect(html).toContain('Базовое Действие · цена 1');
-    for (const name of ['Антидот', 'Тазер', 'Огнемёт', 'Коктейль Молотова', 'Химикаты', 'Энергоблок'])
+    for (const name of [
+      'Антидот',
+      'Тазер',
+      'Огнемет',
+      'Коктейль Молотова',
+      'Пламя',
+      'Крест',
+      'Батарея',
+      'Ключ',
+      'Ткань',
+    ])
       expect(html).toContain(name);
     expect(html).toContain('×3');
     expect(html).toContain('Не хватает Предметов с нужными синими символами');
@@ -115,11 +125,11 @@ describe('Окно мастерской и журнал', () => {
 });
 
 describe('Покрытие слотов рецепта', () => {
-  it('один Химикат закрывает только первый слот Антидота', () => {
-    const antidote = buildWorkshop(makeView([withSymbol('CHEMICALS')]), false).find(
+  it('одни Химикаты закрывают только слот пламени Антидота', () => {
+    const antidote = buildWorkshop(makeView([withSymbol('FLAME')]), false).find(
       (entry) => entry.recipe.itemId === 'ANTIDOTE',
     )!;
     expect(antidote.covered).toEqual([true, false]);
-    expect(antidote.missing).toEqual(['CHEMICALS']);
+    expect(antidote.missing).toEqual(['MEDKIT']);
   });
 });

@@ -233,7 +233,7 @@ describe('Действия комнат (Room Abilities)', () => {
     state.meta.selfDestructTrackPosition = 6;
     expect(() => {
       executeRoomAbility(state, 'player-1', {});
-    }).toThrowError(/необратимой зоне/);
+    }).toThrowError(/желтом делении/);
   });
 
   it('пожарная система (FIRE_CONTROL): тушит пожар в выбранном отсеке', () => {

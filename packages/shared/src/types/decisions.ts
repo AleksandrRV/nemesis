@@ -2,6 +2,16 @@ import type { CombatDieFace } from '../data/combatDie.js';
 import type { ItemCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
 
+/** Выстрел, ожидающий решения о перебросе кубика Боя. */
+export interface PendingShot {
+  weaponItemId: string;
+  weaponName: string;
+  targetIntruderId: string;
+  woundsBefore: number;
+  burstAmmoSpent: number;
+  spendExtraAmmoOnTwoWounds: boolean;
+}
+
 export type PendingDecision =
   | {
       id: string;
@@ -68,21 +78,15 @@ export type PendingDecision =
       type: 'CHOOSE_REST_CONTAMINATION_DISCARD';
       scannedCardIds: string[];
     }
-  | {
-      /** «Прицельный огонь» (Шаг 8): перебросить выпавший кубик Боя? */
+  | ({
+      /** Переброс кубика Боя: «Прицельный огонь» (стр. 24) и «Прототип: пистолет» — по разу. */
       id: string;
       playerId: string;
       type: 'REROLL_COMBAT_DIE';
       /** Выпавшая грань — публичный факт: кубик Боя бросается открыто (стр. 18). */
       firstFace: CombatDieFace;
-      weaponName: string;
-      /** Остаток Боезапаса оружия после выстрела (для события журнала). */
-      ammoLeft: number;
-      targetIntruderId: string;
-      woundsBefore: number;
-      /** Оружие даёт бонусные Раны при ≥1 Ране (Энергооружие/Боевая винтовка). */
-      weaponBonusEligible: boolean;
-    }
+      rerollsLeft: number;
+    } & PendingShot)
   | {
       /** «Стальные нервы»: сбросить карту, чтобы отменить Внезапную Атаку (стр. 25)? */
       id: string;

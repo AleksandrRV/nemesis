@@ -1,3 +1,4 @@
+import { isSelfDestructIrreversible } from './selfDestruct.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import type { GameState } from '../types/state.js';
 import { killPlayer } from './characterDamage.js';
@@ -83,7 +84,7 @@ export function advanceTimeAndSelfDestruct(state: GameState): void {
   }
   if (state.meta.selfDestructTrackPosition !== null) {
     state.meta.selfDestructTrackPosition += 1;
-    if (state.meta.selfDestructTrackPosition >= 6) unlockAllEscapePods(state);
+    if (isSelfDestructIrreversible(state)) unlockAllEscapePods(state);
   }
 
   appendGameLog(state, {

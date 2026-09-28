@@ -7,8 +7,7 @@ import { performRoomSearch } from './actionCardSupport.js';
 import { requirePlayer, requireRoom, requireTargetRoom, toggleDoor } from './cardEffectsShared.js';
 import { questKeyOfItem } from './questItems.js';
 import type { ItemDisposal, UseItemPayload } from './itemEffects.js';
-import { togglePodLock } from './evacuation.js';
-import { podSectionOfRoom } from '../data/evacuation.js';
+import { useEvacuationKey } from './keyItemEffects.js';
 
 function notUsableNow(message: string): never {
   throw new EngineError('CARD_NOT_USABLE_NOW', message);
@@ -18,12 +17,6 @@ function closeWithToken(state: GameState, corridorId: string): void {
   if (placeDoorToken(state, corridorId) === 'NO_TOKEN_IN_SUPPLY') {
     throw new EngineError('DOOR_TOKEN_SUPPLY_EXHAUSTED', 'Жетонов Дверей нет ни в запасе, ни на поле.');
   }
-}
-
-function evacuationKey(state: GameState, actorId: string, podId: string | undefined): void {
-  const section = podSectionOfRoom(requireRoom(state, actorId).definitionId);
-  if (!section) notUsableNow('Ключ эвакуации работает в Спасательном отсеке.');
-  togglePodLock(state, actorId, podId, 'EVACUATION_KEY', section);
 }
 
 function plasmaTorch(state: GameState, actorId: string, corridorId: string | undefined): void {
@@ -65,7 +58,7 @@ export function applyQuestItemEffect(
   const definition = questDefinition(key);
   switch (key) {
     case 'EVACUATION_KEY':
-      evacuationKey(state, actorId, payload.targetEscapePodId);
+      useEvacuationKey(state, actorId, payload.targetEscapePodId);
       break;
     case 'PLASMA_TORCH':
       plasmaTorch(state, actorId, payload.targetCorridorId);

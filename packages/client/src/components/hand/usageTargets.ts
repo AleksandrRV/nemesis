@@ -10,6 +10,7 @@ import {
   intrudersInRoom,
   neighbourRoomIds,
   otherOccupants,
+  playersWithSignal,
   roomOccupants,
   techRooms,
   toggleableDoors,
@@ -122,6 +123,8 @@ function buildTargets(ctx: UsageContext, kind: UsageTargetKind): UsageTarget[] {
         label: id === ctx.player.id ? `${playerName(ctx.view, id)} — вы` : playerName(ctx.view, id),
         icon: 'player',
       }));
+    case 'PLAYER_WITH_SIGNAL':
+      return playersWithSignal(ctx).map((id) => ({ id, label: playerName(ctx.view, id), icon: 'player' }));
     case 'INTRUDER_IN_ROOM':
       return intrudersInRoom(ctx).map((id) => intruderTarget(ctx, id, ctx.room.id));
     case 'INTRUDER_NEARBY':

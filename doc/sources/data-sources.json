@@ -568,29 +568,40 @@
     },
     "crafting-recipes": {
       "file": "packages/shared/src/data/crafting.ts",
-      "status": "RULES_LOCAL",
+      "status": "SCAN_VERIFIED",
       "facts": [
         {
           "claim": "Изготовление предметов: рецепты требуют предметов определённого цвета и символа Компьютера",
           "source": "rules-md",
           "lines": "1509-1510"
+        },
+        {
+          "claim": "Рецепты — серые символы на синих картах: Антидот = пламя + крест, Тазер = батарея + ключ, Огнемет = пламя + ключ, Коктейль Молотова = пламя + ткань; на планшетах персонажей те же рецепты.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 11, 13; roles.pdf, стр. 1–4"
         }
       ],
       "expectation": {
-        "recipeCount": 4
-      },
-      "scanDiscrepancies": [
-        {
-          "task": "С3-1",
-          "page": "cards_additional.pdf, стр. 1–13",
-          "reading": "Символов компонентов пять: пламя (Химикаты и Алкоголь), ткань, крест (Аптечка), ключ (Инструменты), батарея (Энергозаряд)"
-        },
-        {
-          "task": "С3-2",
-          "page": "cards_additional.pdf, стр. 11, 13; roles.pdf, стр. 1–4",
-          "reading": "Антидот = пламя + крест; Тазер = батарея + ключ; Огнемёт = пламя + ключ; Коктейль Молотова = пламя + ткань"
+        "recipeCount": 4,
+        "recipes": {
+          "ANTIDOTE": [
+            "FLAME",
+            "MEDKIT"
+          ],
+          "TASER": [
+            "BATTERY",
+            "TOOLS"
+          ],
+          "FLAMETHROWER": [
+            "FLAME",
+            "TOOLS"
+          ],
+          "MOLOTOV_COCKTAIL": [
+            "FLAME",
+            "FABRIC"
+          ]
         }
-      ]
+      }
     },
     "deck-composition": {
       "file": "packages/shared/src/data/actionCards.ts, packages/shared/src/data/itemCards.ts, packages/shared/src/data/contaminationCards.ts, packages/shared/src/data/seriousWounds.ts, packages/shared/src/data/eventCards.ts, packages/shared/src/data/startingItems.ts",
@@ -607,12 +618,12 @@
           "lines": "112, 381, 749, 24-28"
         },
         {
-          "claim": "По 30 карт в Красной (Военные), Жёлтой (Технические) и Зелёной (Медицинские) колодах; все карты Предметов имеют actionCost 0-1, isHeavy=false, isSingleUse по типу, componentSymbols — синие символы для крафта (стр. 22-23)",
+          "claim": "По 30 карт в Красной, Жёлтой и Зелёной колодах Предметов; составы, символы и тексты — таблица item-cards.",
           "source": "rules-md",
           "lines": "118-120, 22-23, 1500-1508"
         },
         {
-          "claim": "12 карт в Синей колоде Создаваемых предметов (по 3 экземпляра 4 рецептов: Антидот, Тазер, Огнемёт, Коктейль Молотова)",
+          "claim": "12 карт в Синей колоде Создаваемых предметов (по 3 экземпляра 4 рецептов: Антидот, Тазер, Огнемет, Коктейль Молотова)",
           "source": "rules-md",
           "lines": "121, 1500-1508"
         },
@@ -630,11 +641,6 @@
           "claim": "6 карт Стартовых Предметов (Оружие) персонажей: Револьвер 6/6, Дробовик 2/2, Обрез 2/2, Боевая винтовка 5/5, Энерговинтовка 4/4 энерго, Пистолет 3/3 — боезапас напечатан на карте",
           "source": "rules-md",
           "lines": "122, 383, 22"
-        },
-        {
-          "claim": "Синие символы компонентов на картах Предметов (CHEMICALS, ALCOHOL, FABRIC, ELECTRONICS, POWER_CELL, TOOLS) — читаются только с физического картона; точный состав по каждой карте требует сверки",
-          "source": "rules-md",
-          "lines": "23, 1500-1508"
         }
       ],
       "expectation": {
@@ -710,21 +716,10 @@
         }
       },
       "unverified": [
-        "Точные componentSymbols по каждой карте Предметов читаются только с картона; в коде использованы правдоподобные символы по описанию действия (TOOLS для Инструментов, ELECTRONICS для Планов техкоридоров и т.д.), требует физической сверки.",
         "Машинные effect.kind карт Действий выведены из русских описаний (стр. 24-28) и не сверены с английскими оригиналами карт; при сверке уточнить названия kind.",
         "Боезапас стартового оружия (6/2/2/5/4/3) — из внешних переписей; требует сверки с картой оружия."
       ],
       "scanDiscrepancies": [
-        {
-          "task": "С3-3",
-          "page": "cards_additional.pdf, стр. 1–11",
-          "reading": "Составы колод 30/30/30 другие (scan-transcript §5): Огнетушитель — Тяжёлый; в жёлтой есть Химикаты, Одежда, Энергозаряд; Военные препараты — зелёные"
-        },
-        {
-          "task": "С3-4",
-          "page": "cards_additional.pdf, стр. 7, 11",
-          "reading": "В красной колоде есть Прототипы (винтовка, дробовик, пистолет) и Ключи (связи, эвакуации, самоуничтожения)"
-        },
         {
           "task": "С4-1",
           "page": "cards_additional.pdf, стр. 15, 17",
@@ -1550,6 +1545,527 @@
             "description": "Стойкость всех Чужих снижена на 1."
           }
         ]
+      }
+    },
+    "item-cards": {
+      "file": "packages/shared/src/data/itemCards.ts, packages/shared/src/data/crafting.ts, packages/shared/src/data/weaponModifiers.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
+        {
+          "claim": "Жёлтая колода, 30 карт: Изолента 4, Инструменты 6, Огнетушитель 4 (Тяжёлый), Химикаты 7, Одежда 3, Энергозаряд 3, Планы технических коридоров 1, Скафандр 1, Планы «Немезиды» 1.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 1, 3 (лица), 2, 4 (рубашки)"
+        },
+        {
+          "claim": "Зелёная колода, 30 карт: Бинты 7, Аптечка 7, Синтетическая еда 5, Инъекция адреналина 3, Алкоголь 3, Одежда 3, Военные препараты 2.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 3, 5, 7 (лица), 4, 6, 8 (рубашки)"
+        },
+        {
+          "claim": "Красная колода, 30 карт: Энергозаряд 11, Граната 4, Дымовая граната 3, Дрон-разведчик 3, Приманка 2, Увеличенный магазин 1, Прототип: винтовка/дробовик/пистолет по 1 (Энергооружие, Тяжёлые), Ключ связи, Ключ эвакуации, Ключ самоуничтожения по 1.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 7, 9, 11 (лица), 8, 10, 12 (рубашки)"
+        },
+        {
+          "claim": "Синяя колода, 12 карт: Антидот, Тазер, Огнемет, Коктейль Молотова по 3; серые символы — рецепт.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 11, 13"
+        },
+        {
+          "claim": "Синий символ компонента в левом верхнем углу: пламя (Химикаты, Алкоголь), ткань (Одежда, Бинты), крест (Аптечка), ключ (Инструменты), батарея (Энергозаряд); у остальных карт символа нет. Символ руки в правом верхнем углу — Тяжёлый Предмет. «Одноразовый» напечатан над названием; без пометки — Увеличенный магазин, Прототипы, Огнемет.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 1–13 (scan-transcript §5)"
+        },
+        {
+          "claim": "Тяжёлые Предметы — карты с символом руки: занимают слот Руки (стр. 22).",
+          "source": "rules-md",
+          "lines": "1398-1420"
+        },
+        {
+          "claim": "Оружие, найденное в ходе Поиска (Прототипы), входит в игру с 1 ед. Боезапаса; Боезапас не превышает напечатанного значения.",
+          "source": "rules-md",
+          "lines": "1414"
+        },
+        {
+          "claim": "Тексты в коде — дословно с карты, с печатным «е» вместо «ё»; блоки «ИЛИ» записаны в одну строку, иконки граней кубика — [Промах], [1 Рана], [2 Раны].",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 1–13",
+          "note": "Порядок блоков и слова совпадают с картой; разметка карточки (плашки «ИЛИ») передана словом."
+        },
+        {
+          "claim": "«1 Рану/Тяжелую Травму» (Граната, Коктейль Молотова): Чужие получают Рану, Персонажи — Тяжелую Травму.",
+          "source": "rules-md",
+          "lines": "981, 1201, 1326",
+          "note": "Раны наносятся Чужим, Травмы — Персонажам; «Рану/Тяжелую Травму» — одно попадание по каждому по его правилам."
+        },
+        {
+          "claim": "Модификаторы оружия применяются в порядке: подмена грани Слабостью → Раны грани с минимумом 1 и доп. Раной оружия → бонусы (Боевая винтовка, «Уязвимость к энергии», очередь, доп. Боезапас «Прототипа: винтовки»).",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 11",
+          "note": "Книга правил порядок не задаёт; при каждом порядке итог одинаков, потому что модификаторы только добавляют Раны."
+        },
+        {
+          "claim": "«Прототип: винтовка»: решение потратить доп. ед. Боезапаса при «2 Ранах» объявляется вместе с выстрелом — между броском и решением новой информации нет. «Прототип: пистолет» дает один переброс; вместе с «Прицельным огнем» — два.",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 11"
+        },
+        {
+          "claim": "«Ключ связи»: пока карты Целей не раздаются (колоды Целей пусты), смотреть нечего — применение отклоняется явной ошибкой.",
+          "source": "owner-decision-2026-09-28",
+          "note": "Решение В-4: применить карту невозможно — видимый отказ."
+        },
+        {
+          "claim": "Компьютер в Неисправной Комнате недоступен (Ключ связи, Ключ самоуничтожения).",
+          "source": "rules-md",
+          "lines": "1026, 1512"
+        }
+      ],
+      "expectation": {
+        "decks": {
+          "RED": [
+            {
+              "name": "Энергозаряд",
+              "count": 11,
+              "componentSymbols": [
+                "BATTERY"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Полностью зарядите 1 Энергооружие ИЛИ Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату."
+            },
+            {
+              "name": "Граната",
+              "count": 4,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Выберите 1 Чужого в вашей или соседней Комнате. Выбранный Чужой получает 2 Раны. Все, кто находятся в одной Комнате с выбранным Чужим (включая вас), получают 1 Рану/Тяжелую Травму."
+            },
+            {
+              "name": "Дымовая граната",
+              "count": 3,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Используйте в вашей Комнате. Все остальные Персонажи в этой Комнате сбрасывают 1 карту Действия с руки. Вы перемещаетесь в соседнюю Комнату. Чужие не атакуют вас во время этого перемещения."
+            },
+            {
+              "name": "Дрон-разведчик",
+              "count": 3,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Посмотрите обороты 1 Неисследованной Комнаты и жетона Исследования в ней."
+            },
+            {
+              "name": "Приманка",
+              "count": 2,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Выберите 1 соседнюю Комнату: переместите в нее всех Чужих из всех соседних Комнат (в том числе находящихся в Бою). Каждый Чужой, находившийся в Бою, проводит 1 Атаку перед перемещением."
+            },
+            {
+              "name": "Увеличенный магазин",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": false,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 0,
+              "description": "Прикрепите к Энергооружию. Добавьте 2 ед. Боезапаса к 1 вашему Энергооружию. С этого момента максимальный Боезапас этого Энергооружия увеличен на 2."
+            },
+            {
+              "name": "Прототип: винтовка",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": true,
+              "isSingleUse": false,
+              "isWeapon": true,
+              "isEnergyWeapon": true,
+              "ammo": 6,
+              "actionCost": 1,
+              "description": "Энергооружие. Боезапас: 6. Каждый раз, когда вы выбрасываете [2 Раны], вы можете потратить 1 доп. ед. Боезапаса, чтобы нанести 1 доп. Рану."
+            },
+            {
+              "name": "Прототип: дробовик",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": true,
+              "isSingleUse": false,
+              "isWeapon": true,
+              "isEnergyWeapon": true,
+              "ammo": 2,
+              "actionCost": 1,
+              "description": "Энергооружие. Боезапас: 2. Вы всегда наносите как минимум 1 Рану (кроме [Промах]). Если вы выбросили [1 Рана] или [2 Раны], вы наносите 1 доп. Рану."
+            },
+            {
+              "name": "Прототип: пистолет",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": true,
+              "isSingleUse": false,
+              "isWeapon": true,
+              "isEnergyWeapon": true,
+              "ammo": 3,
+              "actionCost": 1,
+              "description": "Энергооружие. Боезапас: 3. При использовании этого Оружия вы можете один раз перебросить кубик Атаки."
+            },
+            {
+              "name": "Ключ связи",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Если вы находитесь в Комнате с Компьютером, посмотрите карту Цели у 1 Персонажа, на чьем Планшете есть маркер Сигнала."
+            },
+            {
+              "name": "Ключ эвакуации",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Если вы находитесь в Спасательном Отсеке, Разблокируйте или Заблокируйте 1 Капсулу в этом Отсеке."
+            },
+            {
+              "name": "Ключ самоуничтожения",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Если вы находитесь в Комнате с Компьютером, запустите или остановите процесс Самоуничтожения. (Нельзя использовать, если счетчик Самоуничтожения находится на желтом делении)."
+            }
+          ],
+          "YELLOW": [
+            {
+              "name": "Изолента",
+              "count": 4,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте маркер Неисправности из вашей Комнаты ИЛИ Почините/Повредите Двигатель в Машинном Отсеке ИЛИ Прикрепите 1 Тяжелый Предмет к 1 Тяжелому Предмету в руке Персонажа (таким образом 2 Тяжелых Предмета будут занимать 1 слот руки)."
+            },
+            {
+              "name": "Инструменты",
+              "count": 6,
+              "componentSymbols": [
+                "TOOLS"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте маркер Неисправности из вашей Комнаты ИЛИ Почините/Повредите Двигатель в Машинном Отсеке ИЛИ Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату."
+            },
+            {
+              "name": "Огнетушитель",
+              "count": 4,
+              "componentSymbols": [],
+              "isHeavy": true,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте маркер Пожара из вашей Комнаты ИЛИ Выберите Чужого в вашей Комнате - он Отступает."
+            },
+            {
+              "name": "Химикаты",
+              "count": 7,
+              "componentSymbols": [
+                "FLAME"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Полностью зарядите Огнемет."
+            },
+            {
+              "name": "Одежда",
+              "count": 3,
+              "componentSymbols": [
+                "FABRIC"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте маркер Слизи ИЛИ Обработайте 1 Тяжелую Травму."
+            },
+            {
+              "name": "Энергозаряд",
+              "count": 3,
+              "componentSymbols": [
+                "BATTERY"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Полностью зарядите 1 Энергооружие ИЛИ Откройте или Закройте 1 Дверь в любом Коридоре, ведущем в вашу Комнату."
+            },
+            {
+              "name": "Планы технических коридоров",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Если вы находитесь в Комнате, соединенной с Техническими Коридорами, переместитесь в другую Комнату, соединенную с Техническими Коридорами."
+            },
+            {
+              "name": "Скафандр",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Если вы находитесь в Желтой Комнате, сбросьте все карты Действия с руки и переместитесь в любую другую Желтую Комнату."
+            },
+            {
+              "name": "Планы «Немезиды»",
+              "count": 1,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Посмотрите обороты 2 Неисследованных Комнат (не смотрите обороты жетонов Исследования в них)."
+            }
+          ],
+          "GREEN": [
+            {
+              "name": "Бинты",
+              "count": 7,
+              "componentSymbols": [
+                "FABRIC"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Обработайте 1 Тяжелую Травму ИЛИ Вылечите все Легкие Травмы."
+            },
+            {
+              "name": "Аптечка",
+              "count": 7,
+              "componentSymbols": [
+                "MEDKIT"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Обработайте 1 Тяжелую Травму ИЛИ Вылечите 1 Обработанную Тяжелую Травму."
+            },
+            {
+              "name": "Синтетическая еда",
+              "count": 5,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Возьмите 2 карты Действия из своей колоды."
+            },
+            {
+              "name": "Инъекция адреналина",
+              "count": 3,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Возьмите 1 карту. В этот Ход вы можете выполнить любое количество Действий. Затем вы обязаны спасовать."
+            },
+            {
+              "name": "Алкоголь",
+              "count": 3,
+              "componentSymbols": [
+                "FLAME"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Просканируйте и удалите 1 карту Заражения с руки. Если это была карта с ИНФЕКЦИЕЙ, возьмите 1 карту Заражения."
+            },
+            {
+              "name": "Одежда",
+              "count": 3,
+              "componentSymbols": [
+                "FABRIC"
+              ],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте маркер Слизи ИЛИ Обработайте 1 Тяжелую Травму."
+            },
+            {
+              "name": "Военные препараты",
+              "count": 2,
+              "componentSymbols": [],
+              "isHeavy": false,
+              "isSingleUse": true,
+              "isWeapon": false,
+              "isEnergyWeapon": false,
+              "ammo": null,
+              "actionCost": 1,
+              "description": "Сбросьте с руки любое количество карт (включая карты Заражения) и возьмите из колоды то же количество +1."
+            }
+          ]
+        },
+        "crafted": [
+          {
+            "name": "Антидот",
+            "count": 3,
+            "componentSymbols": [],
+            "isHeavy": false,
+            "isSingleUse": true,
+            "isWeapon": false,
+            "isEnergyWeapon": false,
+            "ammo": null,
+            "actionCost": 1,
+            "description": "Просканируйте все карты в вашей колоде. Удалите все карты с ИНФЕКЦИЕЙ (и Личинку, если она у вас была). Затем возьмите 1 карту Заражения и перемешайте все ваши карты Действий. Затем вы обязаны спасовать."
+          },
+          {
+            "name": "Тазер",
+            "count": 3,
+            "componentSymbols": [],
+            "isHeavy": false,
+            "isSingleUse": true,
+            "isWeapon": false,
+            "isEnergyWeapon": false,
+            "ammo": null,
+            "actionCost": 1,
+            "description": "Выберите 1 Чужого в вашей Комнате. Он получает 1 Рану и Отступает ИЛИ Выберите 1 Персонажа в вашей Комнате. Он должен сбросить все карты с руки."
+          },
+          {
+            "name": "Огнемет",
+            "count": 3,
+            "componentSymbols": [],
+            "isHeavy": true,
+            "isSingleUse": false,
+            "isWeapon": true,
+            "isEnergyWeapon": false,
+            "ammo": 4,
+            "actionCost": 1,
+            "description": "Классическое оружие. Боезапас: 4. Вы всегда наносите как минимум 1 Рану (кроме [Промах]). Если вы выбросили [2 Раны], поместите маркер Пожара в вашу Комнату."
+          },
+          {
+            "name": "Коктейль Молотова",
+            "count": 3,
+            "componentSymbols": [],
+            "isHeavy": false,
+            "isSingleUse": true,
+            "isWeapon": false,
+            "isEnergyWeapon": false,
+            "ammo": null,
+            "actionCost": 1,
+            "description": "Выберите 1 Комнату, в которой есть Чужой (вашу или соседнюю). Поместите в нее маркер Пожара. Все, кто находятся в этой Комнате, получают 1 Рану/Тяжелую Травму."
+          }
+        ],
+        "weaponModifiers": {
+          "Прототип: винтовка": {
+            "minimumOneWoundUnlessMiss": false,
+            "bonusWoundFaces": [],
+            "extraAmmoWoundFace": "TWO_WOUNDS",
+            "ignitionFace": null,
+            "grantsReroll": false
+          },
+          "Прототип: дробовик": {
+            "minimumOneWoundUnlessMiss": true,
+            "bonusWoundFaces": [
+              "ONE_WOUND",
+              "TWO_WOUNDS"
+            ],
+            "extraAmmoWoundFace": null,
+            "ignitionFace": null,
+            "grantsReroll": false
+          },
+          "Прототип: пистолет": {
+            "minimumOneWoundUnlessMiss": false,
+            "bonusWoundFaces": [],
+            "extraAmmoWoundFace": null,
+            "ignitionFace": null,
+            "grantsReroll": true
+          },
+          "Огнемет": {
+            "minimumOneWoundUnlessMiss": true,
+            "bonusWoundFaces": [],
+            "extraAmmoWoundFace": null,
+            "ignitionFace": "TWO_WOUNDS",
+            "grantsReroll": false
+          }
+        }
       }
     }
   }

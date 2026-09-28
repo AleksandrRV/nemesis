@@ -74,7 +74,7 @@ describe('Колоды Предметов (Item Cards)', () => {
     const ids = new Set(all.map((c) => c.id));
     expect(ids.size).toBe(all.length);
 
-    const allowedComponents = new Set(['CHEMICALS', 'ALCOHOL', 'FABRIC', 'ELECTRONICS', 'POWER_CELL', 'TOOLS']);
+    const allowedComponents = new Set(['FLAME', 'FABRIC', 'MEDKIT', 'TOOLS', 'BATTERY']);
 
     for (const card of all) {
       expect(typeof card.isHeavy).toBe('boolean');
@@ -88,10 +88,15 @@ describe('Колоды Предметов (Item Cards)', () => {
       }
     }
 
-    // RED/YELLOW/GREEN — лёгкие (кроме синего огнемёта)
-    expect(RED_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
-    expect(YELLOW_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
-    expect(GREEN_ITEM_CARDS.every((c) => c.isHeavy === false)).toBe(true);
+    const heavyNames = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS]
+      .filter((c) => c.isHeavy)
+      .map((c) => c.name);
+    expect([...new Set(heavyNames)].sort()).toEqual([
+      'Огнетушитель',
+      'Прототип: винтовка',
+      'Прототип: дробовик',
+      'Прототип: пистолет',
+    ]);
   });
 });
 

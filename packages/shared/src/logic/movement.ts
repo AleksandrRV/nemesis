@@ -123,8 +123,5 @@ export function movePlayer(
     nextInterrupts.push({ type: 'NOISE_ROLL_INTERRUPT', playerId, roomId: targetRoomId, noise });
   }
 
-  state.interruptQueue = [
-    ...state.interruptQueue,
-    ...nextInterrupts,
-  ];
+  state.interruptQueue = [...state.interruptQueue, ...nextInterrupts];
 }

@@ -71,14 +71,7 @@ export interface IntruderBoardRoomRow {
   tokens: IntruderBoardTokenRow[];
 }
 
-export type IntruderChronicleKind =
-  | 'CONTACT'
-  | 'SURPRISE'
-  | 'HIVE'
-  | 'FIRE'
-  | 'EGG_LOST'
-  | 'KILL'
-  | 'RETREAT';
+export type IntruderChronicleKind = 'CONTACT' | 'SURPRISE' | 'HIVE' | 'FIRE' | 'EGG_LOST' | 'KILL' | 'RETREAT';
 
 export interface IntruderChronicleEntry {
   sequence: number;
@@ -164,8 +157,14 @@ export function intruderSurvivalLabel(type: IntruderType, wounds: number): strin
   }
 }
 
+function zeroCounts<Key extends string>(keys: readonly Key[]): Record<Key, number> {
+  return Object.fromEntries(keys.map((key) => [key, 0])) as Record<Key, number>;
+}
+
 /** Метод наибольших остатков: проценты — целые, сумма ровно 100. */
-export function largestRemainderPercent(counts: Array<{ type: IntruderToken['type']; count: number }>): IntruderDrawChance[] {
+export function largestRemainderPercent(
+  counts: Array<{ type: IntruderToken['type']; count: number }>,
+): IntruderDrawChance[] {
   const total = counts.reduce((sum, entry) => sum + entry.count, 0);
   if (total === 0) return counts.map((entry) => ({ ...entry, percent: 0 }));
 
@@ -176,9 +175,9 @@ export function largestRemainderPercent(counts: Array<{ type: IntruderToken['typ
   });
 
   let distributed = rows.reduce((sum, row) => sum + row.percent, 0);
-  const byRemainder = rows
-    .map((_, index) => index)
-    .sort((left, right) => rows[right]!.remainder - rows[left]!.remainder || rows[right]!.count - rows[left]!.count || left - right);
+  const largerRemainderFirst = (left: number, right: number) =>
+    rows[right]!.remainder - rows[left]!.remainder || rows[right]!.count - rows[left]!.count || left - right;
+  const byRemainder = rows.map((_, index) => index).sort(largerRemainderFirst);
 
   let cursor = 0;
   while (distributed < 100) {
@@ -192,8 +191,8 @@ export function largestRemainderPercent(counts: Array<{ type: IntruderToken['typ
 /** «Анатомия угрозы»: полный состав колоды Атак минус видимый сброс по id. */
 export function buildAttackAnatomy(discardedIds: ReadonlySet<string>): IntruderAttackAnatomy {
   const remaining = INTRUDER_ATTACK_CARDS.filter((card) => !discardedIds.has(card.id));
-  const byAttackerType = Object.fromEntries(INTRUDER_ATTACKER_TYPES.map((type) => [type, 0])) as Record<IntruderAttackerType, number>;
-  const byEffect = Object.fromEntries(INTRUDER_ATTACK_EFFECTS.map((effect) => [effect, 0])) as Record<IntruderAttackEffect, number>;
+  const byAttackerType = zeroCounts(INTRUDER_ATTACKER_TYPES);
+  const byEffect = zeroCounts(INTRUDER_ATTACK_EFFECTS);
   for (const card of remaining) {
     for (const attacker of card.attackerTypes) byAttackerType[attacker] += 1;
     byEffect[card.effect] += 1;
@@ -252,10 +251,10 @@ export function boardChangeDelta(before: IntruderBoardModel, after: IntruderBoar
   return {
     bagChanged: bagSignature(before) !== bagSignature(after),
     eggsChanged: before.eggsOnBoard !== after.eggsOnBoard,
-    boardChanged:
-      boardSignature(before) !== boardSignature(after) || before.boardTotal !== after.boardTotal,
+    boardChanged: boardSignature(before) !== boardSignature(after) || before.boardTotal !== after.boardTotal,
     queenArrived,
-    attackDeckChanged: before.attackDeckCount !== after.attackDeckCount || before.attackDiscardCount !== after.attackDiscardCount,
+    attackDeckChanged:
+      before.attackDeckCount !== after.attackDeckCount || before.attackDiscardCount !== after.attackDiscardCount,
     weaknessesRevealed: weaknessesSignature(before) !== weaknessesSignature(after),
     firstEncounterHappened: !before.firstEncounterOccurred && after.firstEncounterOccurred,
   };
@@ -302,7 +301,7 @@ export function buildIntruderBoardModel(view: SanitizedGameState): IntruderBoard
   // --- Пул: мешок, запас, коробка ---
   const bagByType: SanitizedIntruderBag = { ...pool.bag };
   const supplyByType: SanitizedIntruderBag = { ...pool.supply };
-  const boxByType = Object.fromEntries(ALL_TOKEN_TYPES.map((type) => [type, 0])) as Record<IntruderType, number>;
+  const boxByType = zeroCounts(ALL_TOKEN_TYPES);
   for (const token of pool.deadTokens) {
     if (token.type !== 'BLANK') boxByType[token.type] += 1;
   }
@@ -363,7 +362,7 @@ export function buildIntruderBoardModel(view: SanitizedGameState): IntruderBoard
   const anatomy = buildAttackAnatomy(discardedIds);
 
   // --- Хроника и счётчики из публичного журнала ---
-  const killed = Object.fromEntries(ALL_TOKEN_TYPES.map((type) => [type, 0])) as Record<IntruderType, number>;
+  const killed = zeroCounts(ALL_TOKEN_TYPES);
   const chronicle: IntruderChronicleEntry[] = [];
   let contacts = 0;
   let eggsAdded = 0;

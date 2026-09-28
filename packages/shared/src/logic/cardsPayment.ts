@@ -30,15 +30,24 @@ export function getPlayerHandLimit(state: GameState, playerId: string): number {
   return BASE_HAND_SIZE;
 }
 
+interface HandLimitRoomView {
+  definitionId: string | null;
+  hasMalfunction: boolean | null;
+  hasFire: boolean | null;
+  occupantIntruderIds: string[];
+}
+
+interface HandLimitStateView {
+  ship: { rooms: Record<number, HandLimitRoomView> };
+  players: Record<string, { roomId: number }>;
+}
+
 /**
  * Версия для санитизированного состояния (клиент).
  * Использует те же условия: CABINS + !hasMalfunction && !hasFire && occupantIntruderIds=0.
  * Работает с `SanitizedGameState`, где hasMalfunction/hasFire могут быть null (неисследованный отсек).
  */
-export function getSanitizedPlayerHandLimit(
-  state: { ship: { rooms: Record<number, { definitionId: string | null; hasMalfunction: boolean | null; hasFire: boolean | null; occupantIntruderIds: string[] }> }; players: Record<string, { roomId: number }> },
-  playerId: string,
-): number {
+export function getSanitizedPlayerHandLimit(state: HandLimitStateView, playerId: string): number {
   const player = state.players[playerId];
   if (!player) return BASE_HAND_SIZE;
 

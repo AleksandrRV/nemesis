@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import type { SanitizedGameState } from '@nemesis/shared';
 import { ContactModal } from './ContactModal';
-import { initialContactSequence, nextContactPresentation, type ContactPresentationEntry } from './contactPresentationModel';
+import {
+  initialContactSequence,
+  nextContactPresentation,
+  type ContactPresentationEntry,
+} from './contactPresentationModel';
 
 interface ControlledProps {
   entry: ContactPresentationEntry | null;
   onClose: (sequence: number) => void;
 }
 
-export function ContactOverlay({ view, entry: controlledEntry, onClose: controlledOnClose }: { view: SanitizedGameState } & Partial<ControlledProps>) {
+export function ContactOverlay({
+  view,
+  entry: controlledEntry,
+  onClose: controlledOnClose,
+}: { view: SanitizedGameState } & Partial<ControlledProps>) {
   const isControlled = controlledEntry !== undefined;
 
   // Хуки объявляются до ветвления: условный useState после раннего return

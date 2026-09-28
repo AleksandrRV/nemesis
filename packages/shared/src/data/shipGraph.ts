@@ -1,4 +1,4 @@
-import type { CorridorConnection, RoomId, RoomSlotCategory } from '../types/rooms.js';
+import type { CorridorConnection, CorridorNumber, RoomId, RoomSlotCategory } from '../types/rooms.js';
 
 export interface RoomCoordinate {
   id: RoomId;
@@ -48,91 +48,67 @@ export const SHIP_ROOM_NODES: RoomCoordinate[] = [
 ];
 
 /**
- * Переходы между отсеками корабля.
- *
- * Номера в `fromNumbers` / `toNumbers` — те, что напечатаны у выхода с каждой
- * стороны, то есть значения броска кубика Шума (1–4), по которым маркер уходит
- * в этот Коридор (стр. 15).
- *
- * Происхождение данных: `doc/sources/data-sources.json#ship-graph-corridors`
- * (статус `UNVERIFIED_BOARD`). Известное расхождение модели с полем: парные
- * Коридоры — два независимых Коридора между одной парой отсеков — здесь
- * описаны одной записью, поэтому маркер Шума и Дверь у такой пары общие.
- * Расхождение зафиксировано снимком в `shipGraph.test.ts` и ждёт сверки
- * с физическим полем; выдумывать топологию вместо сверки нельзя (AGENTS §1.3).
+ * Открытый Коридор без маркера Шума между двумя отсеками. Номера — значения
+ * кубика Шума, напечатанные у выхода с каждой стороны (стр. 15).
  */
+function corridor(
+  fromRoomId: RoomId,
+  toRoomId: RoomId,
+  fromNumbers: CorridorNumber[],
+  toNumbers: CorridorNumber[] = [...fromNumbers],
+): CorridorConnection {
+  return {
+    id: `${fromRoomId}-${toRoomId}`,
+    fromRoomId,
+    toRoomId,
+    fromNumbers,
+    toNumbers,
+    doorState: 'OPEN',
+    hasNoise: false,
+  };
+}
+
+/** Коридоры базовой стороны поля: `doc/sources/data-sources.json#ship-graph-corridors`. */
 export const SHIP_CORRIDORS: CorridorConnection[] = [
   // --- Мостик (001) ---
-  { id: '1-2', fromRoomId: 1, toRoomId: 2, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
-  { id: '1-3', fromRoomId: 1, toRoomId: 3, fromNumbers: [1, 2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
-  { id: '1-4', fromRoomId: 1, toRoomId: 4, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
+  corridor(1, 2, [3]),
+  corridor(1, 3, [1, 2]),
+  corridor(1, 4, [4]),
 
   // --- Нос / Левое крыло ---
-  { id: '2-6', fromRoomId: 2, toRoomId: 6, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
-  { id: '3-7', fromRoomId: 3, toRoomId: 7, fromNumbers: [3, 4], toNumbers: [3, 4], doorState: 'OPEN', hasNoise: false },
-  { id: '4-8', fromRoomId: 4, toRoomId: 8, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
+  corridor(2, 6, [4]),
+  corridor(3, 7, [3, 4]),
+  corridor(4, 8, [1]),
 
   // --- Центр-север ---
-  { id: '5-6', fromRoomId: 5, toRoomId: 6, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
-  { id: '5-10', fromRoomId: 5, toRoomId: 10, fromNumbers: [1, 2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
-  { id: '6-7', fromRoomId: 6, toRoomId: 7, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
-  { id: '6-11', fromRoomId: 6, toRoomId: 11, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
-  { id: '8-11', fromRoomId: 8, toRoomId: 11, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
-  { id: '11-14', fromRoomId: 11, toRoomId: 14, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
-  { id: '11-15', fromRoomId: 11, toRoomId: 15, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
+  corridor(5, 6, [3]),
+  corridor(5, 10, [1, 2]),
+  corridor(6, 7, [1]),
+  corridor(6, 11, [2]),
+  corridor(8, 11, [3]),
+  corridor(11, 14, [4]),
+  corridor(11, 15, [1]),
 
   // --- Центр-юг ---
-  { id: '7-8', fromRoomId: 7, toRoomId: 8, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
-  { id: '8-9', fromRoomId: 8, toRoomId: 9, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
-  { id: '9-12', fromRoomId: 9, toRoomId: 12, fromNumbers: [1,2], toNumbers: [1, 2], doorState: 'OPEN', hasNoise: false },
+  corridor(7, 8, [2]),
+  corridor(8, 9, [4]),
+  corridor(9, 12, [1, 2]),
 
   // --- Северо-восток ---
-  {
-    id: '10-13',
-    fromRoomId: 10,
-    toRoomId: 13,
-    fromNumbers: [3, 4],
-    toNumbers: [3, 4],
-    doorState: 'OPEN',
-    hasNoise: false,
-  },
-  { id: '13-14', fromRoomId: 13, toRoomId: 14, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
-  { id: '13-19', fromRoomId: 13, toRoomId: 19, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
-  { id: '14-17', fromRoomId: 14, toRoomId: 17, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
+  corridor(10, 13, [3, 4]),
+  corridor(13, 14, [1]),
+  corridor(13, 19, [2]),
+  corridor(14, 17, [2]),
 
   // --- Юго-восток ---
-  {
-    id: '12-16',
-    fromRoomId: 12,
-    toRoomId: 16,
-    fromNumbers: [3, 4],
-    toNumbers: [3, 4],
-    doorState: 'OPEN',
-    hasNoise: false,
-  },
-  { id: '15-16', fromRoomId: 15, toRoomId: 16, fromNumbers: [2], toNumbers: [2], doorState: 'OPEN', hasNoise: false },
-  { id: '15-18', fromRoomId: 15, toRoomId: 18, fromNumbers: [3], toNumbers: [3], doorState: 'OPEN', hasNoise: false },
-  { id: '16-21', fromRoomId: 16, toRoomId: 21, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
+  corridor(12, 16, [3, 4]),
+  corridor(15, 16, [2]),
+  corridor(15, 18, [3]),
+  corridor(16, 21, [1]),
 
   // --- Двигатели ---
-  { id: '17-19', fromRoomId: 17, toRoomId: 19, fromNumbers: [1], toNumbers: [1], doorState: 'OPEN', hasNoise: false },
-  {
-    id: '17-20',
-    fromRoomId: 17,
-    toRoomId: 20,
-    fromNumbers: [3, 4],
-    toNumbers: [3, 4],
-    doorState: 'OPEN',
-    hasNoise: false,
-  },
-  {
-    id: '18-20',
-    fromRoomId: 18,
-    toRoomId: 20,
-    fromNumbers: [1, 2],
-    toNumbers: [1, 2],
-    doorState: 'OPEN',
-    hasNoise: false,
-  },
-  { id: '18-21', fromRoomId: 18, toRoomId: 21, fromNumbers: [4], toNumbers: [4], doorState: 'OPEN', hasNoise: false },
+  corridor(17, 19, [1]),
+  corridor(17, 20, [3, 4]),
+  corridor(18, 20, [1, 2]),
+  corridor(18, 21, [4]),
 ];

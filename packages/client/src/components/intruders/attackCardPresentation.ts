@@ -70,7 +70,11 @@ export function attackCardPresentation(card: IntruderAttackCard): AttackCardPres
 }
 
 /** Стиль поповер-карточки: рамка и подпись в цвете класса. */
-export function attackCardPopoverStyle(card: IntruderAttackCard): { borderColor: string; classLabel: string; color: string } {
+export function attackCardPopoverStyle(card: IntruderAttackCard): {
+  borderColor: string;
+  classLabel: string;
+  color: string;
+} {
   const { color, classLabel } = attackCardPresentation(card);
   return { borderColor: `${color}66`, classLabel, color };
 }

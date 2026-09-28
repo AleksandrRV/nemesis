@@ -34,7 +34,10 @@ interface ControlledProps {
  * Контролируемая версия для секвенсора: показывает только когда entry не null,
  * требует закрытия пользователем, не открывается при обновлении страницы.
  */
-export const DieRollOverlay: React.FC<Partial<ControlledProps>> = ({ entry: controlledEntry, onClose: controlledOnClose }) => {
+export const DieRollOverlay: React.FC<Partial<ControlledProps>> = ({
+  entry: controlledEntry,
+  onClose: controlledOnClose,
+}) => {
   const view = useGameStore((s) => s.view);
   const reducedMotion = usePrefersReducedMotion();
   const [active, setActive] = React.useState<DieRollEntry | null>(null);

@@ -532,4 +532,3 @@ export const ACTION_CARDS_BY_CHARACTER: Record<CharacterClass, readonly ActionCa
 };
 
 export const ACTION_CARDS: readonly ActionCard[] = Object.values(ACTION_CARDS_BY_CHARACTER).flat();
-

@@ -135,8 +135,8 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
             <h3 className="text-lg font-heading tracking-wider text-white">СТАЛЬНЫЕ НЕРВЫ</h3>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Внезапная Атака! В руке есть карта «Стальные нервы». Сбросьте её, чтобы атака не состоялась, — или
-            оставьте её и примите атаку.
+            Внезапная Атака! В руке есть карта «Стальные нервы». Сбросьте её, чтобы атака не состоялась, — или оставьте
+            её и примите атаку.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button

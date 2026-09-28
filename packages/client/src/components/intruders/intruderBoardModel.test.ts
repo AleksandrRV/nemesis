@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialGameState, filterStateForPlayer, INTRUDER_ATTACK_CARDS, type SanitizedGameState } from '@nemesis/shared';
+import {
+  createInitialGameState,
+  filterStateForPlayer,
+  INTRUDER_ATTACK_CARDS,
+  type SanitizedGameState,
+} from '@nemesis/shared';
 import {
   ATTACK_DISCARD_FAN_SIZE,
   boardChangeDelta,
@@ -19,11 +24,7 @@ function makeView(): SanitizedGameState {
 /** Полный состав коробки жетонов (INTRUDERS §3.1). */
 const BOX_TOTAL = { BLANK: 1, LARVA: 8, CREEPER: 3, ADULT: 12, BREEDER: 2, QUEEN: 1 };
 
-function pushLog(
-  view: SanitizedGameState,
-  sequence: number,
-  event: Record<string, unknown>,
-): void {
+function pushLog(view: SanitizedGameState, sequence: number, event: Record<string, unknown>): void {
   view.gameLog.push({ id: `log-${sequence}`, sequence, event } as never);
 }
 
@@ -72,7 +73,11 @@ describe('buildIntruderBoardModel: пул Чужих', () => {
   it('раскрытая Слабость отдаёт карту, рубашка — нет', () => {
     const view = makeView();
     const slots = view.intrudersPool.weaknessSlots;
-    slots[0] = { ...slots[0]!, visibility: 'REVEALED', card: { id: 'WK_TEST', name: 'Тест', description: '', effect: 'VULNERABLE_SPOTS', isRevealed: true } } as never;
+    slots[0] = {
+      ...slots[0]!,
+      visibility: 'REVEALED',
+      card: { id: 'WK_TEST', name: 'Тест', description: '', effect: 'VULNERABLE_SPOTS', isRevealed: true },
+    } as never;
     const model = buildIntruderBoardModel(view);
     expect(model.weaknesses[0]!.visibility).toBe('REVEALED');
     expect(model.weaknesses[0]!.card?.name).toBe('Тест');
@@ -261,8 +266,7 @@ describe('roomsWithinDistance: BFS по открытым коридорам', ()
     const view = makeView();
     const from = view.players['player-1']!.roomId;
     const corridor = Object.values(view.ship.corridors).find(
-      (entry) =>
-        entry.doorState !== 'CLOSED' && (entry.fromRoomId === from || entry.toRoomId === from),
+      (entry) => entry.doorState !== 'CLOSED' && (entry.fromRoomId === from || entry.toRoomId === from),
     )!;
     const neighbor = corridor.fromRoomId === from ? corridor.toRoomId : corridor.fromRoomId;
 

@@ -61,7 +61,12 @@ export type SequencedItem =
       /** Миниатюра, поставленная этим Контактом: прячется с поля до закрытия окна. */
       intruderId: string | null;
     }
-  | { kind: 'DOOR_BREACHED'; key: string; sequence: number; animation: Extract<BoardAnimation, { kind: 'DOOR_BREACHED' }> }
+  | {
+      kind: 'DOOR_BREACHED';
+      key: string;
+      sequence: number;
+      animation: Extract<BoardAnimation, { kind: 'DOOR_BREACHED' }>;
+    }
   | {
       kind: 'INTRUDER_TO_TECH';
       key: string;

@@ -85,12 +85,7 @@ export function drawSearchCards(state: GameState, deckColor: ItemDeckColor): Ite
  * Возвращает true если предмет сразу помещён, false если требуется DISCARD_HEAVY (Шаг 5, долг 12).
  * @param roomId — комната поиска, чтобы после сброса завершить поиск (Шаг 5, долг 12)
  */
-export function placeItemToPlayer(
-  state: GameState,
-  playerId: string,
-  item: ItemCard,
-  roomId?: number,
-): boolean {
+export function placeItemToPlayer(state: GameState, playerId: string, item: ItemCard, roomId?: number): boolean {
   const player = state.players[playerId]!;
 
   if (item.isHeavy) {

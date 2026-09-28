@@ -7,7 +7,12 @@ import { INTRUDER_NAMES_RU } from '../board/intruderReference';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { attackCardPopoverStyle } from './attackCardPresentation';
 import {
-  boardChangeDelta,
+  deltaSinceSnapshot,
+  readSeenBoardSnapshot,
+  sessionSnapshotStorage,
+  writeSeenBoardSnapshot,
+} from './boardSeenState';
+import {
   buildIntruderBoardModel,
   filterBoardRooms,
   type BoardChangeDelta,
@@ -22,18 +27,6 @@ interface IntruderBoardModalProps {
   onNavigate?: (roomId: number) => void;
 }
 
-/**
- * Планшет Чужих — цифровой аналог планшета рядом с полем (Шаги 3–4 плана
- * `doc/intruder-board-ui.md`). Публичная информация только: составы Пула
- * без порядка, кладка, Слабости, лицевой сброс Атак, миниатюры на борту,
- * хроника из журнала.
- *
- * z-[45]: решения движка (DecisionModal, z-50) всегда поверх планшета.
- * Открыт/закрыт — локальное состояние App: F5 не воспроизводит окно.
- */
-/** Ключ снимка улья для дельта-подсветок между открытиями окна (сессия). */
-const SESSION_DELTA_KEY = 'nemesis:intruder-board-last-seen';
-
 /** Активные табы мобильной раскладки (<768px). */
 type MobileTab = 'HIVE' | 'ATTACKS' | 'BOARD' | 'CHRONICLE';
 
@@ -44,34 +37,28 @@ const MOBILE_TABS: Array<{ id: MobileTab; label: string }> = [
   { id: 'CHRONICLE', label: 'Хроника' },
 ];
 
+/**
+ * Планшет Чужих — цифровой аналог планшета рядом с полем (Шаги 3–4 плана
+ * `doc/intruder-board-ui.md`). Публичная информация только: составы Пула
+ * без порядка, кладка, Слабости, лицевой сброс Атак, миниатюры на борту,
+ * хроника из журнала.
+ *
+ * z-[45]: решения движка (DecisionModal, z-50) всегда поверх планшета.
+ * Открыт/закрыт — локальное состояние App: F5 не воспроизводит окно.
+ */
 export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, onClose, onNavigate }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   useFocusTrap(containerRef, { onEscape: onClose });
   const model = React.useMemo(() => buildIntruderBoardModel(view), [view]);
   const reducedMotion = usePrefersReducedMotion();
 
-  // Дельта с прошлого просмотра: подсветки секций при открытии окна.
-  const [delta, setDelta] = React.useState<BoardChangeDelta | null>(null);
-  React.useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = window.sessionStorage.getItem(SESSION_DELTA_KEY);
-    } catch {
-      stored = null;
-    }
-    if (stored) {
-      try {
-        setDelta(boardChangeDelta(JSON.parse(stored) as IntruderBoardModel, model));
-      } catch {
-        setDelta(null);
-      }
-    }
-    try {
-      window.sessionStorage.setItem(SESSION_DELTA_KEY, JSON.stringify(model));
-    } catch {
-      // Приватный режим без sessionStorage: дельты просто не показываются.
-    }
-  }, [model]);
+  const [seen, setSeen] = React.useState(() => ({
+    model,
+    previous: readSeenBoardSnapshot(sessionSnapshotStorage()),
+  }));
+  if (seen.model !== model) setSeen({ model, previous: seen.model });
+  const delta = React.useMemo(() => deltaSinceSnapshot(seen.previous, model), [seen.previous, model]);
+  React.useEffect(() => writeSeenBoardSnapshot(sessionSnapshotStorage(), model), [model]);
 
   const [mobileTab, setMobileTab] = React.useState<MobileTab>('HIVE');
   const queenOnBoard = model.boardByRoom.some((row) => row.tokens.some((token) => token.type === 'QUEEN'));
@@ -106,7 +93,10 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
       >
         {/* Кардиограмма Королевы: красная пульс-строка по верхней кромке */}
         {queenOnBoard && !reducedMotion && (
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 overflow-hidden rounded-t-2xl" aria-hidden="true">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-0.5 overflow-hidden rounded-t-2xl"
+            aria-hidden="true"
+          >
             <div className="h-full w-full origin-left bg-gradient-to-r from-transparent via-rose-500 to-transparent animate-board-heartbeat" />
           </div>
         )}
@@ -120,7 +110,9 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
         {!reducedMotion && (
           <div
             className={`pointer-events-none absolute inset-0 rounded-2xl animate-board-breathe ${
-              queenOnBoard ? 'shadow-[inset_0_0_40px_rgba(244,63,94,0.06)]' : 'shadow-[inset_0_0_40px_rgba(16,185,129,0.06)]'
+              queenOnBoard
+                ? 'shadow-[inset_0_0_40px_rgba(244,63,94,0.06)]'
+                : 'shadow-[inset_0_0_40px_rgba(16,185,129,0.06)]'
             }`}
             aria-hidden="true"
           />
@@ -196,7 +188,7 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
 };
 
 /** Названия Объектов-слотов Слабостей (единый источник для секции и тестов). */
-export const WEAKNESS_OBJECT_LABELS: Record<BoardObjectKind, string> = {
+const WEAKNESS_OBJECT_LABELS: Record<BoardObjectKind, string> = {
   CORPSE: 'Труп Персонажа',
   EGG: 'Яйцо Чужих',
   INTRUDER_REMAINS: 'Останки Чужого',
@@ -252,21 +244,24 @@ function TokenChips({
 }
 
 /** A. Улей: мешок с шансами, полоса опустошения, запас, коробка, Первый Контакт. */
-function HiveSection({
-  model,
-  delta,
-}: {
-  model: IntruderBoardModel;
-  delta: BoardChangeDelta | null;
-}) {
+function HiveSection({ model, delta }: { model: IntruderBoardModel; delta: BoardChangeDelta | null }) {
   const bagTypes = (Object.keys(model.bagByType) as Array<keyof typeof model.bagByType>).filter(
     (type) => model.bagByType[type] > 0,
   );
   const chanceByType = new Map(model.drawChances.map((chance) => [chance.type, chance]));
 
   const supplyTotal =
-    model.supplyByType.LARVA + model.supplyByType.CREEPER + model.supplyByType.ADULT + model.supplyByType.BREEDER + model.supplyByType.QUEEN;
-  const boxTotal = model.boxByType.LARVA + model.boxByType.CREEPER + model.boxByType.ADULT + model.boxByType.BREEDER + model.boxByType.QUEEN;
+    model.supplyByType.LARVA +
+    model.supplyByType.CREEPER +
+    model.supplyByType.ADULT +
+    model.supplyByType.BREEDER +
+    model.supplyByType.QUEEN;
+  const boxTotal =
+    model.boxByType.LARVA +
+    model.boxByType.CREEPER +
+    model.boxByType.ADULT +
+    model.boxByType.BREEDER +
+    model.boxByType.QUEEN;
   const poolTotal = model.bagTotal + supplyTotal + boxTotal;
   const bagPercent = poolTotal > 0 ? Math.round((model.bagTotal / poolTotal) * 100) : 0;
 
@@ -278,7 +273,10 @@ function HiveSection({
   );
 
   return (
-    <section aria-label="Улей" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+    <section
+      aria-label="Улей"
+      className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3"
+    >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Улей — Пул Чужих</h3>
         {model.bagTotal === 0 && (
@@ -326,7 +324,8 @@ function HiveSection({
         </div>
         <p className="mt-1 text-[10px] text-slate-500">
           В мешке <b className="text-slate-300 font-mono">{model.bagTotal}</b> из{' '}
-          <b className="text-slate-300 font-mono">{poolTotal}</b> жетонов Пула (запас {supplyTotal}, вышло из игры {boxTotal})
+          <b className="text-slate-300 font-mono">{poolTotal}</b> жетонов Пула (запас {supplyTotal}, вышло из игры{' '}
+          {boxTotal})
         </p>
       </div>
 
@@ -336,7 +335,10 @@ function HiveSection({
         {supplyTypes.length > 0 ? (
           <TokenChips
             size="small"
-            entries={supplyTypes.map((type) => ({ type, label: `${INTRUDER_NAMES_RU[type]}: ${model.supplyByType[type]}` }))}
+            entries={supplyTypes.map((type) => ({
+              type,
+              label: `${INTRUDER_NAMES_RU[type]}: ${model.supplyByType[type]}`,
+            }))}
           />
         ) : (
           <p className="text-[11px] text-slate-600 italic">пусто</p>
@@ -383,11 +385,17 @@ function BroodSection({
   reducedMotion: boolean;
 }) {
   return (
-    <section aria-label="Кладка и Слабости" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+    <section
+      aria-label="Кладка и Слабости"
+      className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3"
+    >
       <h3 className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
         Кладка: {model.eggsOnBoard}/8
         {delta?.eggsChanged && (
-          <span className="ml-2 normal-case text-[9px] font-normal text-amber-300 animate-board-delta-added motion-reduce:animate-none" data-delta-flash="eggs">
+          <span
+            className="ml-2 normal-case text-[9px] font-normal text-amber-300 animate-board-delta-added motion-reduce:animate-none"
+            data-delta-flash="eggs"
+          >
             изменилась
           </span>
         )}
@@ -405,7 +413,11 @@ function BroodSection({
             >
               {filled && (
                 <span
-                  style={reducedMotion ? undefined : { animation: `board-egg-pulse 2.6s ease-in-out ${index * 0.42}s infinite` }}
+                  style={
+                    reducedMotion
+                      ? undefined
+                      : { animation: `board-egg-pulse 2.6s ease-in-out ${index * 0.42}s infinite` }
+                  }
                   className="block"
                 >
                   <EggIcon className="w-6 h-6" />
@@ -475,7 +487,7 @@ function BroodSection({
 }
 
 /** Русские метки machine-эффектов карт Атаки (для баров анатомии). */
-export const ATTACK_EFFECT_LABELS: Record<string, string> = {
+const ATTACK_EFFECT_LABELS: Record<string, string> = {
   SCRATCH: 'Царапина',
   BITE: 'Укус',
   CLAW_ATTACK: 'Атака когтями',
@@ -512,7 +524,10 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
   const openCard = model.attackDiscardTop.find((card) => card.id === openCardId) ?? null;
 
   return (
-    <section aria-label="Колода Атак" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3">
+    <section
+      aria-label="Колода Атак"
+      className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-3"
+    >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[10px] font-bold uppercase tracking-wider text-red-400">Колода Атак</h3>
         {model.attackDeckCount === 0 && (
@@ -554,7 +569,12 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                   aria-label={`${card.name}, стойкость ${card.toughness}${card.hasRetreat ? ', есть Отступление' : ''}`}
                   aria-expanded={openCardId === card.id}
                   onClick={() => setOpenCardId((current) => (current === card.id ? null : card.id))}
-                  style={{ left: `${stack}px`, transform: `rotate(${tilt}deg)`, zIndex: 10 - index, borderColor: style.borderColor }}
+                  style={{
+                    left: `${stack}px`,
+                    transform: `rotate(${tilt}deg)`,
+                    zIndex: 10 - index,
+                    borderColor: style.borderColor,
+                  }}
                   className={`absolute top-0 w-18 h-24 px-1.5 py-1 rounded-lg border text-left bg-slate-900 shadow-lg shadow-black/40 transition-transform duration-150 ${
                     openCardId === card.id ? 'hover:-translate-y-1.5' : 'hover:-translate-y-2 hover:z-30'
                   }`}
@@ -566,7 +586,11 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                   <span className="block mt-1 text-[8.5px] font-bold leading-tight text-slate-200">{card.name}</span>
                   <span className="absolute bottom-1 left-1.5 flex gap-0.5" aria-hidden="true">
                     {card.attackerTypes.map((attacker) => (
-                      <span key={attacker} className="h-1.5 w-1.5 rounded-full" style={{ background: INTRUDER_COLORS[attacker] }} />
+                      <span
+                        key={attacker}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: INTRUDER_COLORS[attacker] }}
+                      />
                     ))}
                   </span>
                   {card.hasRetreat && (
@@ -596,9 +620,14 @@ function AttacksSection({ model, delta }: { model: IntruderBoardModel; delta: Bo
                 ✕
               </button>
               <div className="flex items-center gap-2 flex-wrap pr-5">
-                <span className="font-mono font-bold text-red-300 border border-red-800/70 rounded px-1.5">{openCard.toughness}</span>
+                <span className="font-mono font-bold text-red-300 border border-red-800/70 rounded px-1.5">
+                  {openCard.toughness}
+                </span>
                 <span className="text-xs font-bold text-slate-100">{openCard.name}</span>
-                <span className="text-[9px] font-bold uppercase rounded px-1.5 py-0.5" style={attackBadgeStyle(openCard)}>
+                <span
+                  className="text-[9px] font-bold uppercase rounded px-1.5 py-0.5"
+                  style={attackBadgeStyle(openCard)}
+                >
                   {attackCardPopoverStyle(openCard).classLabel}
                 </span>
                 {openCard.hasRetreat && <span className="text-[10px] text-amber-400">↩ Отступление</span>}
@@ -659,7 +688,13 @@ function attackBadgeStyle(card: Parameters<typeof attackCardPopoverStyle>[0]): R
 }
 
 /** Один ряд баров анатомии: подпись, полоса, счёт. */
-function AnatomyBars({ title, entries }: { title: string; entries: Array<{ key: string; count: number; label: string; color: string }> }) {
+function AnatomyBars({
+  title,
+  entries,
+}: {
+  title: string;
+  entries: Array<{ key: string; count: number; label: string; color: string }>;
+}) {
   const max = Math.max(1, ...entries.map((entry) => entry.count));
   return (
     <div>
@@ -676,7 +711,9 @@ function AnatomyBars({ title, entries }: { title: string; entries: Array<{ key: 
                 style={{ width: `${(count / max) * 100}%`, background: color }}
               />
             </span>
-            <span className={`w-5 text-right font-mono ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}>{count}</span>
+            <span className={`w-5 text-right font-mono ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}>
+              {count}
+            </span>
           </li>
         ))}
       </ul>
@@ -711,7 +748,10 @@ function OnBoardSection({
   const combatCount = model.boardByRoom.filter((row) => row.inCombat).length;
 
   return (
-    <section aria-label="На борту" className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
+    <section
+      aria-label="На борту"
+      className="lg:col-span-8 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2"
+    >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3
           className={`text-[10px] font-bold uppercase tracking-wider text-red-400 ${delta?.boardChanged ? 'animate-board-delta-added motion-reduce:animate-none rounded-lg ring-1 ring-rose-400/60 px-1' : ''}`}
@@ -735,7 +775,9 @@ function OnBoardSection({
                 disabled={disabled}
                 onClick={() => setFilter(entry.id)}
                 aria-pressed={active}
-                title={entry.id === 'NEAR' ? 'Отсеки в двух шагах от вашего Персонажа по открытым коридорам' : undefined}
+                title={
+                  entry.id === 'NEAR' ? 'Отсеки в двух шагах от вашего Персонажа по открытым коридорам' : undefined
+                }
                 className={`px-2 py-0.5 rounded border text-[10px] font-bold transition ${
                   active
                     ? 'bg-red-950/70 border-red-600/70 text-red-200'
@@ -755,7 +797,11 @@ function OnBoardSection({
         <p className="text-xs text-slate-500 italic">На борту чисто — ни одной миниатюры в игре.</p>
       ) : rooms.length === 0 ? (
         <p className="text-xs text-slate-500 italic">
-          {filter === 'COMBAT' ? 'Боя сейчас нет.' : filter === 'NEAR' ? 'В двух шагах от вас Чужих нет.' : 'На борту чисто.'}
+          {filter === 'COMBAT'
+            ? 'Боя сейчас нет.'
+            : filter === 'NEAR'
+              ? 'В двух шагах от вас Чужих нет.'
+              : 'На борту чисто.'}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -786,7 +832,10 @@ function OnBoardSection({
                 <ul className="mt-1 space-y-0.5">
                   {room.tokens.map((token) => (
                     <li key={token.id} className="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: INTRUDER_COLORS[token.type] }} />
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ background: INTRUDER_COLORS[token.type] }}
+                      />
                       <span className="text-slate-200">{token.typeName}</span>
                       <span className="font-mono">ран: {token.wounds}</span>
                       <span className="text-slate-500">— {token.survivalLabel}</span>
@@ -838,7 +887,10 @@ const CHRONICLE_TONE_CLASSES: Record<string, string> = {
  */
 function ChronicleSection({ model, delta }: { model: IntruderBoardModel; delta: BoardChangeDelta | null }) {
   return (
-    <section aria-label="Хроника улья" className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2">
+    <section
+      aria-label="Хроника улья"
+      className="lg:col-span-4 bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 space-y-2"
+    >
       <h3 className="text-[10px] font-bold uppercase tracking-wider text-violet-400">Хроника улья</h3>
       {model.chronicle.length === 0 ? (
         <p className="text-xs text-slate-500 italic">Записей пока нет — улей молчит.</p>
@@ -874,7 +926,11 @@ function ChronicleSection({ model, delta }: { model: IntruderBoardModel; delta: 
       >
         Контактов: <b className="text-slate-300 font-mono">{model.counters.contacts}</b> • Убито:{' '}
         <b className="text-slate-300 font-mono">
-          {model.counters.killed.LARVA + model.counters.killed.CREEPER + model.counters.killed.ADULT + model.counters.killed.BREEDER + model.counters.killed.QUEEN}
+          {model.counters.killed.LARVA +
+            model.counters.killed.CREEPER +
+            model.counters.killed.ADULT +
+            model.counters.killed.BREEDER +
+            model.counters.killed.QUEEN}
         </b>{' '}
         • Яиц: +<b className="text-slate-300 font-mono">{model.counters.eggsAdded}</b> / −
         <b className="text-slate-300 font-mono">{model.counters.eggsDestroyed}</b>

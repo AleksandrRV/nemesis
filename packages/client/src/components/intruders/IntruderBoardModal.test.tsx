@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createInitialGameState, filterStateForPlayer, INTRUDER_ATTACK_CARDS, type SanitizedGameState } from '@nemesis/shared';
+import {
+  createInitialGameState,
+  filterStateForPlayer,
+  INTRUDER_ATTACK_CARDS,
+  type SanitizedGameState,
+} from '@nemesis/shared';
 import { IntruderBoardButton } from './IntruderBoardButton';
 import { IntruderBoardModal } from './IntruderBoardModal';
 

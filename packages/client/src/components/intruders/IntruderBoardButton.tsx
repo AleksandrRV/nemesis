@@ -1,6 +1,7 @@
 import React from 'react';
 import { Skull } from 'lucide-react';
 import type { SanitizedGameState } from '@nemesis/shared';
+import { hasUnseenBoardChanges } from './boardSeenState';
 import { boardChangeKey, buildIntruderBoardModel } from './intruderBoardModel';
 
 interface IntruderBoardButtonProps {
@@ -21,22 +22,9 @@ export const IntruderBoardButton: React.FC<IntruderBoardButtonProps> = ({ view, 
   const model = React.useMemo(() => buildIntruderBoardModel(view), [view]);
   const changeKey = boardChangeKey(model);
 
-  const lastSeenKeyRef = React.useRef<string | null>(null);
-  const [hasUnseenChanges, setHasUnseenChanges] = React.useState(false);
-
-  React.useEffect(() => {
-    if (open) {
-      lastSeenKeyRef.current = changeKey;
-      setHasUnseenChanges(false);
-      return;
-    }
-    if (lastSeenKeyRef.current === null) {
-      // Первая загрузка: текущее состояние считается увиденным.
-      lastSeenKeyRef.current = changeKey;
-      return;
-    }
-    if (changeKey !== lastSeenKeyRef.current) setHasUnseenChanges(true);
-  }, [changeKey, open]);
+  const [seenKey, setSeenKey] = React.useState(changeKey);
+  if (open && seenKey !== changeKey) setSeenKey(changeKey);
+  const hasUnseenChanges = hasUnseenBoardChanges(changeKey, seenKey, open);
 
   return (
     <button
@@ -55,7 +43,7 @@ export const IntruderBoardButton: React.FC<IntruderBoardButtonProps> = ({ view, 
       <span className="text-xs font-mono">
         ЧУЖИЕ <b className="text-white">{model.boardTotal}</b>
       </span>
-      {hasUnseenChanges && !open && (
+      {hasUnseenChanges && (
         <span
           className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"
           title="Улей изменился с прошлого просмотра"

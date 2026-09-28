@@ -233,14 +233,16 @@ describe('Комплексная валидация релиза v0.3.0', () => 
     stateForGenerator.players['player-1']!.hasPassed = false;
 
     // Дадим игроку ещё 2 карты для оплаты генератора
-    while (stateForGenerator.players['player-1']!.actionDeck.hand.length < 2) {
-      stateForGenerator.players['player-1']!.actionDeck.hand.push({
-        id: `extra-pay-${Date.now()}-${Math.random()}`,
+    const generatorPayer = stateForGenerator.players['player-1']!;
+    while (generatorPayer.actionDeck.hand.length < 2) {
+      generatorPayer.actionDeck.hand.push({
+        id: `extra-pay-${generatorPayer.actionDeck.hand.length}`,
         name: 'Extra',
         characterClass: player1.characterClass,
         playCost: 1,
         description: 'Extra',
-      } as never);
+        effect: { kind: 'SEARCH' },
+      });
     }
     const genPay = [
       stateForGenerator.players['player-1']!.actionDeck.hand[0]!.id,

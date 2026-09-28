@@ -64,14 +64,14 @@ import { DOOR_STATES, nextDoorState } from '../types/rooms.js';
  */
 
 interface SourceCard {
-  kind: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'ORIGINAL_PUBLISHER';
+  kind: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'ORIGINAL_PUBLISHER' | 'ORIGINAL_SCAN';
   title: string;
   location: string;
 }
 
 interface TableFacts {
   file: string;
-  status: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'UNVERIFIED_BOARD';
+  status: 'RULES_LOCAL' | 'USER_CONFIRMED' | 'EXTERNAL_UNVERIFIED' | 'UNVERIFIED_BOARD' | 'SCAN_VERIFIED';
   facts: { claim: string; source: string; lines?: string; note?: string }[];
   expectation: Record<string, unknown>;
   unverified?: string[];

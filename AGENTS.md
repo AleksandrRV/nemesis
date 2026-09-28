@@ -227,6 +227,8 @@ npm run verify   # typecheck + lint + format:check + test
 | [`doc/design_document.md`](doc/design_document.md)                  | GDD: механики, микрораунды, оплата действий, пайплайн прерываний, блеф, честный ИИ, UI/UX |
 | [`doc/tech_stack.md`](doc/tech_stack.md)                            | целевая архитектура: контракты данных, транспорт, FSM, RNG, сохранение, структура    |
 | [`doc/sources/data-sources.json`](doc/sources/data-sources.json)    | пакет источника: откуда взято каждое число и что ещё не сверено                      |
+| [`doc/sources/scan-transcript.md`](doc/sources/scan-transcript.md)  | транскрипт сканов `doc/original/`: карты, жетоны, кубики, поле — с файлом и страницей |
+| [`doc/fix-plan-scans.md`](doc/fix-plan-scans.md)                    | план исправлений по сверке со сканами: этапы 0–7, метки «С<этап>-<номер>», решения владельца |
 | [`doc/roadmap.md`](doc/roadmap.md)                                  | этапы до релиза                                                                      |
 | `doc/review-0.1.9.md` *(удалён из репозитория)*               | разбор ревизии 0.1.9: что проверено и где остались риски; итоги вошли в `CHANGELOG.md` (0.1.10–0.1.11) |
 | `doc/fix-plan-0.1.9.md` *(удалён из репозитория)*             | план исправлений с метками «Э1-_, Э2-_»; исполнение зафиксировано в `CHANGELOG.md` (0.1.10–0.1.11) |

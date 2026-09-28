@@ -130,6 +130,11 @@ describe('Определения комнат: цвет и Компьютер п
     expect(byId('HATCH_CONTROL')).toMatchObject({ color: 'WHITE', hasComputer: false });
   });
 
+  it('Контроль шлюзов декомпрессирует другую желтую Комнату, а не «жилую» опечатки транскрипции (rules.pdf, стр. 25, 30)', () => {
+    expect(byId('AIRLOCK_CONTROL').actionDescription).toContain('желтой Комнаты');
+    expect(byId('AIRLOCK_CONTROL').actionDescription).not.toContain('жил');
+  });
+
   it('Улей, Комната со слизью и особые Комнаты поля — без цвета', () => {
     for (const id of ['NEST', 'SLIME_ROOM', ...Object.keys(SPECIAL_ROOM_NODES)]) {
       expect(byId(id).color, id).toBe('NONE');

@@ -110,7 +110,7 @@ export const ADDITIONAL_ROOMS_2: RoomDefinition[] = [
     color: 'YELLOW',
     hasComputer: false,
     actionCost: 2,
-    actionDescription: 'Запустите экстренную декомпрессию жилого отсека',
+    actionDescription: 'Запустите экстренную декомпрессию другой желтой Комнаты',
   },
   {
     id: 'CABINS',

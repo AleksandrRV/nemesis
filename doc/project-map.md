@@ -3,7 +3,7 @@
 > Для разработчиков и AI-агентов. Карта «экран / модуль / сущность → что делает → где в коде».
 > Строки смещаются, главная опора — путь к файлу, имя функции/класса/типа.
 > Архитектура и правила — `doc/tech_stack.md`, `doc/design_document.md`, `doc/rules.md`.
-> **Версия документа:** 3.0 (актуализировано под v0.5.0, схема 19, 989 тестов, 29 коридоров, 2 пакета).
+> **Версия документа:** 4.0 (актуализировано после сверки со сканами: схема 24, 1423 теста, 28 коридоров, 2 пакета).
 
 ---
 
@@ -22,10 +22,10 @@
 
 | Файл | Ключевые типы | Роль |
 |---|---|---|
-| `state.ts` | `GameState`, `ShipState`, `GameMeta`, `CoordinatesState`, `IntrudersPoolState`, `GAME_STATE_SCHEMA_VERSION = 19` | Корневой контракт состояния (история версий — `CHANGELOG.md`). |
+| `state.ts` | `GameState`, `ShipState`, `GameMeta`, `CoordinatesState`, `IntrudersPoolState`, `GAME_STATE_SCHEMA_VERSION = 24` | Корневой контракт состояния (история версий — `CHANGELOG.md`). |
 | `actions.ts` | `GameAction`, `DevAction`, `RoomAbilityPayload` | Все легальные действия: `ACTION_MOVE`, `ACTION_SEARCH`, `ACTION_ROOM_ABILITY`, `ACTION_PASS`, `ACTION_SHOOT`, `ACTION_MELEE`, `ACTION_PICK_UP_OBJECT`, `ACTION_RESOLVE_DECISION`, dev. |
 | `cards.ts` | `ActionCard`, `ItemCard`, `CraftedItemCard`, `ContaminationCard`, `SeriousWoundCard`, `IntruderAttackCard`, `EventCard`, `GameDecksState` | Контракты колод: предметы 90, крафт 12, заражение 27, травмы 16, атаки 20, события 20, действия 60. |
-| `rooms.ts` | `RoomState`, `RoomDefinition`, `CorridorConnection`, `ExplorationEffect`, `RoomSlotCategory` | Комнаты, двери OPEN/CLOSED/DESTROYED, 29 коридоров, эффекты жетонов. |
+| `rooms.ts` | `RoomState`, `RoomDefinition`, `CorridorConnection`, `ExplorationEffect`, `RoomSlotCategory` | Комнаты, двери OPEN/CLOSED/DESTROYED, 28 коридоров, эффекты жетонов. |
 | `entities.ts` | `PlayerState`, `CharacterClass`, `IntruderToken`, `IntruderEntity`, `BoardObject`, `HandSlotContent`, `EscapePodState`, `WeaknessSlotState` | Персонажи 6 классов, 2 слота рук, инвентарь, жетоны Чужих 27, миниатюры лимиты. |
 | `decisions.ts` | `PendingDecision` | Отложенные решения: `CHOOSE_OBJECTIVE`, `CHOOSE_SEARCH_ITEM`, `CHOOSE_WHITE_ROOM_DECK`, `DISCARD_HEAVY_ITEM_FOR_NEW`, `ROOM_FIRE_CONTROL_TARGET`, `ROOM_GENERATOR_ACTION`, `CHOOSE_REST_CONTAMINATION_DISCARD`, `REROLL_COMBAT_DIE`. |
 | `sanitized.ts` | `SanitizedGameState`, `SanitizedPlayerState` | Отфильтрованный срез: скрытое как `null`/счётчики. |
@@ -79,11 +79,11 @@
 
 | Файл | Константы | Назначение |
 |---|---|---|
-| `shipGraph.ts` | `SHIP_ROOM_NODES` 21, `SHIP_CORRIDORS` 29 | Геометрия поля, techNumbers (8 отсеков с входами). |
+| `shipGraph.ts` | `SHIP_ROOM_NODES` 21, `SHIP_CORRIDORS` 28 | Геометрия поля, techNumbers (8 отсеков с входами, сверены с `map_full.jpg`). |
 | `roomDefinitions.ts` | `BASIC_ROOMS_1` 11, `ADDITIONAL_ROOMS_2` 9, `SPECIAL_ROOMS` 5 | Свойства комнат: цвет, компьютер, действие. Цвета по тайлам (`rooms.pdf`): ARMORY RED, COMM YELLOW, INFIRMARY GREEN, LAB GREEN, GENERATOR YELLOW, ESCAPE WHITE, FIRE_CONTROL YELLOW, NEST NONE, STORAGE RED, SURGERY GREEN, AIRLOCK YELLOW, CABINS WHITE, CANTEEN GREEN, COMMAND_CENTER RED, ENGINE_CONTROL YELLOW, HATCH_CONTROL WHITE, OBSERVATION RED, SLIME NONE, SHOWER WHITE; особые Комнаты — NONE, без Компьютера. |
 | `actionCards.ts` | `ACTION_CARDS_BY_CHARACTER` 60 | 6×10 карт действий. |
 | `itemCards.ts` | RED 30, YELLOW 30, GREEN 30 | Колоды стола 90. |
-| `startingItems.ts` | `STARTING_WEAPONS` 6 | Револьвер 6, Дробовик 2, Обрез 2, Боевая винтовка 5, Энерговинтовка 4, Пистолет 3. |
+| `startingItems.ts` | `STARTING_WEAPONS` 6 | Револьвер 6 (классическое), Дробовик 2, Обрез 2, Боевая винтовка 5, Винтовка 4, Пистолет 3 (Энергооружие); свойства — `weaponModifiers.ts`. |
 | `crafting.ts` | 4 рецепта, 12 карт | Антидот, Тазер, Огнемёт 4, Молотов. |
 | `contaminationCards.ts` | 27 (7 инфицированных) | Заражение. |
 | `seriousWounds.ts` | 16: спина 4, нога 3, кисть 3, кровотечение 3, рука 3 | Тяжёлые Травмы по скану; эффекты — `logic/seriousWoundEffects.ts`. |
@@ -121,7 +121,7 @@
 | **Инспектор** `inspector/RoomInspector.tsx`, `TechCorridorPanel.tsx`, `RoomStatusGrid.tsx`, `FloorObjectsPanel.tsx`, `LaboratoryPanel.tsx`, `CarefulMovePanel.tsx`, `DisengagePanel.tsx`, `EscapeConfirmDialog.tsx` | Инфо отсека, кнопки действий, тяжёлые объекты на полу, Лаборатория, осторожное движение, отход, подтверждение Побега. | `ACTION_MOVE`, `ACTION_SEARCH`, `ACTION_ROOM_ABILITY`, `ACTION_PICK_UP_OBJECT`. |
 | **Рука** `hand/PlayerHandPanel.tsx`, `HandConfirmModals.tsx` | Карты руки, цена, мультиселект, пас, счётчик 0/2, инвентарь/травмы. | `ACTION_PASS`, `ACTION_PLAY_CARD`, `ACTION_USE_ITEM`. |
 | **Контакт** `contact/ContactOverlay.tsx`, `ContactModal.tsx`, `IntruderSilhouette.tsx` | Окна силуэта, Внезапной, боя, Побега. | Читает `gameLog`. |
-| **Решения** `modals/DecisionModal.tsx` | Модалки `pendingDecision`: белая колода, поиск 1 из 2, сброс тяжёлого, цели, Подготовка 1 из 3, Пожарный контроль, Генератор, отдых, переброс. | `ACTION_RESOLVE_DECISION`. |
+| **Решения** `modals/DecisionModal.tsx` | Модалки `pendingDecision`: белая колода, поиск 1 из 2, сброс тяжёлого, цели, Пожарный контроль, Генератор, отдых, переброс. | `ACTION_RESOLVE_DECISION`. |
 | **Новая партия** `modals/CharacterSelectModal.tsx`, `CardDetailsModal.tsx` | Выбор класса и сида, просмотр карты. | Транспорт / не меняет партию. |
 | **Бой** `combat/ShootModal.tsx`, `MeleeModal.tsx`, `CombatActionButtons.tsx` | Стрельба/рукопашная, выбор оружия/цели, цена, отказы. | `ACTION_SHOOT`, `ACTION_MELEE`. |
 | **Журнал** `log/GameLogPanel.tsx`, `gameLogModel.ts`, `intruderLogModel.ts`, `eventEffectLogModel.ts` | История ходов, 19 итогов Событий, 6 Улья. | Читает `view.gameLog`. |
@@ -162,4 +162,4 @@
 Золотые правила:
 1. Правила — только `packages/shared/src/logic/`, клиент не мутирует стейт напрямую, только `dispatch`.
 2. Zero Cheating — клиент видит мир через `filterStateForPlayer`.
-3. Перед коммитом — `npm run verify` (typecheck, lint, format:check, test 989/82).
+3. Перед коммитом — `npm run verify` (typecheck, lint, format:check, test 1423/124).

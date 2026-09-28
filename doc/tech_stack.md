@@ -1,7 +1,7 @@
 # ТЕХНОЛОГИЧЕСКИЙ СТЕК И СИСТЕМНАЯ АРХИТЕКТУРА
 # Проект: Nemesis Digital
 
-**Версия документа:** 3.0 (актуализировано под v0.5.0, схема 19, 989 тестов, 2 пакета)  
+**Версия документа:** 4.0 (актуализировано после сверки со сканами, Этапы 1–6 `doc/fix-plan-scans.md`: схема 24, 1423 теста, 2 пакета)  
 **Статус документа:** цель + факт текущей ревизии. Что уже работает — в [README](../README.md), фактические контракты — в `packages/shared/src/types/`, план этапов — в [roadmap.md](roadmap.md), история — в [CHANGELOG.md](../CHANGELOG.md).  
 **Язык:** TypeScript 5.x (Strict Mode)  
 **Среда:** Evergreen Browsers, Node.js LTS (для тестов/будущего сервера)  
@@ -11,10 +11,10 @@
 
 ## 1. Обзор архитектуры
 
-Монорепозиторий NPM Workspaces из 2 пакетов (факт v0.5.0):
+Монорепозиторий NPM Workspaces из 2 пакетов (факт текущей ревизии):
 
 * **`packages/shared`** — изоморфное ядро: типы, данные компонентов (20 комнат, 60 карт действий, 90 предметов, 20 атак, 20 событий, 20 жетонов исследования, пул Чужих, кубики), логика правил (FSM, прерывания, бой, шум, Фазы), детерминированный RNG (seedrandom, 3 потока `layout`/`bag`/`cards`/`noise`/`combat`), golden-тесты provenance.
-* **`packages/client`** — React 18 + Vite 5 + Tailwind 3 + Zustand 4 + Immer 10 + Lucide + react-zoom-pan-pinch 3. SVG-карта корабля (21 отсек, 29 коридоров), инспектор, рука, модалки решений, журнал (19 исходов эффектов Событий, 6 исходов Улья), локальный транспорт `LocalInMemoryTransport`, сохранение в `localStorage`.
+* **`packages/client`** — React 18 + Vite 5 + Tailwind 3 + Zustand 4 + Immer 10 + Lucide + react-zoom-pan-pinch 3. SVG-карта корабля (21 отсек, 28 коридоров), инспектор, рука, модалки решений, журнал (19 исходов эффектов Событий, 6 исходов Улья), локальный транспорт `LocalInMemoryTransport`, сохранение в `localStorage`.
 
 Принцип **Isomorphic Shared Core**: 100% правил в `shared`, одинаково компилируется в браузере (офлайн-соло) и в будущем на Node-сервере (авторитетный судья для LAN/WAN).
 
@@ -24,7 +24,7 @@
 ├─────────────────────────────────────────────────────────────────────────┤
 │ packages/shared                                                         │
 │ • Типы (state, actions, rooms, entities, cards, log, contact, etc.)    │
-│ • Данные: roomDefinitions (5+11+9), shipGraph (21 узел, 29 коридоров), │
+│ • Данные: roomDefinitions (5+11+9), shipGraph (21 узел, 28 коридоров), │
 │   actionCards (60), itemCards (90), crafting (12), startingItems (6),  │
 │   contamination (27), seriousWounds (16), intruderAttacks (20),        │
 │   eventCards (20), explorationTokens (20), intruderPool (27),          │
@@ -49,20 +49,20 @@
 
 ---
 
-## 2. Стек по слоям (факт v0.5.0)
+## 2. Стек по слоям (факт текущей ревизии)
 
 ### 2.1. База
 * **TypeScript 5.x strict** — запрет `any`, дискриминированные объединения для всех действий/событий.
 * **Vite 5.x** — HMR, билд клиента.
 * **NPM Workspaces** — без Lerna/Nx.
-* **Vitest** — 989 тестов / 82 файла (shared + client).
+* **Vitest** — 1423 теста / 124 файла (shared + client).
 
 ### 2.2. Frontend (`packages/client`)
 * **React 18** — компоненты: планшет игрока, слоты рук, карта, сканер, модалки.
 * **Tailwind CSS 3.x** — utility-классы, без отдельных CSS-файлов.
 * **Zustand 4 + Immer 10** — стор `useGameStore`, атомарные транзакции движка, безопасные вложенные мутации.
-* **Zustand Persist** — `localStorage` ключ `nemesis_active_game_session`, восстановление с проверкой схемы 19.
-* **SVG-карта + react-zoom-pan-pinch 3.4.3** — 21 гекс, 29 коридоров, двери, шум, огонь, поломки, фишки игроков и Чужих (масштабы классов, аура Трутня/Королевы, сетка при 3+ типах, рамка «В Бою»), поле Технических Коридоров с трассами вентиляции.
+* **Zustand Persist** — `localStorage` ключ `nemesis_active_game_session`, восстановление с проверкой версии схемы (24).
+* **SVG-карта + react-zoom-pan-pinch 3.4.3** — 21 гекс, 28 коридоров, двери, шум, огонь, поломки, фишки игроков и Чужих (масштабы классов, аура Трутня/Королевы, сетка при 3+ типах, рамка «В Бою»), поле Технических Коридоров с трассами вентиляции.
 * **Lucide-react** — иконки боезапаса, шума, огня, поломок, дверей.
 * **clsx + tailwind-merge** — композиция классов.
 * Нет Howler.js / Framer Motion в текущей ревизии — звук и анимации через CSS `motion-safe` и `prefers-reduced-motion`.
@@ -83,11 +83,11 @@
 
 ## 3. Архитектура стейта и данных
 
-### 3.1. Полное состояние (`GameState`, схема 19)
+### 3.1. Полное состояние (`GameState`, схема 24)
 
 ```typescript
 // packages/shared/src/types/state.ts
-export const GAME_STATE_SCHEMA_VERSION = 19;
+export const GAME_STATE_SCHEMA_VERSION = 24;
 
 export interface GameState {
   meta: {
@@ -107,7 +107,7 @@ export interface GameState {
   };
   ship: {
     rooms: Record<RoomId, RoomState>; // 21 узел
-    corridors: Record<string, CorridorConnection>; // 29 коридоров
+    corridors: Record<string, CorridorConnection>; // 28 коридоров
     technicalCorridorNoise: boolean;
     engines: Record<EngineNumber, EngineState>; // { isWorking: boolean } — второй жетон парный
     coordinates: { cardId: string; currentCourseMarker: CourseMarker; }; // карта Координат 1–8, A/B/C/D → EARTH/MARS/VENUS/DEEP_SPACE
@@ -134,7 +134,7 @@ export interface GameState {
 
 **Двигатели:** на отсеке 2 жетона (Исправный/Неисправный), верхний — истина. Второй всегда парный, поэтому хранится только `isWorking` (упрощение по книге правил стр. 26).
 
-**Коридоры:** 29 (код) — каждый с номерами выходов 1–4 с двух сторон, дверью OPEN/CLOSED/DESTROYED, флагом Шума, входом в техкоридоры. Парные коридоры (два независимых между парой отсеков) — одна запись с общим маркером Шума/двери (известное расхождение, зафиксировано тестом-снимком).
+**Коридоры:** 28 — каждый с номерами выходов 1–4 с двух сторон, дверью OPEN/CLOSED/DESTROYED и флагом Шума. По одной записи на пару отсеков; у каждого отсека номера выходов вместе со входами в вентиляцию покрывают 1–4 ровно по разу (подтверждено владельцем, `data-sources.json#ship-graph-corridors`). Входы в техкоридоры — `techNumbers` узлов, сверены с `map_full.jpg`.
 
 ### 3.2. Скрытие информации (`sanitizer.ts`)
 
@@ -213,12 +213,12 @@ export interface IGameTransport {
 ## 7. Сохранение сессии
 
 * Zustand Persist — `nemesis_active_game_session` в `localStorage`, `partialize: { gameState }`.
-* При старте — проверка `schemaVersion` (19), несовместимые сохранения не восстанавливаются, начинается новая партия.
-* Журнал — часть состояния, версия 4→19 из-за `gameLog`.
+* При старте — проверка `schemaVersion` (сейчас 24), несовместимые сохранения не восстанавливаются, начинается новая партия (решение В-5).
+* Журнал — часть состояния; история версий схемы — `CHANGELOG.md`.
 
 ---
 
-## 8. Структура репозитория (факт v0.5.0)
+## 8. Структура репозитория (факт текущей ревизии)
 
 ```
 nemesis/
@@ -249,7 +249,7 @@ nemesis/
 
 ```bash
 npm ci                      # установка обоих пакетов
-npm run verify              # typecheck + lint + format:check + test (989/82)
+npm run verify              # typecheck + lint + format:check + test (1423/124)
 npm run dev --workspace=@nemesis/client  # Vite --host
 npm run build --workspace=@nemesis/client
 # План LAN:

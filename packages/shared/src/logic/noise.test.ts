@@ -281,10 +281,10 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     expect(state.meta.rngDraws.noise).toBe(0);
   });
 
-  it('номер без выхода из отсека разыгрывается как «Тишина» (решение владельца проекта до Э2-1)', () => {
+  it('номер без Коридора в состоянии партии разыгрывается как «Тишина»', () => {
     const state = createInitialGameState(SEED);
+    delete state.ship.corridors['3-7'];
 
-    // У отсека 7 нет выхода с номером 3, а грань сида — «3».
     expect(faceAt(SEED, 0)).toEqual({ kind: 'CORRIDOR', number: 3 });
     expect(
       Object.values(state.ship.corridors)
@@ -414,7 +414,9 @@ describe('Кубик Шума (стр. 15, 17)', () => {
     expect(findNoiseTarget(state, 9, 3)).toEqual({ kind: 'TECHNICAL_CORRIDOR' });
     expect(findNoiseTarget(state, 9, 4).kind).toBe('CORRIDOR');
     expect(findNoiseTarget(state, 6, 3).kind).toBe('CORRIDOR');
-    // У отсека 12 такого выхода нет: до сверки данных (Э2-1) это «Тишина».
+    expect(findNoiseTarget(state, 12, 2).kind).toBe('CORRIDOR');
+
+    delete state.ship.corridors['9-12'];
     expect(findNoiseTarget(state, 12, 2)).toEqual({ kind: 'UNMAPPED' });
   });
 });

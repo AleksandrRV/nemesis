@@ -294,13 +294,13 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
       const result = outcome(state, 'EVT_PREY_SCENT');
 
       // Отсеки по возрастанию: сначала Коридоры отсека 6, затем отсека 11 (общий 6-11 — один раз)
-      const expected = ['2-6', '3-6', '5-6', '6-7', '6-11', '8-11', '11-14', '11-15'];
+      const expected = ['2-6', '5-6', '6-7', '6-11', '8-11', '11-14', '11-15'];
       expect(result).toEqual({ kind: 'PREY_SCENT', noiseCorridorIds: expected });
       for (const corridorId of expected) {
         expect(state.ship.corridors[corridorId]!.hasNoise).toBe(true);
       }
       const events = noisePlacedEvents(state);
-      expect(events).toHaveLength(8);
+      expect(events).toHaveLength(expected.length);
       expect(events.every((event) => event.playerId === null && event.reason === 'EVENT')).toBe(true);
     });
 
@@ -360,8 +360,8 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
 
       const result = outcome(state, 'EVT_HIVE');
 
-      expect(result).toEqual({ kind: 'HIVE', noiseCorridorIds: ['1-3', '3-6', '3-7'], nestExplored: true });
-      expect(['1-3', '3-6', '3-7'].every((corridorId) => state.ship.corridors[corridorId]!.hasNoise)).toBe(true);
+      expect(result).toEqual({ kind: 'HIVE', noiseCorridorIds: ['1-3', '3-7'], nestExplored: true });
+      expect(['1-3', '3-7'].every((corridorId) => state.ship.corridors[corridorId]!.hasNoise)).toBe(true);
     });
   });
 
@@ -523,14 +523,14 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
     it('все Закрытые Двери открываются, Разрушенные не трогаются', () => {
       const state = freshState('dump');
       state.ship.corridors['1-2']!.doorState = 'CLOSED';
-      state.ship.corridors['3-6']!.doorState = 'CLOSED';
+      state.ship.corridors['3-7']!.doorState = 'CLOSED';
       state.ship.corridors['1-3']!.doorState = 'DESTROYED';
 
       const result = outcome(state, 'EVT_OPEN_COMPARTMENTS');
 
-      expect(result).toEqual({ kind: 'OPEN_COMPARTMENTS', openedCorridorIds: ['1-2', '3-6'] });
+      expect(result).toEqual({ kind: 'OPEN_COMPARTMENTS', openedCorridorIds: ['1-2', '3-7'] });
       expect(state.ship.corridors['1-2']!.doorState).toBe('OPEN');
-      expect(state.ship.corridors['3-6']!.doorState).toBe('OPEN');
+      expect(state.ship.corridors['3-7']!.doorState).toBe('OPEN');
       expect(state.ship.corridors['1-3']!.doorState).toBe('DESTROYED');
     });
   });

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameState, SanitizedGameState } from '@nemesis/shared';
-import { GAME_STATE_SCHEMA_VERSION, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
+import {
+  GAME_STATE_SCHEMA_VERSION,
+  SHIP_CORRIDORS,
+  createInitialGameState,
+  filterStateForPlayer,
+} from '@nemesis/shared';
 
 import { DOOR_CYCLE_HINT, DOOR_LABELS, DOOR_TERMINAL_HINT, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
@@ -20,7 +25,7 @@ describe('Dev-панель: строки коридоров', () => {
   it('перечисляет все коридоры корабля в порядке номеров отсеков', () => {
     const rows = buildCorridorRows(freshView());
 
-    expect(rows).toHaveLength(29);
+    expect(rows).toHaveLength(SHIP_CORRIDORS.length);
     expect(rows[0]?.fromRoomId).toBe(1);
 
     for (let index = 1; index < rows.length; index++) {
@@ -95,9 +100,9 @@ describe('Dev-панель: диагностика', () => {
     expect(diagnostics.unexploredRooms).toBe(unexplored);
     expect(diagnostics.unexploredRooms).toBeGreaterThan(0);
     expect(diagnostics.unexploredRooms).toBeLessThan(diagnostics.rooms);
-    expect(diagnostics.corridors).toBe(29);
+    expect(diagnostics.corridors).toBe(SHIP_CORRIDORS.length);
     expect(diagnostics.noiseMarkers).toBe(0);
-    expect(diagnostics.doors).toEqual({ open: 29, closed: 0, destroyed: 0 });
+    expect(diagnostics.doors).toEqual({ open: SHIP_CORRIDORS.length, closed: 0, destroyed: 0 });
     expect(diagnostics.unknownEngines).toBe(3);
     expect(diagnostics.coordinatesHidden).toBe(true);
     // Второй персонаж — чужой: его инвентарь скрыт.
@@ -122,6 +127,6 @@ describe('Dev-панель: диагностика', () => {
     expect(diagnostics.unknownEngines).toBe(2);
     expect(diagnostics.coordinatesHidden).toBe(false);
     expect(diagnostics.noiseMarkers).toBe(2);
-    expect(diagnostics.doors).toEqual({ open: 27, closed: 1, destroyed: 1 });
+    expect(diagnostics.doors).toEqual({ open: SHIP_CORRIDORS.length - 2, closed: 1, destroyed: 1 });
   });
 });

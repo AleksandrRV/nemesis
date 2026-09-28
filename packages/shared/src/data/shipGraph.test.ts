@@ -179,7 +179,7 @@ describe('Схема корабля: технические коридоры', (
   });
 });
 
-describe('Схема корабля: номера выходов и бросок Шума (стр. 15; пакет источника, UNVERIFIED_BOARD)', () => {
+describe('Схема корабля: номера выходов и бросок Шума (стр. 15)', () => {
   /** Номера, нанесённые у выходов отсека: только по ним встаёт маркер Шума. */
   function exitNumbers(roomId: RoomId): number[] {
     return SHIP_CORRIDORS.flatMap((corridor) => [
@@ -196,29 +196,11 @@ describe('Схема корабля: номера выходов и бросок
     }
   });
 
-  it('фиксирует отсеки, чьи выходы ещё не сверены с полем (долг, статус UNVERIFIED_BOARD)', () => {
-    // Это не «правильные данные», а список долга: у части отсеков номера
-    // выходов не покрывают 1..4 или повторяются — снимок удерживает расхождения
-    // от молчаливой правки. Сверка требует фото физического поля: в
-    // `doc/sources/data-sources.json#ship-graph-corridors` у таблицы стоит статус
-    // `UNVERIFIED_BOARD` и список `unverified` с этим же перечнем.
-    // До сверки бросок Шума на отсутствующий номер разыгрывается как «Тишина»
-    // по решению владельца проекта (см. `resolveNoiseRoll` в logic/fsm.ts).
-    const deviations = SHIP_ROOM_NODES.flatMap((node) => {
-      const numbers = exitNumbers(node.id);
-      const all = [...numbers, ...node.techNumbers];
-      const missing = DOOR_NUMBERS.filter((number) => !all.includes(number));
-      const duplicated = DOOR_NUMBERS.filter((number) => numbers.filter((value) => value === number).length > 1);
+  it('даёт каждому отсеку ровно один выход под каждый номер кубика Шума 1–4', () => {
+    for (const node of SHIP_ROOM_NODES) {
+      const numbers = [...exitNumbers(node.id), ...node.techNumbers].sort((left, right) => left - right);
 
-      return missing.length > 0 || duplicated.length > 0 ? [{ room: node.id, missing, duplicated }] : [];
-    });
-
-    expect(deviations).toEqual([
-      { room: 6, missing: [], duplicated: [1, 2] },
-      { room: 7, missing: [3], duplicated: [] },
-      { room: 9, missing: [1, 2], duplicated: [4] },
-      { room: 10, missing: [1, 2], duplicated: [3] },
-      { room: 12, missing: [2], duplicated: [] },
-    ]);
+      expect(numbers, `отсек ${node.id}`).toEqual([...DOOR_NUMBERS]);
+    }
   });
 });

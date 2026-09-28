@@ -97,8 +97,9 @@ describe('Отступление Чужого в бою (стр. 20)', () => {
 
   it('нет Коридора с номером карты: Чужой остаётся на месте', () => {
     const state = retreatState('retreat-unmapped');
-    const intruderId = putIntruder(state, 'ADULT', 9); // выходы отсека 9 — только 3 и 4
-    eventDeckTop(state, 'EVT_REGENERATION'); // Коридор 1
+    const intruderId = putIntruder(state, 'ADULT', 9);
+    delete state.ship.corridors['9-12'];
+    eventDeckTop(state, 'EVT_REGENERATION');
 
     const record = resolveIntruderRetreat(state, intruderId, 'player-1');
 

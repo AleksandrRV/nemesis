@@ -1,3 +1,4 @@
+import type { QuestKey } from '../data/questItems.js';
 import type { ActionDeckState, ItemCard, ObjectiveCard, SeriousWoundCard, WeaknessCard } from './cards.js';
 import type { RoomId } from './rooms.js';
 
@@ -66,6 +67,7 @@ export interface QuestItemState {
   id: string;
   name: string;
   isActivated: boolean;
+  questKey: QuestKey;
 }
 
 export interface PlayerState {
@@ -89,6 +91,8 @@ export interface PlayerState {
   hasSlime: boolean;
   hasLarva: boolean;
   hasAdrenalineRush?: boolean;
+  boardedPodId?: string | null;
+  boardedRound?: number | null;
   hasSignalSent: boolean;
   isInHibernation: boolean;
   hasEscapedInPod: boolean;
@@ -107,5 +111,6 @@ export interface EscapePodState {
   isLocked: boolean;
   /** «Катапультирование капсулы»: уничтоженная Капсула не возвращается в партию. */
   isDestroyed: boolean;
+  isLaunched?: boolean;
   occupantIds: string[];
 }

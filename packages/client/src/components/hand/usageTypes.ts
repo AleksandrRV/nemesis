@@ -2,6 +2,9 @@ import type { ActionCard, CardOption, ItemCard } from '@nemesis/shared';
 
 export type UsageTargetKind =
   | 'ADJACENT_DOOR'
+  | 'ADJACENT_DOOR_ANY_STATE'
+  | 'ESCAPE_POD'
+  | 'ANY_ROOM'
   | 'ANY_DOOR'
   | 'ADJACENT_ROOM'
   | 'NEIGHBOUR_ROOM'
@@ -59,6 +62,7 @@ export interface UsageVariant {
   hint?: string;
   reason?: string;
   combat?: CombatVariantKind;
+  opensWorkshop?: boolean;
 }
 
 export type CardAccent = 'ACTION' | ItemCard['color'];

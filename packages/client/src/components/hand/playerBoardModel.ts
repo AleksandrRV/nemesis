@@ -5,7 +5,7 @@ export const SERIOUS_WOUND_LIMIT = 3;
 export const HAND_SLOT_COUNT = 2;
 const ACTIONS_PER_TURN = 2;
 
-export type BoardTab = 'CARDS' | 'GEAR' | 'VITALS';
+export type BoardTab = 'CARDS' | 'GEAR' | 'QUESTS' | 'VITALS';
 
 export type StatusTone = 'active' | 'muted' | 'danger' | 'warning' | 'toxic';
 
@@ -93,6 +93,14 @@ export function boardStatuses(
   if (inCombat) statuses.push({ id: 'COMBAT', label: 'Бой', hint: 'В вашем отсеке Чужие (стр. 19)', tone: 'danger' });
   if (player.hasAdrenalineRush) {
     statuses.push({ id: 'ADRENALINE', label: 'Адреналин', hint: 'Без лимита Действий до Паса', tone: 'warning' });
+  }
+  if (player.boardedPodId) {
+    statuses.push({
+      id: 'POD',
+      label: 'В Капсуле',
+      hint: 'Ждёт в Спасательной Капсуле: запустить, выйти или спасовать',
+      tone: 'warning',
+    });
   }
   if (player.hasSlime)
     statuses.push({ id: 'SLIME', label: 'Слизь', hint: 'Маркер Слизи на планшете (стр. 17)', tone: 'toxic' });

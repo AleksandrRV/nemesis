@@ -9,6 +9,7 @@ import { drawOneActionCard } from './classCombatCards.js';
 import { resolveNoiseRoll } from './noise.js';
 import { resolveExploreRoom } from './roomExploration.js';
 import { advanceTurnWithoutFire } from './turnCycle.js';
+import { guardEscapePods, resolveHibernationAttempt, resolvePodBoarding } from './evacuation.js';
 
 export function drainInterrupts(state: GameState): void {
   while (state.interruptQueue.length > 0) {
@@ -18,7 +19,9 @@ export function drainInterrupts(state: GameState): void {
     }
     if (state.pendingDecision) return;
     resolveInterrupt(state, state.interruptQueue.shift()!);
+    guardEscapePods(state);
   }
+  guardEscapePods(state);
   if (
     !state.pendingDecision &&
     state.meta.phase === 'PLAYER_PHASE' &&
@@ -46,6 +49,10 @@ export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): v
       return drawOneActionCard(state, interrupt.playerId);
     case 'COMPLETE_ACTION_INTERRUPT':
       return completeAction(state, interrupt.playerId);
+    case 'HIBERNATION_ATTEMPT_INTERRUPT':
+      return resolveHibernationAttempt(state, interrupt);
+    case 'ESCAPE_POD_BOARDING_INTERRUPT':
+      return resolvePodBoarding(state, interrupt);
     default: {
       const unknown: never = interrupt;
       throw new EngineError(

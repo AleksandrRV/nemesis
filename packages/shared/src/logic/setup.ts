@@ -24,6 +24,7 @@ import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameLog } from './gameLog.js';
 import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
 import type { RngStream } from '../utils/rng.js';
+import { questDefinitionsFor } from '../data/questItems.js';
 
 export const DEFAULT_SEED = 'nemesis-default-seed';
 
@@ -95,11 +96,14 @@ function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: nu
     actionDeck: { drawPile: initialDrawPile, hand: initialHand, discard: [] },
     handSlots,
     inventory: [],
-    questItems: Array.from({ length: QUEST_ITEM_COUNT }, (_, index) => ({
-      id: `${playerId}-quest-${index + 1}`,
-      name: `Квестовый предмет №${index + 1}`,
-      isActivated: false,
-    })),
+    questItems: questDefinitionsFor(preset.characterClass)
+      .slice(0, QUEST_ITEM_COUNT)
+      .map((definition, index) => ({
+        id: `${playerId}-quest-${index + 1}`,
+        name: definition.name,
+        isActivated: false,
+        questKey: definition.key,
+      })),
     lightWounds: 0,
     seriousWounds: [],
     objectives: [],

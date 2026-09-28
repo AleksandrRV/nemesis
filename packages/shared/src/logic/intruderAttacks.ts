@@ -7,6 +7,7 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, removeIntruder, requireIntruder, transformCreeper } from './intruderPlacement.js';
 import { isWeaknessRevealed } from './weaknesses.js';
+import { ownsActiveQuestItem } from './questItems.js';
 
 function victimStatus(state: GameState, playerId: string): AttackVictimStatus {
   const player = state.players[playerId]!;
@@ -96,6 +97,13 @@ export function performIntruderAttack(
   const suppression = state.intrudersPool.attackSuppression[intruderId];
   if (suppression?.round === state.meta.currentRound && suppression.phase === state.meta.phase) {
     appendEvent({ ...common, card: null, outcome: 'SUPPRESSED', victims: [] });
+    return;
+  }
+
+  const armor = ownsActiveQuestItem(player, 'ARMOR');
+  if (armor) {
+    player.inventory = player.inventory.filter((item) => item.id !== armor.id);
+    appendEvent({ ...common, card: null, outcome: 'SUPPRESSED', armorBlocked: true, victims: [] });
     return;
   }
 

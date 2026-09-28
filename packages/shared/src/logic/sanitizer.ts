@@ -1,12 +1,20 @@
 import { EngineError } from './engineErrors.js';
 
-import type { ActionDeckCard, ActionDeckState, CardPile, ContaminationCard, GameDecksState } from '../types/cards.js';
+import type {
+  ActionDeckCard,
+  ActionDeckState,
+  CardPile,
+  ContaminationCard,
+  CraftedItemId,
+  GameDecksState,
+} from '../types/cards.js';
 import type { IntruderToken, PlayerState, WeaknessSlotState } from '../types/entities.js';
 import type {
   SanitizedActionDeckCard,
   SanitizedActionDeckState,
   SanitizedCardPile,
   SanitizedDecksState,
+  SanitizedCraftedItemsPile,
   SanitizedGameLogEntry,
   SanitizedGameState,
   SanitizedHiddenCardPile,
@@ -201,7 +209,7 @@ function sanitizeDecks(state: SanitizedGameState): void {
       YELLOW: sanitizeCardPile(decks.items.YELLOW),
       GREEN: sanitizeCardPile(decks.items.GREEN),
     },
-    craftedItems: sanitizeCardPile(decks.craftedItems),
+    craftedItems: sanitizeCraftedItems(decks.craftedItems),
     contamination: sanitizeHiddenCardPile(decks.contamination),
     seriousWounds: sanitizeCardPile(decks.seriousWounds),
     events: sanitizeCardPile(decks.events),
@@ -253,4 +261,15 @@ function sanitizeLogEntry(entry: GameLogEntry, viewingPlayerId: string): Sanitiz
     default:
       return { ...entry, event: { ...event } };
   }
+}
+
+function sanitizeCraftedItems(pile: GameState['decks']['craftedItems']): SanitizedCraftedItemsPile {
+  const remainingByRecipe: Record<CraftedItemId, number> = {
+    ANTIDOTE: 0,
+    TASER: 0,
+    FLAMETHROWER: 0,
+    MOLOTOV_COCKTAIL: 0,
+  };
+  for (const card of [...pile.drawPile, ...pile.discard]) remainingByRecipe[card.recipeId] += 1;
+  return { ...sanitizeCardPile(pile), remainingByRecipe };
 }

@@ -29,8 +29,9 @@ export function resolveNoiseRoll(
   room.explorationEffect = null;
 
   const hasCompany =
-    room.occupantPlayerIds.some((occupantId) => occupantId !== interrupt.playerId) ||
-    room.occupantIntruderIds.length > 0;
+    !interrupt.forceRoll &&
+    (room.occupantPlayerIds.some((occupantId) => occupantId !== interrupt.playerId) ||
+      room.occupantIntruderIds.length > 0);
 
   if (hasCompany) {
     appendGameLog(state, {

@@ -34,10 +34,11 @@ interface CardUseModalProps {
   preferredPaymentIds: readonly string[];
   onConfirm: (confirmation: CardUseConfirmation) => void;
   onClose: () => void;
+  onOpenWorkshop?: () => void;
 }
 
 function onlyAvailable(variants: readonly UsageVariant[]): UsageVariant | null {
-  const available = variants.filter((variant) => variant.available);
+  const available = variants.filter((variant) => variant.available && !variant.opensWorkshop);
   return available.length === 1 ? available[0]! : null;
 }
 
@@ -70,6 +71,7 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
   preferredPaymentIds,
   onConfirm,
   onClose,
+  onOpenWorkshop,
 }) => {
   const usage =
     request.kind === 'ACTION'
@@ -90,6 +92,10 @@ export const CardUseModal: React.FC<CardUseModalProps> = ({
   const actionVerb = request.kind === 'ACTION' ? 'Разыграть' : 'Использовать';
 
   const selectVariant = (next: UsageVariant) => {
+    if (next.opensWorkshop) {
+      onOpenWorkshop?.();
+      return;
+    }
     setVariant(next);
     setSelection([]);
     setPayment(null);

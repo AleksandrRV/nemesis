@@ -83,7 +83,9 @@ export const PlayerBoardSummaryBar: React.FC<PlayerBoardSummaryProps> = ({
             <li
               key={status.id}
               title={status.hint}
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TONE_CLASSES[status.tone]}`}
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TONE_CLASSES[status.tone]} ${
+                status.id === 'LARVA' ? 'motion-safe:animate-larva-throb' : ''
+              }`}
             >
               {status.label}
             </li>

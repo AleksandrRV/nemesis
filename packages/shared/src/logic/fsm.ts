@@ -17,6 +17,9 @@ import { executeRoomAbility } from './roomAbilities.js';
 import { executeDecision, executeSearch } from './searchActions.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
+import { executeCraftItem } from './crafting.js';
+import { executeActivateQuest } from './questItems.js';
+import { executeEscapePodCommand, isPlayerInPod } from './evacuation.js';
 
 export { EngineError } from './engineErrors.js';
 export type { EngineErrorCode } from './engineErrors.js';
@@ -59,6 +62,12 @@ function validateActor(state: GameState, action: EngineAction, actorId: string, 
   if (player.hasPassed) throw new EngineError('PLAYER_ALREADY_PASSED', `Игрок ${actorId} уже спасовал.`);
   if (state.meta.activePlayerId !== actorId) {
     throw new EngineError('NOT_ACTIVE_PLAYER', `Сейчас ход игрока ${state.meta.activePlayerId}, а не ${actorId}.`);
+  }
+  if (isPlayerInPod(player) && action.type !== 'ACTION_ESCAPE_POD') {
+    throw new EngineError(
+      'CARD_NOT_USABLE_NOW',
+      'Персонаж ждёт в Спасательной Капсуле: запустите её, выйдите из неё или продолжайте ждать (Пас).',
+    );
   }
 }
 
@@ -125,6 +134,12 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
       return executePlayCard(state, action, actorId);
     case 'ACTION_USE_ITEM':
       return executeUseItem(state, action, actorId);
+    case 'ACTION_CRAFT_ITEM':
+      return executeCraftItem(state, action, actorId);
+    case 'ACTION_ACTIVATE_QUEST':
+      return executeActivateQuest(state, action, actorId);
+    case 'ACTION_ESCAPE_POD':
+      return executeEscapePodCommand(state, action, actorId);
     case 'DEV_TOGGLE_DOOR':
       return executeToggleDoor(state, action, actorId);
     case 'DEV_TOGGLE_NOISE':

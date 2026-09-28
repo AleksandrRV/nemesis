@@ -15,6 +15,9 @@ import { resolveIntruderRetreat } from './intruderRetreat.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 import type { IntruderRetreatRecord } from '../types/contact.js';
+import type { RoomId } from '../types/rooms.js';
+import { placeFireMarker } from './markers.js';
+import { endGame } from './gameEnd.js';
 
 /**
  * Базовое действие «Стрельба» [1] (стр. 19; символ действия на стр. 714
@@ -183,6 +186,22 @@ export interface ShootParams {
 
 /** Название Боевой винтовки (стартовое Оружие Солдата, startingItems). */
 export const ASSAULT_RIFLE_NAME = 'Боевая винтовка';
+export const FLAMETHROWER_NAME = 'Огнемёт';
+
+export function weaponFaceInjuries(face: CombatDieFace, targetType: IntruderType, weaponName: string): number {
+  const base = injuriesForFace(face, targetType);
+  if (weaponName === FLAMETHROWER_NAME && face !== 'MISS') return Math.max(1, base);
+  return base;
+}
+
+export function igniteFromWeapon(state: GameState, weaponName: string, face: CombatDieFace, roomId: RoomId): boolean {
+  if (weaponName !== FLAMETHROWER_NAME || face !== 'TWO_WOUNDS') return false;
+  const room = state.ship.rooms[roomId];
+  if (!room || room.hasFire) return false;
+  const placement = placeFireMarker(state, roomId);
+  if (placement === 'SHIP_EXPLODED') endGame(state, 'SHIP_EXPLODED');
+  return placement === 'PLACED' || placement === 'SHIP_EXPLODED';
+}
 
 /**
  * Бонус оружия при ≥1 Ране от выстрела: Боевая винтовка всегда добавляет
@@ -222,7 +241,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
   executeCardPayment(state, actorId, params.discardCardIds, 1);
 
   const dieFace = rollCombatDie(state);
-  const baseInjuries = injuriesForFace(dieFace, target.type);
+  const baseInjuries = weaponFaceInjuries(dieFace, target.type, weapon.name);
   const bonus = weaponBonusInjuries(state, weapon, baseInjuries);
   const burstAmmoSpent = weapon.burstAmmoSpent ?? 0;
   // «Стрельба очередью»: +1 доп. Рана за каждые 2 потраченные ед. Боезапаса.
@@ -253,6 +272,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, actorId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
+  const fireStarted = igniteFromWeapon(state, weapon.name, dieFace, player.roomId);
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -272,6 +292,7 @@ export function performShoot(state: GameState, actorId: string, params: ShootPar
     ...(burstAmmoSpent > 0 ? { burstAmmoSpent } : {}),
     ...(bonus > 0 ? { rifleBonusApplied: weapon.name === ASSAULT_RIFLE_NAME } : {}),
     ...(result.retreat ? { retreat: result.retreat } : {}),
+    ...(fireStarted ? { fireStarted: true as const } : {}),
   });
 }
 

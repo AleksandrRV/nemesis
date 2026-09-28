@@ -9,7 +9,13 @@ import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { isPlayerInCombat } from './combatStatus.js';
-import { checkInjuryResult, injuriesForFace, performShoot, type InjuryCheckResult } from './shoot.js';
+import {
+  checkInjuryResult,
+  igniteFromWeapon,
+  performShoot,
+  weaponFaceInjuries,
+  type InjuryCheckResult,
+} from './shoot.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
@@ -268,13 +274,14 @@ export function resolveRerollCombatDie(
   if (!target) {
     throw new EngineError('UNKNOWN_INTRUDER', 'Цель «Прицельного огня» больше не на поле.');
   }
-  let injuries = injuriesForFace(dieFace, target.type);
+  let injuries = weaponFaceInjuries(dieFace, target.type, decision.weaponName);
   if (injuries > 0 && decision.weaponBonusEligible) injuries += 1;
 
   const result: InjuryCheckResult =
     injuries > 0
       ? checkInjuryResult(state, target.id, target.type, injuries, decision.playerId)
       : { toughnessCards: [], toughnessTotal: 0, killed: false };
+  const fireStarted = igniteFromWeapon(state, decision.weaponName, dieFace, state.players[decision.playerId]!.roomId);
 
   appendGameLog(state, {
     type: 'SHOOT_RESOLVED',
@@ -294,6 +301,7 @@ export function resolveRerollCombatDie(
     ...(rerolled ? { rerolled: true as const } : {}),
     ...(injuries > 0 && decision.weaponBonusEligible ? { rifleBonusApplied: true } : {}),
     ...(result.retreat ? { retreat: result.retreat } : {}),
+    ...(fireStarted ? { fireStarted: true as const } : {}),
   });
   queueActionCompletion(state, decision.playerId);
 }

@@ -1,3 +1,5 @@
+import type { QuestKey } from '../data/questItems.js';
+import type { CraftedItemId } from './cards.js';
 import type { IntruderLogEvent } from './contact.js';
 import type { EventCard, EventEffect } from './cards.js';
 import type { NoiseDieFace } from '../data/noiseDie.js';
@@ -81,6 +83,12 @@ export type GameLogEffectOutcome =
   | 'DANGER_TRIGGERED'
   | 'SILENCE_RESOLVED';
 
+export type ContaminationScanSource = 'REST' | 'SURGERY' | 'ANTIDOTE' | 'ALCOHOL';
+
+export type ContaminationScanResult = 'INFECTED' | 'CLEAN';
+
+export type ContaminationScanOutcome = 'CLEAN' | 'LARVA_PLACED' | 'DIED' | 'LARVA_REMOVED' | 'CONTAMINATION_REPLACED';
+
 export type GameLogEvent =
   | IntruderLogEvent
   | { type: 'GAME_STARTED' }
@@ -141,8 +149,51 @@ export type GameLogEvent =
       cardName: string;
       placed: 'TOP' | 'BOTTOM';
     }
+  | { type: 'HIBERNATION_OPENED'; round: number; timeTrackPosition: number }
+  | { type: 'HIBERNATION_ATTEMPTED'; playerId: string; roomId: RoomId; success: boolean }
+  | { type: 'ESCAPE_POD_BOARDING_ATTEMPTED'; playerId: string; podId: string; podNumber: number; success: boolean }
+  | { type: 'ESCAPE_POD_WAITING'; playerId: string; podId: string; podNumber: number }
+  | { type: 'ESCAPE_POD_LAUNCHED'; podId: string; podNumber: number; occupantIds: string[] }
   | {
-      /** «Почините/Повредите Двигатель»: состояние двигателя в Машинном Отсеке переключено. */
+      type: 'ESCAPE_POD_EXITED';
+      playerId: string;
+      podId: string;
+      podNumber: number;
+      reason: 'VOLUNTARY' | 'INTRUDER' | 'POD_DESTROYED';
+    }
+  | {
+      type: 'ESCAPE_POD_TOGGLED';
+      playerId: string;
+      podId: string;
+      podNumber: number;
+      isLocked: boolean;
+      source: 'HATCH_CONTROL' | 'EVACUATION_KEY';
+    }
+  | {
+      type: 'QUEST_ACTIVATED';
+      playerId: string;
+      questItemId: string;
+      questKey: QuestKey;
+      itemName: string;
+      sacrificedItemName?: string;
+    }
+  | {
+      type: 'ITEM_CRAFTED';
+      playerId: string;
+      recipeId: CraftedItemId;
+      itemName: string;
+      componentNames: string[];
+      viaCardName?: string;
+    }
+  | {
+      type: 'CONTAMINATION_SCANNED';
+      playerId: string;
+      source: ContaminationScanSource;
+      results: ContaminationScanResult[];
+      removedCount: number;
+      outcome: ContaminationScanOutcome;
+    }
+  | {
       type: 'ENGINE_TOGGLED';
       playerId: string;
       roomId: RoomId;

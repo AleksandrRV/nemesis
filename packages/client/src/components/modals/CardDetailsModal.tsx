@@ -3,6 +3,8 @@ import type { ActionCard, ActionDeckCard, BoardObject, ItemCard } from '@nemesis
 import { AlertTriangle, Play, Sparkles, X, Zap } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { InfectionScannerLens } from '../scanner/InfectionScannerLens';
+import { componentLabel } from '../crafting/craftingLabels';
 
 export type CardDetailsTarget =
   | { kind: 'ACTION'; card: ActionCard }
@@ -21,6 +23,7 @@ const ITEM_COLOR_LABELS: Record<ItemCard['color'], string> = {
   YELLOW: 'Жёлтая колода',
   GREEN: 'Зелёная колода',
   BLUE: 'Создаваемый предмет',
+  QUEST: 'Квестовый предмет персонажа',
 };
 
 const OBJECT_TEXT: Record<BoardObject['kind'], { name: string; text: string }> = {
@@ -39,7 +42,7 @@ const OBJECT_TEXT: Record<BoardObject['kind'], { name: string; text: string }> =
 };
 
 const CONTAMINATION_TEXT =
-  'Карта Заражения засоряет колоду Действий. Её нельзя разыграть или сбросить в оплату. Проверить и очистить её помогают «Отдых», Алкоголь, Антидот и Действия отсеков (Хирургия).';
+  'Карта Заражения засоряет колоду Действий. Её нельзя разыграть или сбросить в оплату. Узнать, есть ли в ней ИНФЕКЦИЯ, можно только Красным Сканером: «Отдых», Алкоголь, Антидот или Операционная. Итог сканирования попадает в журнал партии.';
 
 function header(target: CardDetailsTarget): { eyebrow: string; title: string } {
   switch (target.kind) {
@@ -132,7 +135,7 @@ export const CardDetailsModal: React.FC<CardDetailsModalProps> = ({ target, onCl
                 )}
                 {target.card.componentSymbols.length > 0 && (
                   <Badge tone="border-emerald-600/50 bg-emerald-950/60 text-emerald-300">
-                    <Sparkles size={12} /> Компоненты: {target.card.componentSymbols.join(', ')}
+                    <Sparkles size={12} /> Компоненты: {target.card.componentSymbols.map(componentLabel).join(', ')}
                   </Badge>
                 )}
               </>
@@ -148,6 +151,15 @@ export const CardDetailsModal: React.FC<CardDetailsModalProps> = ({ target, onCl
               </Badge>
             )}
           </div>
+          {target.kind === 'CONTAMINATION' && (
+            <div className="flex justify-center pb-3 pt-1">
+              <InfectionScannerLens
+                cardId={target.card.id}
+                result={target.card.isScanned ? (target.card.isInfected ? 'INFECTED' : 'CLEAN') : 'UNKNOWN'}
+                phase={target.card.isScanned ? 'REVEALED' : 'IDLE'}
+              />
+            </div>
+          )}
           <p className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm leading-relaxed text-slate-100">
             {bodyText(target)}
           </p>

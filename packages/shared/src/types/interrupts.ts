@@ -4,7 +4,8 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
  * Как разыгрывается вход в пустой отсек: обычным броском кубика Шума или
  * «Осторожным движением» с маркером в выбранный Коридор (стр. 13, 15).
  */
-export type NoiseRollMode = { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor } | { kind: 'NONE' };
+export type NoiseRollMode =
+  { kind: 'ROLL' } | { kind: 'CAREFUL'; chosen: CarefulMoveChosenCorridor } | { kind: 'NONE' };
 
 /** Событие прерывания: шаг пайплайна, который должен разрешиться до конца действия (tech_stack §4). */
 export type InterruptEvent =
@@ -21,7 +22,9 @@ export type InterruptEvent =
    * режим `CAREFUL` — «Осторожное движение»: вместо броска маркер кладётся
    * в выбранный игроком Коридор (стр. 13).
    */
-  | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode }
+  | { type: 'NOISE_ROLL_INTERRUPT'; playerId: string; roomId: RoomId; noise: NoiseRollMode; forceRoll?: boolean }
+  | { type: 'HIBERNATION_ATTEMPT_INTERRUPT'; playerId: string; roomId: RoomId }
+  | { type: 'ESCAPE_POD_BOARDING_INTERRUPT'; playerId: string; roomId: RoomId; podId: string }
   | { type: 'CONTACT_INTERRUPT'; playerId: string; roomId: RoomId; source: 'NOISE' | 'CALL' | 'EVENT' }
   | { type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT'; playerId: string }
   | { type: 'COMPLETE_ACTION_INTERRUPT'; playerId: string }

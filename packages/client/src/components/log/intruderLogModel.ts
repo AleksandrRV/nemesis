@@ -59,7 +59,9 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
           : event.outcome === 'INFESTATION'
             ? 'Личинка удалена с поля; персонаж получает Заражение.'
             : event.outcome === 'SUPPRESSED'
-              ? 'Атака подавлена эффектом Зова.'
+              ? event.armorBlocked
+                ? 'Броня приняла удар на себя и сброшена.'
+                : 'Атака подавлена эффектом Зова.'
               : `«${event.card?.name}». ${event.card?.description}`;
       if (event.victims.some((victim) => victim.isDead)) text += ' Есть погибшие персонажи.';
       break;
@@ -73,6 +75,7 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
           : `Ран ${event.injuries} (всего ${event.woundsTotal}) против Стойкости ${event.toughnessTotal}. `;
       text += event.killed ? 'Чужой убит!' : 'Чужой выжил.';
       if (event.retreat) text += ' Стрелка Отступления — Чужой отступает.';
+      if (event.fireStarted) text += ' Огнемёт поджёг отсек: маркер Пожара.';
       break;
     }
     case 'MELEE_RESOLVED': {

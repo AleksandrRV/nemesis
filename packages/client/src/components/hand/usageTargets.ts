@@ -2,6 +2,7 @@ import type { ItemDeckColor, SanitizedGameState } from '@nemesis/shared';
 import { playerName, roomLabel } from '../log/gameLogModel';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
 import {
+  adjacentCorridors,
   adjacentOpenRoomIds,
   buildContext,
   computerRooms,
@@ -66,12 +67,43 @@ function handCardTargets(ctx: UsageContext, contaminationOnly: boolean): UsageTa
     });
 }
 
+function escapePodTargets(ctx: UsageContext): UsageTarget[] {
+  const section =
+    ctx.room.definitionId === 'ESCAPE_POD_A' ? 'A' : ctx.room.definitionId === 'ESCAPE_POD_B' ? 'B' : null;
+  return Object.values(ctx.view.ship.escapePods)
+    .filter((pod) => pod.section === section && !pod.isDestroyed)
+    .map((pod) => ({
+      id: pod.id,
+      label: `Капсула №${pod.number}`,
+      sublabel: pod.isLocked ? 'Заблокирована — будет разблокирована' : 'Разблокирована — будет заблокирована',
+      icon: 'lock' as const,
+    }));
+}
+
 function buildTargets(ctx: UsageContext, kind: UsageTargetKind): UsageTarget[] {
   switch (kind) {
     case 'ADJACENT_DOOR':
       return doorTargets(ctx, true);
     case 'ANY_DOOR':
       return doorTargets(ctx, false);
+    case 'ADJACENT_DOOR_ANY_STATE':
+      return adjacentCorridors(ctx).map((corridor) => ({
+        id: corridor.id,
+        label: `${roomLabel(ctx.view, corridor.fromRoomId)} ⇄ ${roomLabel(ctx.view, corridor.toRoomId)}`,
+        sublabel:
+          corridor.doorState === 'DESTROYED'
+            ? 'Разрушена — будет заварена (Закрыта)'
+            : corridor.doorState === 'CLOSED'
+              ? 'Закрыта — будет открыта'
+              : 'Открыта — будет закрыта',
+        icon: 'door' as const,
+      }));
+    case 'ESCAPE_POD':
+      return escapePodTargets(ctx);
+    case 'ANY_ROOM':
+      return Object.values(ctx.view.ship.rooms)
+        .filter((room) => room.isExplored)
+        .map((room) => roomTarget(ctx, room.id));
     case 'ADJACENT_ROOM':
       return adjacentOpenRoomIds(ctx).map((roomId) => roomTarget(ctx, roomId));
     case 'NEIGHBOUR_ROOM':

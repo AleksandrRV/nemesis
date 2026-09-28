@@ -86,7 +86,9 @@ describe('RoomInspector: Чужие в отсеке и статус Боя', () 
     expect(html).not.toContain('ВЫ В БОЮ');
     expect(html).not.toContain('Чужие в отсеке');
     expect(html).not.toContain('Стрелять');
-    expect(html).not.toContain('disabled');
+    const withoutCryoPanel = html.replace(/<section aria-label="Камеры Анабиоза"[\s\S]*?<\/section>/, '');
+    expect(withoutCryoPanel).not.toContain('disabled');
+    expect(html).toContain('Камеры Анабиоза');
   });
 
   it('Чужой в другом отсеке не блокирует действия и не попадает в блок', () => {

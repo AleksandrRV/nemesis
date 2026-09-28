@@ -1,5 +1,6 @@
 import { CARD_OPTION, getRoomDeckColor, type ActionCard, type SanitizedGameState } from '@nemesis/shared';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { hasCraftableRecipe } from '../crafting/workshopModel';
 import {
   adjacentOpenRoomIds,
   buildContext,
@@ -122,7 +123,7 @@ function repositionVariant(ctx: UsageContext, maxMoves: number): UsageVariant {
   );
 }
 
-function searchReason(ctx: UsageContext): string | undefined {
+export function searchReason(ctx: UsageContext): string | undefined {
   if (!ctx.room.isExplored) return 'Отсек ещё не исследован';
   if (intrudersInRoom(ctx).length > 0) return 'В отсеке Чужие — Поиск запрещён';
   if ((ctx.room.itemsCount ?? 0) <= 0) return 'Счётчик Предметов отсека равен 0';
@@ -189,7 +190,18 @@ function variantsFor(card: ActionCard, ctx: UsageContext): UsageVariant[] {
       return [
         fixRoomVariant(ctx),
         ...engineVariants(ctx),
-        blocked(CARD_OPTION.CRAFT, 'Создать Предмет', 'Создание выполняется базовым Действием на панели инвентаря'),
+        whenAvailable(
+          {
+            id: CARD_OPTION.CRAFT,
+            option: CARD_OPTION.CRAFT,
+            label: 'Создать Предмет',
+            hint: 'Любой жёлтый Предмет подходит как любой компонент',
+            icon: 'wrench',
+            steps: [],
+            opensWorkshop: true,
+          },
+          hasCraftableRecipe(ctx.view, true) ? undefined : 'Нет подходящих Предметов-компонентов или карт рецепта',
+        ),
       ];
     case 'DISMISS':
       return [

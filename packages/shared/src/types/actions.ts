@@ -1,4 +1,4 @@
-import type { ItemDeckColor } from './cards.js';
+import type { CraftedItemId, ItemDeckColor } from './cards.js';
 import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
 
 /**
@@ -10,6 +10,20 @@ import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
  * с кодом `ACTION_NOT_IMPLEMENTED`, пока не наступит соответствующий этап
  * дорожной карты (поиск — этап 3, комнаты и крафт — этап 4, цели — этап 6).
  */
+export type EscapePodCommand = 'LAUNCH' | 'EXIT' | 'STAY';
+
+export type ActivateQuestActionPayload = {
+  questItemId: string;
+  sacrificeItemId?: string;
+  discardCardIds: string[];
+};
+
+export type CraftItemActionPayload = {
+  recipeId: CraftedItemId;
+  componentItemIds: string[];
+  discardCardIds: string[];
+};
+
 export type RoomAbilityPayload = {
   discardCardIds?: string[];
   option?: string;
@@ -50,6 +64,8 @@ export type PlayCardActionPayload = {
   targetItemId?: string;
   /** Шаг 8: параметры классовой боевой карты — карта и действие играются вместе. */
   combat?: CombatCardPayload;
+  craftRecipeId?: CraftedItemId;
+  componentItemIds?: string[];
 };
 
 export type UseItemActionPayload = {
@@ -67,6 +83,7 @@ export type UseItemActionPayload = {
   /** Карты с руки для спецэффектов («Военные препараты»: сброс N карт → добор N+1). */
   targetCardIds?: string[];
   targetIntruderId?: string;
+  targetEscapePodId?: string;
 };
 
 export type GameAction =
@@ -109,6 +126,9 @@ export type GameAction =
   | { type: 'ACTION_ROOM_ABILITY'; payload: RoomAbilityPayload }
   | { type: 'ACTION_PLAY_CARD'; payload: PlayCardActionPayload }
   | { type: 'ACTION_USE_ITEM'; payload: UseItemActionPayload }
+  | { type: 'ACTION_CRAFT_ITEM'; payload: CraftItemActionPayload }
+  | { type: 'ACTION_ACTIVATE_QUEST'; payload: ActivateQuestActionPayload }
+  | { type: 'ACTION_ESCAPE_POD'; payload: { command: EscapePodCommand } }
   | { type: 'ACTION_PASS'; payload: { discardCardIds?: string[] } }
   | {
       type: 'ACTION_RESOLVE_DECISION';

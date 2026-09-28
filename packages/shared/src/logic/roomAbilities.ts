@@ -1,6 +1,5 @@
 import type { GameState } from '../types/state.js';
 import type { RoomAbilityPayload } from '../types/actions.js';
-import type { ActionDeckCard, ContaminationCard } from '../types/cards.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
@@ -10,6 +9,8 @@ import { queueActionCompletion } from './actionCompletion.js';
 import { allocateEntityId } from './stateIds.js';
 import { sufferLightWounds } from './characterDamage.js';
 import { drawFromStream, shuffle } from '../utils/rng.js';
+import { logContaminationScan, removeInfectedCards, scanContaminationCards } from './infectionScanner.js';
+import { startHibernationAttempt, startPodBoarding, togglePodLock } from './evacuation.js';
 
 export function executeRoomAbility(state: GameState, actorId: string, payload: RoomAbilityPayload): void {
   const player = state.players[actorId]!;
@@ -347,66 +348,39 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     }
 
     case 'ESCAPE_POD_A':
-    case 'ESCAPE_POD_B': {
-      // Спасательные отсеки: вход в капсулу
-      const section = room.definitionId === 'ESCAPE_POD_A' ? 'A' : 'B';
-      const availablePods = Object.values(state.ship.escapePods).filter((pod) => pod.section === section);
-      const pod = availablePods.find((p) => !p.isLocked && !p.isDestroyed && p.occupantIds.length < 2);
-      if (!pod) {
-        throw new EngineError(
-          'ROOM_ABILITY_NOT_ALLOWED',
-          'В данном отсеке нет разблокированных капсул со свободными местами',
-        );
-      }
-      pod.occupantIds.push(actorId);
-      player.hasEscapedInPod = true;
-
-      appendGameLog(state, {
-        type: 'ROOM_ABILITY_USED',
-        playerId: actorId,
-        roomId: room.id,
-        roomDefinitionId: room.definitionId,
-        detail: `Персонаж занял место в капсуле ${pod.id}`,
-      });
+    case 'ESCAPE_POD_B':
+      startPodBoarding(state, actorId, room, payload.targetEscapePodId);
       break;
-    }
+
+    case 'HIBERNATORIUM':
+      startHibernationAttempt(state, actorId, room);
+      break;
+
+    case 'HATCH_CONTROL':
+      togglePodLock(state, actorId, payload.targetEscapePodId, 'HATCH_CONTROL');
+      break;
 
     case 'SURGERY': {
-      // Операционная: сканирование всех карт Заражения, удаление инфекций ценой 1 лёгкой травмы и паса
-      const infectedCards: ContaminationCard[] = [];
-      const cleanCards: ActionDeckCard[] = [];
-
-      for (const card of player.actionDeck.hand) {
-        if (!('characterClass' in card)) {
-          const contam = card as ContaminationCard;
-          contam.isScanned = true;
-          if (contam.isInfected) {
-            infectedCards.push(contam);
-          } else {
-            cleanCards.push(card);
-          }
-        } else {
-          cleanCards.push(card);
-        }
-      }
-
-      // Карты с инфекцией удаляются из игры, чистые карты замешиваются в колоду
-      // Шаг 6, долг 17: по книге чистые замешиваются — использовать shuffle(cards) + rngDraws.cards++
-      player.actionDeck.hand = [];
-      if (cleanCards.length > 0) {
-        const shuffled = shuffle(() => {
-          const v = drawFromStream(state.meta.seed, 'cards', state.meta.rngDraws.cards);
-          state.meta.rngDraws.cards += 1;
-          return v;
-        }, cleanCards);
-        player.actionDeck.drawPile.push(...shuffled);
-      }
+      const deck = player.actionDeck;
+      const hadLarva = player.hasLarva;
+      const results = [
+        ...scanContaminationCards(deck.hand),
+        ...scanContaminationCards(deck.drawPile),
+        ...scanContaminationCards(deck.discard),
+      ];
+      const remaining = removeInfectedCards([...deck.hand, ...deck.drawPile, ...deck.discard]);
       player.hasLarva = false;
+      logContaminationScan(state, actorId, 'SURGERY', results, remaining.removed, hadLarva ? 'LARVA_REMOVED' : 'CLEAN');
+
+      deck.hand = [];
+      deck.discard = [];
+      deck.drawPile = shuffle(() => {
+        const value = drawFromStream(state.meta.seed, 'cards', state.meta.rngDraws.cards);
+        state.meta.rngDraws.cards += 1;
+        return value;
+      }, remaining.kept);
       sufferLightWounds(state, actorId, 1);
-
-      // Огонь наносится до блокировки паса (если в Операционной есть Пожар)
       applyFireEndTurnEffect(state, actorId);
-
       if (!player.isDead) {
         player.hasPassed = true;
       }
@@ -416,7 +390,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
         playerId: actorId,
         roomId: room.id,
         roomDefinitionId: 'SURGERY',
-        detail: `Хирургическая операция: удалено ${infectedCards.length} карт инфекции, получена 1 лёгкая травма, пас`,
+        detail: `Хирургическая операция: удалено карт с Инфекцией — ${remaining.removed}${hadLarva ? ', Личинка удалена' : ''}; 1 Лёгкая Травма, Пас`,
       });
       advanceTurnWithoutFire(state, actorId);
       return;

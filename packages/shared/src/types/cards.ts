@@ -20,7 +20,7 @@ export const COMPONENT_FAMILY: Record<CraftComponent, ComponentFamily> = {
 export type ItemDeckColor = 'RED' | 'YELLOW' | 'GREEN';
 
 /** Цвет карты Предмета: три игровые колоды плюс синие Создаваемые (GDD §2.4, стр. 23). */
-export type ItemColor = ItemDeckColor | 'BLUE';
+export type ItemColor = ItemDeckColor | 'BLUE' | 'QUEST';
 
 /**
  * Происхождение карты Предмета: откуда она попадает к персонажу.

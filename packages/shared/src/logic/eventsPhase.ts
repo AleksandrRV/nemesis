@@ -9,6 +9,7 @@ import { resolveHiveDevelopment } from './hiveDevelopment.js';
 import { drainInterrupts } from './interrupts.js';
 import { checkInjuryResult } from './shoot.js';
 import { getOrderedPlayers, startNewRound } from './turnCycle.js';
+import { HIBERNATION_OPENS_AT_TIME } from '../data/evacuation.js';
 
 /**
  * Оркестратор Фазы Событий (стр. 10): шаги книги правил исполняются
@@ -73,6 +74,13 @@ function endIfNoActiveCharacters(state: GameState): boolean {
  */
 export function advanceTimeAndSelfDestruct(state: GameState): void {
   state.meta.timeTrackPosition += 1;
+  if (state.meta.timeTrackPosition === HIBERNATION_OPENS_AT_TIME) {
+    appendGameLog(state, {
+      type: 'HIBERNATION_OPENED',
+      round: state.meta.currentRound,
+      timeTrackPosition: state.meta.timeTrackPosition,
+    });
+  }
   if (state.meta.selfDestructTrackPosition !== null) {
     state.meta.selfDestructTrackPosition += 1;
     if (state.meta.selfDestructTrackPosition >= 6) unlockAllEscapePods(state);

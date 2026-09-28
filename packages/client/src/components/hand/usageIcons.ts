@@ -50,4 +50,5 @@ export const ACCENT_CLASSES: Record<CardAccent, { bar: string; text: string; rin
   YELLOW: { bar: 'bg-amber-400', text: 'text-amber-300', ring: 'ring-amber-300', soft: 'bg-amber-950/40' },
   GREEN: { bar: 'bg-emerald-500', text: 'text-emerald-300', ring: 'ring-emerald-400', soft: 'bg-emerald-950/40' },
   BLUE: { bar: 'bg-sky-400', text: 'text-sky-300', ring: 'ring-sky-400', soft: 'bg-sky-950/40' },
+  QUEST: { bar: 'bg-amber-300', text: 'text-amber-200', ring: 'ring-amber-300', soft: 'bg-amber-950/40' },
 };

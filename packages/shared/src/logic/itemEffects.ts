@@ -13,6 +13,7 @@ import { requireIntruder } from './intruderPlacement.js';
 import { getRoomDeckColor } from './search.js';
 import { drawSharedCard } from './cardPiles.js';
 import { applyCraftedItemEffect } from './craftedItemEffects.js';
+import { logContaminationScan, scanContaminationCards } from './infectionScanner.js';
 import {
   chooseIntruderInRoom,
   drawActionCards,
@@ -34,6 +35,7 @@ import {
   setEngineState,
   toggleDoor,
 } from './cardEffectsShared.js';
+import { applyQuestItemEffect } from './questItemEffects.js';
 
 export type UseItemPayload = Extract<EngineAction, { type: 'ACTION_USE_ITEM' }>['payload'];
 
@@ -248,10 +250,15 @@ function alcohol(state: GameState, actorId: string, cardIds: readonly string[] |
   }
   const [removed] = player.actionDeck.hand.splice(index, 1);
   if (!removed || !isContaminationCard(removed)) return;
-  if (!removed.isInfected) return;
+  const results = scanContaminationCards([removed]);
+  if (!removed.isInfected) {
+    logContaminationScan(state, actorId, 'ALCOHOL', results, 1, 'CLEAN');
+    return;
+  }
   const fresh = drawSharedCard(state, state.decks.contamination, 'Заражение');
   fresh.isScanned = false;
   player.actionDeck.hand.push(fresh);
+  logContaminationScan(state, actorId, 'ALCOHOL', results, 1, 'CONTAMINATION_REPLACED');
 }
 
 function clothes(state: GameState, actorId: string, option: string | undefined): void {
@@ -348,6 +355,8 @@ export function applyItemEffect(
     case 'MOLOTOV':
       applyCraftedItemEffect(state, actorId, kind, payload);
       break;
+    case 'QUEST':
+      return applyQuestItemEffect(state, actorId, item, payload);
     case 'WEAPON':
       notUsableNow(`«${item.name}» — Оружие: оно используется Действием «Стрельба».`);
       break;

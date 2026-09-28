@@ -17,6 +17,11 @@ import { PlayerBoardSummaryBar } from './PlayerBoardSummary';
 import { BoardCardsSection } from './BoardCardsSection';
 import { BoardGearSection } from './BoardGearSection';
 import { BoardVitalsSection } from './BoardVitalsSection';
+import { WorkshopModal, type WorkshopConfirmation, type WorkshopMode } from '../crafting/WorkshopModal';
+import { hasCraftableRecipe } from '../crafting/workshopModel';
+import { BoardQuestSection } from '../quests/BoardQuestSection';
+import { QuestActivationModal, type QuestActivationConfirmation } from '../quests/QuestActivationModal';
+import { buildQuestViews, questProgress, type QuestView } from '../quests/questBoardModel';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -31,6 +36,7 @@ interface PendingResult {
 const TAB_LABELS: Record<BoardTab, string> = {
   CARDS: 'Карты',
   GEAR: 'Снаряжение',
+  QUESTS: 'Квесты',
   VITALS: 'Состояние',
 };
 
@@ -44,6 +50,9 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const [useRequest, setUseRequest] = React.useState<CardUseRequest | null>(null);
   const [pendingResult, setPendingResult] = React.useState<PendingResult | null>(null);
   const [useResult, setUseResult] = React.useState<CardUseResult | null>(null);
+  const [workshop, setWorkshop] = React.useState<WorkshopMode | null>(null);
+  const [questToActivate, setQuestToActivate] = React.useState<QuestView | null>(null);
+  const selectRoom = useGameStore((state) => state.selectRoom);
 
   const selectedCardIds = useGameStore((state) => state.selectedCardIds);
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
@@ -122,6 +131,42 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     setPendingResult({ title: request.card.name, variantLabel: confirmation.variantLabel, before });
   };
 
+  const handleCraftConfirm = (mode: WorkshopMode, confirmation: WorkshopConfirmation) => {
+    const before = view;
+    const { discardCardIds, recipeId, componentItemIds } = confirmation;
+    dispatch(
+      mode.kind === 'CARD'
+        ? {
+            type: 'ACTION_PLAY_CARD',
+            payload: {
+              cardId: mode.card.id,
+              option: 'CRAFT',
+              craftRecipeId: recipeId,
+              componentItemIds,
+              discardCardIds,
+            },
+          }
+        : { type: 'ACTION_CRAFT_ITEM', payload: { recipeId, componentItemIds, discardCardIds } },
+    );
+    discardCardIds.filter((id) => convertedCardIds.includes(id)).forEach(refundConvertedCard);
+    setWorkshop(null);
+    clearSelection();
+    setPendingResult({
+      title: mode.kind === 'CARD' ? mode.card.name : 'Создание Предмета',
+      variantLabel: `Собрать «${confirmation.itemName}»`,
+      before,
+    });
+  };
+
+  const handleQuestConfirm = (quest: QuestView, confirmation: QuestActivationConfirmation) => {
+    const before = view;
+    dispatch({ type: 'ACTION_ACTIVATE_QUEST', payload: confirmation });
+    confirmation.discardCardIds.filter((id) => convertedCardIds.includes(id)).forEach(refundConvertedCard);
+    setQuestToActivate(null);
+    clearSelection();
+    setPendingResult({ title: quest.definition.name, variantLabel: 'Активация квеста', before });
+  };
+
   const playabilityOf = (card: ActionCard): HandCardPlayability => {
     if (!canAct) return { playable: false, reason: 'Сейчас не ваш ход' };
     const variants = getActionCardUsage(card, view).variants;
@@ -140,10 +185,12 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
         slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0,
     )?.card.id ?? null;
 
+  const questStats = questProgress(buildQuestViews(view));
   const tabCounts: Record<BoardTab, string> = {
     CARDS: String(summary.handCount),
     GEAR: `${summary.occupiedHandSlots + summary.inventoryCount}`,
     VITALS: `${summary.vitals.light + summary.vitals.serious}`,
+    QUESTS: `${questStats.active}/${questStats.total}`,
   };
 
   const trailing = (
@@ -200,6 +247,12 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                 <span className="rounded bg-slate-950 px-1.5 font-mono text-[10px] text-slate-400">
                   {tabCounts[entry]}
                 </span>
+                {entry === 'QUESTS' && questStats.ready > 0 && (
+                  <span className="relative flex h-2 w-2" aria-label="Есть квест, готовый к активации">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75 motion-safe:animate-ping" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -233,6 +286,16 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                 onDiscardHeavy={(handSlotIndex) =>
                   dispatch({ type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } })
                 }
+                onCraft={() => setWorkshop({ kind: 'BASIC' })}
+                canCraft={canAct && hasCraftableRecipe(view, false)}
+              />
+            )}
+            {tab === 'QUESTS' && (
+              <BoardQuestSection
+                view={view}
+                canAct={canAct}
+                onActivate={setQuestToActivate}
+                onShowRoom={(roomId) => selectRoom(roomId)}
               />
             )}
             {tab === 'VITALS' && <BoardVitalsSection player={player} statuses={summary.statuses} />}
@@ -262,6 +325,32 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
             preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
             onConfirm={(confirmation) => handleUseConfirm(useRequest, confirmation)}
             onClose={() => setUseRequest(null)}
+            onOpenWorkshop={
+              useRequest.kind === 'ACTION'
+                ? () => {
+                    setWorkshop({ kind: 'CARD', card: useRequest.card });
+                    setUseRequest(null);
+                  }
+                : undefined
+            }
+          />
+        )}
+        {questToActivate && (
+          <QuestActivationModal
+            view={view}
+            quest={questToActivate}
+            preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
+            onConfirm={(confirmation) => handleQuestConfirm(questToActivate, confirmation)}
+            onClose={() => setQuestToActivate(null)}
+          />
+        )}
+        {workshop && (
+          <WorkshopModal
+            view={view}
+            mode={workshop}
+            preferredPaymentIds={[...convertedCardIds, ...selectedCardIds]}
+            onConfirm={(confirmation) => handleCraftConfirm(workshop, confirmation)}
+            onClose={() => setWorkshop(null)}
           />
         )}
         {useResult && <CardResultModal result={useResult} onClose={() => setUseResult(null)} />}

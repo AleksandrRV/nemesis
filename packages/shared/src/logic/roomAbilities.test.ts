@@ -310,7 +310,7 @@ describe('Действия комнат (Room Abilities)', () => {
     expect(player.handSlots[0]?.source).toBe('OBJECT');
   });
 
-  it('кабины спасательных капсул (ESCAPE_POD_A): вход в открытую капсулу', () => {
+  it('кабины спасательных капсул (ESCAPE_POD_A): попытка входа — бросок Шума, затем посадка (стр. 24, 26)', () => {
     const state = setupState();
     const player = state.players['player-1']!;
     giveHand(state, 'player-1', 4);
@@ -334,8 +334,12 @@ describe('Действия комнат (Room Abilities)', () => {
 
     executeRoomAbility(state, 'player-1', {});
 
-    expect(state.ship.escapePods['pod-1']!.occupantIds).toContain('player-1');
-    expect(player.hasEscapedInPod).toBe(true);
+    expect(state.interruptQueue.map((entry) => entry.type)).toEqual([
+      'NOISE_ROLL_INTERRUPT',
+      'ESCAPE_POD_BOARDING_INTERRUPT',
+      'COMPLETE_ACTION_INTERRUPT',
+    ]);
+    expect(player.hasEscapedInPod).toBe(false);
   });
 
   it('лаборатория (LABORATORY): изучает объект в руках, объект не удаляется (стр. 16)', () => {
@@ -527,9 +531,11 @@ describe('Действия комнат (Room Abilities)', () => {
     player.handSlots = [];
 
     executeRoomAbility(state, 'player-1', {});
-    const firstId = (player.handSlots[0] as { source: 'ITEM'; card: never } | { source: 'OBJECT'; object: { id: string } }).source === 'OBJECT'
-      ? (player.handSlots[0] as { source: 'OBJECT'; object: { id: string } }).object.id
-      : '';
+    const firstId =
+      (player.handSlots[0] as { source: 'ITEM'; card: never } | { source: 'OBJECT'; object: { id: string } }).source ===
+      'OBJECT'
+        ? (player.handSlots[0] as { source: 'OBJECT'; object: { id: string } }).object.id
+        : '';
 
     // Второе взятие — id должен быть другим
     player.handSlots = [];
@@ -679,7 +685,10 @@ describe('Действия комнат (Room Abilities)', () => {
     labRoom2.occupantPlayerIds = ['player-1', 'player-2'];
     p2_2.handSlots = [{ source: 'OBJECT', object: { id: 'egg-p2-2', kind: 'EGG' } }];
     state2.intrudersPool.weaknessSlots = [
-      { objectKind: 'EGG', card: { id: 'weakness-egg2', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false } },
+      {
+        objectKind: 'EGG',
+        card: { id: 'weakness-egg2', name: 'Слабость', description: '', effect: 'FIRE_WEAKNESS', isRevealed: false },
+      },
     ];
 
     const pay2 = [p2_2.actionDeck.hand[0]!.id, p2_2.actionDeck.hand[1]!.id];
@@ -765,5 +774,4 @@ describe('Действия комнат (Room Abilities)', () => {
 
     expect(JSON.stringify(state)).toBe(snapshot2);
   });
-
 });

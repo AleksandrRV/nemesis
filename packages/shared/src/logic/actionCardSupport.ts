@@ -9,6 +9,7 @@ import { finishSearch } from './searchActions.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { allocateEntityId } from './stateIds.js';
 import { requireRoom } from './cardEffectsShared.js';
+import { ownsActiveQuestItem } from './questItems.js';
 
 export function performRoomSearch(state: GameState, actorId: string, chosenDeckColor?: ItemDeckColor): void {
   const { roomId, color } = validateSearchConditions(state, actorId);
@@ -78,7 +79,7 @@ export function motivateRoom(state: GameState, actorId: string): void {
 
 export function threatAssessment(state: GameState, actorId: string, option: string | undefined): void {
   const room = requireRoom(state, actorId);
-  if (!room.hasComputer) {
+  if (!room.hasComputer && !ownsActiveQuestItem(state.players[actorId]!, 'HOLO_COMPUTER')) {
     throw new EngineError('NO_COMPUTER', '«Оценка угрозы» работает только в комнате с Компьютером.');
   }
   const pile = state.decks.events;

@@ -3,6 +3,7 @@ import type { EngineAction } from '../types/actions.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { queueActionCompletion } from './actionCompletion.js';
+import { discardItemCard } from './cardEffectsShared.js';
 
 /**
  * Базовое действие «Поднять Тяжёлый объект» [1] (стр. 13, 22): «поднимите
@@ -74,26 +75,13 @@ export function executeDiscardHeavyItem(
       objectKind: slot.object.kind,
     } as never);
   } else {
-    // Тяжёлый предмет — в сброс соответствующей колоды (если не BLUE)
-    const card = slot.card;
-    if (card.color !== 'BLUE') {
-      const pile = state.decks.items[card.color];
-      if (pile) {
-        pile.discard.push(card);
-      }
-    } else {
-      // Синие (крафтовые) — в общий сброс? Для простоты — в дискард BLUE если есть, иначе в комнату как объект? Кладём в discard BLUE.
-      const bluePile = (state.decks.items as Record<string, { discard: typeof card[] }>).BLUE;
-      if (bluePile) {
-        bluePile.discard.push(card);
-      }
-    }
+    discardItemCard(state, slot.card);
     appendGameLog(state, {
       type: 'HEAVY_ITEM_DISCARDED',
       playerId: actorId,
       roomId: room.id,
-      itemId: card.id,
-      itemName: card.name,
+      itemId: slot.card.id,
+      itemName: slot.card.name,
     } as never);
   }
 

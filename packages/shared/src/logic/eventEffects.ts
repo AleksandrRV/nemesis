@@ -14,6 +14,7 @@ import { requireNoiseMarkerSupply } from './noiseMarkers.js';
 import { corridorNumbersOf, corridorsLeadingInto } from './shipGraphQueries.js';
 import { allocateEntityId } from './stateIds.js';
 import { getOrderedPlayers } from './turnCycle.js';
+import { evacuatePod } from './evacuation.js';
 
 const ALL_ROOM_DEFINITIONS = [...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2, ...SPECIAL_ROOMS];
 
@@ -476,8 +477,11 @@ function spreadFireFrom(state: GameState, roomIds: RoomId[]): { placed: RoomId[]
 /** «Катапультирование капсулы»: уничтожение Капсулы с наименьшим номером. */
 function resolveEscapePodEjection(state: GameState): EventEffectOutcome {
   const pods = Object.values(state.ship.escapePods).sort((a, b) => a.number - b.number);
-  const pod = pods.find((candidate) => !candidate.isDestroyed);
-  if (pod) pod.isDestroyed = true;
+  const pod = pods.find((candidate) => !candidate.isDestroyed && candidate.isLaunched !== true);
+  if (pod) {
+    evacuatePod(state, pod, 'POD_DESTROYED');
+    pod.isDestroyed = true;
+  }
   return { kind: 'ESCAPE_POD_EJECTION', podId: pod?.id ?? null };
 }
 

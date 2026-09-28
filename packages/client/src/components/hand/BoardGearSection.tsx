@@ -1,5 +1,6 @@
 import React from 'react';
-import { Hand, Info, Package, Play, Trash2 } from 'lucide-react';
+import { Hammer, Hand, Info, Package, Play, Trash2 } from 'lucide-react';
+import { COMPONENT_META } from '../crafting/craftingLabels';
 import type { BoardObject, ItemCard, SanitizedPlayerState } from '@nemesis/shared';
 import { ACCENT_CLASSES } from './usageIcons';
 import { HAND_SLOT_COUNT } from './playerBoardModel';
@@ -17,6 +18,28 @@ interface BoardGearSectionProps {
   onInspectItem: (item: ItemCard, location: 'INVENTORY' | 'HAND_SLOT') => void;
   onInspectObject: (object: BoardObject) => void;
   onDiscardHeavy: (handSlotIndex: number) => void;
+  onCraft: () => void;
+  canCraft: boolean;
+}
+
+function ComponentSymbols({ item }: { item: ItemCard }) {
+  if (item.componentSymbols.length === 0) return null;
+  return (
+    <span className="flex gap-1" aria-label="Синие символы Компонентов">
+      {item.componentSymbols.map((component) => {
+        const meta = COMPONENT_META[component];
+        return (
+          <span
+            key={component}
+            title={`Компонент: ${meta.label}`}
+            className="flex h-5 w-5 items-center justify-center rounded border border-sky-500/70 bg-sky-950/80 text-sky-300"
+          >
+            <meta.Icon size={11} aria-hidden="true" />
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 function AmmoTrack({ item }: { item: ItemCard }) {
@@ -74,6 +97,8 @@ export const BoardGearSection: React.FC<BoardGearSectionProps> = ({
   onInspectItem,
   onInspectObject,
   onDiscardHeavy,
+  onCraft,
+  canCraft,
 }) => {
   const inventory = player.inventory ?? [];
   return (
@@ -166,12 +191,31 @@ export const BoardGearSection: React.FC<BoardGearSectionProps> = ({
       </section>
 
       <section aria-labelledby="gear-inventory" className="flex min-w-0 flex-1 flex-col gap-2">
-        <h3
-          id="gear-inventory"
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
-        >
-          <Package size={12} aria-hidden="true" /> Инвентарь · {inventory.length}
-        </h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3
+            id="gear-inventory"
+            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
+          >
+            <Package size={12} aria-hidden="true" /> Инвентарь · {inventory.length}
+          </h3>
+          <button
+            type="button"
+            onClick={onCraft}
+            disabled={!canAct}
+            title={
+              canCraft
+                ? 'Создание Предмета [1]: сбросить 2 Предмета с синими символами'
+                : 'Открыть чертежи Создаваемых Предметов'
+            }
+            className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-bold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+              canCraft
+                ? 'border-sky-400 bg-sky-950/70 text-sky-100 shadow-[0_0_14px_rgba(56,189,248,0.3)] hover:bg-sky-900'
+                : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-600'
+            }`}
+          >
+            <Hammer size={13} aria-hidden="true" /> Создать предмет
+          </button>
+        </div>
         {inventory.length === 0 ? (
           <p className="flex h-28 items-center justify-center rounded-xl border border-dashed border-slate-700 px-4 text-center text-xs text-slate-500">
             Предметов нет. Их находят Поиском в исследованных отсеках.
@@ -192,6 +236,7 @@ export const BoardGearSection: React.FC<BoardGearSectionProps> = ({
                     </p>
                     <p className="line-clamp-2 text-[13px] font-bold leading-tight text-white">{item.name}</p>
                   </div>
+                  <ComponentSymbols item={item} />
                   <div className="flex justify-end gap-1.5">
                     <IconButton label="Подробнее" onClick={() => onInspectItem(item, 'INVENTORY')}>
                       <Info size={13} />

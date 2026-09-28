@@ -55,14 +55,12 @@ export function reservedHandCardIds(variant: UsageVariant | null, selection: Tar
   );
 }
 
-export function paymentCandidates(
+export function handPaymentCandidates(
   view: SanitizedGameState,
-  request: CardUseRequest,
-  reservedIds: readonly string[],
+  excluded: ReadonlyMap<string, string>,
 ): PaymentCandidate[] {
   const player = view.players[view.meta.activePlayerId];
   if (!player) return [];
-  const reserved = new Set(reservedIds);
   return player.actionDeck.hand.map((card) => {
     if (!('characterClass' in card)) {
       return {
@@ -74,12 +72,19 @@ export function paymentCandidates(
       };
     }
     const base = { id: card.id, label: card.name, sublabel: `Цена ${card.playCost}` };
-    if (request.kind === 'ACTION' && card.id === request.card.id) {
-      return { ...base, selectable: false, reason: 'Эту карту вы разыгрываете' };
-    }
-    if (reserved.has(card.id)) return { ...base, selectable: false, reason: 'Уже выбрана как цель эффекта' };
-    return { ...base, selectable: true };
+    const reason = excluded.get(card.id);
+    return reason ? { ...base, selectable: false, reason } : { ...base, selectable: true };
   });
+}
+
+export function paymentCandidates(
+  view: SanitizedGameState,
+  request: CardUseRequest,
+  reservedIds: readonly string[],
+): PaymentCandidate[] {
+  const excluded = new Map(reservedIds.map((id) => [id, 'Уже выбрана как цель эффекта']));
+  if (request.kind === 'ACTION') excluded.set(request.card.id, 'Эту карту вы разыгрываете');
+  return handPaymentCandidates(view, excluded);
 }
 
 export function initialPayment(

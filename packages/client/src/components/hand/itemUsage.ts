@@ -20,12 +20,14 @@ import {
 } from './usageContext';
 import { blocked, doorVariant, engineVariants, fixRoomVariant, whenAvailable } from './actionCardUsage';
 import { singleStep, type CardUsage, type UsageVariant } from './usageTypes';
+import { questItemVariants } from '../quests/questItemUsage';
 
 const COLOR_LABELS: Record<ItemCard['color'], string> = {
   RED: 'Красная колода',
   YELLOW: 'Жёлтая колода',
   GREEN: 'Зелёная колода',
   BLUE: 'Создаваемый',
+  QUEST: 'Квестовый предмет',
 };
 
 function untreated(ctx: UsageContext): boolean {
@@ -377,6 +379,8 @@ function variantsFor(item: ItemCard, ctx: UsageContext): UsageVariant[] {
           nearbyIntruderReason(ctx),
         ),
       ];
+    case 'QUEST':
+      return questItemVariants(item, ctx);
     case 'UNKNOWN':
       return [blocked('UNKNOWN', 'Использовать', 'Эффект этого Предмета пока не реализован')];
   }

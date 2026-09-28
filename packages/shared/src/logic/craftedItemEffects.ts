@@ -8,9 +8,9 @@ import { receiveContamination, sufferSeriousWound } from './characterDamage.js';
 import { resolveIntruderRetreat } from './intruderRetreat.js';
 import { requireIntruder } from './intruderPlacement.js';
 import { reshuffleDiscard } from './cardPiles.js';
+import { logContaminationScan, removeInfectedCards, scanContaminationCards } from './infectionScanner.js';
 import {
   chooseIntruderInRoom,
-  isContaminationCard,
   livingCharactersInRoom,
   placeFireFromCard,
   requireOwnOrNeighbourRoom,
@@ -24,16 +24,27 @@ type CraftedEffectKind = Extract<ItemEffectKind, 'ANTIDOTE' | 'TASER' | 'MOLOTOV
 function antidote(state: GameState, actorId: string): void {
   const player = requirePlayer(state, actorId);
   const deck = player.actionDeck;
-  const scan = (cards: typeof deck.hand): typeof deck.hand =>
-    cards.filter((card) => {
-      if (!isContaminationCard(card)) return true;
-      card.isScanned = true;
-      return !card.isInfected;
-    });
-  deck.hand = scan(deck.hand);
-  deck.drawPile = scan(deck.drawPile);
-  deck.discard = scan(deck.discard);
+  const hadLarva = player.hasLarva;
+  const results = [
+    ...scanContaminationCards(deck.hand),
+    ...scanContaminationCards(deck.drawPile),
+    ...scanContaminationCards(deck.discard),
+  ];
+  const hand = removeInfectedCards(deck.hand);
+  const drawPile = removeInfectedCards(deck.drawPile);
+  const discard = removeInfectedCards(deck.discard);
+  deck.hand = hand.kept;
+  deck.drawPile = drawPile.kept;
+  deck.discard = discard.kept;
   player.hasLarva = false;
+  logContaminationScan(
+    state,
+    actorId,
+    'ANTIDOTE',
+    results,
+    hand.removed + drawPile.removed + discard.removed,
+    hadLarva ? 'LARVA_REMOVED' : 'CLEAN',
+  );
   receiveContamination(state, actorId);
   deck.discard = [...deck.drawPile, ...deck.discard];
   deck.drawPile = [];

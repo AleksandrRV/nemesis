@@ -1,4 +1,4 @@
-import type { CraftComponent, CraftedItemCard, CraftedItemId } from '../types/cards.js';
+import type { CraftComponent, CraftedItemCard, CraftedItemId, ItemCard } from '../types/cards.js';
 
 /**
  * Фиксированные рецепты создания предметов (GDD §2.4, стр. 23).
@@ -98,3 +98,47 @@ export const CRAFTED_ITEM_CARDS: readonly CraftedItemCard[] = [
     maxAmmo: null,
   })),
 ];
+
+export type CraftComponentSource = Pick<ItemCard, 'id' | 'color' | 'componentSymbols'> & { origin?: string };
+
+export function recipeById(recipeId: CraftedItemId): CraftingRecipe | undefined {
+  return CRAFTING_RECIPES.find((recipe) => recipe.itemId === recipeId);
+}
+
+export function canProvideComponent(
+  item: CraftComponentSource,
+  component: CraftComponent,
+  yellowIsWildcard: boolean,
+): boolean {
+  if (item.origin === 'CRAFTED') return false;
+  if (yellowIsWildcard && item.color === 'YELLOW') return true;
+  return item.componentSymbols.includes(component);
+}
+
+export function matchesRecipe(
+  recipe: CraftingRecipe,
+  first: CraftComponentSource,
+  second: CraftComponentSource,
+  yellowIsWildcard = false,
+): boolean {
+  if (first.id === second.id) return false;
+  const [a, b] = recipe.components;
+  return (
+    (canProvideComponent(first, a, yellowIsWildcard) && canProvideComponent(second, b, yellowIsWildcard)) ||
+    (canProvideComponent(first, b, yellowIsWildcard) && canProvideComponent(second, a, yellowIsWildcard))
+  );
+}
+
+export function craftablePairs(
+  recipe: CraftingRecipe,
+  items: readonly CraftComponentSource[],
+  yellowIsWildcard = false,
+): [string, string][] {
+  const pairs: [string, string][] = [];
+  items.forEach((first, index) => {
+    items.slice(index + 1).forEach((second) => {
+      if (matchesRecipe(recipe, first, second, yellowIsWildcard)) pairs.push([first.id, second.id]);
+    });
+  });
+  return pairs;
+}

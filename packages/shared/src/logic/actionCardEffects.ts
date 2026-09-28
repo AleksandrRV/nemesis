@@ -7,7 +7,7 @@ import { movePlayer } from './movement.js';
 import { performPass } from './turnCycle.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { executeReposition } from './classCombatCards.js';
-import { receiveContamination } from './characterDamage.js';
+import { logContaminationScan, resolveInfectionFound, scanContaminationCards } from './infectionScanner.js';
 import {
   discardInventoryItem,
   fixRoomMalfunction,
@@ -24,6 +24,7 @@ import {
   toggleDoor,
   weaponInHandSlots,
 } from './cardEffectsShared.js';
+import { performCraft } from './crafting.js';
 import { motivateRoom, performRoomSearch, performScavenge, threatAssessment } from './actionCardSupport.js';
 
 type PlayCardPayload = Extract<EngineAction, { type: 'ACTION_PLAY_CARD' }>['payload'];
@@ -68,23 +69,12 @@ function rest(state: GameState, actorId: string): void {
   if (!player.actionDeck.hand.some(isContaminationCard)) {
     throw new EngineError('NO_CONTAMINATION', 'На руке нет карт Заражения — «Отдых» нечего сканировать.');
   }
-  let infected = false;
-  const nextHand: typeof player.actionDeck.hand = [];
-  for (const entry of player.actionDeck.hand) {
-    if (!isContaminationCard(entry)) {
-      nextHand.push(entry);
-      continue;
-    }
-    entry.isScanned = true;
-    if (entry.isInfected) {
-      infected = true;
-      nextHand.push(entry);
-    }
-  }
-  player.actionDeck.hand = nextHand;
-  if (!infected) return;
-  if (player.hasLarva) receiveContamination(state, actorId);
-  else player.hasLarva = true;
+  const results = scanContaminationCards(player.actionDeck.hand);
+  const before = player.actionDeck.hand.length;
+  player.actionDeck.hand = player.actionDeck.hand.filter((entry) => !isContaminationCard(entry) || entry.isInfected);
+  const removed = before - player.actionDeck.hand.length;
+  const outcome = results.includes('INFECTED') ? resolveInfectionFound(state, actorId) : 'CLEAN';
+  logContaminationScan(state, actorId, 'REST', results, removed, outcome);
 }
 
 function demolition(state: GameState, actorId: string, payload: PlayCardPayload): void {
@@ -183,7 +173,11 @@ export function applyActionCardEffect(
       return repairOrEngine(state, actorId, payload.option);
     case 'INGENUITY':
       if (payload.option === CARD_OPTION.CRAFT) {
-        notUsableNow('Создание Предмета картой выполняется базовым Действием [1] на панели инвентаря.');
+        if (!payload.craftRecipeId) throw new EngineError('INVALID_DECISION_OPTION', 'Выберите Создаваемый Предмет.');
+        return performCraft(state, actorId, payload.craftRecipeId, payload.componentItemIds ?? [], {
+          yellowIsWildcard: true,
+          viaCardName: card.name,
+        });
       }
       return repairOrEngine(state, actorId, payload.option);
     case 'DISMISS':

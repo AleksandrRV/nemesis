@@ -12,6 +12,8 @@ import type { ItemCard, ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
 import { EngineError } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
+import { discardItemCard } from './cardEffectsShared.js';
+import { resolvePodLaunchChoice } from './evacuation.js';
 
 /**
  * Завершает поиск: уменьшает itemsCount в отсеке на 1,
@@ -123,6 +125,11 @@ export function executeDecision(
     playEventCard(state, chosen);
     return;
   }
+  if (decision.type === 'ESCAPE_POD_LAUNCH_CHOICE') {
+    resolvePodLaunchChoice(state, decision, action.payload.selectedOption);
+    return;
+  }
+
   if (decision.type === 'STEEL_NERVES_OFFER') {
     state.pendingDecision = null;
     if (action.payload.selectedOption === 'USE_STEEL_NERVES') {
@@ -140,7 +147,11 @@ export function executeDecision(
       }
       return;
     }
-    state.interruptQueue.unshift({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId: actorId, intruderId: decision.intruderId });
+    state.interruptQueue.unshift({
+      type: 'SURPRISE_ATTACK_INTERRUPT',
+      playerId: actorId,
+      intruderId: decision.intruderId,
+    });
     return;
   }
   if (decision.type === 'CHOOSE_OBJECTIVE') {
@@ -275,10 +286,7 @@ export function executeDecision(
     }
     const oldSlot = player.handSlots[slotIndex]!;
     if (oldSlot.source === 'ITEM') {
-      const oldCard = oldSlot.card;
-      if (oldCard.color !== 'BLUE') {
-        state.decks.items[oldCard.color].discard.push(oldCard);
-      }
+      discardItemCard(state, oldSlot.card);
     }
 
     const allTemplates = [...RED_ITEM_CARDS, ...YELLOW_ITEM_CARDS, ...GREEN_ITEM_CARDS, ...CRAFTED_ITEM_CARDS];
@@ -313,4 +321,3 @@ export function executeDecision(
   }
   throw new EngineError('INVALID_DECISION', `Тип решения не поддерживается: ${(decision as PendingDecision).type}`);
 }
-

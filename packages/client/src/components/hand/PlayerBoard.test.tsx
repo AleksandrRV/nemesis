@@ -79,6 +79,8 @@ describe('Компоненты планшета', () => {
         onInspectItem={() => undefined}
         onInspectObject={() => undefined}
         onDiscardHeavy={() => undefined}
+        onCraft={() => undefined}
+        canCraft={false}
       />,
     );
     expect(html).toContain('Боезапас');
@@ -98,6 +100,8 @@ describe('Компоненты планшета', () => {
         onInspectItem={() => undefined}
         onInspectObject={() => undefined}
         onDiscardHeavy={() => undefined}
+        onCraft={() => undefined}
+        canCraft={false}
       />,
     );
     expect(html).toContain('Труп');

@@ -1,6 +1,9 @@
 import { INTRUDER_TYPE_NAMES, formatIntruderLogEvent } from './intruderLogModel';
 import { eventCardName, formatEventEffectOutcome, formatHiveDevelopmentOutcome } from './eventEffectLogModel';
 import { formatPrivateLogEvent, isPrivateLogEvent } from './privateLogFormat';
+import { formatScanLogEvent } from './scanLogFormat';
+import { formatCraftLogEvent, formatQuestLogEvent } from './craftLogFormat';
+import { formatEvacuationLogEvent, isEvacuationLogEvent } from './evacuationLogFormat';
 import {
   ADDITIONAL_ROOMS_2,
   BASIC_ROOMS_1,
@@ -427,6 +430,10 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
       ];
     default:
       if (isPrivateLogEvent(event)) return formatPrivateLogEvent(event, view);
+      if (event.type === 'CONTAMINATION_SCANNED') return formatScanLogEvent(event, view);
+      if (event.type === 'ITEM_CRAFTED') return formatCraftLogEvent(event, view);
+      if (event.type === 'QUEST_ACTIVATED') return formatQuestLogEvent(event, view);
+      if (isEvacuationLogEvent(event)) return formatEvacuationLogEvent(event, view);
       return formatIntruderLogEvent(event as never, view);
   }
 }

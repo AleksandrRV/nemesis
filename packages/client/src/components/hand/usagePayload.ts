@@ -9,9 +9,14 @@ function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: re
   if (first === undefined && kind !== 'HAND_CARD') return;
   switch (kind) {
     case 'ADJACENT_DOOR':
+    case 'ADJACENT_DOOR_ANY_STATE':
     case 'ANY_DOOR':
       payload.targetCorridorId = first;
       return;
+    case 'ESCAPE_POD':
+      payload.targetEscapePodId = first;
+      return;
+    case 'ANY_ROOM':
     case 'ADJACENT_ROOM':
     case 'NEIGHBOUR_ROOM':
     case 'INTRUDER_ROOM':

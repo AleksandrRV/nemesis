@@ -4,6 +4,7 @@ import type {
   ActionCard,
   ContaminationCard,
   CraftedItemCard,
+  CraftedItemId,
   EventCard,
   IntruderAttackCard,
   ItemCard,
@@ -100,6 +101,10 @@ export interface SanitizedHiddenCardPile {
  * Стопка общей колоды: колода добора закрыта (стр. 7, шаг 11), а сброс лежит
  * лицом вверх у поля (стр. 9, шаг 11) — его карты открыты всем.
  */
+export interface SanitizedCraftedItemsPile extends SanitizedCardPile<CraftedItemCard> {
+  remainingByRecipe: Record<CraftedItemId, number>;
+}
+
 export interface SanitizedCardPile<TCard> {
   drawPileCount: number;
   discard: TCard[];
@@ -117,7 +122,7 @@ export interface SanitizedCardPile<TCard> {
  */
 export interface SanitizedDecksState {
   items: Record<ItemDeckColor, SanitizedCardPile<ItemCard>>;
-  craftedItems: SanitizedCardPile<CraftedItemCard>;
+  craftedItems: SanitizedCraftedItemsPile;
   contamination: SanitizedHiddenCardPile;
   seriousWounds: SanitizedCardPile<SeriousWoundCard>;
   events: SanitizedCardPile<EventCard>;

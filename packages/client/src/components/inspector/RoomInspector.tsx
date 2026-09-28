@@ -11,6 +11,9 @@ import { RoomStatusGrid } from './RoomStatusGrid';
 import { TechCorridorPanel } from './TechCorridorPanel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { X, Package, User, Footprints, Ban, ShieldAlert, Bug, Droplets, Crosshair, Hand } from 'lucide-react';
+import { EvacuationActions } from '../evacuation/EvacuationActions';
+
+const EVACUATION_ROOMS = new Set(['HIBERNATORIUM', 'ESCAPE_POD_A', 'ESCAPE_POD_B', 'HATCH_CONTROL']);
 
 /** Подписи Тяжёлых объектов на полу отсека (стр. 22). */
 const CATEGORY_LABELS: Record<SanitizedRoomState['category'], string> = {
@@ -110,6 +113,7 @@ export const RoomInspector: React.FC = () => {
 
   // Шаг 6: Лаборатория [2] (стр. 16) — изучение объекта с пола или из рук.
   const isLaboratory = room.definitionId === 'LABORATORY';
+  const isEvacuationRoom = EVACUATION_ROOMS.has(room.definitionId ?? '');
   const floorKinds = [...new Set(room.objects.map((object) => object.kind))];
   const handKinds = isPlayerHere
     ? [
@@ -457,7 +461,30 @@ export const RoomInspector: React.FC = () => {
             })()}
 
             {/* Действие комнаты: запрещено в Бою и при Неисправности (стр. 18, 24) */}
-            {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && (
+            {isEvacuationRoom && !room.hasMalfunction && !isActiveInCombat && (
+              <EvacuationActions
+                view={view}
+                roomId={room.id}
+                definitionId={room.definitionId ?? null}
+                paymentReady={selectedCardIds.length + convertedCardIds.length >= 2}
+                onHibernate={() =>
+                  dispatch({ type: 'ACTION_ROOM_ABILITY', payload: { discardCardIds: consumePaymentCards(2) } })
+                }
+                onBoard={(podId) =>
+                  dispatch({
+                    type: 'ACTION_ROOM_ABILITY',
+                    payload: { discardCardIds: consumePaymentCards(2), targetEscapePodId: podId },
+                  })
+                }
+                onTogglePod={(podId) =>
+                  dispatch({
+                    type: 'ACTION_ROOM_ABILITY',
+                    payload: { discardCardIds: consumePaymentCards(2), targetEscapePodId: podId },
+                  })
+                }
+              />
+            )}
+            {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && !isEvacuationRoom && (
               <button
                 type="button"
                 onClick={handleRoomAbility}

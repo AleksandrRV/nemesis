@@ -3,6 +3,12 @@ import type { EventCard, ItemCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
 
 export type PendingDecision =
+  | {
+      id: string;
+      playerId: string;
+      type: 'ESCAPE_POD_LAUNCH_CHOICE';
+      podId: string;
+    }
   | { id: string; playerId: string; type: 'CHOOSE_OBJECTIVE'; objectiveIds: string[] }
   | {
       id: string;

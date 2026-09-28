@@ -7,6 +7,11 @@ import { ShipMapSVG } from './components/board/ShipMapSVG';
 import { RoomInspector } from './components/inspector/RoomInspector';
 import { SeedChip } from './components/hud/SeedChip';
 import { CrewRoster } from './components/hud/CrewRoster';
+import { InfectionScanOverlay } from './components/scanner/InfectionScanOverlay';
+import { QuestUnlockCinematic } from './components/quests/QuestUnlockCinematic';
+import { EvacuationCinematic } from './components/evacuation/EvacuationCinematic';
+import { EscapePodConsole } from './components/evacuation/EscapePodConsole';
+import { CryoChip } from './components/evacuation/CryoChip';
 import { DevPanel } from './components/dev/DevPanel';
 import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
@@ -126,6 +131,7 @@ export const App: React.FC = () => {
               ВРЕМЯ: <b className="text-white">{TIME_TRACK_LENGTH - view.meta.timeTrackPosition}</b>
             </span>
           </div>
+          <CryoChip view={view} />
 
           {/* Планшет Чужих: живой бейдж «на борту» + точка «улей шевелился» */}
           <IntruderBoardButton view={view} open={intruderBoardOpen} onOpen={() => setIntruderBoardOpen(true)} />
@@ -203,6 +209,10 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
+        <InfectionScanOverlay view={view} />
+        <QuestUnlockCinematic view={view} />
+        <EvacuationCinematic view={view} />
+        {isPresentationIdle && <EscapePodConsole view={view} />}
         {isPresentationIdle && <ShootModal />}
         {isPresentationIdle && <MeleeModal />}
 

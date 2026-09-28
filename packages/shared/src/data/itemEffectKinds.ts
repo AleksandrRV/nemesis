@@ -24,6 +24,7 @@ export type ItemEffectKind =
   | 'ANTIDOTE'
   | 'TASER'
   | 'MOLOTOV'
+  | 'QUEST'
   | 'UNKNOWN';
 
 const ITEM_EFFECT_BY_PREFIX: readonly (readonly [string, ItemEffectKind])[] = [
@@ -49,6 +50,7 @@ const ITEM_EFFECT_BY_PREFIX: readonly (readonly [string, ItemEffectKind])[] = [
   ['CRAFTED_ANTIDOTE_', 'ANTIDOTE'],
   ['CRAFTED_TASER_', 'TASER'],
   ['CRAFTED_MOLOTOV_', 'MOLOTOV'],
+  ['QUEST_', 'QUEST'],
 ];
 
 export function getItemEffectKind(item: Pick<ItemCard, 'id' | 'isWeapon'>): ItemEffectKind {

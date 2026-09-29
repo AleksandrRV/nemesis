@@ -59,6 +59,8 @@ interface CommsEnvelope {
   id: string;
   sequence: number;
   round: number;
+  /** Последняя запись журнала к моменту сообщения: Рация и журнал читаются в одном порядке. */
+  logSequence: number;
   to: CommsAddressee;
 }
 

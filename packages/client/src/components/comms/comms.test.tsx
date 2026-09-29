@@ -100,6 +100,7 @@ describe('Системное объявление о перестановке ж
     state.comms.messages.push({
       id: 'comms-9',
       sequence: 9,
+      logSequence: 0,
       round: 1,
       kind: 'SYSTEM',
       authorId: null,

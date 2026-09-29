@@ -18,7 +18,8 @@ export type ShipSystemsLogEvent = Extract<
       | 'EXCHANGE_ANSWERED'
       | 'EXCHANGE_COMPLETED'
       | 'DOOR_CHANGED'
-      | 'FIRE_EXTINGUISHED';
+      | 'FIRE_EXTINGUISHED'
+      | 'FIRE_STARTED';
   }
 >;
 
@@ -36,6 +37,7 @@ const SHIP_SYSTEMS_TYPES = new Set<string>([
   'EXCHANGE_COMPLETED',
   'DOOR_CHANGED',
   'FIRE_EXTINGUISHED',
+  'FIRE_STARTED',
 ]);
 
 export function isShipSystemsLogEvent(event: SanitizedGameLogEvent): event is ShipSystemsLogEvent {
@@ -181,6 +183,13 @@ export function formatShipSystemsLogEvent(event: ShipSystemsLogEvent, view: Sani
       return [
         actor(view, event.playerId),
         { text: ' тушит Пожар: ', tone: 'success' },
+        room(view, event.roomId),
+        { text: '.' },
+      ];
+    case 'FIRE_STARTED':
+      return [
+        actor(view, event.playerId),
+        { text: ' поджигает: ', tone: 'danger' },
         room(view, event.roomId),
         { text: '.' },
       ];

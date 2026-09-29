@@ -300,6 +300,11 @@ describe('Приманка, Дымовая граната и создаваем�
     const next = useItem(state, 'CRAFTED_MOLOTOV_1', { targetRoomId: roomId });
     expect(next.ship.rooms[roomId]!.hasFire).toBe(true);
     expect(next.players['player-1']!.seriousWounds).toHaveLength(1);
+    expect(next.gameLog.map((entry) => entry.event)).toContainEqual({
+      type: 'FIRE_STARTED',
+      playerId: 'player-1',
+      roomId,
+    });
   });
 
   it('Антидот удаляет Инфекцию и Личинку, даёт карту Заражения и заставляет спасовать', () => {

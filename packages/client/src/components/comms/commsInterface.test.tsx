@@ -88,6 +88,7 @@ describe('Досье (В8-4-6): только открытая информаци
     toggled.comms.messages.push({
       id: 'comms-9',
       sequence: 9,
+      logSequence: 0,
       round: 1,
       kind: 'SYSTEM',
       authorId: null,

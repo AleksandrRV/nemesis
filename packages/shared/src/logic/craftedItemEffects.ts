@@ -79,7 +79,7 @@ function molotov(state: GameState, actorId: string, payload: UseItemPayload): vo
   if (target.occupantIntruderIds.length === 0) {
     throw new EngineError('UNKNOWN_INTRUDER', 'Коктейль бросают в комнату с Чужим — в выбранной комнате Чужих нет.');
   }
-  if (!target.hasFire) placeFireFromCard(state, target.id);
+  if (!target.hasFire) placeFireFromCard(state, target.id, actorId);
   for (const intruderId of [...target.occupantIntruderIds]) {
     if (!state.intrudersPool.boardTokens.some((token) => token.id === intruderId)) continue;
     checkInjuryResult(state, intruderId, requireIntruder(state, intruderId).type, 1, actorId);

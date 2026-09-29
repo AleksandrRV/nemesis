@@ -200,6 +200,11 @@ describe('Эффекты карт Действий', () => {
     const burning = play(base, 'ACT_MED_PYROTECHNIC_2', { targetItemId: itemId });
     expect(burning.ship.rooms[roomId]!.hasFire).toBe(true);
     expect(burning.players['player-1']!.inventory).toHaveLength(0);
+    expect(burning.gameLog.map((entry) => entry.event)).toContainEqual({
+      type: 'FIRE_STARTED',
+      playerId: 'player-1',
+      roomId,
+    });
   });
 
   it('Недоступные сейчас карты отклоняются с явной причиной', () => {

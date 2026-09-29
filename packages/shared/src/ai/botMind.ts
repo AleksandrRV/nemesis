@@ -1,9 +1,11 @@
+import type { CommsClaim } from '../types/comms.js';
+import type { RoomId } from '../types/rooms.js';
 import type { CourseMarker, Destination } from '../types/state.js';
-import type { BotDifficulty, BotTraitId } from './botTuning.js';
+import type { BotDifficulty, BotTraitId, RequestTopic, SocialSignal } from './botTuning.js';
 import { BOT_DIFFICULTIES, BOT_TRAITS } from './botTuning.js';
 
 /** Версия схемы памяти бота: живёт в сохранении сессии, отдельно от `GameState`. */
-export const BOT_MIND_SCHEMA_VERSION = 1;
+export const BOT_MIND_SCHEMA_VERSION = 2;
 
 export interface BotPersona {
   traits: BotTraitId[];
@@ -39,11 +41,62 @@ export interface BetaScale {
   beta: number;
 }
 
+export type SocialScale = 'HONESTY' | 'RELIABILITY' | 'GOODWILL';
+
+export type EvidenceReason =
+  | 'CLAIM_CONFIRMED'
+  | 'CLAIM_REFUTED_BY_CHECK'
+  | 'CLAIM_CONTRADICTED'
+  | 'DEED_CLAIM_REFUTED'
+  | 'COURSE_CLAIM_SELF_CONTRADICTED'
+  | 'PROMISE_FULFILLED'
+  | 'PROMISE_BROKEN'
+  | 'PROMISE_EXPIRED'
+  | 'INTENT_KEPT'
+  | 'INTENT_ABANDONED'
+  | SocialSignal;
+
+/** Улика: почему шкала сдвинулась. `weight` положителен в пользу игрока, отрицателен — против. */
+export interface SocialEvidence {
+  round: number;
+  scale: SocialScale;
+  weight: number;
+  reason: EvidenceReason;
+}
+
+/** Модель другого игрока (В8-6-1): три Бета-шкалы, скепсис после пойманной лжи и список улик. */
 export interface PlayerModel {
   honesty: BetaScale;
   reliability: BetaScale;
-  hostility: number;
-  evidence: string[];
+  /** Помощь (alpha) против вреда (beta) по делам. */
+  goodwill: BetaScale;
+  /** 0 — слушает как всех, 1 — пойманный лжец почти не слышен. */
+  skepticism: number;
+  evidence: SocialEvidence[];
+}
+
+export type ClaimVerdict = 'OPEN' | 'CONFIRMED' | 'REFUTED';
+
+/** Заявление другого игрока, которое бот может однажды проверить. `epoch` — число перестановок на момент слов. */
+export interface TrackedClaim {
+  messageId: string;
+  authorId: string;
+  to: string;
+  round: number;
+  body: CommsClaim;
+  epoch: number;
+  /** Маркер Курса на момент Заявления о Курсе. */
+  marker: CourseMarker;
+  verdict: ClaimVerdict;
+}
+
+/** Намерение другого игрока: цель по графу и расстояние в момент слов. */
+export interface TrackedIntent {
+  messageId: string;
+  authorId: string;
+  round: number;
+  targetRoomIds: RoomId[];
+  startDistance: number;
 }
 
 export type BotFact =
@@ -65,13 +118,19 @@ export type BotFact =
 
 export interface OwnPromise {
   requestId: string;
+  requesterId: string;
+  topic: RequestTopic;
   round: number;
+  /** false — сознательный обман: бот не собирался помогать. */
+  sincere: boolean;
 }
 
+/** Своя ложь: бот держит линию, пока не забудет (В8-6-5). */
 export interface OwnLie {
   messageId: string;
-  topic: string;
   round: number;
+  body: CommsClaim;
+  epoch: number;
 }
 
 export interface BotPlan {
@@ -97,7 +156,15 @@ export interface BotMind {
   facts: BotFact[];
   engines: Record<'1' | '2' | '3', EngineBelief>;
   coordinates: CoordinatesBelief;
+  /** Сколько объявлений о перестановке было по каждому Двигателю. */
+  engineEpochs: Record<'1' | '2' | '3', number>;
   players: Record<string, PlayerModel>;
+  claims: TrackedClaim[];
+  intents: TrackedIntent[];
+  /** Вероятности Целей других игроков по id карты (В8-6-4); пусто — ещё не оценивались. */
+  objectiveGuesses: Record<string, Record<string, number>>;
+  /** Накопленный за раунд сдвиг морали: применяется со сменой раунда в пределах шага. */
+  pendingMorale: number;
   ownPromises: OwnPromise[];
   ownLies: OwnLie[];
   plan: BotPlan | null;
@@ -124,6 +191,21 @@ function isPersona(value: unknown): value is BotPersona {
   );
 }
 
+function isBeta(value: unknown): value is BetaScale {
+  return isRecord(value) && isFiniteNumber(value.alpha) && isFiniteNumber(value.beta);
+}
+
+function isPlayerModel(value: unknown): value is PlayerModel {
+  return (
+    isRecord(value) &&
+    isBeta(value.honesty) &&
+    isBeta(value.reliability) &&
+    isBeta(value.goodwill) &&
+    isFiniteNumber(value.skepticism) &&
+    Array.isArray(value.evidence)
+  );
+}
+
 function isEngineBelief(value: unknown): value is EngineBelief {
   return (
     isRecord(value) &&
@@ -136,7 +218,7 @@ function isEngineBelief(value: unknown): value is EngineBelief {
 /** Проверка памяти из сохранения: чужая версия или повреждённая запись — null, бот начнёт память заново. */
 export function isBotMind(value: unknown): value is BotMind {
   if (!isRecord(value) || value.version !== BOT_MIND_SCHEMA_VERSION) return false;
-  const { character, engines, coordinates } = value;
+  const { character, engines, coordinates, engineEpochs, players } = value;
   return (
     typeof value.botId === 'string' &&
     typeof value.seed === 'string' &&
@@ -154,7 +236,14 @@ export function isBotMind(value: unknown): value is BotMind {
     ['1', '2', '3'].every((engine) => isEngineBelief(engines[engine])) &&
     isRecord(coordinates) &&
     isRecord(coordinates.byMarker) &&
-    isRecord(value.players) &&
+    isRecord(engineEpochs) &&
+    ['1', '2', '3'].every((engine) => isFiniteNumber(engineEpochs[engine])) &&
+    isRecord(players) &&
+    Object.values(players).every(isPlayerModel) &&
+    Array.isArray(value.claims) &&
+    Array.isArray(value.intents) &&
+    isRecord(value.objectiveGuesses) &&
+    isFiniteNumber(value.pendingMorale) &&
     Array.isArray(value.ownPromises) &&
     Array.isArray(value.ownLies)
   );

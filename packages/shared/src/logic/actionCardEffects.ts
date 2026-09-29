@@ -130,7 +130,7 @@ function pyrotechnic(state: GameState, actorId: string, payload: PlayCardPayload
   }
   if (room.hasFire) throw new EngineError('FIRE_PRESENT', 'В вашем отсеке уже горит Пожар.');
   discardInventoryItem(state, actorId, payload.targetItemId);
-  placeFireFromCard(state, room.id);
+  placeFireFromCard(state, room.id, actorId);
 }
 
 function order(state: GameState, actorId: string, payload: PlayCardPayload): void {

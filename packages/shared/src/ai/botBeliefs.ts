@@ -1,14 +1,6 @@
 import { COORDINATE_CARDS } from '../data/coordinateCards.js';
 import type { CourseMarker, Destination } from '../types/state.js';
-import type {
-  BetaScale,
-  BotMind,
-  CoordinatesBelief,
-  DestinationDistribution,
-  EngineBelief,
-  PlayerModel,
-} from './botMind.js';
-import type { BotTuning } from './botTuning.js';
+import type { BotMind, CoordinatesBelief, DestinationDistribution, EngineBelief } from './botMind.js';
 import type { Rng } from '../utils/rng.js';
 
 const MARKERS: readonly CourseMarker[] = ['A', 'B', 'C', 'D'];
@@ -67,17 +59,6 @@ export function flipEngine(belief: EngineBelief): EngineBelief {
   return { ...belief, pWorking: 1 - belief.pWorking };
 }
 
-export function scaleMean(scale: BetaScale): number {
-  return scale.alpha / (scale.alpha + scale.beta);
-}
-
-/** Вес слов игрока: ниже порога скепсиса Заявления почти не слышны. */
-export function claimWeight(model: PlayerModel | undefined, tuning: BotTuning): number {
-  const honesty = model ? scaleMean(model.honesty) : tuning.trust.initial;
-  if (honesty < tuning.trust.skepticismFloor) return 0;
-  return tuning.trust.claimInfluence * honesty;
-}
-
 /** Заявление сдвигает лишь то, чего бот не знает сам. */
 export function applyEngineClaim(belief: EngineBelief, saysWorking: boolean, weight: number): EngineBelief {
   if (belief.known !== null || weight <= 0) return belief;
@@ -134,7 +115,7 @@ export function earthProbability(belief: CoordinatesBelief, currentMarker: Cours
   return belief.byMarker[currentMarker].EARTH;
 }
 
-/** «Склеротик»: за раунд каждое точное знание может забыться — тогда остаётся только априорное. */
+/** «Склеротик»: за раунд каждое точное знание, своя ложь и своё обещание могут забыться. */
 export function forgetKnowledge(mind: BotMind, chance: number, rng: Rng): BotMind {
   if (chance <= 0) return mind;
   const engines = { ...mind.engines };
@@ -142,5 +123,7 @@ export function forgetKnowledge(mind: BotMind, chance: number, rng: Rng): BotMin
     if (engines[key].known !== null && rng() < chance) engines[key] = priorEngineBelief();
   }
   const coordinates = mind.coordinates.cardId !== null && rng() < chance ? priorCoordinatesBelief() : mind.coordinates;
-  return { ...mind, engines, coordinates };
+  const ownLies = mind.ownLies.filter(() => rng() >= chance);
+  const ownPromises = mind.ownPromises.filter(() => rng() >= chance);
+  return { ...mind, engines, coordinates, ownLies, ownPromises };
 }

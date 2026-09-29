@@ -114,11 +114,12 @@ export function toggleDoor(
   }
 }
 
-export function placeFireFromCard(state: GameState, roomId: RoomId): void {
+export function placeFireFromCard(state: GameState, roomId: RoomId, actorId: string): void {
   const placement = placeFireMarker(state, roomId);
   if (placement === 'ALREADY_PRESENT') {
     throw new EngineError('FIRE_PRESENT', 'В этой комнате уже горит Пожар.');
   }
+  appendGameLog(state, { type: 'FIRE_STARTED', playerId: actorId, roomId });
   if (placement === 'SHIP_EXPLODED') endGame(state, 'SHIP_EXPLODED');
 }
 

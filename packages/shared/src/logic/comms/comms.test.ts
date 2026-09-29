@@ -34,6 +34,7 @@ describe('Рация: сообщения (план 0.8.0, В8-3-1)', () => {
         id: 'comms-1',
         sequence: 1,
         round: state.meta.currentRound,
+        logSequence: state.gameLog.at(-1)!.sequence,
         kind: 'CLAIM',
         authorId: 'player-1',
         to: 'ALL',

@@ -96,6 +96,8 @@
 | `../ai/passiveBotPolicy.ts` | `decidePassiveBotAction()` | Базовый бот по своему срезу: Пас, осторожные ответы на решения. |
 | `../ai/botAgent.ts`, `botObserver.ts`, `botBeliefs.ts` | `BotAgent.decide()`, `createBotMind()`, `observeForBot()` | Ядро бота: чистое решение по срезу и памяти, наблюдения, убеждения о Двигателях и Курсе ([bots.md](bots.md)). |
 | `../ai/botMind.ts`, `botCharacter.ts`, `botTuning.ts` | `BotMind`, `generateCharacter()`, `BOT_TUNING` | Память бота со своей схемой, характер (мораль, черты), все числа поведения. |
+| `../ai/botSocial.ts`, `botClaims.ts`, `botDeeds.ts`, `botMorale.ts` | `trustIn()`, `verifyClaims()`, `applySignal()` | Социальная модель: шкалы и улики, проверка Заявлений, дела, обещания, Намерения, дрейф морали. |
+| `../ai/botObjectives.ts`, `botLying.ts`, `botRequests.ts`, `botGraph.ts` | `threatFrom()`, `planEngineClaim()`, `assessRequest()` | Угадывание Целей, политика лжи, ответы на Просьбы, расстояния по графу. |
 
 ### C. Данные (`src/data/`)
 

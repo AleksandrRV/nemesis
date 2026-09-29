@@ -28,6 +28,7 @@ export interface ExchangedEntry {
 export type ShipSystemsLogEvent =
   | { type: 'DOOR_CHANGED'; playerId: string; corridorId: string; from: DoorState; to: DoorState }
   | { type: 'FIRE_EXTINGUISHED'; playerId: string; roomId: RoomId }
+  | { type: 'FIRE_STARTED'; playerId: string; roomId: RoomId }
   | {
       type: 'ENGINES_INSPECTED';
       playerId: string;

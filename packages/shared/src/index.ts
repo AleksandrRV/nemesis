@@ -28,6 +28,10 @@ export { activePersona, botSeedOf, effectiveKnobs, generateCharacter } from './a
 export { earthProbability } from './ai/botBeliefs.js';
 export { observe as observeForBot } from './ai/botObserver.js';
 export { BotAgent, createBotMind, type BotDecision } from './ai/botAgent.js';
+export { hostilityOf, scaleMean, trustIn } from './ai/botSocial.js';
+export { planCoordinatesClaim, planEngineClaim, type ClaimPlan } from './ai/botLying.js';
+export { assessRequest, type RequestAssessment } from './ai/botRequests.js';
+export { OBJECTIVE_PROFILES, suspectedEnemies, threatFrom, type ObjectiveProfile } from './ai/botObjectives.js';
 export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';
 export {

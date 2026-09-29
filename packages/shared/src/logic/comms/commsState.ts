@@ -1,7 +1,9 @@
 import type { CommsMessage, CommsState } from '../../types/comms.js';
 import type { EngineNumber, GameState } from '../../types/state.js';
 
-type WithoutEnvelope<Message> = Message extends CommsMessage ? Omit<Message, 'id' | 'sequence' | 'round'> : never;
+type WithoutEnvelope<Message> = Message extends CommsMessage
+  ? Omit<Message, 'id' | 'sequence' | 'round' | 'logSequence'>
+  : never;
 type NewMessage = WithoutEnvelope<CommsMessage>;
 
 export function createInitialComms(): CommsState {
@@ -10,7 +12,13 @@ export function createInitialComms(): CommsState {
 
 export function appendCommsMessage(state: GameState, message: NewMessage): CommsMessage {
   const sequence = (state.comms.messages.at(-1)?.sequence ?? 0) + 1;
-  const stored = { ...message, id: `comms-${sequence}`, sequence, round: state.meta.currentRound } as CommsMessage;
+  const stored = {
+    ...message,
+    id: `comms-${sequence}`,
+    sequence,
+    round: state.meta.currentRound,
+    logSequence: state.gameLog.at(-1)?.sequence ?? 0,
+  } as CommsMessage;
   state.comms.messages.push(stored);
   return stored;
 }

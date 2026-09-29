@@ -5,14 +5,27 @@ import {
   applyCoordinatesClaim,
   applyEngineClaim,
   certainEngine,
-  claimWeight,
   engineKey,
   flipEngine,
   forgetKnowledge,
   knownCoordinates,
 } from './botBeliefs.js';
 import { botStream, effectiveKnobs } from './botCharacter.js';
+import { trackClaim, verifyClaims, type ClaimVerdictEvent } from './botClaims.js';
+import {
+  applySignal,
+  deedSignalsOf,
+  observeCommitment,
+  observePursuit,
+  settleIntents,
+  trackIntent,
+} from './botDeeds.js';
+import { recordOwnClaim } from './botLying.js';
 import type { BotFact, BotMind } from './botMind.js';
+import { applyMoraleDrift } from './botMorale.js';
+import { initialObjectiveGuesses, objectiveClueOf, observeObjectiveClue } from './botObjectives.js';
+import { pruneOwnPromises } from './botRequests.js';
+import { claimWeight, relaxPlayerModel } from './botSocial.js';
 import { BOT_TUNING, type BotTuning } from './botTuning.js';
 
 function withFact(mind: BotMind, fact: BotFact, tuning: BotTuning): BotMind {
@@ -36,7 +49,7 @@ function ownPendingAnnouncement(mind: BotMind, engineNumber: number, delta: numb
 }
 
 /** Одна запись журнала: публичный факт плюс то, что бот узнал сам (свои проверки в его срезе открыты). */
-function observeLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: BotTuning): BotMind {
+function observeShipLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: BotTuning): BotMind {
   const event = entry.event;
   const round = mind.observedRound;
   const self = mind.botId;
@@ -70,7 +83,7 @@ function observeLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: Bo
       return next;
     }
     case 'ENGINE_TOGGLED': {
-      let next = withFact(
+      const next = withFact(
         mind,
         {
           kind: 'ENGINE_TOUCHED',
@@ -83,8 +96,8 @@ function observeLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: Bo
       );
       if (event.playerId !== self || event.isWorking === null) return next;
       const isWorking = event.isWorking;
-      next = setEngine(next, event.engineNumber, () => certainEngine(isWorking, round, 'OWN_TOGGLE'));
-      return event.orderChanged ? ownPendingAnnouncement(next, event.engineNumber, 1) : next;
+      const known = setEngine(next, event.engineNumber, () => certainEngine(isWorking, round, 'OWN_TOGGLE'));
+      return event.orderChanged ? ownPendingAnnouncement(known, event.engineNumber, 1) : known;
     }
     case 'COORDINATES_INSPECTED': {
       const next = withFact(mind, { kind: 'COORDINATES_CHECKED', round, playerId: event.playerId }, tuning);
@@ -145,29 +158,39 @@ function observeLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: Bo
   }
 }
 
-function observeMessage(mind: BotMind, message: CommsMessage, view: SanitizedGameState, tuning: BotTuning): BotMind {
-  const next = withFact(
-    mind,
-    {
-      kind: 'SAID',
-      round: message.round,
-      messageId: message.id,
-      authorId: message.authorId,
-      messageKind: message.kind,
-    },
-    tuning,
-  );
-  if (message.kind === 'SYSTEM') {
-    const engineNumber = message.body.engineNumber;
-    if ((next.pendingOwnAnnouncements[String(engineNumber)] ?? 0) > 0)
-      return ownPendingAnnouncement(next, engineNumber, -1);
-    return setEngine(
-      withFact(next, { kind: 'ENGINE_ORDER_CHANGED', round: message.round, engineNumber }, tuning),
-      engineNumber,
-      flipEngine,
-    );
-  }
-  if (message.kind !== 'CLAIM' || message.authorId === mind.botId) return next;
+/** Та же запись глазами социальной модели (В8-6-1, В8-6-4): дела, обещания, преследование, улики о Целях. */
+function observeSocialLogEntry(
+  mind: BotMind,
+  entry: SanitizedGameLogEntry,
+  view: SanitizedGameState,
+  tuning: BotTuning,
+): BotMind {
+  const event = entry.event;
+  let next = deedSignalsOf(event, view, mind).reduce((acc, deed) => applySignal(acc, deed, view, tuning), mind);
+  if (event.type === 'COMMITMENT_RESOLVED') next = observeCommitment(next, event, view, tuning);
+  if (event.type === 'PLAYER_MOVED') next = observePursuit(next, event, view, tuning);
+  const clue = objectiveClueOf(event, view);
+  if (clue && clue.playerId !== mind.botId) next = observeObjectiveClue(next, clue.playerId, clue.clue, tuning);
+  return next;
+}
+
+function observeAnnouncement(mind: BotMind, engineNumber: number, round: number, tuning: BotTuning): BotMind {
+  const key = engineKey(engineNumber);
+  const counted = key ? { ...mind, engineEpochs: { ...mind.engineEpochs, [key]: mind.engineEpochs[key] + 1 } } : mind;
+  const next = withFact(counted, { kind: 'ENGINE_ORDER_CHANGED', round, engineNumber }, tuning);
+  if ((next.pendingOwnAnnouncements[String(engineNumber)] ?? 0) > 0)
+    return ownPendingAnnouncement(next, engineNumber, -1);
+  return setEngine(next, engineNumber, flipEngine);
+}
+
+function observeClaim(
+  mind: BotMind,
+  message: Extract<CommsMessage, { kind: 'CLAIM' }>,
+  view: SanitizedGameState,
+  tuning: BotTuning,
+): BotMind {
+  if (message.authorId === mind.botId) return recordOwnClaim(mind, message);
+  const next = trackClaim(mind, message, view);
   const weight = claimWeight(next.players[message.authorId], tuning);
   const claim = message.body;
   switch (claim.topic) {
@@ -195,36 +218,102 @@ function observeMessage(mind: BotMind, message: CommsMessage, view: SanitizedGam
   }
 }
 
-/** Смена раунда: «Склеротик» может забыть точные знания; бросок — личным потоком `ai`. */
-function forgetOnNewRounds(mind: BotMind, before: number, tuning: BotTuning): BotMind {
-  const rounds = mind.observedRound - before;
-  const chance =
-    effectiveKnobs(mind.character, mind.difficulty, tuning).forgetChance * tuning.memory.forgetChancePerRound;
-  if (rounds <= 0 || chance <= 0) return mind;
-  const stream = botStream(mind.seed, mind.rngDraws);
+function refusedMyRequest(mind: BotMind, message: Extract<CommsMessage, { kind: 'ANSWER' }>): boolean {
+  return message.body.answer === 'CANNOT' && message.to === mind.botId && message.authorId !== mind.botId;
+}
+
+function observeMessage(mind: BotMind, message: CommsMessage, view: SanitizedGameState, tuning: BotTuning): BotMind {
+  const next = withFact(
+    mind,
+    {
+      kind: 'SAID',
+      round: message.round,
+      messageId: message.id,
+      authorId: message.authorId,
+      messageKind: message.kind,
+    },
+    tuning,
+  );
+  switch (message.kind) {
+    case 'SYSTEM':
+      return observeAnnouncement(next, message.body.engineNumber, message.round, tuning);
+    case 'CLAIM':
+      return observeClaim(next, message, view, tuning);
+    case 'INTENT':
+      return trackIntent(next, message, view);
+    case 'ANSWER':
+      return refusedMyRequest(next, message)
+        ? applySignal(next, { playerId: message.authorId, signal: 'REFUSED_MY_REQUEST' }, view, tuning)
+        : next;
+    default:
+      return next;
+  }
+}
+
+/** Приговор Заявлению — ещё и поступок: ложь в адрес бота бьёт по морали, «чиню» при поломке — вред. */
+function afterVerdict(mind: BotMind, verdict: ClaimVerdictEvent, view: SanitizedGameState, tuning: BotTuning): BotMind {
+  const { claim, refuted } = verdict;
   let next = mind;
+  if (refuted && (claim.to === 'ALL' || claim.to === mind.botId)) {
+    next = { ...next, pendingMorale: next.pendingMorale + tuning.morale.lieCaughtAgainstMe };
+  }
+  if (claim.body.topic === 'ENGINE_DEED' && claim.body.deed === 'REPAIRED') {
+    const signal = refuted ? 'DAMAGED_ENGINE_AFTER_REPAIR_CLAIM' : 'REPAIRED';
+    next = applySignal(next, { playerId: claim.authorId, signal }, view, tuning);
+  }
+  return next;
+}
+
+/** Смена раунда: забывание «Склеротика» (личный поток `ai`), таяние доверия и обид, дрейф морали. */
+function onNewRounds(mind: BotMind, view: SanitizedGameState, before: number, tuning: BotTuning): BotMind {
+  const rounds = mind.observedRound - before;
+  if (rounds <= 0) return mind;
+  const knobs = effectiveKnobs(mind.character, mind.difficulty, tuning);
+  const initialTrust = tuning.trust.initial * knobs.initialTrust;
+  const players = Object.fromEntries(
+    Object.entries(mind.players).map(([playerId, model]) => [
+      playerId,
+      relaxPlayerModel(model, rounds, initialTrust, knobs, tuning),
+    ]),
+  );
+  let next = applyMoraleDrift({ ...mind, players }, view, rounds, tuning);
+  const chance = knobs.forgetChance * tuning.memory.forgetChancePerRound;
+  if (chance <= 0) return next;
+  const stream = botStream(next.seed, next.rngDraws);
   for (let round = 0; round < rounds; round++) next = forgetKnowledge(next, chance, stream.rng);
   return { ...next, rngDraws: stream.used() };
 }
 
+function withObjectiveGuesses(mind: BotMind, view: SanitizedGameState): BotMind {
+  if (Object.keys(mind.objectiveGuesses).length > 0) return mind;
+  return { ...mind, objectiveGuesses: initialObjectiveGuesses(view, mind.botId) };
+}
+
 /**
- * Наблюдатель (план 0.8.0, В8-5-4): новые записи журнала и Рации в памяти бота — только из его среза.
+ * Наблюдатель (план 0.8.0, В8-5-4, В8-6): новые записи журнала и Рации в памяти бота — только из его среза.
  * Функция чистая: память на входе не меняется.
  */
 export function observe(view: SanitizedGameState, mind: BotMind, tuning: BotTuning = BOT_TUNING): BotMind {
   const startRound = mind.observedRound;
-  let next = mind;
+  let next = withObjectiveGuesses(mind, view);
+  const messages = view.comms.messages.filter((message) => message.sequence > mind.processedCommsSequence);
+  let heard = 0;
   for (const entry of view.gameLog) {
-    if (entry.sequence > next.processedLogSequence) next = observeLogEntry(next, entry, tuning);
+    if (entry.sequence <= mind.processedLogSequence) continue;
+    for (; heard < messages.length && messages[heard]!.logSequence < entry.sequence; heard++) {
+      next = observeMessage(next, messages[heard]!, view, tuning);
+    }
+    next = observeSocialLogEntry(observeShipLogEntry(next, entry, tuning), entry, view, tuning);
   }
-  for (const message of view.comms.messages) {
-    if (message.sequence > next.processedCommsSequence) next = observeMessage(next, message, view, tuning);
-  }
+  for (; heard < messages.length; heard++) next = observeMessage(next, messages[heard]!, view, tuning);
   next = {
     ...next,
     observedRound: Math.max(next.observedRound, view.meta.currentRound),
     processedLogSequence: view.gameLog.at(-1)?.sequence ?? next.processedLogSequence,
     processedCommsSequence: view.comms.messages.at(-1)?.sequence ?? next.processedCommsSequence,
   };
-  return forgetOnNewRounds(next, startRound, tuning);
+  const verified = verifyClaims(next, next.observedRound, tuning);
+  next = verified.verdicts.reduce((acc, verdict) => afterVerdict(acc, verdict, view, tuning), verified.mind);
+  next = pruneOwnPromises(settleIntents(next, view, tuning), view);
+  return onNewRounds(next, view, startRound, tuning);
 }

@@ -9,7 +9,7 @@ import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
 // Сохранения другой схемы не восстанавливаются (CHANGELOG, 0.6.0).
-export const GAME_STATE_SCHEMA_VERSION = 29;
+export const GAME_STATE_SCHEMA_VERSION = 30;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:

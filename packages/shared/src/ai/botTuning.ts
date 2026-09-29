@@ -69,7 +69,24 @@ export type SocialSignal =
   | 'REPAIRED'
   | 'KILLED_INTRUDER_NEAR_ME'
   | 'GAVE_ITEM'
-  | 'OPENED_DOOR_ON_REQUEST';
+  | 'OPENED_DOOR_ON_REQUEST'
+  | 'KEPT_PROMISE_TO_ME'
+  | 'BROKE_PROMISE_TO_ME'
+  | 'REFUSED_MY_REQUEST';
+
+export type RequestTopic =
+  | 'NEED_ITEM'
+  | 'HELP_KILL'
+  | 'CHECK_ENGINE'
+  | 'CHECK_COORDINATES'
+  | 'SET_DOOR'
+  | 'EXTINGUISH'
+  | 'WAIT_IN_POD'
+  | 'NO_SELF_DESTRUCT';
+
+/** Что выдаёт Цель другого игрока по его делам (В8-6-4). */
+export type ObjectiveClue =
+  'CARRIES_EGG' | 'CARRIES_CORPSE' | 'CARRIES_REMAINS' | 'SIGNAL_ROOM' | 'LABORATORY' | 'SURGERY';
 
 export type BotDesire =
   | 'SURVIVE'
@@ -117,6 +134,8 @@ export interface BotTuning {
     harmReceived: number;
     lieCaughtAgainstMe: number;
     losing: number;
+    /** Тяжёлых Травм, с которых бот считает, что проигрывает. */
+    losingSeriousWounds: number;
   };
   trust: {
     initial: number;
@@ -128,13 +147,50 @@ export interface BotTuning {
     claimInfluence: number;
     /** Ниже этого доверия Заявления почти не слышны. */
     skepticismFloor: number;
+    /** Вес опровержения двумя независимыми Заявлениями против собственной Проверки. */
+    contradictionWeight: number;
+    /** Обещание истекло без исполнения: слабее нарушения. */
+    expiredPromiseWeight: number;
+    /** Скепсис после пойманной лжи и его таяние за раунд (ручка `skepticismDecay`). */
+    skepticismOnLie: number;
+    skepticismDecayPerRound: number;
+    /** Таяние обид и благодарности за раунд (делится на ручку `grudgeMemory`). */
+    goodwillForgettingPerRound: number;
+    /** Раунды, за которые Намерение должно дать прогресс по графу. */
+    intentWindowRounds: number;
+    /** Заявление о своём деле с Двигателем относится к касаниям за это число раундов. */
+    deedClaimWindowRounds: number;
+    maxEvidencePerPlayer: number;
   };
   socialSignals: Record<SocialSignal, number>;
   lying: {
     benefitThreshold: number;
     exposurePenalty: number;
+    /** Шанс разоблачения будущей Проверкой, даже если сейчас никто не знает правды. */
+    exposureBase: number;
     exposurePerInspector: number;
-    exposureAfterAnnouncement: number;
+    /** Ценность правды о Двигателе и Курсе для чужого успеха. */
+    engineInfoValue: number;
+    coordinatesInfoValue: number;
+    /** Добавка к выгоде лжи, если Цель бота требует чужой гибели или гибели корабля. */
+    objectiveConflictBonus: number;
+  };
+  requests: {
+    benefit: Record<RequestTopic, number>;
+    baseCost: Record<RequestTopic, number>;
+    costPerHop: number;
+    /** Доля помощи, которую бот даёт даже при нулевой морали. */
+    baseGoodwill: number;
+    /** Цена нарушенного обещания для репутации — удерживает от ложного «Помогу». */
+    brokenPromiseReputationCost: number;
+  };
+  objectives: {
+    clueLikelihood: Record<ObjectiveClue, number>;
+    /** Во сколько раз шаг к игроку N или вред ему повышает Цель «Игрок N не должен выжить». */
+    pursuitLikelihood: number;
+    harmLikelihood: number;
+    /** Выше этой вероятности бот считает, что Цель игрока направлена против него. */
+    suspicionThreshold: number;
   };
   risk: { noise: number; contact: number; fire: number; wound: number; seriousWound: number };
   desires: Record<BotDesire, number>;
@@ -171,6 +227,7 @@ export const BOT_TUNING = {
     harmReceived: -8,
     lieCaughtAgainstMe: -6,
     losing: -4,
+    losingSeriousWounds: 2,
   },
   trust: {
     initial: 0.5,
@@ -179,6 +236,14 @@ export const BOT_TUNING = {
     forgettingPerRound: 0.04,
     claimInfluence: 0.6,
     skepticismFloor: 0.15,
+    contradictionWeight: 0.5,
+    expiredPromiseWeight: 0.5,
+    skepticismOnLie: 0.9,
+    skepticismDecayPerRound: 0.08,
+    goodwillForgettingPerRound: 0.06,
+    intentWindowRounds: 2,
+    deedClaimWindowRounds: 1,
+    maxEvidencePerPlayer: 40,
   },
   socialSignals: {
     CLOSED_DOOR_ON_ME: -3,
@@ -193,12 +258,56 @@ export const BOT_TUNING = {
     KILLED_INTRUDER_NEAR_ME: 3,
     GAVE_ITEM: 3,
     OPENED_DOOR_ON_REQUEST: 2,
+    KEPT_PROMISE_TO_ME: 2,
+    BROKE_PROMISE_TO_ME: -3,
+    REFUSED_MY_REQUEST: -0.5,
   },
   lying: {
     benefitThreshold: 0.25,
     exposurePenalty: 1.5,
+    exposureBase: 0.15,
     exposurePerInspector: 0.35,
-    exposureAfterAnnouncement: 0.2,
+    engineInfoValue: 0.6,
+    coordinatesInfoValue: 0.8,
+    objectiveConflictBonus: 0.5,
+  },
+  requests: {
+    benefit: {
+      NEED_ITEM: 0.6,
+      HELP_KILL: 0.8,
+      CHECK_ENGINE: 0.4,
+      CHECK_COORDINATES: 0.4,
+      SET_DOOR: 0.5,
+      EXTINGUISH: 0.6,
+      WAIT_IN_POD: 0.9,
+      NO_SELF_DESTRUCT: 0.7,
+    },
+    baseCost: {
+      NEED_ITEM: 0.25,
+      HELP_KILL: 0.45,
+      CHECK_ENGINE: 0.1,
+      CHECK_COORDINATES: 0.1,
+      SET_DOOR: 0.1,
+      EXTINGUISH: 0.2,
+      WAIT_IN_POD: 0.3,
+      NO_SELF_DESTRUCT: 0,
+    },
+    costPerHop: 0.06,
+    baseGoodwill: 0.5,
+    brokenPromiseReputationCost: 0.4,
+  },
+  objectives: {
+    clueLikelihood: {
+      CARRIES_EGG: 4,
+      CARRIES_CORPSE: 4,
+      CARRIES_REMAINS: 3,
+      SIGNAL_ROOM: 2,
+      LABORATORY: 1.5,
+      SURGERY: 1.5,
+    },
+    pursuitLikelihood: 1.15,
+    harmLikelihood: 1.6,
+    suspicionThreshold: 0.45,
   },
   risk: { noise: 1, contact: 1.6, fire: 1.2, wound: 1.4, seriousWound: 2.5 },
   desires: {

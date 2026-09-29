@@ -1,7 +1,7 @@
 import type { CharacterClass, EngineAction, GameState, SanitizedGameState } from '@nemesis/shared';
 import { GameEngine, createInitialGameState, filterStateForPlayer } from '@nemesis/shared';
 
-import type { SessionStorage } from '../session/sessionStorage';
+import type { SessionDiscardReason, SessionStorage } from '../session/sessionStorage';
 import { createLocalSessionStorage } from '../session/sessionStorage';
 import { createSeed } from '../session/seed';
 import type { GameEvent, IGameTransport } from './ITransport';
@@ -43,13 +43,16 @@ export class LocalInMemoryTransport implements IGameTransport {
   private readonly stateSubscribers = new Set<(state: SanitizedGameState) => void>();
   private readonly eventSubscribers = new Set<(event: GameEvent) => void>();
   private localState: GameState;
+  private discardedSession: SessionDiscardReason | null;
 
   constructor(options: LocalTransportOptions) {
     this.engine = options.engine ?? new GameEngine();
     this.session = options.session;
     this.playerId = options.playerId;
     this.allowDevActions = options.allowDevActions ?? false;
-    this.localState = this.session.load() ?? createInitialGameState(options.seed ?? createSeed());
+    const restored = this.session.restore();
+    this.discardedSession = restored.discarded;
+    this.localState = restored.state ?? createInitialGameState(options.seed ?? createSeed());
   }
 
   async init(): Promise<void> {
@@ -57,6 +60,10 @@ export class LocalInMemoryTransport implements IGameTransport {
     // не было, стол уже брошен, и его нужно записать.
     this.session.save(this.localState);
     this.broadcastState();
+    if (this.discardedSession) {
+      this.emitEvent({ type: 'SESSION_DISCARDED', reason: this.discardedSession });
+      this.discardedSession = null;
+    }
   }
 
   sendAction(action: EngineAction): void {

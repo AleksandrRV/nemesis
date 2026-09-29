@@ -4,6 +4,7 @@ import type { GameState } from '../types/state.js';
 import { appendGameLog } from './gameLog.js';
 import { killPlayer } from './characterDamage.js';
 import { placeIntruder } from './intruderPlacement.js';
+import { announceIntruderMiniature } from './objectives.js';
 
 export function isContamination(card: ActionDeckCard): card is ContaminationCard {
   return !('characterClass' in card);
@@ -28,6 +29,7 @@ export function resolveInfectionFound(
   const roomId = player.roomId;
   killPlayer(state, playerId);
   placeIntruder(state, 'CREEPER', roomId);
+  state.interruptQueue.unshift(...announceIntruderMiniature(state, playerId, roomId));
   return 'DIED';
 }
 

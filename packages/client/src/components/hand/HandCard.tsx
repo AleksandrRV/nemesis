@@ -1,7 +1,8 @@
 import React from 'react';
 import { Biohazard, Check, Info, Lock, Play, Zap } from 'lucide-react';
-import type { SanitizedPlayerState } from '@nemesis/shared';
+import { actionCardCombatUse, type SanitizedPlayerState } from '@nemesis/shared';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CombatUseBadge } from './CombatUseBadge';
 
 type HandEntry = SanitizedPlayerState['actionDeck']['hand'][number];
 
@@ -73,6 +74,7 @@ export const HandCard: React.FC<HandCardProps> = ({
               <Biohazard size={18} className="shrink-0 text-fuchsia-300" aria-hidden="true" />
             )}
             <span className="line-clamp-2 flex-1 text-[13px] font-bold leading-tight text-white">{title}</span>
+            {isAction && <CombatUseBadge combatUse={actionCardCombatUse(card)} size={14} />}
           </span>
           <span className="line-clamp-3 text-[10.5px] leading-snug text-slate-400">
             {isConverted

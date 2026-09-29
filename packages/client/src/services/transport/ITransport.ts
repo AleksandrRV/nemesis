@@ -1,4 +1,5 @@
 import type { EngineAction, SanitizedGameState } from '@nemesis/shared';
+import type { SessionDiscardReason } from '../session/sessionStorage';
 
 /**
  * Транспорт полностью изолирует интерфейс от того, где физически живёт движок
@@ -13,7 +14,10 @@ import type { EngineAction, SanitizedGameState } from '@nemesis/shared';
 
 /** События транспорта: всё, что происходит помимо обновления состояния. */
 export type GameEvent =
-  { type: 'ACTION_APPLIED'; action: EngineAction } | { type: 'ACTION_REJECTED'; action: EngineAction; reason: string };
+  | { type: 'ACTION_APPLIED'; action: EngineAction }
+  | { type: 'ACTION_REJECTED'; action: EngineAction; reason: string }
+  /** Сохранение несовместимо: оно удалено, начата новая партия (С7-2, решение В-5). */
+  | { type: 'SESSION_DISCARDED'; reason: SessionDiscardReason };
 
 export interface IGameTransport {
   /** Готовит транспорт к работе: первая выдача состояния приходит подписчикам. */

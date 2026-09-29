@@ -99,7 +99,7 @@ describe('Шаг 8 Фазы Событий: Развитие Улья (стр. 1
     expect(state.interruptQueue.every((interrupt) => interrupt.type !== 'NOISE_ROLL_INTERRUPT')).toBe(true);
   });
 
-  it('Королева при Персонаже в Улье: миниатюра и немедленный Контакт', () => {
+  it('Королева при Персонаже в Улье: миниатюра, Первый Контакт с выбором Цели и немедленный Контакт', () => {
     const state = freshState('dump'); // seed 'dump': Улей — комната 3
     putPlayer(state, 'player-1', 3);
     singleTokenBag(state, 'QUEEN');
@@ -115,8 +115,10 @@ describe('Шаг 8 Фазы Событий: Развитие Улья (стр. 1
     const queen = state.intrudersPool.boardTokens.find((t) => t.id === outcome.intruderId);
     expect(queen).toMatchObject({ type: 'QUEEN', roomId: 3 });
     expect(state.interruptQueue).toEqual([
+      { type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT', playerId: 'player-1' },
       { type: 'CONTACT_INTERRUPT', playerId: 'player-1', roomId: 3, source: 'EVENT' },
     ]);
+    expect(state.gameLog.some((logEntry) => logEntry.event.type === 'FIRST_CONTACT')).toBe(true);
     expect(state.intrudersPool.eggsOnBoard).toBe(eggsBefore);
     expect(state.intrudersPool.bag.map((t) => t.type)).toEqual(['QUEEN']);
   });

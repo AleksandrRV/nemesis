@@ -9,6 +9,7 @@ import { GREEN_ITEM_CARDS, RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from '../data/ite
 import { getItemEffectKind } from '../data/itemEffectKinds.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { WEAKNESS_CARDS } from '../data/weaknesses.js';
+import { PERSONAL_OBJECTIVE_CARDS } from '../data/objectiveCards.js';
 import { createInitialDecks } from '../data/cardsSetup.js';
 import { GameEngine } from './fsm.js';
 import { executeRoomAbility } from './roomAbilities.js';
@@ -249,7 +250,7 @@ describe('Ключ связи', () => {
   it('показывает карты Цели Персонажа с маркером Сигнала только владельцу ключа', () => {
     const { state, keyId } = keyState('comms-key');
     state.players['player-2']!.objectives = [
-      { id: 'OBJ_TEST', name: 'Испытательная цель', description: '', kind: 'PERSONAL' },
+      { ...PERSONAL_OBJECTIVE_CARDS[0]!, id: 'OBJ_TEST', name: 'Испытательная цель' },
     ];
 
     const next = useItem(state, keyId, { targetPlayerId: 'player-2' });
@@ -265,7 +266,7 @@ describe('Ключ связи', () => {
     });
   });
 
-  it('отказы: нет Компьютера, у Персонажа нет маркера Сигнала, карты Целей не раздавались', () => {
+  it('отказы: нет Компьютера, у Персонажа нет маркера Сигнала, у Персонажа нет карт Целей', () => {
     const noComputer = keyState('comms-key-no-computer');
     playerRoom(noComputer.state).hasComputer = false;
     expectEngineError(() => useItem(noComputer.state, noComputer.keyId, { targetPlayerId: 'player-2' }), 'NO_COMPUTER');
@@ -278,6 +279,7 @@ describe('Ключ связи', () => {
     );
 
     const noObjectives = keyState('comms-key-no-objectives');
+    noObjectives.state.players['player-2']!.objectives = [];
     expectEngineError(
       () => useItem(noObjectives.state, noObjectives.keyId, { targetPlayerId: 'player-2' }),
       'CARD_NOT_USABLE_NOW',

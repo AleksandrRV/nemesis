@@ -5,6 +5,7 @@ import { drawFromStream } from '../utils/rng.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, placeIntruder, returnTokenToBag } from './intruderPlacement.js';
+import { announceIntruderMiniature } from './objectives.js';
 import { getOrderedPlayers } from './turnCycle.js';
 
 /** Планшет Чужих вмещает 8 жетонов Яиц (стр. 31, Развитие Улья). */
@@ -97,6 +98,7 @@ function resolveQueenToken(state: GameState): HiveDevelopmentOutcome {
 
   if (occupants.length > 0) {
     const queen = placeIntruder(state, 'QUEEN', nest!.id);
+    state.interruptQueue.unshift(...announceIntruderMiniature(state, occupants[0]!, nest!.id));
     for (const playerId of occupants) {
       state.interruptQueue.push({
         type: 'CONTACT_INTERRUPT',

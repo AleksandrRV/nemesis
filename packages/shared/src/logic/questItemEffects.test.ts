@@ -7,12 +7,13 @@ import { questDefinition, questItemCardId } from '../data/questItems.js';
 import { RED_ITEM_CARDS, YELLOW_ITEM_CARDS } from '../data/itemCards.js';
 import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { WEAKNESS_CARDS } from '../data/weaknesses.js';
+import { CORPORATE_OBJECTIVE_CARDS, PERSONAL_OBJECTIVE_CARDS } from '../data/objectiveCards.js';
 import { GameEngine } from './fsm.js';
 
 function giveObjectives(state: GameState, playerId: string): ObjectiveCard[] {
   const objectives: ObjectiveCard[] = [
-    { id: `${playerId}-personal`, name: 'Личная Цель', description: '', kind: 'PERSONAL' },
-    { id: `${playerId}-corporate`, name: 'Корпоративная Цель', description: '', kind: 'CORPORATE' },
+    { ...PERSONAL_OBJECTIVE_CARDS[0]!, id: `${playerId}-personal`, name: 'Личная Цель' },
+    { ...CORPORATE_OBJECTIVE_CARDS[0]!, id: `${playerId}-corporate`, name: 'Корпоративная Цель' },
   ];
   state.players[playerId]!.objectives = objectives;
   return objectives;

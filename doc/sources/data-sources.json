@@ -133,6 +133,11 @@
         "title": "Сканы оригинальных компонентов (книга правил, карты, тайлы, жетоны, кубики, поле), сверка 28.09.2026 при 250–300 dpi",
         "location": "doc/original/*.pdf, doc/original/map_full.jpg; транскрипт — doc/sources/scan-transcript.md"
       },
+      "owner-decision-2026-09-29": {
+        "kind": "USER_CONFIRMED",
+        "title": "Решения владельца по Этапу 7: Цели в соло — Соло/Кооп (стр. 27); символы Боя — реализовать в 0.6.0; Антидот замешивает и Руку; Создаваемый Предмет берётся из синей колоды и её сброса",
+        "location": "переписка с владельцем, 29.09.2026"
+      },
       "owner-decision-2026-09-28": {
         "kind": "USER_CONFIRMED",
         "title": "Решения владельца проекта (сессия 28.09.2026): вопросы В-1…В-6 плана исправлений; подтверждение, что Коридоры в shipGraph.ts корректны",
@@ -729,6 +734,171 @@
         "startingCourseMarker": "B"
       }
     },
+    "combat-use": {
+      "file": "packages/shared/src/data/combatUse.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
+        {
+          "claim": "Символы «Только в Бою» (оружие) и «Только вне Боя» (перечёркнутое оружие) печатаются в правом верхнем углу карты; без символа Действие доступно и в Бою, и вне Боя.",
+          "source": "rules-md",
+          "lines": "690-696, 747"
+        },
+        {
+          "claim": "Символы всех 60 карт Действий шести Персонажей; символ зависит от Действия и одинаков у одноимённых карт разных Персонажей.",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 17–29"
+        },
+        {
+          "claim": "Символы Предметов жёлтой, зелёной, красной и синей колод, стартового оружия и квестовых предметов; у Ключа эвакуации красной колоды символа нет, у квестового Ключа эвакуации Пилота — «Только вне Боя».",
+          "source": "pnp-scans",
+          "page": "cards_additional.pdf, стр. 1–13, 15, 17"
+        },
+        {
+          "claim": "Базовые Действия на планшетах Персонажей символов Боя не имеют.",
+          "source": "pnp-scans",
+          "page": "roles.pdf, стр. 1–4"
+        },
+        {
+          "claim": "Символы реализуются в 0.6.0: недоступное по символу Действие отклоняется явной ошибкой.",
+          "source": "owner-decision-2026-09-29"
+        }
+      ],
+      "expectation": {
+        "actionCards": {
+          "RELOAD": null,
+          "ORDER": "OUT_OF_COMBAT",
+          "MOTIVATION": null,
+          "SUPPRESSIVE_FIRE": "IN_COMBAT",
+          "BASIC_REPAIR": "OUT_OF_COMBAT",
+          "REPAIR": "OUT_OF_COMBAT",
+          "FAST_REPAIR": "OUT_OF_COMBAT",
+          "INGENUITY": "OUT_OF_COMBAT",
+          "DISMISS": null,
+          "SEARCH": "OUT_OF_COMBAT",
+          "SCAVENGE": "OUT_OF_COMBAT",
+          "REST": "OUT_OF_COMBAT",
+          "DEMOLITION": null,
+          "SHIP_KNOWLEDGE": "OUT_OF_COMBAT",
+          "PILOTING": "OUT_OF_COMBAT",
+          "OLD_FRIEND": "OUT_OF_COMBAT",
+          "COMPUTER_SKILLS": "OUT_OF_COMBAT",
+          "PYROTECHNIC": "OUT_OF_COMBAT",
+          "TECH_CORRIDORS": "OUT_OF_COMBAT",
+          "BURST_FIRE": "IN_COMBAT",
+          "STEEL_NERVES": null,
+          "AIMED_FIRE": "IN_COMBAT",
+          "ADRENALINE": "IN_COMBAT",
+          "RECONNAISSANCE": "OUT_OF_COMBAT",
+          "INTRANET": "OUT_OF_COMBAT",
+          "ACCESS_DENIED": "OUT_OF_COMBAT",
+          "THREAT_ASSESSMENT": "OUT_OF_COMBAT"
+        },
+        "items": {
+          "WEAPON": "IN_COMBAT",
+          "ENERGY_CHARGE": null,
+          "GRENADE": null,
+          "SMOKE_GRENADE": "IN_COMBAT",
+          "EXTENDED_MAGAZINE": "OUT_OF_COMBAT",
+          "RECON_DRONE": "OUT_OF_COMBAT",
+          "MILITARY_STIMULANTS": null,
+          "DECOY": null,
+          "COMMS_KEY": "OUT_OF_COMBAT",
+          "EVACUATION_KEY": null,
+          "SELF_DESTRUCT_KEY": "OUT_OF_COMBAT",
+          "DUCT_TAPE": "OUT_OF_COMBAT",
+          "TOOLS": "OUT_OF_COMBAT",
+          "FIRE_EXTINGUISHER": null,
+          "CHEMICALS": "OUT_OF_COMBAT",
+          "TECH_CORRIDOR_PLANS": "OUT_OF_COMBAT",
+          "SPACE_SUIT": "OUT_OF_COMBAT",
+          "NEMESIS_PLANS": "OUT_OF_COMBAT",
+          "BANDAGES": "OUT_OF_COMBAT",
+          "MEDKIT": "OUT_OF_COMBAT",
+          "ALCOHOL": "OUT_OF_COMBAT",
+          "CLOTHES": "OUT_OF_COMBAT",
+          "ADRENALINE_INJECTION": null,
+          "SYNTHETIC_FOOD": "OUT_OF_COMBAT",
+          "ANTIDOTE": "OUT_OF_COMBAT",
+          "TASER": null,
+          "MOLOTOV": null,
+          "UNKNOWN": null
+        },
+        "questItems": {
+          "SHIP_LOG": "OUT_OF_COMBAT",
+          "INTERCOM": null,
+          "ORBITAL_MANEUVERING": null,
+          "EVACUATION_KEY": "OUT_OF_COMBAT",
+          "PLASMA_TORCH": "OUT_OF_COMBAT",
+          "FLASHLIGHT": "OUT_OF_COMBAT",
+          "AUTOLOADER": null,
+          "ARMOR": "IN_COMBAT",
+          "MOTION_SENSOR": "OUT_OF_COMBAT",
+          "SECURITY_KEY": "OUT_OF_COMBAT",
+          "HOLO_COMPUTER": "OUT_OF_COMBAT",
+          "LAB_EQUIPMENT": "OUT_OF_COMBAT"
+        }
+      }
+    },
+    "objective-cards": {
+      "file": "packages/shared/src/data/objectiveCards.ts",
+      "status": "SCAN_VERIFIED",
+      "facts": [
+        {
+          "claim": "9 Личных и 9 Корпоративных Целей: название, значок минимального числа игроков «N+», условия (варианты разделены плашкой «ИЛИ») и художественная цитата — дословно с карт.",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 33, 35, 37; scan-transcript §15"
+        },
+        {
+          "claim": "7 Соло/Кооп Целей без значка числа игроков, с подписью «СОЛО/КООП».",
+          "source": "pnp-scans",
+          "page": "cards_base.pdf, стр. 15, 17; scan-transcript §15"
+        },
+        {
+          "claim": "Подготовка: из обеих колод удаляются карты с числом игроков больше фактического; каждый игрок получает 1 Корпоративную и 1 Личную Цель; остаток уходит в коробку.",
+          "source": "rules-md",
+          "lines": "363-367"
+        },
+        {
+          "claim": "Соло и Полный Кооператив: вместо обычных Целей — 2 карты Соло/Кооп Целей; при первом Контакте выбирается одна.",
+          "source": "rules-md",
+          "lines": "1768-1780"
+        },
+        {
+          "claim": "Когда на поле впервые появляется миниатюра Чужого любого типа, каждый игрок немедленно выбирает 1 из 2 Целей, другую удаляет из игры лицом вниз; затем Контакт разыгрывается дальше.",
+          "source": "rules-md",
+          "lines": "610-613"
+        }
+      ],
+      "expectation": {
+        "cards": {
+          "OBJ_PERSONAL_SAVE_PROPERTY": {"kind": "PERSONAL", "name": "Сохранить имущество", "minPlayers": 2, "conditions": ["Корабль должен достигнуть Земли.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_PERSONAL_OLD_FRIEND": {"kind": "PERSONAL", "name": "Старинный друг", "minPlayers": 3, "conditions": ["Корабль должен достигнуть Земли.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_PERSONAL_QUARANTINE": {"kind": "PERSONAL", "name": "Карантин", "minPlayers": 2, "conditions": ["Корабль должен достигнуть Марса.", "Корабль должен достигнуть Земли И Улей должен быть уничтожен."]},
+          "OBJ_PERSONAL_TIRELESS_EXPLORER": {"kind": "PERSONAL", "name": "Неутомимый исследователь", "minPlayers": 2, "conditions": ["Отправьте Сигнал И все Комнаты на Корабле должны быть Исследованы."]},
+          "OBJ_PERSONAL_DECENT_BURIAL": {"kind": "PERSONAL", "name": "Достойное погребение", "minPlayers": 2, "conditions": ["Отправьте Сигнал И закончите игру в Капсуле или Камере Анабиоза с Синим Трупом Персонажа."]},
+          "OBJ_PERSONAL_SCAVENGER": {"kind": "PERSONAL", "name": "Хламовщик", "minPlayers": 2, "conditions": ["Закончите игру в Капсуле И у вас должно быть хотя бы 7 Предметов. Неактивированные Квестовые Предметы не учитываются."]},
+          "OBJ_PERSONAL_BIG_HUNT": {"kind": "PERSONAL", "name": "Большая охота", "minPlayers": 2, "conditions": ["Отправьте Сигнал И Корабль должен быть уничтожен.", "Отправьте Сигнал И Королева должна быть убита."]},
+          "OBJ_PERSONAL_BEST_FRIENDS": {"kind": "PERSONAL", "name": "Лучшие друзья на всю жизнь", "minPlayers": 4, "conditions": ["Вы и хотя бы 1 другой Персонаж должны выжить."]},
+          "OBJ_PERSONAL_ALIENS_ON_BOARD": {"kind": "PERSONAL", "name": "Пришельцы на корабле", "minPlayers": 5, "conditions": ["Отправьте Сигнал И Улей должен быть уничтожен.", "Отправьте Сигнал И Корабль должен быть уничтожен."]},
+          "OBJ_CORPORATE_MY_PRECIOUS": {"kind": "CORPORATE", "name": "Моя прелесть", "minPlayers": 2, "conditions": ["Отправьте Сигнал И закончите игру в Капсуле или Камере Анабиоза с Яйцом Чужих."]},
+          "OBJ_CORPORATE_NECROSCOPY": {"kind": "CORPORATE", "name": "Некроскопия", "minPlayers": 2, "conditions": ["Отправьте Сигнал И Останки Чужого должны быть изучены."]},
+          "OBJ_CORPORATE_AB_OVO": {"kind": "CORPORATE", "name": "AB OVO", "minPlayers": 2, "conditions": ["Яйцо Чужих должно быть изучено."]},
+          "OBJ_CORPORATE_EXTREME_FIELD_BIOLOGY": {"kind": "CORPORATE", "name": "Экстремальная полевая биология", "minPlayers": 2, "conditions": ["Хотя бы 2 Слабости Чужих должны быть изучены."]},
+          "OBJ_CORPORATE_BIDE_YOUR_TIME": {"kind": "CORPORATE", "name": "Выждать момент для атаки", "minPlayers": 2, "conditions": ["Персонаж Игрока 1 не должен выжить.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_CORPORATE_GREENER_GRASS": {"kind": "CORPORATE", "name": "Трава зеленее", "minPlayers": 2, "conditions": ["Персонаж Игрока 2 не должен выжить.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_CORPORATE_OLD_FEUD": {"kind": "CORPORATE", "name": "Старый спор", "minPlayers": 3, "conditions": ["Персонаж Игрока 3 не должен выжить.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_CORPORATE_ARMED_TAKEOVER": {"kind": "CORPORATE", "name": "Вооруженный захват", "minPlayers": 4, "conditions": ["Персонаж Игрока 4 не должен выжить.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_CORPORATE_OUTSIDE_INSIGHT": {"kind": "CORPORATE", "name": "Прозрение извне", "minPlayers": 5, "conditions": ["Персонаж Игрока 5 не должен выжить.", "Только ваш Персонаж должен выжить."]},
+          "OBJ_SOLO_DESTINATION_EARTH": {"kind": "SOLO_COOP", "name": "Пункт назначения: Земля", "minPlayers": null, "conditions": ["Корабль должен достигнуть Земли."]},
+          "OBJ_SOLO_AUTOPSY": {"kind": "SOLO_COOP", "name": "Вскрытие покажет", "minPlayers": null, "conditions": ["Поместите Синий Труп Персонажа в Операционную."]},
+          "OBJ_SOLO_CLOSE_CONTACT_PROTOCOL": {"kind": "SOLO_COOP", "name": "Протокол близких контактов", "minPlayers": null, "conditions": ["Хотя бы 2 Слабости Чужих должны быть изучены."]},
+          "OBJ_SOLO_BEHEAD_THE_ENEMY": {"kind": "SOLO_COOP", "name": "Обезглавить врага", "minPlayers": null, "conditions": ["Отправьте Сигнал И Корабль должен быть уничтожен.", "Отправьте Сигнал И Королева должна быть убита."]},
+          "OBJ_SOLO_NO_ONE_LEFT_BEHIND": {"kind": "SOLO_COOP", "name": "Своих не бросаем", "minPlayers": null, "conditions": ["Отправьте Сигнал И все Комнаты на Корабле должны быть Исследованы."]},
+          "OBJ_SOLO_SPECIAL_DELIVERY": {"kind": "SOLO_COOP", "name": "Спецдоставка", "minPlayers": null, "conditions": ["Закончите игру в Капсуле или Камере Анабиоза с Яйцом Чужих."]},
+          "OBJ_SOLO_CLEANUP_CREW": {"kind": "SOLO_COOP", "name": "Команда зачистки", "minPlayers": null, "conditions": ["Отправьте Сигнал И Улей должен быть уничтожен.", "Отправьте Сигнал И Корабль должен быть уничтожен."]}
+        }
+      }
+    },
     "coordinate-cards": {
       "file": "packages/shared/src/data/coordinateCards.ts",
       "status": "SCAN_VERIFIED",
@@ -767,6 +937,14 @@
       "file": "packages/shared/src/data/crafting.ts",
       "status": "SCAN_VERIFIED",
       "facts": [
+        {
+          "claim": "Антидот: «перемешайте все ваши карты Действий» включает карты на Руке — после Антидота Рука пуста до конца раунда.",
+          "source": "owner-decision-2026-09-29"
+        },
+        {
+          "claim": "Создаваемый Предмет берётся из синей колоды или её сброса: использованный Предмет можно создать снова.",
+          "source": "owner-decision-2026-09-29"
+        },
         {
           "claim": "Изготовление предметов: рецепты требуют предметов определённого цвета и символа Компьютера",
           "source": "rules-md",

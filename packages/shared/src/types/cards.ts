@@ -173,9 +173,15 @@ export interface SeriousWoundCard extends CardDefinition {
   isTreated: boolean;
 }
 
+export type ObjectiveKind = 'PERSONAL' | 'CORPORATE' | 'SOLO_COOP';
+
 export interface ObjectiveCard extends CardDefinition {
-  /** Личная или корпоративная цель (этап 6 дорожной карты). */
-  kind: 'PERSONAL' | 'CORPORATE';
+  kind: ObjectiveKind;
+  /** Значок «N+» над названием; у Соло/Кооп Целей значка нет. */
+  minPlayers: number | null;
+  /** Варианты выполнения, разделённые на карте плашкой «ИЛИ». */
+  conditions: string[];
+  flavorText: string;
 }
 
 /** Направление Движения Чужих в верхнем блоке карты События (стр. 10, шаг 7). */
@@ -271,10 +277,6 @@ export interface GameDecksState {
   seriousWounds: CardPile<SeriousWoundCard>;
   events: CardPile<EventCard>;
   intruderAttacks: CardPile<IntruderAttackCard>;
-  objectives: {
-    personal: CardPile<ObjectiveCard>;
-    corporate: CardPile<ObjectiveCard>;
-  };
   /** Карты Слабостей: 3 из них при подготовке уходят в слоты Планшета Чужих. */
   weaknesses: CardPile<WeaknessCard>;
 }

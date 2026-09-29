@@ -22,6 +22,8 @@ import { hasCraftableRecipe } from '../crafting/workshopModel';
 import { BoardQuestSection } from '../quests/BoardQuestSection';
 import { QuestActivationModal, type QuestActivationConfirmation } from '../quests/QuestActivationModal';
 import { buildQuestViews, questProgress, type QuestView } from '../quests/questBoardModel';
+import { BoardObjectivesSection } from '../objectives/BoardObjectivesSection';
+import { viewerObjectives } from '../objectives/objectiveModel';
 
 interface PlayerHandPanelProps {
   view: SanitizedGameState;
@@ -37,6 +39,7 @@ const TAB_LABELS: Record<BoardTab, string> = {
   CARDS: 'Карты',
   GEAR: 'Снаряжение',
   QUESTS: 'Квесты',
+  OBJECTIVES: 'Цели',
   VITALS: 'Состояние',
 };
 
@@ -191,6 +194,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     GEAR: `${summary.occupiedHandSlots + summary.inventoryCount}`,
     VITALS: `${summary.vitals.light + summary.vitals.serious}`,
     QUESTS: `${questStats.active}/${questStats.total}`,
+    OBJECTIVES: String(viewerObjectives(view).length),
   };
 
   const trailing = (
@@ -298,6 +302,7 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
                 onShowRoom={(roomId) => selectRoom(roomId)}
               />
             )}
+            {tab === 'OBJECTIVES' && <BoardObjectivesSection view={view} />}
             {tab === 'VITALS' && <BoardVitalsSection player={player} statuses={summary.statuses} />}
           </div>
         </div>

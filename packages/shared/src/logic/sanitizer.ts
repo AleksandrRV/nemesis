@@ -208,10 +208,6 @@ function sanitizeDecks(state: SanitizedGameState): void {
     seriousWounds: sanitizeCardPile(decks.seriousWounds),
     events: sanitizeCardPile(decks.events),
     intruderAttacks: sanitizeCardPile(decks.intruderAttacks),
-    objectives: {
-      personal: sanitizeHiddenCardPile(decks.objectives.personal),
-      corporate: sanitizeHiddenCardPile(decks.objectives.corporate),
-    },
     weaknesses: sanitizeHiddenCardPile(decks.weaknesses),
   };
 

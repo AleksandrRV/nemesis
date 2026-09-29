@@ -480,6 +480,44 @@ export default {
           '0%, 100%': { opacity: '0.55', transform: 'scale(1)' },
           '50%': { opacity: '1', transform: 'scale(1.04)' },
         },
+        'objective-klaxon': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        'objective-alarm': {
+          '0%, 100%': { opacity: '0.15' },
+          '50%': { opacity: '0.7' },
+        },
+        'objective-glitch-in': {
+          '0%': { opacity: '0', transform: 'skewX(-18deg) translateX(-40px)', clipPath: 'inset(40% 0 45% 0)' },
+          '30%': { opacity: '1', transform: 'skewX(12deg) translateX(12px)', clipPath: 'inset(10% 0 60% 0)' },
+          '55%': { transform: 'skewX(-6deg) translateX(-4px)', clipPath: 'inset(55% 0 5% 0)' },
+          '75%': { transform: 'skewX(2deg)', clipPath: 'inset(0 0 0 0)' },
+          '100%': { opacity: '1', transform: 'skewX(0) translateX(0)', clipPath: 'inset(0 0 0 0)' },
+        },
+        'objective-card-deal': {
+          '0%': { opacity: '0', transform: 'perspective(900px) translateY(90px) rotateY(180deg) scale(0.75)' },
+          '60%': { opacity: '1', transform: 'perspective(900px) translateY(-10px) rotateY(-8deg) scale(1.03)' },
+          '100%': { opacity: '1', transform: 'perspective(900px) translateY(0) rotateY(0) scale(1)' },
+        },
+        'objective-card-keep': {
+          '0%': { transform: 'scale(1)', filter: 'brightness(1)' },
+          '35%': { transform: 'scale(1.08)', filter: 'brightness(1.5)' },
+          '100%': { transform: 'scale(1.04)', filter: 'brightness(1.1)' },
+        },
+        'objective-card-discard': {
+          '0%': { opacity: '1', transform: 'perspective(900px) rotateY(0) translateY(0)', filter: 'blur(0)' },
+          '40%': { opacity: '1', transform: 'perspective(900px) rotateY(90deg) translateY(0)', filter: 'blur(0)' },
+          '100%': {
+            opacity: '0',
+            transform: 'perspective(900px) rotateY(180deg) translateY(120px) rotate(10deg) scale(0.7)',
+            filter: 'blur(6px)',
+          },
+        },
+        'objective-lockdown': {
+          '0%': { transform: 'scaleY(0)', opacity: '0' },
+          '100%': { transform: 'scaleY(1)', opacity: '1' },
+        },
       },
       animation: {
         'noise-glow': 'noise-glow 2.4s ease-in-out infinite',
@@ -575,6 +613,13 @@ export default {
         'star-streak': 'star-streak 700ms linear infinite',
         'cryo-frost': 'cryo-frost 1600ms ease-out both',
         'cryo-breath': 'cryo-breath 3.6s ease-in-out infinite',
+        'objective-klaxon': 'objective-klaxon 2.4s linear infinite',
+        'objective-alarm': 'objective-alarm 900ms ease-in-out infinite',
+        'objective-glitch-in': 'objective-glitch-in 700ms steps(6, end) both',
+        'objective-card-deal': 'objective-card-deal 850ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both',
+        'objective-card-keep': 'objective-card-keep 900ms ease-out both',
+        'objective-card-discard': 'objective-card-discard 1000ms cubic-bezier(0.55, 0, 0.8, 0.4) both',
+        'objective-lockdown': 'objective-lockdown 420ms ease-out both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

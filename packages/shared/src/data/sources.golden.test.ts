@@ -138,6 +138,8 @@ describe('Пакет источника: структура и статусы (�
       'board-tracks',
       'coordinate-cards',
       'serious-wounds',
+      'objective-cards',
+      'combat-use',
     ];
 
     expect(Object.keys(dataSources.tables).sort()).toEqual([...expectedTables].sort());

@@ -30,9 +30,18 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
+export type SessionDiscardReason = 'OUTDATED_VERSION' | 'CORRUPTED';
+
+export interface SessionRestore {
+  state: GameState | null;
+  discarded: SessionDiscardReason | null;
+}
+
 export interface SessionStorage {
   /** Возвращает совместимую партию или null: вызывающий начинает новую. */
   load(): GameState | null;
+  /** Как `load`, но несовместимая запись удаляется, а причина возвращается для сообщения игроку (С7-2). */
+  restore(): SessionRestore;
   save(state: GameState): void;
   clear(): void;
 }
@@ -113,6 +122,29 @@ export function parseSession(raw: string | null): GameState | null {
   return parsed.state;
 }
 
+function savedVersionOf(raw: string): number | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return null;
+    const stateVersion = isRecord(parsed.state) && isRecord(parsed.state.meta) ? parsed.state.meta.schemaVersion : null;
+    const version = typeof stateVersion === 'number' ? stateVersion : parsed.version;
+    return typeof version === 'number' ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+export function inspectSession(raw: string | null): SessionRestore {
+  if (raw === null) return { state: null, discarded: null };
+  const state = parseSession(raw);
+  if (state) return { state, discarded: null };
+  const savedVersion = savedVersionOf(raw);
+  return {
+    state: null,
+    discarded: savedVersion !== null && savedVersion < SESSION_STORAGE_VERSION ? 'OUTDATED_VERSION' : 'CORRUPTED',
+  };
+}
+
 /** Хранилище в памяти: страховка для среды без localStorage (SSR, тесты, приватный режим). */
 export function createMemoryStorage(): StorageLike {
   const entries = new Map<string, string>();
@@ -141,6 +173,23 @@ export function createSessionStorage(storage: StorageLike): SessionStorage {
       } catch {
         return null;
       }
+    },
+
+    restore: () => {
+      let result: SessionRestore;
+      try {
+        result = inspectSession(storage.getItem(SESSION_STORAGE_KEY));
+      } catch {
+        return { state: null, discarded: null };
+      }
+      if (result.discarded) {
+        try {
+          storage.removeItem(SESSION_STORAGE_KEY);
+        } catch {
+          return result;
+        }
+      }
+      return result;
     },
 
     save: (state) => {

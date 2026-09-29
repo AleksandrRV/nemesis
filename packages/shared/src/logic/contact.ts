@@ -23,6 +23,7 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { placeIntruder, returnTokenToBag } from './intruderPlacement.js';
 import { clearRoomNoise, fillRoomNoise } from './noiseMarkers.js';
+import { announceIntruderMiniature } from './objectives.js';
 import { allocateEntityId } from './stateIds.js';
 
 export function requestFirstContactObjective(state: GameState, playerId: string): void {
@@ -107,7 +108,6 @@ export function resolveContact(
   state.intrudersPool.supply.push(token);
   const intruder = placeIntruder(state, token.type, roomId);
   const firstEncounter = !state.intrudersPool.firstEncounterOccurred;
-  state.intrudersPool.firstEncounterOccurred = true;
   const surpriseAttack = isSurpriseAttack(state, token, handCount, source);
   if (source === 'CALL') {
     state.intrudersPool.attackSuppression[intruder.id] = { round: state.meta.currentRound, phase: state.meta.phase };
@@ -124,33 +124,35 @@ export function resolveContact(
     firstEncounter,
     surpriseAttack,
   });
-  const following: InterruptEvent[] = [];
-  if (firstEncounter) {
-    appendGameLog(state, { type: 'FIRST_CONTACT', playerId, roomId });
-    const players = Object.values(state.players).sort((left, right) => left.orderNumber - right.orderNumber);
-    for (const candidate of players) {
-      if (!candidate.isDead && candidate.objectives.length > 1) {
-        following.push({ type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT', playerId: candidate.id });
-      }
-    }
-  }
+  const following: InterruptEvent[] = announceIntruderMiniature(state, playerId, roomId);
   if (surpriseAttack) {
-    // «Стальные нервы»: сброс карты отменяет Внезапную Атаку (стр. 25).
-    // Есть карта — спрашиваем владельца решением; нет — атака состоится.
-    const nerves = player.actionDeck.hand.find(
-      (entry) => 'characterClass' in entry && entry.id === 'ACT_SOL_STEEL_NERVES',
-    );
-    if (nerves && 'characterClass' in nerves) {
-      state.pendingDecision = {
-        id: allocateEntityId(state, 'steel-nerves'),
-        playerId,
-        type: 'STEEL_NERVES_OFFER',
-        intruderId: intruder.id,
-        intruderType: intruder.type,
-      };
-    } else {
-      following.push({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId, intruderId: intruder.id });
-    }
+    following.push({ type: 'STEEL_NERVES_OFFER_INTERRUPT', playerId, intruderId: intruder.id });
   }
   state.interruptQueue.unshift(...following);
+}
+
+function holdsSteelNerves(state: GameState, playerId: string): boolean {
+  return (
+    state.players[playerId]?.actionDeck.hand.some(
+      (entry) => 'characterClass' in entry && entry.id === 'ACT_SOL_STEEL_NERVES',
+    ) ?? false
+  );
+}
+
+/** «Стальные нервы» (стр. 25): карта на руке — решение владельца, иначе Внезапная Атака. */
+export function offerSteelNervesOrAttack(state: GameState, playerId: string, intruderId: string): void {
+  const intruder = state.intrudersPool.boardTokens.find((token) => token.id === intruderId);
+  const player = state.players[playerId];
+  if (!intruder || !player || player.isDead) return;
+  if (holdsSteelNerves(state, playerId)) {
+    state.pendingDecision = {
+      id: allocateEntityId(state, 'steel-nerves'),
+      playerId,
+      type: 'STEEL_NERVES_OFFER',
+      intruderId,
+      intruderType: intruder.type,
+    };
+    return;
+  }
+  state.interruptQueue.unshift({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId, intruderId });
 }

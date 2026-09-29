@@ -288,7 +288,7 @@ describe('createInitialGameState: экипаж', () => {
     expect(actionDeck?.discard).toEqual([]);
   });
 
-  it('снаряжает персонажа стартовым оружием в слот руки и оставляет пустыми инвентарь, травмы и цели', () => {
+  it('снаряжает персонажа стартовым оружием в слот руки и оставляет пустыми инвентарь и травмы', () => {
     const player = createInitialGameState('nemesis-alpha').players['player-1'];
 
     expect(player?.handSlots).toHaveLength(1);
@@ -299,7 +299,6 @@ describe('createInitialGameState: экипаж', () => {
     }
     expect(player?.inventory).toEqual([]);
     expect(player?.seriousWounds).toEqual([]);
-    expect(player?.objectives).toEqual([]);
     expect(player?.lightWounds).toBe(0);
   });
 
@@ -336,7 +335,7 @@ describe('createInitialGameState: колоды партии', () => {
   });
 
   it('наполняет реализованные колоды, не подменяя данными будущие этапы', () => {
-    const { craftedItems, contamination, weaknesses, seriousWounds, events, intruderAttacks, objectives } =
+    const { craftedItems, contamination, weaknesses, seriousWounds, events, intruderAttacks } =
       createInitialGameState('nemesis-alpha').decks;
 
     expect(craftedItems.drawPile).toHaveLength(12);
@@ -352,8 +351,6 @@ describe('createInitialGameState: колоды партии', () => {
     expect(events.discard).toEqual([]);
     expect(intruderAttacks.drawPile).toHaveLength(20);
     expect(intruderAttacks.discard).toEqual([]);
-    expect(objectives.personal).toEqual({ drawPile: [], discard: [] });
-    expect(objectives.corporate).toEqual({ drawPile: [], discard: [] });
   });
 
   it('даёт каждой колоде собственные массивы: стопки не разделяются по ссылке', () => {
@@ -366,8 +363,6 @@ describe('createInitialGameState: колоды партии', () => {
       decks.seriousWounds,
       decks.events,
       decks.intruderAttacks,
-      decks.objectives.personal,
-      decks.objectives.corporate,
     ];
 
     expect(new Set(piles).size).toBe(piles.length);

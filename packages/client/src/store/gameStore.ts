@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
 import type { IGameTransport } from '../services/transport/ITransport';
+import type { SessionDiscardReason } from '../services/session/sessionStorage';
 import { IS_DEV } from '../utils/env';
 
 /**
@@ -21,6 +22,9 @@ export interface GameStoreState {
   technicalCorridorsOpen: boolean;
   /** Причина последнего отказа движка: показывается игроку и сбрасывается успешным действием. */
   rejection: string | null;
+  /** Сообщение о несовместимом сохранении, которое было удалено при загрузке (С7-2). */
+  sessionNotice: string | null;
+  dismissSessionNotice: () => void;
 
   /** Открыта ли интерактивная панель выстрела (только состояние интерфейса). */
   shootModalOpen: boolean;
@@ -60,6 +64,11 @@ export type TransportFactory = () => IGameTransport & {
   startNewGame?: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
 };
 
+export const SESSION_DISCARD_NOTICES: Record<SessionDiscardReason, string> = {
+  OUTDATED_VERSION: 'Сохранение от предыдущей версии — начата новая партия.',
+  CORRUPTED: 'Сохранение повреждено и не может быть восстановлено — начата новая партия.',
+};
+
 /** Отсек, который открыт по умолчанию: там, где стоит играющий персонаж. */
 function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
   return view?.players[view.meta.activePlayerId]?.roomId ?? null;
@@ -91,6 +100,8 @@ export function createGameStore(createTransport: TransportFactory) {
     selectedRoomId: null,
     technicalCorridorsOpen: false,
     rejection: null,
+    sessionNotice: null,
+    dismissSessionNotice: () => set({ sessionNotice: null }),
     shootModalOpen: false,
     meleeModalOpen: false,
     selectedCardIds: [],
@@ -273,6 +284,10 @@ export function createGameStore(createTransport: TransportFactory) {
     });
 
     const unsubscribeEvents = instance.subscribeToEvents((event) => {
+      if (event.type === 'SESSION_DISCARDED') {
+        store.setState({ sessionNotice: SESSION_DISCARD_NOTICES[event.reason] });
+        return;
+      }
       store.setState(
         event.type === 'ACTION_REJECTED' ? { rejection: mapRejectionReason(event.reason) } : { rejection: null },
       );

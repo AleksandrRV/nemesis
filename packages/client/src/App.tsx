@@ -9,6 +9,8 @@ import { SeedChip } from './components/hud/SeedChip';
 import { CrewRoster } from './components/hud/CrewRoster';
 import { InfectionScanOverlay } from './components/scanner/InfectionScanOverlay';
 import { QuestUnlockCinematic } from './components/quests/QuestUnlockCinematic';
+import { ObjectiveBriefing } from './components/objectives/ObjectiveBriefing';
+import { SessionNotice } from './components/hud/SessionNotice';
 import { EvacuationCinematic } from './components/evacuation/EvacuationCinematic';
 import { EscapePodConsole } from './components/evacuation/EscapePodConsole';
 import { CryoChip } from './components/evacuation/CryoChip';
@@ -209,6 +211,8 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
+        <ObjectiveBriefing view={view} enabled={isPresentationIdle && !showCharacterSelect && !view.pendingDecision} />
+        <SessionNotice />
         <InfectionScanOverlay view={view} />
         <QuestUnlockCinematic view={view} />
         <EvacuationCinematic view={view} />

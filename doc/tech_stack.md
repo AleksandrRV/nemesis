@@ -1,7 +1,7 @@
 # ТЕХНОЛОГИЧЕСКИЙ СТЕК И СИСТЕМНАЯ АРХИТЕКТУРА
 # Проект: Nemesis Digital
 
-**Версия документа:** 4.0 (актуализировано после сверки со сканами, Этапы 1–6 `doc/fix-plan-scans.md`: схема 24, 1423 теста, 2 пакета)  
+**Версия документа:** 4.0 (актуализировано после сверки со сканами, Этапы 1–7 `doc/fix-plan-scans.md`: 0.6.0, схема 25, 1474 теста, 2 пакета)  
 **Статус документа:** цель + факт текущей ревизии. Что уже работает — в [README](../README.md), фактические контракты — в `packages/shared/src/types/`, план этапов — в [roadmap.md](roadmap.md), история — в [CHANGELOG.md](../CHANGELOG.md).  
 **Язык:** TypeScript 5.x (Strict Mode)  
 **Среда:** Evergreen Browsers, Node.js LTS (для тестов/будущего сервера)  
@@ -55,7 +55,7 @@
 * **TypeScript 5.x strict** — запрет `any`, дискриминированные объединения для всех действий/событий.
 * **Vite 5.x** — HMR, билд клиента.
 * **NPM Workspaces** — без Lerna/Nx.
-* **Vitest** — 1423 теста / 124 файла (shared + client).
+* **Vitest** — 1474 теста / 130 файлов (shared + client).
 
 ### 2.2. Frontend (`packages/client`)
 * **React 18** — компоненты: планшет игрока, слоты рук, карта, сканер, модалки.
@@ -83,7 +83,7 @@
 
 ## 3. Архитектура стейта и данных
 
-### 3.1. Полное состояние (`GameState`, схема 24)
+### 3.1. Полное состояние (`GameState`, схема 25)
 
 ```typescript
 // packages/shared/src/types/state.ts
@@ -123,7 +123,7 @@ export interface GameState {
     eggsOnBoard: number; // 0..8, вместимость HIVE_EGG_CAPACITY
     weaknessSlots: WeaknessSlotState[]; // 3 слота: Труп/Яйцо/Останки
   };
-  decks: GameDecksState; // exploration (20), events (20), items (30/30/30), crafted (12), contamination (27), wounds (16), attacks (20), objectives (заглушка)
+  decks: GameDecksState; // exploration (20), events (20), items (30/30/30), crafted (12), contamination (27), wounds (16), attacks (20); Цели розданы игрокам (`players[].objectives`), остаток в коробке
   players: Record<string, PlayerState>; // 6 классов, 2 слота рук, инвентарь, травмы, слизь, сигнал
   claimsLog: ClaimEvent[];
   gameLog: GameLogEntry[]; // публичный журнал, 19 EventEffectOutcome + 6 HiveDevelopmentOutcome
@@ -249,7 +249,7 @@ nemesis/
 
 ```bash
 npm ci                      # установка обоих пакетов
-npm run verify              # typecheck + lint + format:check + test (1423/124)
+npm run verify              # typecheck + lint + format:check + test (1474/130)
 npm run dev --workspace=@nemesis/client  # Vite --host
 npm run build --workspace=@nemesis/client
 # План LAN:

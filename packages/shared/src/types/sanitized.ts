@@ -116,8 +116,8 @@ export interface SanitizedCardPile<TCard> {
  * Состав и порядок закрытых колод — чужая для игрока информация (GDD
  * §5.1): наружу уходят только размеры стопок. Карты сброса остаются видимыми
  * там, где физический сброс лежит лицом вверх (Предметы, События, Атаки
- * Чужих, Тяжёлые Травмы — стр. 9, шаг 11). У колоды Заражения, Слабостей и
- * Целей закрыты и сбросы: их содержимое не раскрывается ни размером, ни
+ * Чужих, Тяжёлые Травмы — стр. 9, шаг 11). У колоды Заражения и Слабостей
+ * закрыты и сбросы: их содержимое не раскрывается ни размером, ни
  * картами (план исправлений, Э2-5).
  */
 export interface SanitizedDecksState {
@@ -127,10 +127,6 @@ export interface SanitizedDecksState {
   seriousWounds: SanitizedCardPile<SeriousWoundCard>;
   events: SanitizedCardPile<EventCard>;
   intruderAttacks: SanitizedCardPile<IntruderAttackCard>;
-  objectives: {
-    personal: SanitizedHiddenCardPile;
-    corporate: SanitizedHiddenCardPile;
-  };
   weaknesses: SanitizedHiddenCardPile;
 }
 

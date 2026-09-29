@@ -122,12 +122,13 @@ describe('Сквозной бой (Шаг 8: интеграция)', () => {
     expect(current.players['player-1']!.handSlots.length).toBe(handBefore + 1);
     expect(current.players['player-1']!.handSlots.at(-1)).toMatchObject({ source: 'OBJECT' });
 
-    // 4. «Огонь на подавление»: отход в соседний отсек без Атаки Чужих (стр. 19).
+    // 4. «Огонь на подавление» (символ «Только в Бою»): отход от нового Чужого без Атаки (стр. 19).
     const suppressive = structuredClone(
       ACTION_CARDS_BY_CHARACTER.CAPTAIN.find((card) => card.id === 'ACT_CAP_SUPPRESSIVE_FIRE')!,
     );
     // Результат processAction заморожен Immer — снимаем freeze копией.
     current = structuredClone(current);
+    existingIntruder(current, 'CREEPER', 6);
     current.players['player-1']!.actionDeck.hand.push(suppressive);
     const destination = findAdjacentOpenRoomIds(current, 6)[0]!;
     const ammoBefore = slotAmmo(current, weaponId);

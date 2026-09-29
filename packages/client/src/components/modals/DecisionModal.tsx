@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/gameStore';
 import { Package, ArrowRight, Dices, Shield } from 'lucide-react';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { FirstContactObjectiveChoice } from '../objectives/FirstContactObjectiveChoice';
 
 interface DecisionModalProps {
   decision: PendingDecision;
@@ -35,43 +36,11 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   };
 
   if (decision.type === 'CHOOSE_OBJECTIVE') {
-    const objectives = view?.players[decision.playerId]?.objectives ?? [];
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-        onKeyDown={handleOverlayKeyDown}
-      >
-        <section
-          ref={containerRef as React.RefObject<HTMLElement>}
-          tabIndex={-1}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Первый Контакт: выбор Цели"
-          className="w-full max-w-lg space-y-4 rounded-xl border border-amber-500/60 bg-slate-900 p-5 shadow-2xl outline-none"
-        >
-          <h2 className="font-heading text-xl tracking-wider text-amber-200">ПЕРВЫЙ КОНТАКТ: ВЫБЕРИТЕ ЦЕЛЬ</h2>
-          <p className="text-sm leading-relaxed text-slate-300">
-            Оставьте одну Цель. Другая удалится из игры втайне от остальных. Контакт продолжится после решений всех
-            игроков.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {objectives
-              .filter((objective) => decision.objectiveIds.includes(objective.id))
-              .map((objective) => (
-                <button
-                  key={objective.id}
-                  onClick={() => handleSelect(objective.id)}
-                  className="rounded-lg border border-amber-700 bg-slate-950 p-4 text-left transition hover:border-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
-                >
-                  <span className="block font-semibold text-amber-100">{objective.name}</span>
-                  <span className="mt-2 block text-sm leading-relaxed text-slate-300">{objective.description}</span>
-                  <span className="mt-3 block text-xs font-bold text-amber-300">Оставить эту Цель →</span>
-                </button>
-              ))}
-          </div>
-        </section>
-      </div>
+    if (!view) return null;
+    const objectives = (view.players[decision.playerId]?.objectives ?? []).filter((objective) =>
+      decision.objectiveIds.includes(objective.id),
     );
+    return <FirstContactObjectiveChoice key={decision.id} view={view} objectives={objectives} onKeep={handleSelect} />;
   }
 
   if (decision.type === 'STEEL_NERVES_OFFER') {

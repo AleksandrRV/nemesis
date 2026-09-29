@@ -4,9 +4,11 @@ import {
   itemUseSurcharge,
   getItemEffectKind,
   getRoomDeckColor,
+  itemCombatUse,
   type ItemCard,
   type SanitizedGameState,
 } from '@nemesis/shared';
+import { gateByCombatUse } from './combatUseGate';
 import {
   adjacentOpenRoomIds,
   buildContext,
@@ -453,13 +455,17 @@ function itemBadges(item: ItemCard, location: 'INVENTORY' | 'HAND_SLOT'): string
 
 export function getItemUsage(item: ItemCard, view: SanitizedGameState, location: 'INVENTORY' | 'HAND_SLOT'): CardUsage {
   const ctx = buildContext(view);
-  return {
-    title: item.name,
-    typeLine: `Предмет · ${COLOR_LABELS[item.color]}`,
-    description: item.description,
-    cost: item.actionCost + itemUseSurcharge(ctx.player),
-    accent: item.color,
-    badges: itemBadges(item, location),
-    variants: variantsFor(item, ctx),
-  };
+  return gateByCombatUse(
+    {
+      title: item.name,
+      typeLine: `Предмет · ${COLOR_LABELS[item.color]}`,
+      description: item.description,
+      cost: item.actionCost + itemUseSurcharge(ctx.player),
+      accent: item.color,
+      badges: itemBadges(item, location),
+      variants: variantsFor(item, ctx),
+    },
+    item.isWeapon ? null : itemCombatUse(item, ctx.player.questItems ?? []),
+    ctx,
+  );
 }

@@ -1,4 +1,4 @@
-import type { ActionCard, CardOption, ItemCard } from '@nemesis/shared';
+import type { ActionCard, CardOption, CombatUse, ItemCard } from '@nemesis/shared';
 
 export type UsageTargetKind =
   | 'ADJACENT_DOOR'
@@ -81,6 +81,7 @@ export interface CardUsage {
   accent: CardAccent;
   badges: string[];
   variants: UsageVariant[];
+  combatUse?: CombatUse;
 }
 
 export interface UsageTarget {

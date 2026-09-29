@@ -42,6 +42,8 @@ export * from './data/itemEffectKinds.js';
 export * from './data/questItems.js';
 export * from './data/evacuation.js';
 export * from './data/coordinateCards.js';
+export * from './data/objectiveCards.js';
+export * from './data/combatUse.js';
 export * from './data/startingItems.js';
 export * from './data/contaminationCards.js';
 export * from './data/seriousWounds.js';

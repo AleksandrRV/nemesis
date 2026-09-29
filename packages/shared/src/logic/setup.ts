@@ -22,6 +22,7 @@ import {
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameLog } from './gameLog.js';
+import { dealObjectives } from './objectives.js';
 import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
 import type { RngStream } from '../utils/rng.js';
 import { questDefinitionsFor } from '../data/questItems.js';
@@ -204,7 +205,8 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   // Колоды стола: 3 верхние карты Слабостей уходят в слоты Планшета Чужих
   // рубашкой вниз, остальные убираются в коробку и в партии не участвуют
   // (стр. 6, шаг 9; стр. 21).
-  const decks = createInitialDecks(seed, trackedRng('cards'));
+  const cardsRng = trackedRng('cards');
+  const decks = createInitialDecks(seed, cardsRng);
   const weaknessDeck = decks.weaknesses.drawPile.slice(0, WEAKNESS_SLOT_COUNT);
   decks.weaknesses = { drawPile: [], discard: [] };
 
@@ -224,6 +226,12 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     acc[playerId] = createPlayer(playerId, availableCharacters[index] ?? CHARACTERS[0]!, index + 1, seed);
     return acc;
   }, {});
+  const gameMode = resolveGameMode(playerCount);
+  dealObjectives(
+    playerIds.map((playerId) => players[playerId]!),
+    gameMode,
+    cardsRng,
+  );
 
   const rooms: Record<RoomId, RoomState> = {} as Record<RoomId, RoomState>;
 
@@ -318,7 +326,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
       gameId: options.gameId ?? `game-${seed}`,
       seed,
       nextEntitySequence: 1,
-      gameMode: resolveGameMode(playerCount),
+      gameMode,
       currentRound: 1,
       phase: 'PLAYER_PHASE',
       activePlayerId: playerIds[0]!,

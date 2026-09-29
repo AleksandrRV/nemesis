@@ -12,6 +12,7 @@ import { appendGameLog } from './gameLog.js';
 import { livingPlayersInRoom, placeIntruder, removeIntruder, returnTokenToBag } from './intruderPlacement.js';
 import { placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { requireNoiseMarkerSupply } from './noiseMarkers.js';
+import { announceIntruderMiniature } from './objectives.js';
 import { corridorNumbersOf, corridorsLeadingInto } from './shipGraphQueries.js';
 import { evacuatePod } from './evacuation.js';
 import { logContaminationScan, resolveInfectionFound, scanContaminationCards } from './infectionScanner.js';
@@ -311,6 +312,7 @@ function resolveMaturation(state: GameState): EventEffectOutcome {
     killPlayer(state, player.id);
     deadPlayerIds.push(player.id);
     placeIntruder(state, 'CREEPER', roomId);
+    state.interruptQueue.unshift(...announceIntruderMiniature(state, player.id, roomId));
     creeperRoomIds.push(roomId);
   }
 

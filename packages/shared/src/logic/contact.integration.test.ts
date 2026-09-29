@@ -7,6 +7,7 @@ import {
   expectEngineError,
 } from '../testing/contactFixtures.js';
 import type { GameState } from '../types/state.js';
+import { CORPORATE_OBJECTIVE_CARDS, PERSONAL_OBJECTIVE_CARDS } from '../data/objectiveCards.js';
 import { GameEngine } from './fsm.js';
 import { filterStateForPlayer } from './sanitizer.js';
 import { corridorsLeadingInto, corridorNumbersOf } from './shipGraphQueries.js';
@@ -20,12 +21,32 @@ function movementContact(playerCount = 2): GameState {
   return state;
 }
 
+function keepFirstObjectiveOfEveryone(state: GameState): GameState {
+  let current = state;
+  while (current.pendingDecision?.type === 'CHOOSE_OBJECTIVE') {
+    const decision = current.pendingDecision;
+    current = new GameEngine().processAction(
+      current,
+      {
+        type: 'ACTION_RESOLVE_DECISION',
+        payload: { decisionId: decision.id, selectedOption: decision.objectiveIds[0]! },
+      },
+      { actorId: decision.playerId },
+    );
+  }
+  return current;
+}
+
 function move(state: GameState): GameState {
   const player = state.players[state.meta.activePlayerId]!;
   return new GameEngine().processAction(state, {
     type: 'ACTION_MOVE',
     payload: { targetRoomId: 6, discardCardIds: [player.actionDeck.hand[0]!.id] },
   });
+}
+
+function moveThroughFirstContact(state: GameState): GameState {
+  return keepFirstObjectiveOfEveryone(move(state));
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -39,7 +60,7 @@ describe('Внезапная атака внутри оплаченного дв
     player.lightWounds = 1;
     state.ship.rooms[6]!.hasFire = true;
     forceAttack(state, 'SCRATCH');
-    const next = move(state);
+    const next = moveThroughFirstContact(state);
     expect(next.gameLog.find((entry) => entry.event.type === 'CONTACT_OCCURRED')?.event).toMatchObject({
       handCount: 3,
       escapeNumber: 4,
@@ -66,7 +87,7 @@ describe('Внезапная атака внутри оплаченного дв
     forceAttack(state, 'BITE');
     state.ship.rooms[6]!.hasFire = true;
     const drawPile = structuredClone(player.actionDeck.drawPile);
-    const next = move(state);
+    const next = moveThroughFirstContact(state);
     expect(next.players[player.id]!.isDead).toBe(true);
     expect(next.players[player.id]!.actionDeck.drawPile).toEqual(drawPile);
     expect(next.ship.rooms[6]!.objects).toContainEqual(
@@ -83,7 +104,7 @@ describe('Внезапная атака внутри оплаченного дв
     state.players['player-1']!.actionDeck.hand = state.players['player-1']!.actionDeck.hand.slice(0, 1);
     giveSeriousWounds(state, 'player-1', 2);
     forceAttack(state, 'BITE');
-    const next = move(state);
+    const next = moveThroughFirstContact(state);
     expect(next.meta).toMatchObject({ phase: 'GAME_OVER', gameOverReason: 'NO_ACTIVE_CHARACTERS' });
     expect(next.interruptQueue).toEqual([]);
     expectEngineError(() => new GameEngine().processAction(next, { type: 'ACTION_PASS', payload: {} }), 'GAME_IS_OVER');
@@ -98,7 +119,7 @@ describe('Внезапная атака внутри оплаченного дв
     pile.drawPile = [pile.drawPile[0]!, bite, ...pile.drawPile.slice(1).filter((card) => card.id !== bite.id)];
     state.players['player-1']!.actionDeck.hand = state.players['player-1']!.actionDeck.hand.slice(0, 1);
     giveSeriousWounds(state, 'player-1', 2);
-    const next = move(state);
+    const next = moveThroughFirstContact(state);
     const attacks = next.gameLog
       .filter((entry) => entry.event.type === 'SURPRISE_ATTACK_RESOLVED')
       .map((entry) => entry.event);
@@ -116,6 +137,7 @@ describe('Внезапная атака внутри оплаченного дв
     state.players['player-1']!.actionDeck.hand = state.players['player-1']!.actionDeck.hand.slice(0, 1);
     forceAttack(state, 'SCRATCH');
     state.decks.contamination = { drawPile: [], discard: [] };
+    state.intrudersPool.firstEncounterOccurred = true;
     const before = structuredClone(state);
     expectEngineError(() => move(state), 'CARD_SUPPLY_EXHAUSTED');
     expect(state).toEqual(before);
@@ -126,7 +148,7 @@ describe('Внезапная атака внутри оплаченного дв
     state.ship.rooms[6]!.occupantIntruderIds = ['present-intruder'];
     state.intrudersPool.boardTokens = [{ id: 'present-intruder', type: 'ADULT', roomId: 6, woundsCount: 0 }];
     const before = { ...state.meta.rngDraws };
-    const next = move(state);
+    const next = moveThroughFirstContact(state);
     expect(next.meta.rngDraws).toEqual(before);
     expect(next.gameLog.some((entry) => entry.event.type === 'CONTACT_OCCURRED')).toBe(false);
     // Выход из отсека с Чужим — Побег: атака до шага (стр. 19; Шаг 7).
@@ -146,8 +168,8 @@ describe('Обязательные Цели, сохранение очереди
     forceAttack(state, 'SCRATCH');
     for (const player of Object.values(state.players)) {
       player.objectives = [
-        { id: `${player.id}-secret-A`, name: 'Личная', description: 'Секрет A', kind: 'PERSONAL' },
-        { id: `${player.id}-secret-B`, name: 'Корпоративная', description: 'Секрет B', kind: 'CORPORATE' },
+        { ...PERSONAL_OBJECTIVE_CARDS[0]!, id: `${player.id}-secret-A`, description: 'Секрет A' },
+        { ...CORPORATE_OBJECTIVE_CARDS[0]!, id: `${player.id}-secret-B`, description: 'Секрет B' },
       ];
     }
     return state;

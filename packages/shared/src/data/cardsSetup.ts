@@ -50,10 +50,6 @@ export function createInitialDecks(seed: string, rng: Rng = createRng(seed, 'car
     seriousWounds: { drawPile: shuffle(rng, structuredClone(SERIOUS_WOUND_CARDS)), discard: [] },
     events: { drawPile: shuffle(rng, structuredClone(EVENT_CARDS)), discard: [] },
     intruderAttacks: { drawPile: shuffle(rng, structuredClone(INTRUDER_ATTACK_CARDS)), discard: [] },
-    objectives: {
-      personal: { drawPile: [], discard: [] },
-      corporate: { drawPile: [], discard: [] },
-    },
     weaknesses: { drawPile: shuffle(rng, structuredClone(WEAKNESS_CARDS)), discard: [] },
   };
 }

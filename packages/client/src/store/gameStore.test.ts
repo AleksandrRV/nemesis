@@ -1,12 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { EngineAction, SanitizedGameState } from '@nemesis/shared';
-import { createInitialGameState, filterStateForPlayer, findAdjacentOpenRoomIds } from '@nemesis/shared';
+import {
+  GAME_STATE_SCHEMA_VERSION,
+  createInitialGameState,
+  filterStateForPlayer,
+  findAdjacentOpenRoomIds,
+} from '@nemesis/shared';
 
-import { createMemoryStorage, createSessionStorage } from '../services/session/sessionStorage';
+import { SESSION_STORAGE_KEY, createMemoryStorage, createSessionStorage } from '../services/session/sessionStorage';
 import type { GameEvent, IGameTransport } from '../services/transport/ITransport';
 import { LocalInMemoryTransport } from '../services/transport/LocalInMemoryTransport';
-import { createGameStore } from './gameStore';
+import { SESSION_DISCARD_NOTICES, createGameStore } from './gameStore';
 
 const SEED = 'store-test';
 const PLAYER = 'player-1';
@@ -209,5 +214,33 @@ describe('Стор: маппинг ошибок оплаты (Шаг 3, долг
     });
 
     expect(store.getState().rejection).toBe('Заражение нельзя сбрасывать кроме Паса');
+  });
+});
+
+describe('Стор: сообщение о несовместимом сохранении (С7-2)', () => {
+  it('показывает «Сохранение от предыдущей версии — начата новая партия» и закрывается по кнопке', async () => {
+    const storage = createMemoryStorage();
+    const previous = createInitialGameState('store-outdated');
+    storage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        version: GAME_STATE_SCHEMA_VERSION - 1,
+        state: { ...previous, meta: { ...previous.meta, schemaVersion: GAME_STATE_SCHEMA_VERSION - 1 } },
+      }),
+    );
+    const transport = new LocalInMemoryTransport({
+      session: createSessionStorage(storage),
+      playerId: PLAYER,
+      seed: 'store-after-outdated',
+    });
+    const store = createGameStore(() => transport);
+    await Promise.resolve();
+
+    expect(store.getState().sessionNotice).toBe(SESSION_DISCARD_NOTICES.OUTDATED_VERSION);
+    expect(store.getState().sessionNotice).toBe('Сохранение от предыдущей версии — начата новая партия.');
+    expect(store.getState().view?.meta.seed).toBe('store-after-outdated');
+
+    store.getState().dismissSessionNotice();
+    expect(store.getState().sessionNotice).toBeNull();
   });
 });

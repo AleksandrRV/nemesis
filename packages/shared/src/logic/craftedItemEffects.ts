@@ -46,7 +46,8 @@ function antidote(state: GameState, actorId: string): void {
     hadLarva ? 'LARVA_REMOVED' : 'CLEAN',
   );
   receiveContamination(state, actorId);
-  deck.discard = [...deck.drawPile, ...deck.discard];
+  deck.discard = [...deck.hand, ...deck.drawPile, ...deck.discard];
+  deck.hand = [];
   deck.drawPile = [];
   reshuffleDiscard(state, deck);
   performPass(state, actorId);

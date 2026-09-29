@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialGameState, findNoiseTarget, GameEngine, GAME_STATE_SCHEMA_VERSION } from '@nemesis/shared';
+import {
+  CORPORATE_OBJECTIVE_CARDS,
+  createInitialGameState,
+  findNoiseTarget,
+  GameEngine,
+  GAME_STATE_SCHEMA_VERSION,
+  PERSONAL_OBJECTIVE_CARDS,
+} from '@nemesis/shared';
 import type { GameState, SanitizedGameState } from '@nemesis/shared';
 import {
   createMemoryStorage,
@@ -24,8 +31,8 @@ function suspendedContact(): GameState {
   state.intrudersPool.bag = [{ ...token, escapeNumber: 4 }];
   for (const candidate of Object.values(state.players)) {
     candidate.objectives = [
-      { id: `${candidate.id}-private-one`, kind: 'PERSONAL', name: 'Цель 1', description: 'Частная цель' },
-      { id: `${candidate.id}-private-two`, kind: 'CORPORATE', name: 'Цель 2', description: 'Частная цель' },
+      { ...PERSONAL_OBJECTIVE_CARDS[0]!, id: `${candidate.id}-private-one` },
+      { ...CORPORATE_OBJECTIVE_CARDS[0]!, id: `${candidate.id}-private-two` },
     ];
   }
   return new GameEngine().processAction(state, {

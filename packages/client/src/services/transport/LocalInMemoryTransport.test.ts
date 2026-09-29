@@ -168,6 +168,42 @@ describe('LocalInMemoryTransport: сохранения', () => {
     expect(view?.meta.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
   });
 
+  it('сохранение предыдущей схемы: запись удалена, новая партия, игроку сообщается причина (С7-2)', async () => {
+    const storage = createMemoryStorage();
+    const previous = createInitialGameState('previous-schema');
+    const outdated = { ...previous, meta: { ...previous.meta, schemaVersion: GAME_STATE_SCHEMA_VERSION - 1 } };
+    storage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ version: GAME_STATE_SCHEMA_VERSION - 1, state: outdated }));
+    const removeItem = vi.spyOn(storage, 'removeItem');
+
+    const { transport } = createTransport({ storage, seed: 'after-outdated' });
+    const events: GameEvent[] = [];
+    transport.subscribeToEvents((event) => events.push(event));
+    const [view] = await initAndCapture(transport);
+
+    expect(removeItem).toHaveBeenCalledWith(SESSION_STORAGE_KEY);
+    expect(view?.meta.seed).toBe('after-outdated');
+    expect(events).toEqual([{ type: 'SESSION_DISCARDED', reason: 'OUTDATED_VERSION' }]);
+    expect(JSON.parse(storage.getItem(SESSION_STORAGE_KEY)!).state.meta.seed).toBe('after-outdated');
+  });
+
+  it('повреждённая запись — отдельная причина; совместимое сохранение — без сообщения', async () => {
+    const broken = createMemoryStorage();
+    broken.setItem(SESSION_STORAGE_KEY, '{"version": 25, "state": {');
+    const brokenEvents: GameEvent[] = [];
+    const { transport: afterBroken } = createTransport({ storage: broken });
+    afterBroken.subscribeToEvents((event) => brokenEvents.push(event));
+    await initAndCapture(afterBroken);
+    expect(brokenEvents).toEqual([{ type: 'SESSION_DISCARDED', reason: 'CORRUPTED' }]);
+
+    const fine = createMemoryStorage();
+    fine.setItem(SESSION_STORAGE_KEY, serializeSession(createInitialGameState('fine-save')));
+    const fineEvents: GameEvent[] = [];
+    const { transport: afterFine } = createTransport({ storage: fine });
+    afterFine.subscribeToEvents((event) => fineEvents.push(event));
+    await initAndCapture(afterFine);
+    expect(fineEvents).toEqual([]);
+  });
+
   it('startNewGame стирает прежнюю партию и бросает новый стол', async () => {
     const { storage, transport } = createTransport();
 

@@ -1,7 +1,7 @@
 import type { InterruptEvent } from '../types/interrupts.js';
 import type { GameState } from '../types/state.js';
 import { completeAction } from './actionCompletion.js';
-import { resolveContact, requestFirstContactObjective } from './contact.js';
+import { offerSteelNervesOrAttack, resolveContact, requestFirstContactObjective } from './contact.js';
 import { EngineError } from './engineErrors.js';
 import { resolveSurpriseAttack } from './intruderAttacks.js';
 import { resolveEscapeAttack } from './escape.js';
@@ -41,6 +41,8 @@ export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): v
       return resolveContact(state, interrupt);
     case 'FIRST_CONTACT_OBJECTIVE_INTERRUPT':
       return requestFirstContactObjective(state, interrupt.playerId);
+    case 'STEEL_NERVES_OFFER_INTERRUPT':
+      return offerSteelNervesOrAttack(state, interrupt.playerId, interrupt.intruderId);
     case 'SURPRISE_ATTACK_INTERRUPT':
       return resolveSurpriseAttack(state, interrupt.playerId, interrupt.intruderId);
     case 'ESCAPE_ATTACK_INTERRUPT':

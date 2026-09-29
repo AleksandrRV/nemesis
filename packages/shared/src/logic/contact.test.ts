@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createIntruderSupply } from '../data/intruderPool.js';
+import { CORPORATE_OBJECTIVE_CARDS, PERSONAL_OBJECTIVE_CARDS } from '../data/objectiveCards.js';
 import { contactState, forceToken, putPlayer, setBag, expectEngineError } from '../testing/contactFixtures.js';
 import type { IntruderType } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
@@ -104,7 +105,7 @@ describe('Контакт: жетон и миниатюра (стр. 18)', () => 
       expect(state.intrudersPool.supply).toContainEqual(token);
       expect(state.intrudersPool.supply).toHaveLength(27);
       expect(state.meta.rngDraws).toEqual({ ...before, bag: before.bag + 1 });
-      expect(state.interruptQueue).toEqual([]);
+      expect(state.interruptQueue).toEqual([{ type: 'FIRST_CONTACT_OBJECTIVE_INTERRUPT', playerId: 'player-1' }]);
       expect(state.players['player-1']!.hasLarva).toBe(false);
     },
   );
@@ -118,7 +119,9 @@ describe('Контакт: жетон и миниатюра (стр. 18)', () => 
       player.actionDeck.hand = player.actionDeck.hand.slice(0, handCount);
       if (handCount > 0) player.actionDeck.hand[handCount - 1] = state.decks.contamination.drawPile.shift()!;
       encounter(state);
-      expect(state.interruptQueue.some((event) => event.type === 'SURPRISE_ATTACK_INTERRUPT')).toBe(handCount < number);
+      expect(state.interruptQueue.some((event) => event.type === 'STEEL_NERVES_OFFER_INTERRUPT')).toBe(
+        handCount < number,
+      );
       expect(state.gameLog.find((entry) => entry.event.type === 'CONTACT_OCCURRED')?.event).toMatchObject({
         escapeNumber: number,
         handCount,
@@ -236,15 +239,15 @@ describe('Первый настоящий Контакт и приватный �
     state.players['player-1']!.actionDeck.hand = [];
     for (const player of Object.values(state.players)) {
       player.objectives = [
-        { id: `${player.id}-personal-secret`, name: 'Личная', description: 'Закрытая', kind: 'PERSONAL' },
-        { id: `${player.id}-corporate-secret`, name: 'Корпоративная', description: 'Закрытая', kind: 'CORPORATE' },
+        { ...PERSONAL_OBJECTIVE_CARDS[0]!, id: `${player.id}-personal-secret` },
+        { ...CORPORATE_OBJECTIVE_CARDS[0]!, id: `${player.id}-corporate-secret` },
       ];
     }
     encounter(state);
     expect(state.interruptQueue.map((event) => event.type)).toEqual([
       'FIRST_CONTACT_OBJECTIVE_INTERRUPT',
       'FIRST_CONTACT_OBJECTIVE_INTERRUPT',
-      'SURPRISE_ATTACK_INTERRUPT',
+      'STEEL_NERVES_OFFER_INTERRUPT',
     ]);
     drainInterrupts(state);
     expect(state.pendingDecision).toMatchObject({ type: 'CHOOSE_OBJECTIVE', playerId: 'player-1' });
@@ -252,14 +255,18 @@ describe('Первый настоящий Контакт и приватный �
     expect(state.intrudersPool.firstEncounterOccurred).toBe(true);
   });
 
-  it('не выдумывает Цели для текущей пустой колоды и не повторяет первый Контакт', () => {
+  it('запрашивает Цель только при первом появлении миниатюры, повторный Контакт идёт без паузы', () => {
     const state = contactState();
     forceToken(state, 'ADULT');
     encounter(state);
+    expect(state.interruptQueue.map((event) => event.type)).toContain('FIRST_CONTACT_OBJECTIVE_INTERRUPT');
+    state.interruptQueue = [];
+    state.players['player-1']!.objectives = state.players['player-1']!.objectives.slice(0, 1);
+
     forceToken(state, 'CREEPER');
     encounter(state);
-    expect(state.pendingDecision).toBeNull();
-    expect(state.interruptQueue).toEqual([]);
+
+    expect(state.interruptQueue.map((event) => event.type)).not.toContain('FIRST_CONTACT_OBJECTIVE_INTERRUPT');
     expect(state.gameLog.filter((entry) => entry.event.type === 'FIRST_CONTACT')).toHaveLength(1);
   });
 });

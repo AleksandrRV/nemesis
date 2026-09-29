@@ -10,7 +10,7 @@ export const SERIOUS_WOUND_LIMIT = 3;
 export const HAND_SLOT_COUNT = 2;
 const ACTIONS_PER_TURN = 2;
 
-export type BoardTab = 'CARDS' | 'GEAR' | 'QUESTS' | 'VITALS';
+export type BoardTab = 'CARDS' | 'GEAR' | 'QUESTS' | 'OBJECTIVES' | 'VITALS';
 
 export type StatusTone = 'active' | 'muted' | 'danger' | 'warning' | 'toxic';
 

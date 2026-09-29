@@ -166,7 +166,18 @@ describe('filterStateForPlayer: чужие тайны (стр. 21–22)', () => 
 
     expect(view.players[VIEWER]?.questItems).toHaveLength(2);
     expect(view.players[VIEWER]?.inventory).toEqual([]);
-    expect(view.players[VIEWER]?.objectives).toEqual([]);
+    expect(view.players[VIEWER]?.objectives).toEqual(state.players[VIEWER]!.objectives);
+    expect(view.players[VIEWER]?.objectives).toHaveLength(2);
+  });
+
+  it('не выдаёт розданные чужие Цели ни полем, ни текстом карты', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const serialized = JSON.stringify(filterStateForPlayer(state, VIEWER));
+
+    for (const objective of state.players['player-2']!.objectives) {
+      expect(serialized, objective.name).not.toContain(objective.id);
+      expect(serialized, objective.name).not.toContain(objective.flavorText);
+    }
   });
 
   it('оставляет открытыми публичные признаки: раны, состояние, позицию', () => {
@@ -451,32 +462,21 @@ describe('filterStateForPlayer: колоды корабля (Э2-5)', () => {
     expect(serialized).toContain('red-discard-1');
   });
 
-  it('у колоды Заражения, Целей и Слабостей скрыт и сброс: наружу уходят только числа', () => {
+  it('у колоды Заражения и Слабостей скрыт и сброс: наружу уходят только числа', () => {
     const state = freshState();
 
     state.decks.contamination = {
       drawPile: [{ id: 'contamination-draw-1', isInfected: true, isScanned: false }],
       discard: [{ id: 'contamination-discard-1', isInfected: false, isScanned: true }],
     };
-    state.decks.objectives.personal = {
-      drawPile: [{ id: 'personal-draw-1', characterClass: 'CAPTAIN', name: 'Цель', description: '' }],
-      discard: [{ id: 'personal-discard-1', characterClass: 'CAPTAIN', name: 'Цель', description: '' }],
-    } as never;
 
     const view = filterStateForPlayer(state, VIEWER);
     const serialized = JSON.stringify(view);
 
     expect(view.decks.contamination.drawPileCount).toBe(1);
     expect(view.decks.contamination.discardCount).toBe(1);
-    expect(view.decks.objectives.personal.drawPileCount).toBe(1);
-    expect(view.decks.objectives.personal.discardCount).toBe(1);
 
-    for (const hiddenId of [
-      'contamination-draw-1',
-      'contamination-discard-1',
-      'personal-draw-1',
-      'personal-discard-1',
-    ]) {
+    for (const hiddenId of ['contamination-draw-1', 'contamination-discard-1']) {
       expect(serialized, `${hiddenId} утёк в срез`).not.toContain(hiddenId);
     }
 

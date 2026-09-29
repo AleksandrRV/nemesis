@@ -30,5 +30,7 @@ export type InterruptEvent =
   | { type: 'COMPLETE_ACTION_INTERRUPT'; playerId: string }
   /** Внезапная атака: карт на руке меньше числа на жетоне (стр. 18). */
   | { type: 'SURPRISE_ATTACK_INTERRUPT'; playerId: string; intruderId: string }
+  /** «Стальные нервы» (стр. 25) предлагаются после выбора Целей Первого Контакта (стр. 12). */
+  | { type: 'STEEL_NERVES_OFFER_INTERRUPT'; playerId: string; intruderId: string }
   /** «Адреналин» (Шаг 8): добор 1 карты Действия после Стрельбы или Побега. */
   | { type: 'DRAW_ACTION_CARD_INTERRUPT'; playerId: string };

@@ -4,6 +4,7 @@ import { createRng, drawFromStream } from '../utils/rng.js';
 import * as rng from '../utils/rng.js';
 import { drawSharedCard, reshuffleDiscard } from './cardPiles.js';
 import { drainInterrupts } from './interrupts.js';
+import { dealObjectives } from './objectives.js';
 import { resolveSurpriseAttack } from './intruderAttacks.js';
 import type { GameState } from '../types/state.js';
 import { createInitialDecks } from '../data/cardsSetup.js';
@@ -94,10 +95,12 @@ describe('Перетасовка Атак и продолжение потоко
     expect(state.meta.rngDraws.bag).toBe(supplyShuffleDraws + bagShuffleDraws);
     let cardDraws = 0;
     const sequential = createRng(state.meta.seed, 'cards');
-    createInitialDecks(state.meta.seed, () => {
+    const countedCards = () => {
       cardDraws += 1;
       return sequential();
-    });
+    };
+    createInitialDecks(state.meta.seed, countedCards);
+    dealObjectives(Object.values(structuredClone(state.players)), state.meta.gameMode, countedCards);
     expect(state.meta.rngDraws.cards).toBe(cardDraws);
     expect(drawFromStream(state.meta.seed, 'cards', cardDraws)).toBe(sequential());
     expect(state.meta.rngDraws.noise).toBe(0);

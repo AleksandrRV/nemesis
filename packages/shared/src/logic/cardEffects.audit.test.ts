@@ -261,9 +261,10 @@ describe('Приманка, Дымовая граната и создаваем�
     expect(state.intrudersPool.boardTokens.find((token) => token.id === own)?.roomId).toBe(roomId);
   });
 
-  it('Дымовая граната переносит в соседний отсек; при других Персонажах в комнате — явный отказ', () => {
+  it('Дымовая граната (символ «Только в Бою») переносит в соседний отсек; при других Персонажах — явный отказ', () => {
     const lone = contactState(1, 'smoke');
     const roomId = lone.players['player-1']!.roomId;
+    existingIntruder(lone, 'ADULT', roomId);
     give(lone, 'ITEM_RED_SMOKE_GRENADE_1');
     const target = neighbourOf(lone, roomId);
     const moved = useItem(lone, 'ITEM_RED_SMOKE_GRENADE_1', { targetRoomId: target });
@@ -271,6 +272,7 @@ describe('Приманка, Дымовая граната и создаваем�
 
     const crowded = contactState(2, 'smoke-crowded');
     putPlayer(crowded, 'player-2', crowded.players['player-1']!.roomId);
+    existingIntruder(crowded, 'ADULT', crowded.players['player-1']!.roomId);
     give(crowded, 'ITEM_RED_SMOKE_GRENADE_1');
     expectEngineError(
       () =>
@@ -312,6 +314,22 @@ describe('Приманка, Дымовая граната и создаваем�
     expect(all.some((card) => card.id === 'INFECTED_X')).toBe(false);
     expect(next.players['player-1']!.hasLarva).toBe(false);
     expect(next.players['player-1']!.hasPassed).toBe(true);
+  });
+
+  it('Антидот замешивает все карты Действий, включая Руку, вместе с новой картой Заражения (решение владельца)', () => {
+    const state = contactState(2, 'antidote-hand');
+    const player = state.players['player-1']!;
+    const before = player.actionDeck;
+    const cardCountBefore = before.hand.length + before.drawPile.length + before.discard.length;
+    give(state, 'CRAFTED_ANTIDOTE_1');
+
+    const next = useItem(state, 'CRAFTED_ANTIDOTE_1');
+    const deck = next.players['player-1']!.actionDeck;
+
+    expect(deck.hand).toEqual([]);
+    expect(deck.discard).toEqual([]);
+    expect(deck.drawPile).toHaveLength(cardCountBefore + 1);
+    expect(deck.drawPile.filter((card) => !('characterClass' in card))).toHaveLength(1);
   });
 });
 

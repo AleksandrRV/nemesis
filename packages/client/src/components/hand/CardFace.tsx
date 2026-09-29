@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CardUsage } from './usageTypes';
 import { ACCENT_CLASSES } from './usageIcons';
+import { CombatUseBadge } from './CombatUseBadge';
 
 export const CardFace: React.FC<{ usage: CardUsage }> = ({ usage }) => {
   const accent = ACCENT_CLASSES[usage.accent];
@@ -14,7 +15,10 @@ export const CardFace: React.FC<{ usage: CardUsage }> = ({ usage }) => {
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${accent.text}`}>{usage.typeLine}</p>
-            <h2 className="mt-1 font-heading text-2xl leading-tight tracking-wide text-white">{usage.title}</h2>
+            <h2 className="mt-1 flex items-center gap-2 font-heading text-2xl leading-tight tracking-wide text-white">
+              {usage.title}
+              <CombatUseBadge combatUse={usage.combatUse ?? null} size={18} />
+            </h2>
           </div>
           <span
             title={usage.cost === 0 ? 'Без доплаты картами' : `Доплата: сбросить ${usage.cost} карт(ы)`}

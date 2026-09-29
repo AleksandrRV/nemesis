@@ -1,4 +1,11 @@
-import { CARD_OPTION, getRoomDeckColor, type ActionCard, type SanitizedGameState } from '@nemesis/shared';
+import {
+  CARD_OPTION,
+  actionCardCombatUse,
+  getRoomDeckColor,
+  type ActionCard,
+  type SanitizedGameState,
+} from '@nemesis/shared';
+import { gateByCombatUse } from './combatUseGate';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 import { hasCraftableRecipe } from '../crafting/workshopModel';
 import {
@@ -468,13 +475,18 @@ function variantsFor(card: ActionCard, ctx: UsageContext): UsageVariant[] {
 }
 
 export function getActionCardUsage(card: ActionCard, view: SanitizedGameState): CardUsage {
-  return {
-    title: card.name,
-    typeLine: `Карта Действия · ${CREW_IDENTITIES[card.characterClass].label}`,
-    description: card.description,
-    cost: card.playCost,
-    accent: 'ACTION',
-    badges: card.playCost === 0 ? ['Без доплаты'] : [`Доплата: ${card.playCost}`],
-    variants: variantsFor(card, buildContext(view)),
-  };
+  const ctx = buildContext(view);
+  return gateByCombatUse(
+    {
+      title: card.name,
+      typeLine: `Карта Действия · ${CREW_IDENTITIES[card.characterClass].label}`,
+      description: card.description,
+      cost: card.playCost,
+      accent: 'ACTION',
+      badges: card.playCost === 0 ? ['Без доплаты'] : [`Доплата: ${card.playCost}`],
+      variants: variantsFor(card, ctx),
+    },
+    actionCardCombatUse(card),
+    ctx,
+  );
 }

@@ -21,6 +21,9 @@ export type EngineErrorCode =
   /** Жетонов Дверей нет ни в запасе, ни среди закрытых Дверей на поле (стр. 17). */
   | 'DOOR_TOKEN_SUPPLY_EXHAUSTED'
   | 'CARD_SUPPLY_EXHAUSTED'
+  | 'OBJECTIVE_DECK_EXHAUSTED'
+  | 'ACTION_ONLY_IN_COMBAT'
+  | 'ACTION_ONLY_OUT_OF_COMBAT'
   | 'INTRUDER_MINIATURE_UNAVAILABLE'
   | 'UNKNOWN_INTRUDER'
   | 'INVALID_ATTACK_TARGET'

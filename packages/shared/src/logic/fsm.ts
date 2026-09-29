@@ -2,6 +2,7 @@ import { produce } from 'immer';
 import type { EngineAction } from '../types/actions.js';
 import type { GameState } from '../types/state.js';
 import { isPlayerInCombat } from './combatStatus.js';
+import { requireActionCardCombatUse, requireItemCombatUse } from './combatUseRules.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { escapeAttackerIds } from './escape.js';
 import { executeToggleDoor, executeToggleNoise } from './devActions.js';
@@ -130,11 +131,13 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
       executeCardPayment(state, actorId, action.payload.discardCardIds ?? [], 2);
       return executeRoomAbility(state, actorId, action.payload);
     case 'ACTION_PLAY_CARD':
+      requireActionCardCombatUse(state, actorId, action.payload.cardId);
       if (action.payload.combat || isCombatActionCard(action.payload.cardId)) {
         return executeCombatCard(state, action, actorId);
       }
       return executePlayCard(state, action, actorId);
     case 'ACTION_USE_ITEM':
+      requireItemCombatUse(state, actorId, action.payload.itemId);
       return executeUseItem(state, action, actorId);
     case 'ACTION_CRAFT_ITEM':
       return executeCraftItem(state, action, actorId);

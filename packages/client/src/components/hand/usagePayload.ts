@@ -24,7 +24,11 @@ function assignTargets(payload: BuiltCardPayload, kind: UsageTargetKind, ids: re
     case 'TECH_ROOM':
     case 'COMPUTER_ROOM':
     case 'YELLOW_ROOM':
+    case 'DOOR_ROOM':
+    case 'DECOMPRESSION_ROOM':
       payload.targetRoomId = Number(first);
+      return;
+    case 'COURSE_MARKER':
       return;
     case 'UNEXPLORED_ROOM':
       payload.targetRoomId = Number(first);
@@ -102,7 +106,7 @@ export function isSelectionComplete(variant: UsageVariant, selection: TargetSele
 }
 
 export function chosenRoomId(variant: UsageVariant, selection: TargetSelection): number | undefined {
-  const roomStepIndex = variant.steps.findIndex((step) => step.kind === 'ANY_ROOM');
+  const roomStepIndex = variant.steps.findIndex((step) => step.kind === 'ANY_ROOM' || step.kind === 'DOOR_ROOM');
   const roomId = selection[roomStepIndex]?.[0];
   return roomId === undefined ? undefined : Number(roomId);
 }

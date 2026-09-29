@@ -10,6 +10,7 @@ import { resolveNoiseRoll } from './noise.js';
 import { resolveExploreRoom } from './roomExploration.js';
 import { advanceTurnWithoutFire } from './turnCycle.js';
 import { guardEscapePods, resolveHibernationAttempt, resolvePodBoarding } from './evacuation.js';
+import { guardDecompression } from './decompression.js';
 
 export function drainInterrupts(state: GameState): void {
   while (state.interruptQueue.length > 0) {
@@ -22,6 +23,7 @@ export function drainInterrupts(state: GameState): void {
     guardEscapePods(state);
   }
   guardEscapePods(state);
+  guardDecompression(state);
   if (
     !state.pendingDecision &&
     state.meta.phase === 'PLAYER_PHASE' &&

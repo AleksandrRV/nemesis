@@ -8,6 +8,7 @@ import {
   Footprints,
   HeartPulse,
   Layers,
+  Navigation,
   Lock,
   MapPin,
   Package,
@@ -42,6 +43,7 @@ export const USAGE_ICONS: Record<UsageIcon, LucideIcon> = {
   lock: Lock,
   search: Search,
   biohazard: Biohazard,
+  course: Navigation,
 };
 
 export const ACCENT_CLASSES: Record<CardAccent, { bar: string; text: string; ring: string; soft: string }> = {

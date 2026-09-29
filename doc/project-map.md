@@ -33,6 +33,7 @@
 | `interrupts.ts` | `InterruptEvent` | Стек прерываний: `EXPLORE_ROOM`, `NOISE_ROLL`, `CONTACT`, `SURPRISE_ATTACK`, `ESCAPE_ATTACK`, etc. |
 | `contact.ts` | `IntruderRetreatOutcome`, `AttackVictimStatus`, `IntruderLogEvent` | Презентация Контакта/Атак/Отступления. |
 | `endgame.ts` | `EndgameReport`, `EndgameCharacterResult`, `EndgameDeath` | Отчёт Финального Валидатора (стр. 11): судьба корабля, Двигатели, Курс, Заражение, Цели по Персонажам. |
+| `shipSystemsLog.ts` | `ShipSystemsLogEvent`, `ExchangedEntry`, `RoomPeekSource` | События систем корабля: проверки Двигателей и Координат, Курс, Двери, Декомпрессия, Слизь, Обмен. |
 
 ### B. Логика движка (`src/logic/`)
 
@@ -78,6 +79,12 @@
 | `gameEnd.ts` | `endGame()` | Перевод в `GAME_OVER` и запуск Финального Валидатора. |
 | `endgame.ts` | `resolveEndgame()`, `killEveryoneAboard()` | Финальный Валидатор (стр. 11): перенос маркера при пустом корабле, Двигатели, Курс, Заражение (4 карты), Цели → `GameState.endgame`. |
 | `objectiveConditions.ts` | `metObjectiveCondition()`, `OBJECTIVE_CONDITIONS` | Проверки условий всех 25 Целей, по варианту «ИЛИ». |
+| `shipSystemsAbilities.ts` | `inspectEngineInRoom()`, `inspectAllEngines()`, `operateFlightControl()`, `observeUnexploredRoom()` | Машинные Отсеки, Машинное Отделение, Мостик, Комната Наблюдения (стр. 25–26). |
+| `doorControl.ts` | `rearrangeRoomDoors()`, `corridorsIntoRoom()` | Двери выбранной Комнаты: Центр Управления и «Ключ безопасности». |
+| `decompression.ts` | `startDecompression()`, `guardDecompression()`, `resolveDecompressions()` | Экстренная Декомпрессия: жетон, отмена при открытой Двери, гибель в конце Фазы Игроков. |
+| `hygieneAbilities.ts` | `snackInCanteen()`, `takeShower()` | Столовая и Душевая: лечение/Слизь и скан руки. |
+| `slimeRoom.ts` | `stepIntoSlimeRoom()` | Маркер Слизи при входе в Комнату Слизи. |
+| `exchange.ts` | `proposeExchange()`, `resolveExchangeConsent()` | Обмен [1]: предложение, согласие каждого участника, передача без Боезапаса. |
 
 ### C. Данные (`src/data/`)
 

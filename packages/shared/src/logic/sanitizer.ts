@@ -243,7 +243,27 @@ function sanitizeLogEntry(entry: GameLogEntry, viewingPlayerId: string): Sanitiz
   if (isOwnEvent) return { ...entry, event: { ...event } };
   switch (event.type) {
     case 'ROOM_PEEKED':
-      return { ...entry, event: { ...event, effect: null, itemsCount: null } };
+      return { ...entry, event: { ...event, roomDefinitionId: null, effect: null, itemsCount: null } };
+    case 'ENGINES_INSPECTED':
+      return {
+        ...entry,
+        event: { ...event, engines: event.engines.map((engine) => ({ ...engine, isWorking: null })) },
+      };
+    case 'COORDINATES_INSPECTED':
+      return { ...entry, event: { ...event, cardId: null } };
+    case 'EXCHANGE_COMPLETED': {
+      const isParticipant = event.entries.some(
+        (exchanged) => exchanged.fromPlayerId === viewingPlayerId || exchanged.toPlayerId === viewingPlayerId,
+      );
+      if (isParticipant) return { ...entry, event: { ...event, entries: event.entries.map((item) => ({ ...item })) } };
+      return {
+        ...entry,
+        event: {
+          ...event,
+          entries: event.entries.map((item) => ({ ...item, name: item.fromHandSlot ? item.name : null })),
+        },
+      };
+    }
     case 'EVENT_PEEKED':
       return { ...entry, event: { ...event, cardName: null } };
     case 'ENGINE_TOGGLED':

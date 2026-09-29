@@ -10,6 +10,7 @@ export * from './types/decisions.js';
 export * from './types/state.js';
 export * from './types/sanitized.js';
 export * from './types/endgame.js';
+export * from './types/shipSystemsLog.js';
 export * from './logic/fsm.js';
 export * from './logic/setup.js';
 export * from './logic/sanitizer.js';
@@ -26,6 +27,7 @@ export {
 export * from './logic/turnCycle.js';
 export * from './logic/search.js';
 export { isHibernationOpen, isPlayerInPod, isPodUsable, podCommandsFor } from './logic/evacuation.js';
+export { EXCHANGE_OPTION } from './logic/exchange.js';
 export { questReadiness, sacrificeCandidates, type QuestBlocker, type QuestReadiness } from './logic/questItems.js';
 export * from './logic/searchActions.js';
 export * from './logic/roomAbilities.js';

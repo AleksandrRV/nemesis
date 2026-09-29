@@ -12,6 +12,7 @@ import { groupIntrudersByRoom } from './intruderMapModel';
 import { buildCrewByRoom } from './crewTokenModel';
 import { lastLogSequence, newVentRetreats, type VentEcho } from './techCorridorModel';
 import { BoardAnimationLayer } from './BoardAnimationLayer';
+import { DecompressionLayer } from './DecompressionLayer';
 import { DieRollOverlay } from './DieRollOverlay';
 import { usePrefersReducedMotion } from './useBoardAnimations';
 import { usePresentationSequencer } from './usePresentationSequencer';
@@ -580,6 +581,8 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
                       );
                     })}
                   </g>
+
+                  <DecompressionLayer view={displayView} coords={coordsMap} />
 
                   <BoardAnimationLayer
                     view={displayView}

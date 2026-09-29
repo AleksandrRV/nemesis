@@ -109,6 +109,21 @@ export function roomDoors(ctx: UsageContext, roomId: number) {
   );
 }
 
+export function roomsWithDoors(ctx: UsageContext): RoomView[] {
+  return Object.values(ctx.view.ship.rooms).filter((room) => roomDoors(ctx, room.id).length > 0);
+}
+
+export function decompressionRooms(ctx: UsageContext): RoomView[] {
+  return yellowRooms(ctx).filter(
+    (room) =>
+      !room.hasDecompressionToken &&
+      Object.values(ctx.view.ship.corridors).every(
+        (corridor) =>
+          (corridor.fromRoomId !== room.id && corridor.toRoomId !== room.id) || corridor.doorState !== 'DESTROYED',
+      ),
+  );
+}
+
 export type StudyObjectKind = SanitizedWeaknessSlotState['objectKind'];
 
 export function studyableObjectKinds(ctx: UsageContext): StudyObjectKind[] {

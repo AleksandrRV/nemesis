@@ -3,11 +3,13 @@ import { CARD_OPTION } from '../types/cardOptions.js';
 import type { PlayerState } from '../types/entities.js';
 import type { ExplorationEffect, RoomId, RoomState } from '../types/rooms.js';
 import type { EngineNumber, GameState } from '../types/state.js';
+import type { RoomPeekSource } from '../types/shipSystemsLog.js';
 import { appendGameLog } from './gameLog.js';
 import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
 import { endGame } from './gameEnd.js';
+import { stepIntoSlimeRoom } from './slimeRoom.js';
 
 type ItemHandSlot = Extract<PlayerState['handSlots'][number], { source: 'ITEM' }>;
 
@@ -170,7 +172,13 @@ export function fixRoomMalfunction(state: GameState, actorId: string): void {
   room.hasMalfunction = false;
 }
 
-export function peekRoom(state: GameState, actorId: string, roomId: RoomId | undefined, withEffect: boolean): void {
+export function peekRoom(
+  state: GameState,
+  actorId: string,
+  roomId: RoomId | undefined,
+  withExplorationToken: boolean,
+  source: RoomPeekSource = 'CARD',
+): void {
   const room = requireTargetRoom(state, roomId, 'Не выбран отсек для подглядывания.');
   if (room.isExplored) {
     throw new EngineError('ROOM_ALREADY_EXPLORED', 'Этот отсек уже исследован — смотреть его оборот незачем.');
@@ -180,8 +188,10 @@ export function peekRoom(state: GameState, actorId: string, roomId: RoomId | und
     playerId: actorId,
     roomId: room.id,
     roomName: `Отсек #${room.id}`,
-    effect: withEffect ? (room.explorationEffect as ExplorationEffect | null) : null,
-    itemsCount: room.itemsCount,
+    source,
+    roomDefinitionId: room.definitionId,
+    effect: withExplorationToken ? (room.explorationEffect as ExplorationEffect | null) : null,
+    itemsCount: withExplorationToken ? room.itemsCount : null,
     peekCount: 1,
   });
 }
@@ -272,6 +282,7 @@ export function relocatePlayer(state: GameState, player: PlayerState, from: Room
   from.occupantPlayerIds = from.occupantPlayerIds.filter((id) => id !== player.id);
   target.occupantPlayerIds.push(player.id);
   player.roomId = target.id;
+  stepIntoSlimeRoom(state, player.id, target);
   if (!target.isExplored) {
     state.interruptQueue.push({
       type: 'EXPLORE_ROOM_INTERRUPT',

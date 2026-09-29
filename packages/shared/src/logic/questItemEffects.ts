@@ -2,9 +2,9 @@ import type { ItemCard } from '../types/cards.js';
 import type { GameState } from '../types/state.js';
 import { questDefinition } from '../data/questItems.js';
 import { EngineError } from './engineErrors.js';
-import { placeDoorToken } from './markers.js';
+import { closeDoorWithToken, rearrangeRoomDoors } from './doorControl.js';
 import { performRoomSearch } from './actionCardSupport.js';
-import { requirePlayer, requireRoom, requireTargetRoom, toggleDoor } from './cardEffectsShared.js';
+import { requirePlayer, requireRoom, toggleDoor } from './cardEffectsShared.js';
 import { questKeyOfItem } from './questItems.js';
 import type { ItemDisposal, UseItemPayload } from './itemEffects.js';
 import { useEvacuationKey, useShipLog } from './keyItemEffects.js';
@@ -12,12 +12,6 @@ import { studyWeakness } from './weaknessStudy.js';
 
 function notUsableNow(message: string): never {
   throw new EngineError('CARD_NOT_USABLE_NOW', message);
-}
-
-function closeWithToken(state: GameState, corridorId: string): void {
-  if (placeDoorToken(state, corridorId) === 'NO_TOKEN_IN_SUPPLY') {
-    throw new EngineError('DOOR_TOKEN_SUPPLY_EXHAUSTED', 'Жетонов Дверей нет ни в запасе, ни на поле.');
-  }
 }
 
 function plasmaTorch(state: GameState, actorId: string, corridorId: string | undefined): void {
@@ -28,36 +22,10 @@ function plasmaTorch(state: GameState, actorId: string, corridorId: string | und
   }
   if (corridor.doorState === 'DESTROYED') {
     corridor.doorState = 'OPEN';
-    closeWithToken(state, corridor.id);
+    closeDoorWithToken(state, corridor.id);
     return;
   }
   toggleDoor(state, actorId, corridor.id, true);
-}
-
-/**
- * «Ключ безопасности»: Двери всех Коридоров выбранной Комнаты — перечисленные
- * Закрываются, остальные Открываются. Без списка — все целые Двери в одно
- * положение: Закрыть, если хотя бы одна открыта, иначе Открыть.
- */
-function securityKey(state: GameState, targetRoomId: number | undefined, closedCorridorIds?: readonly string[]): void {
-  const target = requireTargetRoom(state, targetRoomId, 'Выберите комнату, Двери которой нужно переключить.');
-  const doors = Object.values(state.ship.corridors).filter(
-    (corridor) =>
-      (corridor.fromRoomId === target.id || corridor.toRoomId === target.id) && corridor.doorState !== 'DESTROYED',
-  );
-  if (doors.length === 0) throw new EngineError('DOOR_DESTROYED', 'У этой комнаты нет целых Дверей.');
-  const doorIds = new Set(doors.map((corridor) => corridor.id));
-  if (closedCorridorIds?.some((id) => !doorIds.has(id))) {
-    throw new EngineError('INVALID_DECISION_OPTION', 'Закрывать можно только целые Двери выбранной Комнаты.');
-  }
-  const toClose = new Set(
-    closedCorridorIds ??
-      (doors.some((corridor) => corridor.doorState === 'OPEN') ? doors.map((corridor) => corridor.id) : []),
-  );
-  for (const corridor of doors) {
-    if (toClose.has(corridor.id) && corridor.doorState === 'OPEN') closeWithToken(state, corridor.id);
-    if (!toClose.has(corridor.id)) corridor.doorState = 'OPEN';
-  }
 }
 
 export function applyQuestItemEffect(
@@ -80,7 +48,7 @@ export function applyQuestItemEffect(
       performRoomSearch(state, actorId, payload.targetDeckColor);
       break;
     case 'SECURITY_KEY':
-      securityKey(state, payload.targetRoomId, payload.closedCorridorIds);
+      rearrangeRoomDoors(state, payload.targetRoomId, payload.closedCorridorIds);
       break;
     case 'SHIP_LOG':
       useShipLog(state, actorId, payload.targetPlayerId);

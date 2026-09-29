@@ -26,6 +26,10 @@ function roomsWithCategory(state: GameState, category: RoomState['category']): R
   return Object.values(state.ship.rooms).filter((room) => room.category === category);
 }
 
+function hasItemCounter(room: RoomState): boolean {
+  return room.definitionId !== 'NEST' && room.definitionId !== 'SLIME_ROOM';
+}
+
 function hiddenRooms(state: GameState): RoomState[] {
   return Object.values(state.ship.rooms).filter((room) => !room.isExplored);
 }
@@ -159,11 +163,37 @@ describe('createInitialGameState: жетоны Исследования', () => 
 
   it('раскладывает по одному жетону в каждый из 16 неисследованных отсеков', () => {
     for (const seed of SEEDS) {
-      const hidden = hiddenRooms(createInitialGameState(seed));
+      const hidden = hiddenRooms(createInitialGameState(seed, { playerCount: 2 }));
 
       expect(hidden).toHaveLength(16);
       expect(hidden.every((room) => room.explorationEffect !== null)).toBe(true);
-      expect(hidden.every((room) => room.itemsCount >= 1 && room.itemsCount <= 4)).toBe(true);
+      expect(hidden.filter(hasItemCounter).every((room) => room.itemsCount >= 1 && room.itemsCount <= 4)).toBe(true);
+    }
+  });
+
+  it('стр. 14: в Улье и Комнате, покрытой Слизью, Счётчик Предметов не устанавливается', () => {
+    for (const seed of SEEDS) {
+      const rooms = hiddenRooms(createInitialGameState(seed, { playerCount: 2 })).filter(
+        (room) => !hasItemCounter(room),
+      );
+      expect(rooms.every((room) => room.itemsCount === 0)).toBe(true);
+    }
+  });
+
+  it('стр. 27: в Соло Предметов в Комнатах вдвое меньше с округлением вверх', () => {
+    for (const seed of SEEDS) {
+      const multiplayer = createInitialGameState(seed, { playerCount: 2 });
+      const solo = createInitialGameState(seed, { playerCount: 1 });
+      const rooms = hiddenRooms(multiplayer).filter(hasItemCounter);
+      expect(rooms.length).toBeGreaterThan(0);
+      for (const room of rooms) {
+        const soloRoom = solo.ship.rooms[room.id]!;
+        expect([soloRoom.definitionId, soloRoom.explorationEffect]).toEqual([
+          room.definitionId,
+          room.explorationEffect,
+        ]);
+        expect(soloRoom.itemsCount).toBe(Math.ceil(room.itemsCount / 2));
+      }
     }
   });
 
@@ -176,7 +206,7 @@ describe('createInitialGameState: жетоны Исследования', () => 
         pool.set(key, (pool.get(key) ?? 0) + 1);
       }
 
-      for (const room of hiddenRooms(createInitialGameState(seed))) {
+      for (const room of hiddenRooms(createInitialGameState(seed, { playerCount: 2 })).filter(hasItemCounter)) {
         const key = `${room.explorationEffect}:${room.itemsCount}`;
         const left = pool.get(key) ?? 0;
 

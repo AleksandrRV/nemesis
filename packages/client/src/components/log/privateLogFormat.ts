@@ -1,5 +1,6 @@
 import type { SanitizedGameLogEvent, SanitizedGameState } from '@nemesis/shared';
 import { effectSegment, playerName, roomLabel, type GameLogSegment } from './gameLogModel';
+import { roomDefinitionName } from './roomNames';
 
 type PrivateLogEvent = Extract<
   SanitizedGameLogEvent,
@@ -23,12 +24,15 @@ function roomPeeked(
 ): GameLogSegment[] {
   const actor: GameLogSegment = { text: playerName(view, event.playerId), tone: 'player', strong: true };
   const room: GameLogSegment = { text: roomLabel(view, event.roomId), tone: 'room', strong: true };
-  if (event.itemsCount === null) {
-    return [actor, { text: ' тайно смотрит оборот: ' }, room, { text: '.' }];
+  const via = event.source === 'OBSERVATION_ROOM' ? ' из Комнаты Наблюдения' : '';
+  const tileName = event.roomDefinitionId ? roomDefinitionName(event.roomDefinitionId) : null;
+  if (tileName === null) {
+    return [actor, { text: `${via} тайно смотрит оборот: ` }, room, { text: '.' }];
   }
-  const details: GameLogSegment[] = [{ text: ` — предметов: ${event.itemsCount}` }];
+  const details: GameLogSegment[] = [{ text: ' — это ' }, { text: `«${tileName}»`, tone: 'room', strong: true }];
+  if (event.itemsCount !== null) details.push({ text: `, предметов: ${event.itemsCount}` });
   if (event.effect) details.push({ text: ', жетон ' }, effectSegment(event.effect));
-  return [actor, { text: ' смотрит оборот: ' }, room, ...details, { text: '.' }];
+  return [actor, { text: `${via} смотрит оборот: ` }, room, ...details, { text: '.' }];
 }
 
 function eventPeeked(

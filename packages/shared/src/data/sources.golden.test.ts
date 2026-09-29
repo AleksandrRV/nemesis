@@ -22,6 +22,7 @@ import {
   ESCAPE_PODS_BY_PLAYER_COUNT,
   HAND_SLOT_COUNT,
   QUEST_ITEM_COUNT,
+  SOLO_ITEMS_DIVISOR,
   TIME_TRACK_LENGTH,
   WEAKNESS_SLOT_COUNT,
   WEAKNESS_SLOT_OBJECT_KINDS,
@@ -400,6 +401,7 @@ describe('Golden: подготовка стола (Э2-1)', () => {
       handSlotCount: number;
       questItemCount: number;
       characterCount: number;
+      soloItemsDivisor: number;
     };
 
     expect(ESCAPE_PODS_BY_PLAYER_COUNT).toEqual(
@@ -413,6 +415,7 @@ describe('Golden: подготовка стола (Э2-1)', () => {
     expect(HAND_SLOT_COUNT).toBe(expectation.handSlotCount);
     expect(QUEST_ITEM_COUNT).toBe(expectation.questItemCount);
     expect(CHARACTERS).toHaveLength(expectation.characterCount);
+    expect(SOLO_ITEMS_DIVISOR).toBe(expectation.soloItemsDivisor);
   });
 });
 

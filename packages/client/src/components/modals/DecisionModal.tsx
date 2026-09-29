@@ -5,6 +5,7 @@ import { Package, ArrowRight, Dices, Shield } from 'lucide-react';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { FirstContactObjectiveChoice } from '../objectives/FirstContactObjectiveChoice';
+import { ExchangeConsentDialog } from '../rooms/ExchangeModal';
 
 interface DecisionModalProps {
   decision: PendingDecision;
@@ -41,6 +42,11 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
       decision.objectiveIds.includes(objective.id),
     );
     return <FirstContactObjectiveChoice key={decision.id} view={view} objectives={objectives} onKeep={handleSelect} />;
+  }
+
+  if (decision.type === 'EXCHANGE_CONSENT') {
+    if (!view) return null;
+    return <ExchangeConsentDialog decision={decision} view={view} onAnswer={handleSelect} />;
   }
 
   if (decision.type === 'STEEL_NERVES_OFFER') {

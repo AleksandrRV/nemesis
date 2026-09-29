@@ -1,6 +1,8 @@
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { ItemCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
+import type { ExchangeTransfer } from './actions.js';
+import type { ExchangeEntryKind } from './shipSystemsLog.js';
 
 /** Выстрел, ожидающий решения о перебросе кубика Боя. */
 export interface PendingShot {
@@ -12,7 +14,27 @@ export interface PendingShot {
   spendExtraAmmoOnTwoWounds: boolean;
 }
 
+/** Передача с тем, что видят участники Обмена: они показывают друг другу карты (стр. 12). */
+export interface ExchangeOfferLine extends ExchangeTransfer {
+  kind: ExchangeEntryKind;
+  name: string;
+  color: ItemCard['color'] | null;
+  isHeavy: boolean;
+  ammo: number;
+}
+
+export interface PendingExchange {
+  exchangeId: string;
+  initiatorId: string;
+  roomId: RoomId;
+  lines: ExchangeOfferLine[];
+  acceptedPlayerIds: string[];
+  declinedPlayerIds: string[];
+  awaitingPlayerIds: string[];
+}
+
 export type PendingDecision =
+  | { id: string; playerId: string; type: 'EXCHANGE_CONSENT'; exchange: PendingExchange }
   | {
       id: string;
       playerId: string;

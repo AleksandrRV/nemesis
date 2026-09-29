@@ -15,6 +15,15 @@ import { toggleSelfDestruct } from './selfDestruct.js';
 import { dropHeldObject, studyWeakness } from './weaknessStudy.js';
 import { repelIntruderWithSuppressant } from './fireSuppression.js';
 import { hasFreeHandSlot } from './seriousWoundEffects.js';
+import {
+  inspectAllEngines,
+  inspectEngineInRoom,
+  observeUnexploredRoom,
+  operateFlightControl,
+} from './shipSystemsAbilities.js';
+import { rearrangeRoomDoors } from './doorControl.js';
+import { startDecompression } from './decompression.js';
+import { snackInCanteen, takeShower } from './hygieneAbilities.js';
 
 function fireControlDetail(roomId: number, extinguished: boolean, repelledCount: number): string {
   const fire = extinguished ? `Маркер Пожара потушен в отсеке #${roomId}` : `В отсеке #${roomId} Пожара не было`;
@@ -331,10 +340,57 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
       return;
     }
 
+    case 'ENGINE_01':
+    case 'ENGINE_02':
+    case 'ENGINE_03':
+      inspectEngineInRoom(state, actorId, room);
+      break;
+
+    case 'ENGINE_CONTROL':
+      inspectAllEngines(state, actorId, room);
+      break;
+
+    case 'COCKPIT':
+      operateFlightControl(state, actorId, room, payload);
+      break;
+
+    case 'OBSERVATION_ROOM':
+      observeUnexploredRoom(state, actorId, payload);
+      break;
+
+    case 'COMMAND_CENTER': {
+      const doors = rearrangeRoomDoors(state, payload.targetRoomId, payload.closedCorridorIds ?? []);
+      appendGameLog(state, {
+        type: 'DOORS_REARRANGED',
+        playerId: actorId,
+        roomId: room.id,
+        ...doors,
+      });
+      break;
+    }
+
+    case 'AIRLOCK_CONTROL':
+      startDecompression(state, actorId, room, payload);
+      break;
+
+    case 'CANTEEN':
+    case 'SHOWER': {
+      const detail =
+        room.definitionId === 'CANTEEN' ? snackInCanteen(state, actorId, payload) : takeShower(state, actorId, payload);
+      appendGameLog(state, {
+        type: 'ROOM_ABILITY_USED',
+        playerId: actorId,
+        roomId: room.id,
+        roomDefinitionId: room.definitionId,
+        detail,
+      });
+      break;
+    }
+
     default:
       throw new EngineError(
         'ROOM_ABILITY_NOT_ALLOWED',
-        `Действие отсека ${room.definitionId ?? 'неизвестный'} не поддерживается в v0.3.0`,
+        `У отсека ${room.definitionId ?? 'неизвестный'} нет Действия: его свойство срабатывает само.`,
       );
   }
 

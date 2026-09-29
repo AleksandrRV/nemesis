@@ -5,6 +5,7 @@ import { isPlayerInCombat } from './combatStatus.js';
 import { appendGameLog } from './gameLog.js';
 import { EngineError } from './engineErrors.js';
 import { corridorsLeadingInto, roomHasTechnicalEntrance, corridorNumbersOf } from './shipGraphQueries.js';
+import { stepIntoSlimeRoom } from './slimeRoom.js';
 
 function chosenPlaceHasNoise(state: GameState, chosen: CarefulMoveChosenCorridor, targetRoomId?: RoomId): boolean {
   if (chosen.kind === 'TECHNICAL_CORRIDOR') return state.ship.technicalCorridorNoise;
@@ -112,6 +113,7 @@ export function movePlayer(
     corridorId,
     mode: noise.kind === 'CAREFUL' ? 'CAREFUL' : 'NORMAL',
   });
+  stepIntoSlimeRoom(state, playerId, targetRoom);
 
   const nextInterrupts: InterruptEvent[] = wasUnexplored
     ? [{ type: 'EXPLORE_ROOM_INTERRUPT', playerId, roomId: targetRoomId, corridorId }]

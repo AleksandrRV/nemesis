@@ -25,3 +25,10 @@ export const CARD_OPTION = {
 export type CardOption = (typeof CARD_OPTION)[keyof typeof CARD_OPTION];
 
 export const ENGINE_OPTIONS: readonly CardOption[] = [CARD_OPTION.ENGINE_REPAIR, CARD_OPTION.ENGINE_DAMAGE];
+
+export const ROOM_OPTION = {
+  CHECK_COORDINATES: 'CHECK_COORDINATES',
+  SET_COURSE: 'SET_COURSE',
+} as const;
+
+export type RoomOption = (typeof ROOM_OPTION)[keyof typeof ROOM_OPTION];

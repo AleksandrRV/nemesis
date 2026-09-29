@@ -20,6 +20,7 @@ import { TechCorridorPanel } from './TechCorridorPanel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { X, Package, User, Footprints, Ban, ShieldAlert, Bug, Droplets, Crosshair, Hand } from 'lucide-react';
 import { EvacuationActions } from '../evacuation/EvacuationActions';
+import { RoomActionButtons } from '../rooms/RoomActionButtons';
 
 const EVACUATION_ROOMS = new Set(['HIBERNATORIUM', 'ESCAPE_POD_A', 'ESCAPE_POD_B', 'HATCH_CONTROL']);
 
@@ -193,14 +194,6 @@ export const RoomInspector: React.FC = () => {
     const discardCardIds = consumePaymentCards(1);
     dispatch({
       type: 'ACTION_SEARCH',
-      payload: { discardCardIds },
-    });
-  };
-
-  const handleRoomAbility = () => {
-    const discardCardIds = consumePaymentCards(2);
-    dispatch({
-      type: 'ACTION_ROOM_ABILITY',
       payload: { discardCardIds },
     });
   };
@@ -480,21 +473,7 @@ export const RoomInspector: React.FC = () => {
                 }
               />
             )}
-            {roomDef && roomDef.actionCost > 0 && !room.hasMalfunction && !isEvacuationRoom && (
-              <button
-                type="button"
-                onClick={handleRoomAbility}
-                disabled={isActiveInCombat}
-                title={isActiveInCombat ? 'В Бою Действия Комнат запрещены (стр. 18)' : undefined}
-                className={`w-full min-h-[38px] font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition ${
-                  isActiveInCombat
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-slate-950 active:scale-95'
-                }`}
-              >
-                <span>Использовать консоль отсека [цена: {roomDef.actionCost}]</span>
-              </button>
-            )}
+            <RoomActionButtons view={view} roomId={room.id} />
           </div>
         )}
 

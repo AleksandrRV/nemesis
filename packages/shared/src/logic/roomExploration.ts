@@ -8,6 +8,7 @@ import { placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './marke
 import { EngineError } from './engineErrors.js';
 import { requireCorridor } from './shipGraphQueries.js';
 import { endGame } from './gameEnd.js';
+import { stepIntoSlimeRoom } from './slimeRoom.js';
 
 const ROOM_DEFINITIONS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
 
@@ -44,6 +45,7 @@ export function resolveExploreRoom(
     roomName: roomNameForLog(room),
     category: room.category,
   });
+  stepIntoSlimeRoom(state, interrupt.playerId, room);
 
   // Эффект вскрытия не должен затирать исходный explorationEffect тайла,
   // так как он требуется следующему прерыванию шума NOISE_ROLL_INTERRUPT.

@@ -39,6 +39,9 @@ export const BASE_ADULT_COUNT = 3;
 export const MIN_PLAYER_COUNT = 1;
 export const MAX_PLAYER_COUNT = 5;
 
+/** Соло (стр. 27): Предметов в Комнатах вдвое меньше, с округлением вверх. */
+export const SOLO_ITEMS_DIVISOR = 2;
+
 export interface CharacterPreset {
   characterClass: CharacterClass;
   name: string;

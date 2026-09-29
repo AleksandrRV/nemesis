@@ -1,6 +1,7 @@
 import { sufferLightWounds } from './characterDamage.js';
 import { endGame } from './gameEnd.js';
 import { runEventPhase } from './eventsPhase.js';
+import { resolveDecompressions } from './decompression.js';
 import type { GameState } from '../types/state.js';
 import type { PlayerState } from '../types/entities.js';
 import type { ActionDeckCard } from '../types/cards.js';
@@ -112,6 +113,11 @@ export function advanceTurnWithoutFire(state: GameState, completedPlayerId: stri
   const allPassed = alivePlayers.length > 0 && alivePlayers.every((p) => p.hasPassed);
 
   if (allPassed) {
+    resolveDecompressions(state);
+    if (getOrderedPlayers(state).length === 0) {
+      endGame(state, 'NO_ACTIVE_CHARACTERS');
+      return;
+    }
     state.meta.phase = 'EVENT_PHASE';
     runEventPhase(state);
     return;

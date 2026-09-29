@@ -11,6 +11,7 @@ import { EngineError } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
 import { discardItemCard } from './cardEffectsShared.js';
 import { resolvePodLaunchChoice } from './evacuation.js';
+import { resolveExchangeConsent } from './exchange.js';
 
 /**
  * Завершает поиск: уменьшает itemsCount в отсеке на 1,
@@ -95,6 +96,10 @@ export function executeDecision(
   }
   if (decision.playerId !== actorId) {
     throw new EngineError('INVALID_DECISION', 'Решение предназначено для другого игрока');
+  }
+  if (decision.type === 'EXCHANGE_CONSENT') {
+    resolveExchangeConsent(state, decision, action.payload.selectedOption);
+    return;
   }
   if (decision.type === 'REROLL_COMBAT_DIE') {
     state.pendingDecision = null;

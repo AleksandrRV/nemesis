@@ -6,6 +6,8 @@ export const SCAN_SOURCE_LABELS: Record<ContaminationScanSource, string> = {
   ANTIDOTE: 'Антидот',
   ALCOHOL: 'Алкоголь',
   MATURATION: 'Созревание',
+  CANTEEN: 'Столовая',
+  SHOWER: 'Душевая',
 };
 
 export interface ScanOutcomeCopy {

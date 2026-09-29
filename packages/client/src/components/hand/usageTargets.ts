@@ -1,4 +1,5 @@
-import type { ItemDeckColor, SanitizedGameState } from '@nemesis/shared';
+import { COORDINATE_CARDS, type ItemDeckColor, type SanitizedGameState } from '@nemesis/shared';
+import { DESTINATION_LABELS } from '../endgame/endgameModel';
 import { playerName, roomLabel } from '../log/gameLogModel';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
 import { OBJECT_KIND_LABELS } from '../inspector/laboratoryModel';
@@ -7,6 +8,7 @@ import {
   adjacentOpenRoomIds,
   buildContext,
   computerRooms,
+  decompressionRooms,
   intruderRoomsNearby,
   intrudersInRoom,
   livingOtherPlayers,
@@ -14,6 +16,7 @@ import {
   otherOccupants,
   playersWithSignal,
   roomDoors,
+  roomsWithDoors,
   roomOccupants,
   studyableObjectKinds,
   techRooms,
@@ -93,6 +96,21 @@ function roomDoorTargets(ctx: UsageContext, roomId: number | undefined): UsageTa
     sublabel: corridor.doorState === 'CLOSED' ? 'Сейчас Закрыта' : 'Сейчас Открыта',
     icon: 'door' as const,
   }));
+}
+
+function courseMarkerTargets(ctx: UsageContext): UsageTarget[] {
+  const current = ctx.view.ship.coordinates.currentCourseMarker;
+  const card = COORDINATE_CARDS.find((entry) => entry.id === ctx.view.ship.coordinates.cardId);
+  return (['A', 'B', 'C', 'D'] as const)
+    .filter((marker) => marker !== current)
+    .map((marker) => ({
+      id: marker,
+      label: `Координаты ${marker}`,
+      sublabel: card
+        ? `По вашей проверке: ${DESTINATION_LABELS[card.destinations[marker]]}`
+        : 'Пункт назначения неизвестен',
+      icon: 'course' as const,
+    }));
 }
 
 function buildTargets(ctx: UsageContext, kind: UsageTargetKind, chosenRoomId?: number): UsageTarget[] {
@@ -182,6 +200,18 @@ function buildTargets(ctx: UsageContext, kind: UsageTargetKind, chosenRoomId?: n
       return handCardTargets(ctx, false);
     case 'CONTAMINATION_CARD':
       return handCardTargets(ctx, true);
+    case 'COURSE_MARKER':
+      return courseMarkerTargets(ctx);
+    case 'DOOR_ROOM':
+      return roomsWithDoors(ctx).map((room) => roomTarget(ctx, room.id, `Дверей: ${roomDoors(ctx, room.id).length}`));
+    case 'DECOMPRESSION_ROOM':
+      return decompressionRooms(ctx).map((room) =>
+        roomTarget(
+          ctx,
+          room.id,
+          room.occupantPlayerIds.length > 0 ? `Персонажей внутри: ${room.occupantPlayerIds.length}` : 'Жёлтая Комната',
+        ),
+      );
   }
 }
 

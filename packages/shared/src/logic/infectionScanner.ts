@@ -48,3 +48,18 @@ export function removeInfectedCards(cards: ActionDeckCard[]): { kept: ActionDeck
   const kept = cards.filter((card) => !isContamination(card) || !card.isInfected);
   return { kept, removed: cards.length - kept.length };
 }
+
+/** Скан руки (стр. 20): карты без ИНФЕКЦИИ удаляются, ИНФЕКЦИЯ сажает Личинку или убивает. */
+export function scanHandAndRemoveClean(state: GameState, playerId: string, source: ContaminationScanSource): void {
+  const player = state.players[playerId]!;
+  const results = scanContaminationCards(player.actionDeck.hand);
+  const before = player.actionDeck.hand.length;
+  player.actionDeck.hand = player.actionDeck.hand.filter((card) => !isContamination(card) || card.isInfected);
+  const removed = before - player.actionDeck.hand.length;
+  const outcome = results.includes('INFECTED') ? resolveInfectionFound(state, playerId) : 'CLEAN';
+  logContaminationScan(state, playerId, source, results, removed, outcome);
+}
+
+export function hasContaminationInHand(state: GameState, playerId: string): boolean {
+  return state.players[playerId]!.actionDeck.hand.some(isContamination);
+}

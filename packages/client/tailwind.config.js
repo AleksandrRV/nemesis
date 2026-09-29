@@ -537,6 +537,23 @@ export default {
           '60%': { opacity: '1', transform: 'scale(0.96)', filter: 'blur(0)' },
           '100%': { opacity: '1', transform: 'scale(1)', filter: 'blur(0)' },
         },
+        'airlock-left': {
+          '0%': { transform: 'translateX(-100%)' },
+          '70%': { transform: 'translateX(0)' },
+          '80%': { transform: 'translateX(-4%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'airlock-right': {
+          '0%': { transform: 'translateX(100%)' },
+          '70%': { transform: 'translateX(0)' },
+          '80%': { transform: 'translateX(4%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'vacuum-debris': {
+          '0%': { transform: 'translateX(0) scaleX(0.3)', opacity: '0' },
+          '15%': { opacity: '1' },
+          '100%': { transform: 'translateX(260px) scaleX(1)', opacity: '0' },
+        },
         'endgame-curtain': {
           '0%': { opacity: '0', backdropFilter: 'blur(0px)' },
           '100%': { opacity: '1', backdropFilter: 'blur(6px)' },
@@ -651,6 +668,9 @@ export default {
         'endgame-shockwave': 'endgame-shockwave 1500ms cubic-bezier(0.1, 0.7, 0.3, 1) both',
         'endgame-flip': 'endgame-flip 800ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both',
         'endgame-verdict': 'endgame-verdict 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
+        'airlock-left': 'airlock-left 700ms cubic-bezier(0.6, 0, 0.9, 0.5) both',
+        'airlock-right': 'airlock-right 700ms cubic-bezier(0.6, 0, 0.9, 0.5) both',
+        'vacuum-debris': 'vacuum-debris 1100ms cubic-bezier(0.2, 0.6, 0.4, 1) infinite',
         'endgame-curtain': 'endgame-curtain 900ms ease-out both',
         'endgame-progress': 'endgame-progress 400ms ease-out both',
       },

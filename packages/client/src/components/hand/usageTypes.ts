@@ -24,7 +24,10 @@ export type UsageTargetKind =
   | 'DECK_COLOR'
   | 'INVENTORY_ITEM'
   | 'HAND_CARD'
-  | 'CONTAMINATION_CARD';
+  | 'CONTAMINATION_CARD'
+  | 'COURSE_MARKER'
+  | 'DOOR_ROOM'
+  | 'DECOMPRESSION_ROOM';
 
 export type UsageIcon =
   | 'door'
@@ -45,7 +48,8 @@ export type UsageIcon =
   | 'bolt'
   | 'lock'
   | 'search'
-  | 'biohazard';
+  | 'biohazard'
+  | 'course';
 
 export type CombatVariantKind = 'AIMED_SHOOT' | 'BURST_SHOOT' | 'ADRENALINE_SHOOT' | 'ADRENALINE_ESCAPE' | 'REPOSITION';
 

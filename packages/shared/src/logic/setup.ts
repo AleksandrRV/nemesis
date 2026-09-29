@@ -16,6 +16,7 @@ import {
   ESCAPE_POD_NUMBERS,
   MAX_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
+  SOLO_ITEMS_DIVISOR,
   QUEST_ITEM_COUNT,
   WEAKNESS_SLOT_COUNT,
   WEAKNESS_SLOT_OBJECT_KINDS,
@@ -148,6 +149,14 @@ export interface InitialGameOptions {
 }
 
 /** Базовая игра полукооперативная; режим Соло — партия на одного игрока (стр. 27). */
+const ROOMS_WITHOUT_ITEM_COUNTER: readonly string[] = ['NEST', 'SLIME_ROOM'];
+
+/** Счётчик Предметов (стр. 14): нет в Улье и Слизи; в Соло — половина с округлением вверх (стр. 27). */
+function roomItemsCounter(definitionId: string, tokenItemsCount: number, gameMode: GameMode): number {
+  if (ROOMS_WITHOUT_ITEM_COUNTER.includes(definitionId)) return 0;
+  return gameMode === 'SOLO' ? Math.ceil(tokenItemsCount / SOLO_ITEMS_DIVISOR) : tokenItemsCount;
+}
+
 function resolveGameMode(playerCount: number): GameMode {
   return playerCount === MIN_PLAYER_COUNT ? 'SOLO' : 'SEMI_COOP';
 }
@@ -265,7 +274,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
 
       definitionId = def.id;
       hasComputer = def.hasComputer;
-      itemsCount = token.itemsCount;
+      itemsCount = roomItemsCounter(def.id, token.itemsCount, gameMode);
       explorationEffect = token.effect;
     } else if (node.category === 'ROOM_2') {
       const def = shuffledRooms2[room2Idx++]!;
@@ -273,7 +282,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
 
       definitionId = def.id;
       hasComputer = def.hasComputer;
-      itemsCount = token.itemsCount;
+      itemsCount = roomItemsCounter(def.id, token.itemsCount, gameMode);
       explorationEffect = token.effect;
     }
 

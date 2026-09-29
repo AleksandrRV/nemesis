@@ -19,6 +19,7 @@ import { executeDecision, executeSearch } from './searchActions.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { executeCraftItem } from './crafting.js';
+import { proposeExchange } from './exchange.js';
 import { executeActivateQuest } from './questItems.js';
 import { executeEscapePodCommand, isPlayerInPod } from './evacuation.js';
 import { escapeCost, mustDropHeavyForArmWound } from './seriousWoundEffects.js';
@@ -113,6 +114,9 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
     }
     case 'ACTION_PASS':
       return executePass(state, action, actorId);
+    case 'ACTION_EXCHANGE':
+      executeCardPayment(state, actorId, action.payload.discardCardIds, 1);
+      return proposeExchange(state, actorId, action.payload.transfers);
     case 'ACTION_SHOOT':
       return executeShoot(state, action, actorId);
     case 'ACTION_MELEE':

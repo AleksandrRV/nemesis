@@ -1,5 +1,6 @@
 import type { CraftedItemId, ItemDeckColor } from './cards.js';
 import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
+import type { CourseMarker } from './state.js';
 
 /**
  * Действия игрока — единственный способ изменить состояние партии:
@@ -33,6 +34,20 @@ export type RoomAbilityPayload = {
   targetObjectKind?: 'CORPSE' | 'EGG' | 'INTRUDER_REMAINS';
   /** Стр. 16: после Изучения можно сбросить объект с руки, не тратя Действия. */
   discardObjectAfterStudy?: boolean;
+  /** Мостик: куда переставить маркер Курса. */
+  targetCourseMarker?: CourseMarker;
+  /** Центр Управления: какие Двери выбранной Комнаты Закрыть; остальные Открываются. */
+  closedCorridorIds?: string[];
+  /** Столовая и Душевая: просканировать карты Заражения на руке. */
+  scanContamination?: boolean;
+};
+
+/** Одна передача Обмена (стр. 12): Предмет или Объект от одного Персонажа другому. */
+export type ExchangeTransfer = {
+  fromPlayerId: string;
+  toPlayerId: string;
+  /** id карты Предмета или Объекта в Инвентаре или слоте Руки отдающего. */
+  entryId: string;
 };
 
 /**
@@ -140,6 +155,7 @@ export type GameAction =
   | { type: 'ACTION_ACTIVATE_QUEST'; payload: ActivateQuestActionPayload }
   | { type: 'ACTION_ESCAPE_POD'; payload: { command: EscapePodCommand } }
   | { type: 'ACTION_PASS'; payload: { discardCardIds?: string[] } }
+  | { type: 'ACTION_EXCHANGE'; payload: { discardCardIds: string[]; transfers: ExchangeTransfer[] } }
   | {
       type: 'ACTION_RESOLVE_DECISION';
       payload: {

@@ -4,10 +4,9 @@ import { formatPrivateLogEvent, isPrivateLogEvent } from './privateLogFormat';
 import { formatScanLogEvent } from './scanLogFormat';
 import { formatCraftLogEvent, formatQuestLogEvent } from './craftLogFormat';
 import { formatEvacuationLogEvent, isEvacuationLogEvent } from './evacuationLogFormat';
+import { formatShipSystemsLogEvent, isShipSystemsLogEvent } from './shipSystemsLogFormat';
+import { roomDefinitionName } from './roomNames';
 import {
-  ADDITIONAL_ROOMS_2,
-  BASIC_ROOMS_1,
-  SPECIAL_ROOMS,
   SELF_DESTRUCT_EXPLODES_AT,
   TIME_TRACK_LENGTH,
   type SanitizedGameLogEntry,
@@ -44,10 +43,6 @@ export interface FormattedGameLogEntry {
   groupId: string | null;
   isMovementGroup: boolean;
 }
-
-const ROOM_NAMES = new Map(
-  [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2].map((room) => [room.id, room.name]),
-);
 
 const EFFECT_LABELS: Record<
   NonNullable<Extract<SanitizedGameLogEvent, { type: 'EXPLORATION_TOKEN_REVEALED' }>['effect']>,
@@ -97,7 +92,7 @@ export function roomLabel(view: SanitizedGameState, roomId: number): string {
   const numberLabel = `#${String(roomId).padStart(3, '0')}`;
 
   if (room?.isExplored && room.definitionId) {
-    const name = ROOM_NAMES.get(room.definitionId);
+    const name = roomDefinitionName(room.definitionId);
 
     if (name) return `«${name}» (${numberLabel})`;
   }
@@ -440,6 +435,7 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
       if (event.type === 'ITEM_CRAFTED') return formatCraftLogEvent(event, view);
       if (event.type === 'QUEST_ACTIVATED') return formatQuestLogEvent(event, view);
       if (isEvacuationLogEvent(event)) return formatEvacuationLogEvent(event, view);
+      if (isShipSystemsLogEvent(event)) return formatShipSystemsLogEvent(event, view);
       return formatIntruderLogEvent(event as never, view);
   }
 }

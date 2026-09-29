@@ -6,6 +6,7 @@ import type { NoiseDieFace } from '../data/noiseDie.js';
 import type { GameOverReason } from './state.js';
 import type { IntruderToken, IntruderType } from './entities.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
+import type { RoomPeekSource, ShipSystemsLogEvent } from './shipSystemsLog.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
@@ -83,7 +84,7 @@ export type GameLogEffectOutcome =
   | 'DANGER_TRIGGERED'
   | 'SILENCE_RESOLVED';
 
-export type ContaminationScanSource = 'REST' | 'SURGERY' | 'ANTIDOTE' | 'ALCOHOL' | 'MATURATION';
+export type ContaminationScanSource = 'REST' | 'SURGERY' | 'ANTIDOTE' | 'ALCOHOL' | 'MATURATION' | 'CANTEEN' | 'SHOWER';
 
 export type ContaminationScanResult = 'INFECTED' | 'CLEAN';
 
@@ -91,6 +92,7 @@ export type ContaminationScanOutcome = 'CLEAN' | 'LARVA_PLACED' | 'DIED' | 'LARV
 
 export type GameLogEvent =
   | IntruderLogEvent
+  | ShipSystemsLogEvent
   | { type: 'GAME_STARTED' }
   | {
       type: 'ROUND_STARTED';
@@ -146,14 +148,17 @@ export type GameLogEvent =
       isActive: boolean;
     }
   | {
-      /** Разыграно подглядывание («Знание корабля», Дрон-разведчик, Планы «Немезиды»). */
+      /** Подглядывание: «Знание корабля», Дрон-разведчик, Планы «Немезиды», Комната Наблюдения. */
       type: 'ROOM_PEEKED';
       playerId: string;
       roomId: RoomId;
       roomName: string;
-      /** null — жетон Исследования не подглядывался («Планы „Немезиды"»). */
+      source: RoomPeekSource;
+      /** Оборот тайла Комнаты. */
+      roomDefinitionId: string | null;
+      /** null — жетон Исследования не подглядывался. */
       effect: ExplorationEffect | null;
-      itemsCount: number;
+      itemsCount: number | null;
       /** Сколько отсеков подглядуто одной картой (Дрон — 1, Планы — 2). */
       peekCount: number;
     }

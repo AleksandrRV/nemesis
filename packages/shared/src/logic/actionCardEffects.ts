@@ -7,7 +7,7 @@ import { movePlayer } from './movement.js';
 import { performPass } from './turnCycle.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { executeReposition } from './classCombatCards.js';
-import { logContaminationScan, resolveInfectionFound, scanContaminationCards } from './infectionScanner.js';
+import { scanHandAndRemoveClean } from './infectionScanner.js';
 import {
   discardInventoryItem,
   fixRoomMalfunction,
@@ -70,12 +70,7 @@ function rest(state: GameState, actorId: string): void {
   if (!player.actionDeck.hand.some(isContaminationCard)) {
     throw new EngineError('NO_CONTAMINATION', 'На руке нет карт Заражения — «Отдых» нечего сканировать.');
   }
-  const results = scanContaminationCards(player.actionDeck.hand);
-  const before = player.actionDeck.hand.length;
-  player.actionDeck.hand = player.actionDeck.hand.filter((entry) => !isContaminationCard(entry) || entry.isInfected);
-  const removed = before - player.actionDeck.hand.length;
-  const outcome = results.includes('INFECTED') ? resolveInfectionFound(state, actorId) : 'CLEAN';
-  logContaminationScan(state, actorId, 'REST', results, removed, outcome);
+  scanHandAndRemoveClean(state, actorId, 'REST');
 }
 
 function demolition(state: GameState, actorId: string, payload: PlayCardPayload): void {
@@ -200,7 +195,7 @@ export function applyActionCardEffect(
       return demolition(state, actorId, payload);
     case 'SHIP_KNOWLEDGE':
       if (payload.option === CARD_OPTION.DOOR) return toggleDoor(state, actorId, payload.targetCorridorId, true);
-      return peekRoom(state, actorId, payload.targetRoomId, true);
+      return peekRoom(state, actorId, payload.targetRoomId, false);
     case 'COMPUTER_SKILLS':
       if (payload.option === CARD_OPTION.ROOM_ACTION) {
         notUsableNow('Бесплатные Действия комнат ещё не реализованы — используйте вариант с Дверью.');

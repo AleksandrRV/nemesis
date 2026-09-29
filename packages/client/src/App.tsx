@@ -12,6 +12,7 @@ import { QuestUnlockCinematic } from './components/quests/QuestUnlockCinematic';
 import { ObjectiveBriefing } from './components/objectives/ObjectiveBriefing';
 import { SessionNotice } from './components/hud/SessionNotice';
 import { EvacuationCinematic } from './components/evacuation/EvacuationCinematic';
+import { ShipIntelCinematic } from './components/rooms/ShipIntelCinematic';
 import { EscapePodConsole } from './components/evacuation/EscapePodConsole';
 import { CryoChip } from './components/evacuation/CryoChip';
 import { DevPanel } from './components/dev/DevPanel';
@@ -233,6 +234,7 @@ export const App: React.FC = () => {
         <InfectionScanOverlay view={view} />
         <QuestUnlockCinematic view={view} />
         <EvacuationCinematic view={view} />
+        <ShipIntelCinematic view={view} />
         {isPresentationIdle && <EscapePodConsole view={view} />}
         {isPresentationIdle && <ShootModal />}
         {isPresentationIdle && <MeleeModal />}

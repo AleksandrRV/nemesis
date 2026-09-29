@@ -1,5 +1,6 @@
 import type { PendingDecision } from './decisions.js';
 import type { GameLogEvent } from './log.js';
+import type { ExchangedEntry, InspectedEngine } from './shipSystemsLog.js';
 import type {
   ActionCard,
   ContaminationCard,
@@ -171,9 +172,29 @@ export interface SanitizedIntrudersPoolState extends Omit<IntrudersPoolState, 'b
 
 type PrivateLogEvent<TType extends GameLogEvent['type']> = Extract<GameLogEvent, { type: TType }>;
 
+type SanitizedExchangedEntry = Omit<ExchangedEntry, 'name' | 'color'> & {
+  name: string | null;
+  color: ExchangedEntry['color'];
+};
+
 export type SanitizedGameLogEvent =
-  | Exclude<GameLogEvent, { type: 'ROOM_PEEKED' | 'EVENT_PEEKED' | 'ENGINE_TOGGLED' | 'OBJECTIVE_PEEKED' }>
-  | (Omit<PrivateLogEvent<'ROOM_PEEKED'>, 'itemsCount'> & { itemsCount: number | null })
+  | Exclude<
+      GameLogEvent,
+      {
+        type:
+          | 'EVENT_PEEKED'
+          | 'ENGINE_TOGGLED'
+          | 'OBJECTIVE_PEEKED'
+          | 'ENGINES_INSPECTED'
+          | 'COORDINATES_INSPECTED'
+          | 'EXCHANGE_COMPLETED';
+      }
+    >
+  | (Omit<PrivateLogEvent<'ENGINES_INSPECTED'>, 'engines'> & {
+      engines: { engineNumber: InspectedEngine['engineNumber']; isWorking: boolean | null }[];
+    })
+  | (Omit<PrivateLogEvent<'COORDINATES_INSPECTED'>, 'cardId'> & { cardId: string | null })
+  | (Omit<PrivateLogEvent<'EXCHANGE_COMPLETED'>, 'entries'> & { entries: SanitizedExchangedEntry[] })
   | (Omit<PrivateLogEvent<'EVENT_PEEKED'>, 'cardName'> & { cardName: string | null })
   | (Omit<PrivateLogEvent<'ENGINE_TOGGLED'>, 'isWorking'> & { isWorking: boolean | null })
   | (Omit<PrivateLogEvent<'OBJECTIVE_PEEKED'>, 'objectiveNames'> & { objectiveNames: string[] | null });

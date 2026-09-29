@@ -5,6 +5,7 @@ import { filterStateForPlayer } from './sanitizer.js';
 import { getPlayerHandLimit, drawCardsToLimit } from './cardsPayment.js';
 import type { GameState } from '../types/state.js';
 import type { ItemCard } from '../types/cards.js';
+import { withoutDismissInHands } from '../testing/reactionFixtures.js';
 
 describe('Комплексная валидация релиза v0.3.0', () => {
   it('сериализация и восстановление состояния (JSON round-trip) сохраняет руку, колоды, сброс и pendingDecision', () => {
@@ -141,7 +142,7 @@ describe('Комплексная валидация релиза v0.3.0', () => 
 
   it('сквозной сценарий: MOVE → SEARCH → RESOLVE_DECISION → ROOM_ABILITY GENERATOR → PASS → PASS → startNewRound → draw to 5/6 (Шаг 8, долг 25)', () => {
     const engine = new GameEngine();
-    const state = createInitialGameState('release-e2e-test', { playerCount: 2 });
+    const state = withoutDismissInHands(createInitialGameState('release-e2e-test', { playerCount: 2 }));
 
     // Подготовка: найдём комнату Генератора и сделаем её соседней к стартовой (11) для простоты
     const generatorRoom = Object.values(state.ship.rooms).find((r) => r.definitionId === 'GENERATOR');

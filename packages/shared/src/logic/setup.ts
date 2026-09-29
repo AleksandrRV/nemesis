@@ -1,4 +1,5 @@
 import type { CharacterPreset } from '../data/setup.js';
+import type { CrewAssignment } from '../types/crew.js';
 import type { WeaknessCard } from '../types/cards.js';
 import type { CharacterClass, EscapePodState, PlayerState } from '../types/entities.js';
 import type { ExplorationEffect, ExplorationToken, RoomId, RoomState } from '../types/rooms.js';
@@ -146,6 +147,43 @@ export interface InitialGameOptions {
   gameId?: string;
   /** Выбранный класс персонажа для первого игрока (если задан) */
   chosenCharacterClass?: CharacterClass;
+  /** Экипаж из подготовки (стр. 8, шаги 14–17): номера, Персонажи и уже розданные Цели. */
+  crew?: CrewAssignment;
+}
+
+function presetOf(characterClass: CharacterClass): CharacterPreset {
+  return CHARACTERS.find((preset) => preset.characterClass === characterClass)!;
+}
+
+function crewPlayers(crew: CrewAssignment, seed: string): Record<string, PlayerState> {
+  return Object.fromEntries(
+    crew.members.map((member) => {
+      const player = createPlayer(member.playerId, presetOf(member.characterClass), member.orderNumber, seed);
+      player.objectives = structuredClone(member.objectives);
+      return [member.playerId, player];
+    }),
+  );
+}
+
+function legacyPlayers(
+  playerCount: number,
+  chosenCharacterClass: CharacterClass | undefined,
+  seed: string,
+): Record<string, PlayerState> {
+  const availableCharacters = [...CHARACTERS];
+  if (chosenCharacterClass) {
+    const chosenIndex = availableCharacters.findIndex((c) => c.characterClass === chosenCharacterClass);
+    if (chosenIndex > -1) {
+      const [chosenPreset] = availableCharacters.splice(chosenIndex, 1);
+      if (chosenPreset) availableCharacters.unshift(chosenPreset);
+    }
+  }
+  return Object.fromEntries(
+    Array.from({ length: playerCount }, (_, index) => {
+      const playerId = `player-${index + 1}`;
+      return [playerId, createPlayer(playerId, availableCharacters[index] ?? CHARACTERS[0]!, index + 1, seed)];
+    }),
+  );
 }
 
 /** Базовая игра полукооперативная; режим Соло — партия на одного игрока (стр. 27). */
@@ -180,7 +218,7 @@ function validatePlayerCount(playerCount: number): number {
  * не передан явно, — это сохраняет воспроизводимость тестов.
  */
 export function createInitialGameState(seed: string = DEFAULT_SEED, options: InitialGameOptions = {}): GameState {
-  const playerCount = validatePlayerCount(options.playerCount ?? MIN_PLAYER_COUNT);
+  const playerCount = validatePlayerCount(options.crew?.members.length ?? options.playerCount ?? MIN_PLAYER_COUNT);
   // Поток `layout`: тайлы, жетоны Исследования, номера капсул и пункты
   // назначения тасуются одной последовательностью, отдельной от броском Шума и
   // колод (utils/rng.ts). Перемешивание — общее для проекта.
@@ -219,28 +257,21 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
   const weaknessDeck = decks.weaknesses.drawPile.slice(0, WEAKNESS_SLOT_COUNT);
   decks.weaknesses = { drawPile: [], discard: [] };
 
-  const availableCharacters = [...CHARACTERS];
-  if (options.chosenCharacterClass) {
-    const chosenIndex = availableCharacters.findIndex((c) => c.characterClass === options.chosenCharacterClass);
-    if (chosenIndex > -1) {
-      const [chosenPreset] = availableCharacters.splice(chosenIndex, 1);
-      if (chosenPreset) {
-        availableCharacters.unshift(chosenPreset);
-      }
-    }
-  }
-
-  const playerIds = Array.from({ length: playerCount }, (_, index) => `player-${index + 1}`);
-  const players = playerIds.reduce<Record<string, PlayerState>>((acc, playerId, index) => {
-    acc[playerId] = createPlayer(playerId, availableCharacters[index] ?? CHARACTERS[0]!, index + 1, seed);
-    return acc;
-  }, {});
   const gameMode = resolveGameMode(playerCount);
-  dealObjectives(
-    playerIds.map((playerId) => players[playerId]!),
-    gameMode,
-    cardsRng,
-  );
+  const players = options.crew
+    ? crewPlayers(options.crew, seed)
+    : legacyPlayers(playerCount, options.chosenCharacterClass, seed);
+  if (!options.crew) {
+    dealObjectives(
+      Object.values(players).sort((left, right) => left.orderNumber - right.orderNumber),
+      gameMode,
+      cardsRng,
+    );
+  }
+  rngDraws.crew = options.crew?.rngDraws ?? 0;
+  const playerIds = Object.values(players)
+    .sort((left, right) => left.orderNumber - right.orderNumber)
+    .map((player) => player.id);
 
   const rooms: Record<RoomId, RoomState> = {} as Record<RoomId, RoomState>;
 
@@ -379,5 +410,6 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
     interruptQueue: [],
     pendingDecision: null,
     endgame: null,
+    reaction: null,
   };
 }

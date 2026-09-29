@@ -63,7 +63,7 @@ describe('Кубик Боя: последовательность и состо�
 
   it('не читает позиции других потоков и меняет только счётчик combat', () => {
     const state = createInitialGameState(SEED);
-    state.meta.rngDraws = { combat: 7, layout: 13, cards: 23, noise: 31, bag: 41 };
+    state.meta.rngDraws = { combat: 7, layout: 13, cards: 23, noise: 31, bag: 41, crew: 0 };
     const before = structuredClone(state);
     const control = createInitialGameState(SEED);
     control.meta.rngDraws.combat = 7;

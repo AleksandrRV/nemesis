@@ -8,9 +8,11 @@ import { EngineError } from '../logic/engineErrors.js';
 import type { EngineErrorCode } from '../logic/engineErrors.js';
 import { placeIntruder } from '../logic/intruderPlacement.js';
 import { createInitialGameState } from '../logic/setup.js';
+import { withoutDismissInHands } from './reactionFixtures.js';
 
+/** Стол для механик без встречных реакций: «Отставить» проверяется в `reactions.test.ts`. */
 export function contactState(playerCount = 1, seed = 'contact-step-2'): GameState {
-  return createInitialGameState(seed, { playerCount });
+  return withoutDismissInHands(createInitialGameState(seed, { playerCount }));
 }
 
 export function putPlayer(state: GameState, playerId: string, roomId: number): void {

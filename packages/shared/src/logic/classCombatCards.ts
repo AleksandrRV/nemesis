@@ -11,8 +11,7 @@ import { executeCardPayment } from './cardsPayment.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { performShoot, resolveShotFace } from './shoot.js';
 import { allocateEntityId } from './stateIds.js';
-import { movePlayer } from './movement.js';
-import { requireOpenPath } from './shipGraphQueries.js';
+import { executeReposition } from './reposition.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { escapeCost } from './seriousWoundEffects.js';
 
@@ -40,6 +39,7 @@ const AIMED_FIRE = 'ACT_SOL_AIMED_FIRE';
 const BURST_FIRE = 'ACT_SOL_BURST_FIRE';
 const SOLDIER_COVERING_FIRE = 'ACT_SOL_SUPPRESSIVE_FIRE';
 const CAPTAIN_SUPPRESSIVE_FIRE = 'ACT_CAP_SUPPRESSIVE_FIRE';
+const SCOUT_SUPPRESSIVE_FIRE = 'ACT_SCO_SUPPRESSIVE_FIRE';
 const ADRENALINE = 'ACT_SCO_ADRENALINE';
 
 /** Классовые боевые карты, встроенные в боевую механику движка (Шаг 8). */
@@ -48,6 +48,7 @@ export const COMBAT_ACTION_CARDS: readonly string[] = [
   BURST_FIRE,
   SOLDIER_COVERING_FIRE,
   CAPTAIN_SUPPRESSIVE_FIRE,
+  SCOUT_SUPPRESSIVE_FIRE,
   ADRENALINE,
 ];
 
@@ -110,45 +111,6 @@ export function drawOneActionCard(state: GameState, actorId: string): void {
   appendGameLog(state, { type: 'ACTION_CARD_DRAWN', playerId: actorId });
 }
 
-/**
- * Отход без Атаки Чужих (стр. 19): каждый перенос — обычное перемещение
- * (вскрытие и Шум работают, Внеочередные атаки не проводятся — карта
- * перечислена среди изменяющих правила Побега). Лимиты: Солдат — «себя
- * и/или другого» (1–2 переноса), Капитан — «себя или другого» (ровно 1).
- * Экспортируется для карты «Приказ» (перемещение другого Персонажа).
- */
-export function executeReposition(
-  state: GameState,
-  actorId: string,
-  moves: { playerId: string; targetRoomId: number }[],
-  maxMoves: number,
-  label: string,
-): void {
-  if (moves.length < 1 || moves.length > maxMoves) {
-    throw new EngineError(
-      'INVALID_DECISION_OPTION',
-      `${label}: допустимо ${maxMoves === 1 ? 'ровно один перенос' : `от 1 до ${maxMoves}`} переносов, передано ${moves.length}.`,
-    );
-  }
-  const actorRoomId = state.players[actorId]!.roomId;
-  const seen = new Set<string>();
-  for (const move of moves) {
-    if (seen.has(move.playerId)) {
-      throw new EngineError('INVALID_DECISION_OPTION', `${label}: персонаж указан дважды.`);
-    }
-    seen.add(move.playerId);
-    const target = state.players[move.playerId];
-    if (!target || target.isDead || target.isInHibernation || target.hasEscapedInPod) {
-      throw new EngineError('UNKNOWN_PLAYER', `${label}: такого персонажа на корабле нет.`);
-    }
-    if (target.roomId !== actorRoomId) {
-      throw new EngineError('INVALID_ATTACK_TARGET', `${label}: переносимый персонаж должен быть в комнате игрока.`);
-    }
-    const path = requireOpenPath(state, target.roomId, move.targetRoomId);
-    movePlayer(state, move.playerId, move.targetRoomId, path[0]!.id, { kind: 'ROLL' });
-  }
-}
-
 function requireEnergyWeaponInHand(state: GameState, actorId: string, weaponItemId: string): void {
   const slot = state.players[actorId]!.handSlots.find(
     (candidate) => candidate.source === 'ITEM' && candidate.card.id === weaponItemId,
@@ -202,14 +164,15 @@ export function executeCombatCard(
       return;
     }
     case SOLDIER_COVERING_FIRE:
-    case CAPTAIN_SUPPRESSIVE_FIRE: {
+    case CAPTAIN_SUPPRESSIVE_FIRE:
+    case SCOUT_SUPPRESSIVE_FIRE: {
       if (combat.kind !== 'REPOSITION') {
         throw new EngineError('INVALID_DECISION_OPTION', 'Неверные параметры карты отхода.');
       }
       const label = cardId === SOLDIER_COVERING_FIRE ? '«Заградительный огонь»' : '«Огонь на подавление»';
       consumeCard(state, actorId, cardId);
       spendOneAmmo(state, actorId, combat.weaponItemId);
-      executeReposition(state, actorId, combat.moves, cardId === SOLDIER_COVERING_FIRE ? 2 : 1, label);
+      executeReposition(state, actorId, combat.moves, cardId === SOLDIER_COVERING_FIRE ? 2 : 1, label, 'REQUIRED');
       queueActionCompletion(state, actorId);
       return;
     }

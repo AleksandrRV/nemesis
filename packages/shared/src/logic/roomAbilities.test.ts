@@ -6,6 +6,7 @@ import type { GameState } from '../types/state.js';
 import type { ItemCard } from '../types/cards.js';
 import { executeRoomAbility } from './roomAbilities.js';
 import { expectEngineError } from '../testing/contactFixtures.js';
+import { withoutDismissInHands } from '../testing/reactionFixtures.js';
 
 const SEED = 'room-ability-tests';
 
@@ -643,7 +644,7 @@ describe('Действия комнат (Room Abilities)', () => {
 
   it('LABORATORY: сброс чужого объекта — объект может быть у любого, но сбрасывать может только владелец после изучения (Шаг 6, долг 19)', () => {
     const engine = new GameEngine();
-    const state = createInitialGameState('lab-discard-test', { playerCount: 2 });
+    const state = withoutDismissInHands(createInitialGameState('lab-discard-test', { playerCount: 2 }));
     const player1 = state.players['player-1']!;
     const player2 = state.players['player-2']!;
 
@@ -678,7 +679,7 @@ describe('Действия комнат (Room Abilities)', () => {
     expect(s1.players['player-2']?.handSlots).toHaveLength(1);
 
     // Второй сценарий: player-2 изучает и сбрасывает свой объект
-    const state2 = createInitialGameState('lab-discard-test2', { playerCount: 2 });
+    const state2 = withoutDismissInHands(createInitialGameState('lab-discard-test2', { playerCount: 2 }));
     const p1_2 = state2.players['player-1']!;
     const p2_2 = state2.players['player-2']!;
     const labRoom2 = Object.values(state2.ship.rooms).find((r) => r.definitionId === 'LABORATORY')!;

@@ -19,26 +19,27 @@ function shuffledCopies(rng: Rng, cards: readonly ObjectiveCard[]): ObjectiveCar
   return shuffle(rng, cards).map((card) => structuredClone(card));
 }
 
-/** Подготовка, стр. 8, шаг 16; Соло и Кооператив — стр. 27. Остаток колод уходит в коробку. */
-export function dealObjectives(playersInOrder: readonly PlayerState[], gameMode: GameMode, rng: Rng): void {
+/** Подготовка, стр. 8, шаг 16; Соло и Кооператив — стр. 27. Руки Целей по номерам игроков, остаток — в коробку. */
+export function dealObjectiveHands(playerCount: number, gameMode: GameMode, rng: Rng): ObjectiveCard[][] {
   if (gameMode === 'SOLO' || gameMode === 'COOP') {
-    if (playersInOrder.length * SOLO_OBJECTIVES_DEALT > SOLO_COOP_OBJECTIVE_CARDS.length) {
+    if (playerCount * SOLO_OBJECTIVES_DEALT > SOLO_COOP_OBJECTIVE_CARDS.length) {
       throw new EngineError(
         'OBJECTIVE_DECK_EXHAUSTED',
-        `Соло/Кооп Целей ${SOLO_COOP_OBJECTIVE_CARDS.length}: на ${playersInOrder.length} игроков по ${SOLO_OBJECTIVES_DEALT} не хватит.`,
+        `Соло/Кооп Целей ${SOLO_COOP_OBJECTIVE_CARDS.length}: на ${playerCount} игроков по ${SOLO_OBJECTIVES_DEALT} не хватит.`,
       );
     }
     const soloDeck = shuffledCopies(rng, SOLO_COOP_OBJECTIVE_CARDS);
-    for (const player of playersInOrder) {
-      player.objectives = soloDeck.splice(0, SOLO_OBJECTIVES_DEALT);
-    }
-    return;
+    return Array.from({ length: playerCount }, () => soloDeck.splice(0, SOLO_OBJECTIVES_DEALT));
   }
-  const playerCount = playersInOrder.length;
   const corporate = shuffledCopies(rng, objectivesForPlayerCount(CORPORATE_OBJECTIVE_CARDS, playerCount));
   const personal = shuffledCopies(rng, objectivesForPlayerCount(PERSONAL_OBJECTIVE_CARDS, playerCount));
+  return Array.from({ length: playerCount }, (_, index) => [corporate[index]!, personal[index]!]);
+}
+
+export function dealObjectives(playersInOrder: readonly PlayerState[], gameMode: GameMode, rng: Rng): void {
+  const hands = dealObjectiveHands(playersInOrder.length, gameMode, rng);
   playersInOrder.forEach((player, index) => {
-    player.objectives = [corporate[index]!, personal[index]!];
+    player.objectives = hands[index]!;
   });
 }
 

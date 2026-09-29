@@ -6,7 +6,7 @@ import { EngineError } from './engineErrors.js';
 import { movePlayer } from './movement.js';
 import { performPass } from './turnCycle.js';
 import { requireOpenPath } from './shipGraphQueries.js';
-import { executeReposition } from './classCombatCards.js';
+import { executeReposition } from './reposition.js';
 import { scanHandAndRemoveClean } from './infectionScanner.js';
 import {
   discardInventoryItem,
@@ -149,6 +149,7 @@ function order(state: GameState, actorId: string, payload: PlayCardPayload): voi
     [{ playerId: payload.targetPlayerId, targetRoomId: payload.targetRoomId }],
     1,
     '«Приказ»',
+    'NOT_REQUIRED',
   );
 }
 
@@ -180,9 +181,7 @@ export function applyActionCardEffect(
       }
       return repairOrEngine(state, actorId, payload.option);
     case 'DISMISS':
-      return notUsableNow(
-        '«Отставить» отменяет Действия других Игроков в вашей комнате — одновременные действия ещё не реализованы.',
-      );
+      return notUsableNow('«Отставить» играется в ответ на чужое Действие: движок сам предложит карту в окне реакции.');
     case 'STEEL_NERVES':
       return notUsableNow('«Стальные нервы» сбрасываются во время Внезапной Атаки — движок предложит карту сам.');
     case 'SEARCH':

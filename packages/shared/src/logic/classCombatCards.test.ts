@@ -201,15 +201,21 @@ describe('Классовые боевые карты (Шаг 8)', () => {
     });
 
     expect(next.players['player-1']!.roomId).toBe(6);
-    expect(next.players['player-2']!.roomId).toBe(14);
+    expect(next.pendingDecision).toMatchObject({ type: 'REPOSITION_CONSENT', playerId: 'player-2', targetRoomId: 14 });
+    const agreed = new GameEngine().processAction(
+      next,
+      { type: 'ACTION_RESOLVE_DECISION', payload: { decisionId: next.pendingDecision!.id, selectedOption: 'ACCEPT' } },
+      { actorId: 'player-2' },
+    );
+    expect(agreed.players['player-2']!.roomId).toBe(14);
     expect(
       next.players['player-1']!.handSlots.find(
         (slot): slot is HeavyItemRef => slot.source === 'ITEM' && slot.card.id === weaponId,
       )?.card.ammo,
     ).toBe(ammoBefore - 1);
     // Внеочередных атак нет, несмотря на Чужого в отсеке (стр. 19).
-    expect(next.gameLog.some((entry) => entry.event.type === 'ESCAPE_ATTACK_RESOLVED')).toBe(false);
-    expect(next.players['player-1']!.actionsPerformedThisRound).toBe(1);
+    expect(agreed.gameLog.some((entry) => entry.event.type === 'ESCAPE_ATTACK_RESOLVED')).toBe(false);
+    expect(agreed.players['player-1']!.actionsPerformedThisRound).toBe(1);
   });
 
   it('Огонь на подавление: ровно один перенос, второй отклоняется целиком', () => {

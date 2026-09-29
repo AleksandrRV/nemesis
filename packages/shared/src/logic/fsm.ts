@@ -1,4 +1,4 @@
-import { produce } from 'immer';
+import { current, produce } from 'immer';
 import type { EngineAction } from '../types/actions.js';
 import type { GameState } from '../types/state.js';
 import { isPlayerInCombat } from './combatStatus.js';
@@ -20,6 +20,7 @@ import { requireOpenPath } from './shipGraphQueries.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { executeCraftItem } from './crafting.js';
 import { proposeExchange } from './exchange.js';
+import { openDismissWindow, opensDismissWindow, resolveDismissWindow } from './reactions.js';
 import { executeActivateQuest } from './questItems.js';
 import { executeEscapePodCommand, isPlayerInPod } from './evacuation.js';
 import { escapeCost, mustDropHeavyForArmWound } from './seriousWoundEffects.js';
@@ -158,12 +159,30 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
   }
 }
 
+function requireDecisionOwner(decision: { id: string; playerId: string }, decisionId: string, actorId: string): void {
+  if (decision.id !== decisionId) {
+    throw new EngineError('DECISION_NOT_FOUND', 'Активное решение не найдено или идентификатор не совпадает');
+  }
+  if (decision.playerId !== actorId)
+    throw new EngineError('INVALID_DECISION', 'Решение предназначено для другого игрока');
+}
+
 export class GameEngine {
   processAction(state: GameState, action: EngineAction, options: ProcessActionOptions = {}): GameState {
     const actorId = options.actorId ?? state.meta.activePlayerId;
     return produce(state, (draft) => {
       validateActor(draft, action, actorId, options);
-      handleAction(draft, action, actorId);
+      const runAction = (declared: EngineAction, declaredBy: string) => handleAction(draft, declared, declaredBy);
+      const decision = draft.pendingDecision;
+      if (action.type === 'ACTION_RESOLVE_DECISION' && decision?.type === 'DISMISS_WINDOW') {
+        requireDecisionOwner(decision, action.payload.decisionId, actorId);
+        resolveDismissWindow(draft, decision, action.payload.selectedOption, runAction);
+      } else if (opensDismissWindow(draft, action, actorId)) {
+        handleAction(structuredClone(current(draft)), action, actorId);
+        openDismissWindow(draft, action, actorId, runAction);
+      } else {
+        handleAction(draft, action, actorId);
+      }
       drainInterrupts(draft);
     });
   }

@@ -12,6 +12,7 @@ import { allocateEntityId } from './stateIds.js';
 import { discardItemCard } from './cardEffectsShared.js';
 import { resolvePodLaunchChoice } from './evacuation.js';
 import { resolveExchangeConsent } from './exchange.js';
+import { resolveRepositionConsent } from './reposition.js';
 
 /**
  * Завершает поиск: уменьшает itemsCount в отсеке на 1,
@@ -96,6 +97,10 @@ export function executeDecision(
   }
   if (decision.playerId !== actorId) {
     throw new EngineError('INVALID_DECISION', 'Решение предназначено для другого игрока');
+  }
+  if (decision.type === 'REPOSITION_CONSENT') {
+    resolveRepositionConsent(state, decision, action.payload.selectedOption);
+    return;
   }
   if (decision.type === 'EXCHANGE_CONSENT') {
     resolveExchangeConsent(state, decision, action.payload.selectedOption);

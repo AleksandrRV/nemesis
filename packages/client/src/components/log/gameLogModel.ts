@@ -5,6 +5,7 @@ import { formatScanLogEvent } from './scanLogFormat';
 import { formatCraftLogEvent, formatQuestLogEvent } from './craftLogFormat';
 import { formatEvacuationLogEvent, isEvacuationLogEvent } from './evacuationLogFormat';
 import { formatShipSystemsLogEvent, isShipSystemsLogEvent } from './shipSystemsLogFormat';
+import { formatCrewLogEvent, isCrewLogEvent } from './crewLogFormat';
 import { roomDefinitionName } from './roomNames';
 import {
   SELF_DESTRUCT_EXPLODES_AT,
@@ -436,6 +437,7 @@ function formatEntry(entry: SanitizedGameLogEntry, view: SanitizedGameState): Ga
       if (event.type === 'QUEST_ACTIVATED') return formatQuestLogEvent(event, view);
       if (isEvacuationLogEvent(event)) return formatEvacuationLogEvent(event, view);
       if (isShipSystemsLogEvent(event)) return formatShipSystemsLogEvent(event, view);
+      if (isCrewLogEvent(event)) return formatCrewLogEvent(event, view);
       return formatIntruderLogEvent(event as never, view);
   }
 }

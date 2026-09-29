@@ -1,4 +1,4 @@
-import type { PendingDecision } from './decisions.js';
+import type { DismissWindowView, PendingDecision } from './decisions.js';
 import type { GameLogEvent } from './log.js';
 import type { ExchangedEntry, InspectedEngine } from './shipSystemsLog.js';
 import type {
@@ -207,8 +207,10 @@ export interface SanitizedGameLogEntry {
 
 export interface SanitizedGameState extends Omit<
   GameState,
-  'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision' | 'gameLog'
+  'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision' | 'gameLog' | 'reaction'
 > {
+  /** Окно «Отставить»: всем видно, что Действие объявлено и кто его отменяет, но не платёжные карты. */
+  reaction: DismissWindowView | null;
   gameLog: SanitizedGameLogEntry[];
   decks: SanitizedDecksState;
   ship: Omit<ShipState, 'rooms' | 'engines' | 'coordinates'> & {

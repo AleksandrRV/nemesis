@@ -7,6 +7,7 @@ import type { GameOverReason } from './state.js';
 import type { IntruderToken, IntruderType } from './entities.js';
 import type { ExplorationEffect, RoomId, RoomSlotCategory } from './rooms.js';
 import type { RoomPeekSource, ShipSystemsLogEvent } from './shipSystemsLog.js';
+import type { CrewLogEvent } from './crewLog.js';
 
 export type GameLogMovementMode = 'NORMAL' | 'CAREFUL';
 
@@ -93,6 +94,7 @@ export type ContaminationScanOutcome = 'CLEAN' | 'LARVA_PLACED' | 'DIED' | 'LARV
 export type GameLogEvent =
   | IntruderLogEvent
   | ShipSystemsLogEvent
+  | CrewLogEvent
   | { type: 'GAME_STARTED' }
   | {
       type: 'ROUND_STARTED';

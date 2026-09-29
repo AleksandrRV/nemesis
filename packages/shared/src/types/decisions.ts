@@ -1,7 +1,7 @@
 import type { CombatDieFace } from '../data/combatDie.js';
 import type { ItemCard, ItemDeckColor } from './cards.js';
 import type { RoomId } from './rooms.js';
-import type { ExchangeTransfer } from './actions.js';
+import type { ExchangeTransfer, GameAction } from './actions.js';
 import type { ExchangeEntryKind } from './shipSystemsLog.js';
 
 /** Выстрел, ожидающий решения о перебросе кубика Боя. */
@@ -33,7 +33,34 @@ export interface PendingExchange {
   awaitingPlayerIds: string[];
 }
 
+/** Что видит отвечающий в окне «Отставить»: публичное описание, без платёжных карт. */
+export interface DismissWindowView {
+  actorId: string;
+  actionType: string;
+  /** Кого сейчас отменяют: исполнителя Действия или последнего сыгравшего «Отставить». */
+  targetPlayerId: string;
+  dismissedBy: string[];
+}
+
+/** Объявленное Действие ждёт окна «Отставить»: полная версия только в состоянии движка. */
+export interface PendingReaction {
+  action: GameAction;
+  actorId: string;
+  roomId: RoomId;
+  dismissedBy: string[];
+  askedThisRound: string[];
+}
+
 export type PendingDecision =
+  | {
+      id: string;
+      playerId: string;
+      type: 'REPOSITION_CONSENT';
+      requesterId: string;
+      targetRoomId: RoomId;
+      cardName: string;
+    }
+  | { id: string; playerId: string; type: 'DISMISS_WINDOW'; window: DismissWindowView }
   | { id: string; playerId: string; type: 'EXCHANGE_CONSENT'; exchange: PendingExchange }
   | {
       id: string;

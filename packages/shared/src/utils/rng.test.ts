@@ -22,7 +22,7 @@ function take(rng: Rng, count: number): number[] {
 
 describe('Потоки случайности', () => {
   it('перечисляет потоки и проверяет имя потока', () => {
-    expect([...RNG_STREAMS]).toEqual(['layout', 'noise', 'bag', 'cards', 'combat']);
+    expect([...RNG_STREAMS]).toEqual(['layout', 'noise', 'bag', 'cards', 'combat', 'crew']);
 
     for (const stream of RNG_STREAMS) {
       expect(isRngStream(stream)).toBe(true);

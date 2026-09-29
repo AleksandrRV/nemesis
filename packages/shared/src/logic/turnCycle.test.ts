@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialGameState } from './setup.js';
 import { GameEngine, EngineError, findAdjacentOpenRoomIds } from './fsm.js';
 import { applyFireEndTurnEffect, findNextActivePlayer, getOrderedPlayers, startNewRound } from './turnCycle.js';
+import { withoutDismissInHands } from '../testing/reactionFixtures.js';
 
 describe('Цикл микроходов и порядок игроков (Фаза Игроков, этап 0.5.0)', () => {
   it('возвращает игроков, упорядоченных по orderNumber', () => {
@@ -32,7 +33,7 @@ describe('Цикл микроходов и порядок игроков (Фаз
 
   it('переключает ход после двух выполненных действий', () => {
     const engine = new GameEngine();
-    const state = createInitialGameState('test-turn-3', { playerCount: 2 });
+    const state = withoutDismissInHands(createInitialGameState('test-turn-3', { playerCount: 2 }));
 
     const openNeighbour = findAdjacentOpenRoomIds(state, 11)[0]!;
     const card1 = state.players['player-1']!.actionDeck.hand[0]!.id;
@@ -60,7 +61,7 @@ describe('Цикл микроходов и порядок игроков (Фаз
 
   it('позволяет выполнить одно действие и спасовать', () => {
     const engine = new GameEngine();
-    const state = createInitialGameState('test-turn-4', { playerCount: 2 });
+    const state = withoutDismissInHands(createInitialGameState('test-turn-4', { playerCount: 2 }));
 
     const openNeighbour = findAdjacentOpenRoomIds(state, 11)[0]!;
     const card1 = state.players['player-1']!.actionDeck.hand[0]!.id;

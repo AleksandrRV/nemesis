@@ -25,6 +25,7 @@ import type {
 import type { GameLogEntry } from '../types/log.js';
 import type { EngineNumber, GameState } from '../types/state.js';
 import { handLimitOf } from './cardsPayment.js';
+import { dismissWindowView } from './reactions.js';
 
 /**
  * Фильтрация скрытой информации (tech_stack §3.2, GDD §5.1).
@@ -54,6 +55,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   const sanitized = structuredClone(state) as unknown as SanitizedGameState;
 
   sanitized.pendingDecisionPlayerId = state.pendingDecision?.playerId ?? null;
+  sanitized.reaction = state.reaction ? dismissWindowView(state.reaction) : null;
   sanitizeIntruderPool(sanitized);
   sanitizeShip(sanitized, viewer);
   sanitizePlayers(sanitized, viewingPlayerId);

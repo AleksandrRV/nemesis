@@ -15,7 +15,9 @@ import seedrandom from 'seedrandom';
  * - `bag` — жетоны Чужих из мешка;
  * - `cards` — перемешивание и добор колод;
  * - `combat` — кубик Боя;
- * - `crew` — подготовка экипажа до старта: номера игроков, раздача Целей, Драфт Персонажей.
+ * - `crew` — подготовка экипажа до старта: номера игроков, раздача Целей, Драфт Персонажей;
+ * - `ai` — мысли ботов: у каждого бота своя последовательность и свой счётчик в его памяти (`BotMind`), поэтому
+ *   бот не сдвигает ни чужих потоков, ни потоков других ботов; счётчик в `meta.rngDraws` для `ai` не растёт.
  *
  * Каждый поток читает только его подсистема, поэтому добавление броска Шума не
  * переставляет отсеки у той же партии. Обращений внутри потока тоже нужно
@@ -29,7 +31,7 @@ import seedrandom from 'seedrandom';
  */
 
 /** Потоки случайности. Список — часть контракта состояния: потоки хранятся в сохранении по имени. */
-export const RNG_STREAMS = ['layout', 'noise', 'bag', 'cards', 'combat', 'crew'] as const;
+export const RNG_STREAMS = ['layout', 'noise', 'bag', 'cards', 'combat', 'crew', 'ai'] as const;
 
 export type RngStream = (typeof RNG_STREAMS)[number];
 
@@ -48,7 +50,7 @@ export function isRngStream(value: string): value is RngStream {
  * не соберётся без правки этого места, и счётчик не потеряется молча.
  */
 export function createRngDraws(): Record<RngStream, number> {
-  return { layout: 0, noise: 0, bag: 0, cards: 0, combat: 0, crew: 0 };
+  return { layout: 0, noise: 0, bag: 0, cards: 0, combat: 0, crew: 0, ai: 0 };
 }
 
 /**

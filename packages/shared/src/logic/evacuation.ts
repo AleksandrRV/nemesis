@@ -1,4 +1,4 @@
-import type { EngineAction, EscapePodCommand } from '../types/actions.js';
+import type { EngineAction } from '../types/actions.js';
 import type { PendingDecision } from '../types/decisions.js';
 import type { EscapePodState, PlayerState } from '../types/entities.js';
 import type { InterruptEvent } from '../types/interrupts.js';
@@ -9,13 +9,12 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { allocateEntityId } from './stateIds.js';
 import { performPass, advanceTurnWithoutFire } from './turnCycle.js';
+import { isPlayerInPod, podCommandsFor } from './podQueries.js';
+
+export { isPlayerInPod, podCommandsFor };
 
 export function isHibernationOpen(state: GameState): boolean {
   return state.meta.timeTrackPosition >= HIBERNATION_OPENS_AT_TIME;
-}
-
-export function isPlayerInPod(player: Pick<PlayerState, 'boardedPodId'>): boolean {
-  return typeof player.boardedPodId === 'string';
 }
 
 export function isPodUsable(pod: EscapePodState): boolean {
@@ -197,16 +196,6 @@ export function resolvePodLaunchChoice(
     podId: pod.id,
     podNumber: pod.number,
   });
-}
-
-export function podCommandsFor(
-  state: Pick<GameState, 'meta'>,
-  player: Pick<PlayerState, 'boardedPodId' | 'boardedRound'>,
-): EscapePodCommand[] {
-  if (!isPlayerInPod(player)) return [];
-  const commands: EscapePodCommand[] = ['EXIT', 'STAY'];
-  if ((player.boardedRound ?? state.meta.currentRound) < state.meta.currentRound) commands.unshift('LAUNCH');
-  return commands;
 }
 
 export function executeEscapePodCommand(

@@ -8,8 +8,9 @@ import { executeCardPayment } from './cardsPayment.js';
 import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { allocateEntityId } from './stateIds.js';
+import { DISMISS_OPTION } from '../types/decisionOptions.js';
 
-export const DISMISS_OPTION = { DISMISS: 'DISMISS', ALLOW: 'ALLOW' } as const;
+export { DISMISS_OPTION };
 
 export type ActionRunner = (action: GameAction, actorId: string) => void;
 

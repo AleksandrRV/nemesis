@@ -1,11 +1,14 @@
 import type { EngineAction, GameState, SeatKind, TableSeating } from '@nemesis/shared';
-import { decidePassiveBotAction, filterStateForPlayer, playerToAct } from '@nemesis/shared';
+import { playerToAct } from '@nemesis/shared';
 
 export const MAX_BOT_STEPS_IN_A_ROW = 600;
 export const MAX_BOT_REFUSALS = 3;
 
 export type BotMove =
-  { kind: 'ACT'; botId: string; action: EngineAction } | { kind: 'STALLED'; botId: string; reason: string };
+  { kind: 'ACT'; botId: string; candidates: EngineAction[] } | { kind: 'STALLED'; botId: string; reason: string };
+
+/** Кто придумывает ходы бота: контроллер ботов по срезу и памяти. */
+export type BotThinker = (state: GameState, botId: string) => EngineAction[];
 
 /** Оркестратор мест (план 0.8.0, В8-2-4): кто за каким Персонажем и чей ответ ждёт движок. */
 export class SeatController {
@@ -44,7 +47,7 @@ export class SeatController {
     return fromId !== toId && this.localHumanIds().length > 1;
   }
 
-  nextBotMove(state: GameState): BotMove | null {
+  nextBotMove(state: GameState, think: BotThinker): BotMove | null {
     const botId = this.pendingBotId(state);
     if (botId === null) return null;
     if (this.stepsInARow >= MAX_BOT_STEPS_IN_A_ROW) {
@@ -54,12 +57,12 @@ export class SeatController {
       return { kind: 'STALLED', botId, reason: 'Бот не может ни ответить, ни спасовать.' };
     }
     if (this.refusals === MAX_BOT_REFUSALS) {
-      return { kind: 'ACT', botId, action: { type: 'ACTION_PASS', payload: {} } };
+      return { kind: 'ACT', botId, candidates: [{ type: 'ACTION_PASS', payload: {} }] };
     }
-    const action = decidePassiveBotAction(filterStateForPlayer(state, botId), botId);
-    if (action) return { kind: 'ACT', botId, action };
+    const candidates = think(state, botId);
+    if (candidates.length > 0) return { kind: 'ACT', botId, candidates };
     this.refusals += 1;
-    return this.nextBotMove(state);
+    return this.nextBotMove(state, think);
   }
 
   botActed(): void {

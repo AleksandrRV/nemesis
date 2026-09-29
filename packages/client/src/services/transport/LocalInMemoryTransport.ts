@@ -1,5 +1,6 @@
 import type {
   CharacterClass,
+  CommsDraft,
   CrewAssignment,
   EngineAction,
   GameState,
@@ -12,6 +13,7 @@ import { GameEngine, createInitialGameState, filterStateForPlayer } from '@nemes
 import type { SessionDiscardReason, SessionStorage } from '../session/sessionStorage';
 import { createLocalSessionStorage, everyoneAtThisDevice } from '../session/sessionStorage';
 import { createSeed } from '../session/seed';
+import { BotController } from './BotController';
 import { CrewSetupSession, type CrewSetupOptions } from './CrewSetupSession';
 import type { GameEvent, IGameTransport } from './ITransport';
 import { SeatController } from './SeatController';
@@ -73,6 +75,7 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
   private readonly setupSubscribers = new Set<(setup: SanitizedCrewSetup | null) => void>();
   private localState: GameState;
   private seats: SeatController;
+  private bots: BotController;
   private viewerId: string;
   private crewSetup: CrewSetupSession | null = null;
   private discardedSession: SessionDiscardReason | null;
@@ -85,6 +88,7 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
     this.discardedSession = restored.discarded;
     this.localState = restored.state ?? createInitialGameState(options.seed ?? createSeed());
     this.seats = new SeatController(restored.state ? restored.seating : everyoneAtThisDevice(this.localState));
+    this.bots = BotController.forTable(this.localState, this.seats.getSeating(), restored.bots);
     this.viewerId = this.seats.nextViewer(this.localState, this.seats.localHumanIds()[0] ?? options.playerId);
   }
 
@@ -118,6 +122,7 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
       crew: options.crew,
     });
     this.seats = new SeatController(options.seating ?? everyoneAtThisDevice(this.localState));
+    this.bots = BotController.forTable(this.localState, this.seats.getSeating());
     this.viewerId = this.seats.nextViewer(this.localState, this.seats.localHumanIds()[0] ?? this.viewerId);
     this.saveSession();
     this.broadcastState();
@@ -162,24 +167,30 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
     return this.seats.pendingBotId(this.localState);
   }
 
-  /** Один шаг бота (В8-2-4): темп задаёт интерфейс, защиты — оркестратор мест. */
+  /** Один шаг бота (В8-2-4, В8-5-2): бот думает над своим срезом, движок принимает первый допустимый ход. */
   stepBot(): boolean {
     if (this.crewSetup) return this.stepSetupBot();
-    const move = this.seats.nextBotMove(this.localState);
+    let speech: CommsDraft[] = [];
+    const move = this.seats.nextBotMove(this.localState, (state, botId) => {
+      const thought = this.bots.think(state, botId);
+      speech = thought.speech;
+      return thought.candidates;
+    });
     if (!move) return false;
     if (move.kind === 'STALLED') {
       this.emitEvent({ type: 'BOT_STALLED', botId: move.botId, reason: move.reason });
       return false;
     }
-    try {
-      this.applyAction(move.action, move.botId);
-    } catch {
+    this.sayForBot(move.botId, speech);
+    const action = this.firstAcceptedAction(move.botId, move.candidates);
+    if (!action) {
       this.seats.botRefused();
+      this.saveSession();
       return true;
     }
     this.seats.botActed();
     this.afterStateChange();
-    this.emitEvent({ type: 'BOT_ACTED', botId: move.botId, action: move.action });
+    this.emitEvent({ type: 'BOT_ACTED', botId: move.botId, action });
     return true;
   }
 
@@ -225,6 +236,29 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
     });
   }
 
+  private firstAcceptedAction(botId: string, candidates: readonly EngineAction[]): EngineAction | null {
+    for (const action of candidates) {
+      try {
+        this.applyAction(action, botId);
+        return action;
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /** Реплики бота — обычные сообщения Рации: лимиты и адресаты проверяет движок, отказ не срывает ход. */
+  private sayForBot(botId: string, speech: readonly CommsDraft[]): void {
+    for (const draft of speech) {
+      try {
+        this.applyAction({ type: 'ACTION_COMMS', payload: draft }, botId);
+      } catch {
+        continue;
+      }
+    }
+  }
+
   private afterStateChange(): void {
     this.saveSession();
     const previousViewer = this.viewerId;
@@ -261,7 +295,7 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
   }
 
   private saveSession(): void {
-    this.session.save(this.localState, this.seats.getSeating());
+    this.session.save(this.localState, this.seats.getSeating(), this.bots.snapshot());
   }
 
   private broadcastState(): void {

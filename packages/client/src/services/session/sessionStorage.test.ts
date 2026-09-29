@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { GAME_STATE_SCHEMA_VERSION, createInitialGameState, rollCombatDie } from '@nemesis/shared';
+import { GAME_STATE_SCHEMA_VERSION, createBotMind, createInitialGameState, rollCombatDie } from '@nemesis/shared';
+import type { TableSeating } from '@nemesis/shared';
 
 import type { StorageLike } from './sessionStorage';
 import {
@@ -197,5 +198,41 @@ describe('Сохранение данных боя (v0.4.0, шаг 1)', () => {
     expect(GAME_STATE_SCHEMA_VERSION).toBeGreaterThan(4);
     expect(isGameState(oldState)).toBe(false);
     expect(parseSession(JSON.stringify({ version, state: oldState }))).toBeNull();
+  });
+});
+
+describe('Сохранение партии: память ботов (план 0.8.0, В8-5-3)', () => {
+  const seating: TableSeating[] = [
+    { playerId: 'player-1', kind: 'LOCAL_HUMAN', label: 'Вы' },
+    { playerId: 'player-2', kind: 'BOT', label: 'Бот' },
+  ];
+
+  it('хранит память ботов рядом с партией и возвращает её без потерь', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const mind = createBotMind(state.meta.seed, 'player-2', Object.keys(state.players));
+    const storage = createMemoryStorage();
+    createSessionStorage(storage).save(state, seating, { 'player-2': mind });
+    expect(createSessionStorage(storage).restore().bots).toEqual({ 'player-2': mind });
+  });
+
+  it('повреждённая или чужая память отбрасывается, а партия восстанавливается', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const mind = createBotMind(state.meta.seed, 'player-2', Object.keys(state.players));
+    const storage = createMemoryStorage();
+    const raw = JSON.parse(serializeSession(state, seating));
+    raw.bots = { 'player-2': { ...mind, engines: null }, 'player-1': mind };
+    storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(raw));
+    const restored = createSessionStorage(storage).restore();
+    expect(restored.state).not.toBeNull();
+    expect(restored.bots).toEqual({});
+  });
+
+  it('запись без поля памяти читается: боты начнут память заново', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const raw = JSON.parse(serializeSession(state, seating));
+    delete raw.bots;
+    const storage = createMemoryStorage();
+    storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(raw));
+    expect(createSessionStorage(storage).restore()).toMatchObject({ bots: {}, discarded: null });
   });
 });

@@ -5,8 +5,9 @@ import { appendGameLog } from './gameLog.js';
 import { movePlayer } from './movement.js';
 import { requireOpenPath } from './shipGraphQueries.js';
 import { allocateEntityId } from './stateIds.js';
+import { CONSENT_OPTION } from '../types/decisionOptions.js';
 
-export const CONSENT_OPTION = { ACCEPT: 'ACCEPT', DECLINE: 'DECLINE' } as const;
+export { CONSENT_OPTION };
 
 export type RepositionConsent = 'REQUIRED' | 'NOT_REQUIRED';
 

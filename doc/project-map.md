@@ -94,6 +94,8 @@
 | `comms/commitments.ts` | `trackCommitments()` | Обещания: выполнено / нарушено / истекло по журналу. |
 | `comms/commsState.ts`, `commsTargets.ts`, `deedLog.ts`, `commsSettings.ts` | `announceEngineOrderChanged()`, `logActorDeeds()`, `COMMS_SETTINGS` | Системное объявление, проверка целей, Двери и Пожары в журнале, настройки. |
 | `../ai/passiveBotPolicy.ts` | `decidePassiveBotAction()` | Базовый бот по своему срезу: Пас, осторожные ответы на решения. |
+| `../ai/botAgent.ts`, `botObserver.ts`, `botBeliefs.ts` | `BotAgent.decide()`, `createBotMind()`, `observeForBot()` | Ядро бота: чистое решение по срезу и памяти, наблюдения, убеждения о Двигателях и Курсе ([bots.md](bots.md)). |
+| `../ai/botMind.ts`, `botCharacter.ts`, `botTuning.ts` | `BotMind`, `generateCharacter()`, `BOT_TUNING` | Память бота со своей схемой, характер (мораль, черты), все числа поведения. |
 
 ### C. Данные (`src/data/`)
 
@@ -130,8 +132,8 @@
 | `App.tsx` | Каркас UI, HUD (раунд, фаза, активный, время, сид, dev). | `App` |
 | `store/gameStore.ts` | Zustand-стор: `view`, `selectedRoomId`, `rejection`, места, темп ботов, шторка, подготовка экипажа. | `useGameStore` |
 | `hooks/useBotPacing.ts` | Шаг бота, когда отыграли анимации; пауза по скорости. | `useBotPacing` |
-| `services/transport/` | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` — изоляция движка; `SeatController` — места и ход ботов; `CrewSetupSession` — подготовка экипажа. | — |
-| `services/session/` | `sessionStorage.ts`, `seed.ts` — сохранение и сид. | — |
+| `services/transport/` | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` — изоляция движка; `SeatController` — места и ход ботов; `BotController` — срез и память ботов; `CrewSetupSession` — подготовка экипажа. | — |
+| `services/session/` | `sessionStorage.ts`, `seed.ts` — сохранение партии, мест и памяти ботов; сид. | — |
 
 ### B. Компоненты (`src/components/`)
 

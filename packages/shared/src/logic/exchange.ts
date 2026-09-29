@@ -10,8 +10,9 @@ import { EngineError } from './engineErrors.js';
 import { appendGameLog } from './gameLog.js';
 import { handSlotCapacity } from './seriousWoundEffects.js';
 import { allocateEntityId } from './stateIds.js';
+import { EXCHANGE_OPTION } from '../types/decisionOptions.js';
 
-export const EXCHANGE_OPTION = { ACCEPT: 'ACCEPT', DECLINE: 'DECLINE' } as const;
+export { EXCHANGE_OPTION };
 
 type ExchangeConsentDecision = Extract<PendingDecision, { type: 'EXCHANGE_CONSENT' }>;
 

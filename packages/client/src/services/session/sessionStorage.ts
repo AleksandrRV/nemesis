@@ -1,5 +1,5 @@
-import type { GameState, SeatKind, TableSeating } from '@nemesis/shared';
-import { GAME_STATE_SCHEMA_VERSION } from '@nemesis/shared';
+import type { BotMind, GameState, SeatKind, TableSeating } from '@nemesis/shared';
+import { GAME_STATE_SCHEMA_VERSION, isBotMind } from '@nemesis/shared';
 
 /**
  * Сохранение партии.
@@ -36,6 +36,8 @@ export interface SessionRestore {
   state: GameState | null;
   /** Кто сидит за столом восстановленной партии; пусто, если партии нет. */
   seating: TableSeating[];
+  /** Память ботов (В8-5-3); повреждённая память бота отбрасывается, партия — нет. */
+  bots: Record<string, BotMind>;
   discarded: SessionDiscardReason | null;
 }
 
@@ -44,7 +46,7 @@ export interface SessionStorage {
   load(): GameState | null;
   /** Как `load`, но несовместимая запись удаляется, а причина возвращается для сообщения игроку (С7-2). */
   restore(): SessionRestore;
-  save(state: GameState, seating?: readonly TableSeating[]): void;
+  save(state: GameState, seating?: readonly TableSeating[], bots?: Readonly<Record<string, BotMind>>): void;
   clear(): void;
 }
 
@@ -52,6 +54,7 @@ interface PersistedSession {
   version: number;
   state: GameState;
   seating: TableSeating[];
+  bots: Record<string, BotMind>;
 }
 
 const SEAT_KINDS = new Set<SeatKind>(['LOCAL_HUMAN', 'REMOTE_HUMAN', 'BOT']);
@@ -129,8 +132,14 @@ export function isGameState(value: unknown): value is GameState {
 export function serializeSession(
   state: GameState,
   seating: readonly TableSeating[] = everyoneAtThisDevice(state),
+  bots: Readonly<Record<string, BotMind>> = {},
 ): string {
-  const persisted: PersistedSession = { version: SESSION_STORAGE_VERSION, state, seating: [...seating] };
+  const persisted: PersistedSession = {
+    version: SESSION_STORAGE_VERSION,
+    state,
+    seating: [...seating],
+    bots: { ...bots },
+  };
 
   return JSON.stringify(persisted);
 }
@@ -138,6 +147,17 @@ export function serializeSession(
 interface ParsedSession {
   state: GameState;
   seating: TableSeating[];
+  bots: Record<string, BotMind>;
+}
+
+function botMindsOf(value: unknown, seating: readonly TableSeating[]): Record<string, BotMind> {
+  if (!isRecord(value)) return {};
+  const botIds = new Set(seating.filter((seat) => seat.kind === 'BOT').map((seat) => seat.playerId));
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, BotMind] => botIds.has(entry[0]) && isBotMind(entry[1]) && entry[1].botId === entry[0],
+    ),
+  );
 }
 
 /** Разбирает запись сохранения: чужая версия, мусор, обрезанный JSON и чужие места дают null. */
@@ -161,7 +181,7 @@ function parseSessionRecord(raw: string | null): ParsedSession | null {
   }
   if (!isTableSeating(parsed.seating, parsed.state)) return null;
 
-  return { state: parsed.state, seating: parsed.seating };
+  return { state: parsed.state, seating: parsed.seating, bots: botMindsOf(parsed.bots, parsed.seating) };
 }
 
 function savedVersionOf(raw: string): number | null {
@@ -177,13 +197,14 @@ function savedVersionOf(raw: string): number | null {
 }
 
 export function inspectSession(raw: string | null): SessionRestore {
-  if (raw === null) return { state: null, seating: [], discarded: null };
+  if (raw === null) return { state: null, seating: [], bots: {}, discarded: null };
   const parsed = parseSessionRecord(raw);
   if (parsed) return { ...parsed, discarded: null };
   const savedVersion = savedVersionOf(raw);
   return {
     state: null,
     seating: [],
+    bots: {},
     discarded: savedVersion !== null && savedVersion < SESSION_STORAGE_VERSION ? 'OUTDATED_VERSION' : 'CORRUPTED',
   };
 }
@@ -223,7 +244,7 @@ export function createSessionStorage(storage: StorageLike): SessionStorage {
       try {
         result = inspectSession(storage.getItem(SESSION_STORAGE_KEY));
       } catch {
-        return { state: null, seating: [], discarded: null };
+        return { state: null, seating: [], bots: {}, discarded: null };
       }
       if (result.discarded) {
         try {
@@ -235,9 +256,9 @@ export function createSessionStorage(storage: StorageLike): SessionStorage {
       return result;
     },
 
-    save: (state, seating) => {
+    save: (state, seating, bots) => {
       try {
-        storage.setItem(SESSION_STORAGE_KEY, serializeSession(state, seating));
+        storage.setItem(SESSION_STORAGE_KEY, serializeSession(state, seating, bots));
       } catch {
         // Приватный режим или переполненное хранилище: партия продолжается без сохранения.
       }

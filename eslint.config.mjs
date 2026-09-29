@@ -121,7 +121,14 @@ const MESSAGES = {
   clientNode:
     'Клиент исполняется в браузере: встроенные модули Node.js недоступны (они допустимы только в конфигах сборки).',
   clientCrossPackage: 'Клиент не может импортировать другие пакеты приложения напрямую.',
+  botLogic:
+    'Граница честности ботов (план 0.8.0, В8-5-1): ИИ видит только срез игрока. Из logic/ доступны лишь чистые запросы (shipGraphQueries, podQueries).',
+  botState: 'Граница честности ботов: полный GameState боту недоступен — работайте со SanitizedGameState.',
+  botTesting: 'Граница честности ботов: тестовые фикстуры строят полное состояние и в код ИИ не попадают.',
 };
+
+/** Модули logic/, которые ИИ может импортировать: чистые запросы над публичными данными. */
+const BOT_ALLOWED_LOGIC = ['shipGraphQueries', 'podQueries'];
 
 export default tseslint.config(
   {
@@ -209,6 +216,34 @@ export default tseslint.config(
         ...DOM_GLOBALS.map((name) => ({ name, message: MESSAGES.domGlobal })),
         ...NODE_GLOBALS.map((name) => ({ name, message: MESSAGES.nodeGlobal })),
         { name: 'fetch', message: MESSAGES.fetch },
+      ],
+    },
+  },
+
+  // Граница честности ботов (план 0.8.0, В8-5-1): ИИ собирается только из среза игрока, типов,
+  // данных, утилит и чистых запросов. Блок повторяет запреты ядра: в плоском конфиге правило
+  // no-restricted-imports последнего подходящего блока заменяет предыдущее целиком.
+  {
+    name: 'nemesis/bot-honesty-boundary',
+    files: ['packages/shared/src/ai/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...restrict(UI_SPECIFIERS, MESSAGES.ui),
+            ...restrict(CLIENT_STORE_SPECIFIERS, MESSAGES.store),
+            ...restrict(NETWORK_SPECIFIERS, MESSAGES.network),
+            ...restrict(CROSS_PACKAGE_SPECIFIERS, MESSAGES.crossPackage),
+            ...restrict(NODE_BUILTIN_SPECIFIERS, MESSAGES.node),
+          ],
+          patterns: [
+            { group: CROSS_PACKAGE_PATTERNS, message: MESSAGES.crossPackage },
+            { regex: `(^|/)logic/(?!(${BOT_ALLOWED_LOGIC.join('|')})\\.js$)`, message: MESSAGES.botLogic },
+            { regex: '(^|/)types/state\\.js$', importNames: ['GameState'], message: MESSAGES.botState },
+            { regex: '(^|/)testing/', message: MESSAGES.botTesting },
+          ],
+        },
       ],
     },
   },

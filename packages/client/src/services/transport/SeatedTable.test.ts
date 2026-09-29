@@ -152,6 +152,34 @@ describe('Стол с местами: 1 человек + 4 бота (план 0.
   });
 });
 
+describe('Стол с местами: память ботов (план 0.8.0, В8-5-3)', () => {
+  it('бот думает над своим срезом, а его память переживает перезагрузку вкладки', () => {
+    const state = createInitialGameState('seated-minds', { playerCount: 3 });
+    const { transport, storage } = tableFrom(state, ['player-1']);
+    for (let guard = 0; guard < 6; guard++) {
+      if (transport.pendingBotId()) transport.stepBot();
+      else transport.sendAction({ type: 'ACTION_PASS', payload: {} });
+    }
+    const restored = createSessionStorage(storage).restore();
+    expect(Object.keys(restored.bots).sort()).toEqual(['player-2', 'player-3']);
+    expect(restored.bots['player-2']!.processedLogSequence).toBeGreaterThan(0);
+    expect(restored.bots['player-2']!.seed).not.toBe(restored.bots['player-3']!.seed);
+
+    const reloaded = new LocalInMemoryTransport({ session: createSessionStorage(storage), playerId: 'player-1' });
+    void reloaded.init();
+    expect(createSessionStorage(storage).restore().bots).toEqual(restored.bots);
+  });
+
+  it('мысли ботов не сдвигают потоки случайности партии', () => {
+    const state = createInitialGameState('seated-minds-rng', { playerCount: 3 });
+    state.meta.activePlayerId = 'player-2';
+    const { transport } = tableFrom(state, ['player-1']);
+    const before = structuredClone(transport.getLocalState().meta.rngDraws);
+    transport.stepBot();
+    expect(transport.getLocalState().meta.rngDraws.ai).toBe(before.ai);
+  });
+});
+
 describe('Стол с местами: два человека за одним устройством', () => {
   it('экран переходит к человеку, чей ход, с шторкой передачи устройства', () => {
     const state = createInitialGameState('seated-hotseat', { playerCount: 3 });

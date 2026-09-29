@@ -22,6 +22,12 @@ export { COMMS_SETTINGS, type CommsSettings } from './logic/comms/commsSettings.
 export { KNOWN_ITEM_NAMES } from './logic/comms/commsTargets.js';
 export { commsUsageThisTurn, isRequestOpen, type CommsLedger } from './logic/comms/commsActions.js';
 export * from './ai/passiveBotPolicy.js';
+export * from './ai/botTuning.js';
+export * from './ai/botMind.js';
+export { activePersona, botSeedOf, effectiveKnobs, generateCharacter } from './ai/botCharacter.js';
+export { earthProbability } from './ai/botBeliefs.js';
+export { observe as observeForBot } from './ai/botObserver.js';
+export { BotAgent, createBotMind, type BotDecision } from './ai/botAgent.js';
 export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';
 export {

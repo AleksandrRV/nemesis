@@ -2,10 +2,8 @@ import type { GameAction } from '../types/actions.js';
 import type { ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
-import { podCommandsFor } from '../logic/evacuation.js';
-import { EXCHANGE_OPTION } from '../logic/exchange.js';
-import { CONSENT_OPTION } from '../logic/reposition.js';
-import { DISMISS_OPTION } from '../logic/reactions.js';
+import { CONSENT_OPTION, DISMISS_OPTION, EXCHANGE_OPTION } from '../types/decisionOptions.js';
+import { podCommandsFor } from '../logic/podQueries.js';
 
 const WHITE_ROOM_DECK_PREFERENCE: readonly ItemDeckColor[] = ['RED', 'YELLOW', 'GREEN'];
 

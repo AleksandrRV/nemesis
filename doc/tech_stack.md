@@ -125,7 +125,7 @@ export interface GameState {
   };
   decks: GameDecksState; // exploration (20), events (20), items (30/30/30), crafted (12), contamination (27), wounds (16), attacks (20); Цели розданы игрокам (`players[].objectives`), остаток в коробке
   players: Record<string, PlayerState>; // 6 классов, 2 слота рук, инвентарь, травмы, слизь, сигнал
-  claimsLog: ClaimEvent[];
+  comms: CommsState; // Рация: публичные сообщения, обещания и лимиты хода (0.8.0, шаг 3)
   gameLog: GameLogEntry[]; // публичный журнал, 19 EventEffectOutcome + 6 HiveDevelopmentOutcome
   interruptQueue: InterruptEvent[]; // каскад: EXPLORE_ROOM, NOISE_ROLL, CONTACT, SURPRISE_ATTACK, ESCAPE_ATTACK, etc.
   pendingDecision: PendingDecision | null; // CHOOSE_OBJECTIVE, CHOOSE_SEARCH_ITEM, CHOOSE_WHITE_ROOM_DECK, STEEL_NERVES_OFFER, etc.
@@ -144,21 +144,23 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
 ```
 
 * Чужие руки/инвентарь — `null`/счётчики, неисследованные тайлы — `null`, чужие `pendingDecision` — скрыты.
-* Двигатели/координаты — тайные до проверки (действие [2] на Мостике/Машинных), игрок может солгать (система заявлений — этап 0.8.0).
+* Двигатели/координаты — тайные до проверки (действие [2] на Мостике/Машинных), игрок может солгать в Рации (`state.comms`).
 * Колоды — только размеры, порядок скрыт, поток `cards` детерминирован.
 * Журнал публичен, скрытых данных не содержит.
 
-### 3.3. Заявления (блеф)
+### 3.3. Рация: Заявления, Намерения, Просьбы (блеф)
 
 ```typescript
-export interface ClaimEvent {
-  id: string;
-  authorPlayerId: string;
-  timestamp: number;
-  type: 'ENGINE_STATUS_CLAIM' | 'COORDINATES_CLAIM';
-  payload: { targetSystemId: 1|2|3|'COORDINATES'; declaredStatus: 'WORKING'|'DAMAGED'|'DESTINATION_EARTH'|'DESTINATION_OTHER'; };
-}
+// types/comms.ts
+export type CommsMessage = { id; sequence; round; to: 'ALL' | playerId; authorId; kind; body };
+// kind: SYSTEM | CLAIM | INTENT | REQUEST | ANSWER | REACTION
+export interface Commitment { requestId; requesterId; helperId; expiresAtRound; status: 'OPEN' | 'FULFILLED' | 'BROKEN' | 'EXPIRED' }
 ```
+
+* `ACTION_COMMS` бесплатно, только в свой ход, лимиты — `COMMS_SETTINGS` (3 обычных сообщения, 1 Просьба за ход).
+* Содержание Заявлений не проверяется — ложь о результате Проверки разрешена (стр. 25–26).
+* Объявление о перестановке жетонов Двигателя (`SYSTEM`) делает только движок — обязательно по правилам.
+* Статусы обещаний отмечает `trackCommitments` по публичному журналу.
 
 ---
 

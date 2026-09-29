@@ -1,4 +1,4 @@
-import type { CommsAnswer, CommsDraft, CommsMessage, CommsTurnUsage } from '../../types/comms.js';
+import type { CommsAnswer, CommsDraft, CommsMessage, CommsState, CommsTurnUsage } from '../../types/comms.js';
 import type { GameState } from '../../types/state.js';
 import { EngineError } from '../engineErrors.js';
 import { appendCommsMessage, findCommsMessage } from './commsState.js';
@@ -13,7 +13,13 @@ import {
 
 type RequestMessage = Extract<CommsMessage, { kind: 'REQUEST' }>;
 
-function currentTurnMarker(state: GameState): number {
+/** Полное состояние или срез игрока: для лимитов нужны только журнал и Рация, обе публичны. */
+export interface CommsLedger {
+  gameLog: readonly { sequence: number; event: { type: string } }[];
+  comms: Pick<CommsState, 'turnUsage'>;
+}
+
+function currentTurnMarker(state: CommsLedger): number {
   for (let index = state.gameLog.length - 1; index >= 0; index--) {
     const entry = state.gameLog[index]!;
     if (entry.event.type === 'PLAYER_TURN_STARTED') return entry.sequence;
@@ -22,7 +28,7 @@ function currentTurnMarker(state: GameState): number {
 }
 
 /** Лимиты Рации (Р-9) считаются за текущий ход: новый ход — новые счётчики. */
-export function commsUsageThisTurn(state: GameState, playerId: string): CommsTurnUsage {
+export function commsUsageThisTurn(state: CommsLedger, playerId: string): CommsTurnUsage {
   const turnMarker = currentTurnMarker(state);
   const usage = state.comms.turnUsage;
   if (usage && usage.playerId === playerId && usage.turnMarker === turnMarker) return usage;
@@ -49,7 +55,7 @@ function spendLimit(state: GameState, authorId: string, draft: CommsDraft): void
   state.comms.turnUsage = usage;
 }
 
-export function isRequestOpen(state: GameState, request: RequestMessage): boolean {
+export function isRequestOpen(state: Pick<GameState, 'meta'>, request: RequestMessage): boolean {
   return state.meta.currentRound <= request.expiresAtRound;
 }
 

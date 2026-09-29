@@ -24,6 +24,8 @@ import { HandoffShutter } from './components/table/HandoffShutter';
 import { BotActivity, BotTempoControl } from './components/table/BotTableHud';
 import { ReactionBanner } from './components/reactions/ReactionDialogs';
 import { useBotPacing } from './hooks/useBotPacing';
+import { RadioButton } from './components/comms/RadioPanel';
+import { EngineBroadcast } from './components/comms/EngineBroadcast';
 import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
@@ -149,6 +151,7 @@ export const App: React.FC = () => {
             </span>
           </div>
           <CryoChip view={view} />
+          <RadioButton view={view} />
           <BotTempoControl />
           {view.endgame && endgameHidden && (
             <button
@@ -238,6 +241,7 @@ export const App: React.FC = () => {
         <ObjectiveBriefing view={view} enabled={isPresentationIdle && !showCharacterSelect && !view.pendingDecision} />
         <SessionNotice />
         <ReactionBanner view={view} />
+        <EngineBroadcast view={view} enabled={isPresentationIdle && !showCharacterSelect} />
         {!showCharacterSelect && <BotActivity view={view} />}
         <InfectionScanOverlay view={view} />
         <QuestUnlockCinematic view={view} />

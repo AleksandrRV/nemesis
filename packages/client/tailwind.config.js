@@ -631,6 +631,51 @@ export default {
           '85%': { opacity: '1', transform: 'translateX(0)' },
           '100%': { opacity: '0', transform: 'translateX(12px)' },
         },
+        'broadcast-band': {
+          '0%': { opacity: '0', transform: 'scaleY(0.02)' },
+          '18%': { opacity: '1', transform: 'scaleY(1.04)' },
+          '26%': { transform: 'scaleY(1)' },
+          '100%': { opacity: '1', transform: 'scaleY(1)' },
+        },
+        'broadcast-static': {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '0 -64px' },
+        },
+        'broadcast-glitch': {
+          '0%, 100%': { transform: 'translateX(0)', opacity: '1' },
+          '8%': { transform: 'translateX(-3px)', opacity: '0.7' },
+          '12%': { transform: 'translateX(2px)', opacity: '1' },
+          '52%': { transform: 'translateX(0)' },
+          '55%': { transform: 'translateX(4px)', opacity: '0.8' },
+          '58%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        'token-swap-left': {
+          '0%, 25%': { transform: 'translate(0, 0)' },
+          '50%': { transform: 'translate(36px, -22px)' },
+          '75%, 100%': { transform: 'translate(72px, 0)' },
+        },
+        'token-swap-right': {
+          '0%, 25%': { transform: 'translate(0, 0)' },
+          '50%': { transform: 'translate(-36px, 22px)' },
+          '75%, 100%': { transform: 'translate(-72px, 0)' },
+        },
+        'radio-wave': {
+          '0%': { transform: 'scale(0.6)', opacity: '0.9' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' },
+        },
+        'radio-ping': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.18)' },
+        },
+        'drawer-in': {
+          '0%': { transform: 'translateX(100%)', opacity: '0.4' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        'stamp-in': {
+          '0%': { opacity: '0', transform: 'scale(1.8) rotate(-10deg)' },
+          '60%': { opacity: '1', transform: 'scale(0.94) rotate(-4deg)' },
+          '100%': { opacity: '1', transform: 'scale(1) rotate(-4deg)' },
+        },
         'dismiss-stamp': {
           '0%': { opacity: '0', transform: 'scale(2.2) rotate(-12deg)' },
           '55%': { opacity: '1', transform: 'scale(0.92) rotate(-6deg)' },
@@ -762,6 +807,15 @@ export default {
         'handoff-shutter-bottom': 'handoff-shutter-bottom 520ms cubic-bezier(0.6, 0, 0.3, 1) both',
         'bot-thinking': 'bot-thinking 1.2s ease-in-out infinite',
         'bot-toast': 'bot-toast 2600ms ease-out both',
+        'broadcast-band': 'broadcast-band 650ms cubic-bezier(0.2, 0.9, 0.3, 1) both',
+        'broadcast-static': 'broadcast-static 0.9s steps(8) infinite',
+        'broadcast-glitch': 'broadcast-glitch 2.2s linear infinite',
+        'token-swap-left': 'token-swap-left 1400ms cubic-bezier(0.6, 0, 0.3, 1) 500ms both',
+        'token-swap-right': 'token-swap-right 1400ms cubic-bezier(0.6, 0, 0.3, 1) 500ms both',
+        'radio-wave': 'radio-wave 1.6s ease-out infinite',
+        'radio-ping': 'radio-ping 1.2s ease-in-out infinite',
+        'drawer-in': 'drawer-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both',
+        'stamp-in': 'stamp-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
         'dismiss-stamp': 'dismiss-stamp 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
       },
       boxShadow: {

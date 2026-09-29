@@ -90,6 +90,9 @@
 | `reposition.ts` | `executeReposition()`, `resolveRepositionConsent()` | Отход без Атак: согласие переносимого в «Огне на подавление» и «Заградительном огне». |
 | `reactions.ts` | `openDismissWindow()`, `resolveDismissWindow()` | Окно «Отставить»: цепочка встречных карт, оплата Цены отменённого Действия. |
 | `playerToAct.ts` | `playerToAct()` | Чьего ответа ждёт движок. |
+| `comms/commsActions.ts` | `executeComms()`, `commsUsageThisTurn()` | Рация: сообщения, лимиты хода, ответы на Просьбы. |
+| `comms/commitments.ts` | `trackCommitments()` | Обещания: выполнено / нарушено / истекло по журналу. |
+| `comms/commsState.ts`, `commsTargets.ts`, `deedLog.ts`, `commsSettings.ts` | `announceEngineOrderChanged()`, `logActorDeeds()`, `COMMS_SETTINGS` | Системное объявление, проверка целей, Двери и Пожары в журнале, настройки. |
 | `../ai/passiveBotPolicy.ts` | `decidePassiveBotAction()` | Базовый бот по своему срезу: Пас, осторожные ответы на решения. |
 
 ### C. Данные (`src/data/`)
@@ -141,6 +144,7 @@
 | **Контакт** `contact/ContactOverlay.tsx`, `ContactModal.tsx`, `IntruderSilhouette.tsx` | Окна силуэта, Внезапной, боя, Побега. | Читает `gameLog`. |
 | **Решения** `modals/DecisionModal.tsx` | Модалки `pendingDecision`: белая колода, поиск 1 из 2, сброс тяжёлого, цели, Пожарный контроль, Генератор, отдых, переброс. | `ACTION_RESOLVE_DECISION`. |
 | **Новая партия** `lobby/CrewSetupFlow.tsx`, `LobbyScreen.tsx`, `WaitingRoomScreen.tsx`, `CrewBriefingScreen.tsx`, `RoleSelectionScreen.tsx` | Лобби, ожидание участников, брифинг Целей, Драфт или свободный выбор с таймером. | `beginCrewSetup`, `pickRole`, `launchCrew`. |
+| **Рация** `comms/RadioPanel.tsx`, `EngineBroadcast.tsx`, `commsFeedModel.ts`, `commsPhrases.ts` | Лента Рации, ответы на Просьбы, объявление о перестановке жетонов. | `ACTION_COMMS`. |
 | **Реакции** `reactions/ReactionDialogs.tsx` | Окно «Отставить», согласие на отход, баннер цепочки. | `ACTION_RESOLVE_DECISION`. |
 | **Стол** `table/HandoffShutter.tsx`, `BotTableHud.tsx` | Шторка передачи устройства, кнопка «Быстрее», активность ботов. | Стор. |
 | **Бой** `combat/ShootModal.tsx`, `MeleeModal.tsx`, `CombatActionButtons.tsx` | Стрельба/рукопашная, выбор оружия/цели, цена, отказы. | `ACTION_SHOOT`, `ACTION_MELEE`. |

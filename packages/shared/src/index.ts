@@ -20,7 +20,7 @@ export * from './logic/sanitizer.js';
 export * from './logic/playerToAct.js';
 export { COMMS_SETTINGS, type CommsSettings } from './logic/comms/commsSettings.js';
 export { KNOWN_ITEM_NAMES } from './logic/comms/commsTargets.js';
-export { commsUsageThisTurn, isRequestOpen } from './logic/comms/commsActions.js';
+export { commsUsageThisTurn, isRequestOpen, type CommsLedger } from './logic/comms/commsActions.js';
 export * from './ai/passiveBotPolicy.js';
 export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';

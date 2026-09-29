@@ -38,9 +38,6 @@ const EntryToggle: React.FC<{
     <span className="flex min-w-0 flex-1 flex-col">
       <span className="truncate font-semibold">{entry.label}</span>
       <span className="text-[10px] text-slate-400">{entry.sublabel}</span>
-      {tone === 'give' && entry.ammo > 0 && checked && (
-        <span className="text-[10px] text-amber-300">Боезапас не передаётся — {entry.ammo} маркера снимутся</span>
-      )}
     </span>
     {checked && <Check size={14} aria-hidden="true" />}
   </button>
@@ -113,7 +110,7 @@ export const ExchangeModal: React.FC<{
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
           <p className="text-xs leading-relaxed text-slate-400">
             Покажите друг другу Предметы и Объекты. Сделка состоится, если партнёр согласится; отдать можно и даром.
-            Действие тратит только тот, кто начал Обмен. Боезапас не передаётся.
+            Действие тратит только тот, кто начал Обмен. Боезапас отдельно не передаётся — только вместе с Оружием.
           </p>
           <div role="radiogroup" aria-label="Партнёр по Обмену" className="flex flex-wrap gap-2">
             {partners.map((candidate) => {
@@ -240,7 +237,7 @@ export const ExchangeConsentDialog: React.FC<{
               </span>
               <span className="font-semibold text-white">
                 {line.name}
-                {line.ammo > 0 ? ' (без Боезапаса)' : ''}
+                {line.ammo > 0 ? ` (Боезапас ${line.ammo})` : ''}
               </span>
             </li>
           ))}

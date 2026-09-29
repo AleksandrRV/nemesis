@@ -21,8 +21,8 @@ export interface ExchangedEntry {
   name: string;
   color: ItemColor | null;
   fromHandSlot: boolean;
-  /** Боезапас Оружия не передаётся (стр. 12): сколько маркеров снято при передаче. */
-  ammoRemoved: number;
+  /** Боезапас привязан к Оружию и переходит вместе с ним (решение владельца). */
+  ammo: number;
 }
 
 export type ShipSystemsLogEvent =

@@ -260,7 +260,7 @@ function ExchangeScene({
             <ArrowRightLeft size={14} className="text-emerald-300" aria-hidden="true" />
             <span className="text-slate-300">{playerName(view, entry.toPlayerId)}</span>
             <span className="ml-auto font-semibold text-white">{entry.name ?? 'Предмет'}</span>
-            {entry.ammoRemoved > 0 && <span className="text-[10px] text-amber-300">без Боезапаса</span>}
+            {entry.ammo > 0 && <span className="text-[10px] text-amber-300">Боезапас {entry.ammo}</span>}
           </li>
         ))}
       </ul>

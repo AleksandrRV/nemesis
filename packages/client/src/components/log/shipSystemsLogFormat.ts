@@ -94,7 +94,7 @@ function exchangeCompleted(
   }
   const parts = event.entries.map((entry) => {
     const what = entry.name ? `«${entry.name}»` : 'Предмет из Инвентаря';
-    const ammo = entry.ammoRemoved > 0 ? ` (без ${entry.ammoRemoved} Боезапаса)` : '';
+    const ammo = entry.ammo > 0 ? ` (Боезапас ${entry.ammo})` : '';
     return `${playerName(view, entry.fromPlayerId)} → ${playerName(view, entry.toPlayerId)}: ${what}${ammo}`;
   });
   return [{ text: 'Обмен: ', tone: 'system', strong: true }, { text: parts.join('; ') }, { text: '.' }];

@@ -179,20 +179,12 @@ function takeEntry(player: PlayerState, entryId: string): TakenEntry {
   return slot.source === 'ITEM' ? { kind: 'ITEM', card: slot.card, fromHandSlot: true } : { kind: 'OBJECT', slot };
 }
 
-function removeAmmo(card: ItemCard): number {
-  const ammo = card.isWeapon ? (card.ammo ?? 0) : 0;
-  if (ammo > 0) card.ammo = 0;
-  return ammo;
-}
-
 function transferLine(state: GameState, line: ExchangeOfferLine): ExchangedEntry {
   const receiver = state.players[line.toPlayerId]!;
   const taken = takeEntry(state.players[line.fromPlayerId]!, line.entryId);
-  let ammoRemoved = 0;
   if (taken.kind === 'OBJECT') {
     receiver.handSlots.push(taken.slot);
   } else {
-    ammoRemoved = removeAmmo(taken.card);
     if (goesToHandSlot(line, taken.fromHandSlot)) receiver.handSlots.push({ source: 'ITEM', card: taken.card });
     else receiver.inventory.push(taken.card);
   }
@@ -203,7 +195,7 @@ function transferLine(state: GameState, line: ExchangeOfferLine): ExchangedEntry
     name: line.name,
     color: line.color,
     fromHandSlot: taken.kind === 'OBJECT' || taken.fromHandSlot,
-    ammoRemoved,
+    ammo: line.ammo,
   };
 }
 

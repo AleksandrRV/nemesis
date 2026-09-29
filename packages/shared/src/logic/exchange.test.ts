@@ -93,10 +93,12 @@ describe('Действие [1] Обмен (стр. 12)', () => {
     expect(current.players['player-1']!.inventory.map((card) => card.id)).toContain(toSecond.id);
   });
 
-  it('Боезапас не передаётся: Оружие переходит в Руки без маркеров', () => {
+  it('Боезапас привязан к Оружию: переходит в Руки вместе с ним', () => {
     const state = trio('exchange-weapon');
     const slot = state.players['player-1']!.handSlots.find((entry) => entry.source === 'ITEM' && entry.card.isWeapon)!;
     const weaponId = slot.source === 'ITEM' ? slot.card.id : '';
+    const ammo = slot.source === 'ITEM' ? (slot.card.ammo ?? 0) : 0;
+    expect(ammo).toBeGreaterThan(0);
     state.players['player-2']!.handSlots = [];
 
     const done = answer(
@@ -106,8 +108,8 @@ describe('Действие [1] Обмен (стр. 12)', () => {
     );
 
     const received = done.players['player-2']!.handSlots.find((entry) => entry.source === 'ITEM')!;
-    expect(received.source === 'ITEM' && received.card.ammo).toBe(0);
-    expect(lastEvent(done, 'EXCHANGE_COMPLETED')!.entries[0]!.ammoRemoved).toBeGreaterThan(0);
+    expect(received.source === 'ITEM' && received.card.ammo).toBe(ammo);
+    expect(lastEvent(done, 'EXCHANGE_COMPLETED')!.entries[0]!.ammo).toBe(ammo);
   });
 
   it('названия Предметов из Инвентаря видят только участники', () => {

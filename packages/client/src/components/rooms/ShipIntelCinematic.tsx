@@ -8,6 +8,8 @@ import { roomDefinitionName } from '../log/roomNames';
 import { viewerPlayer } from '../objectives/objectiveModel';
 import { latestLogSequence } from '../scanner/scanQueueModel';
 import { collectShipIntelScenes, type ShipIntelScene } from './shipIntelScenes';
+import { ClaimAfterIntel } from '../comms/ClaimAfterIntel';
+import { isClaimableScene } from '../comms/claimSceneModel';
 
 const delay = (ms: number): React.CSSProperties => ({ animationDelay: `${ms}ms` });
 
@@ -64,6 +66,37 @@ function EnginesScene({ scene }: { scene: Extract<ShipIntelScene, { kind: 'ENGIN
         ))}
       </ul>
       <SecretNote />
+    </>
+  );
+}
+
+function EngineToggledScene({ scene }: { scene: Extract<ShipIntelScene, { kind: 'ENGINE_TOGGLED' }> }) {
+  return (
+    <>
+      <Title
+        icon={<Cog size={28} aria-hidden="true" />}
+        text={`Двигатель №${scene.engineNumber}`}
+        tone="text-cyan-100"
+      />
+      <div
+        className={`flex h-36 w-28 flex-col items-center justify-center gap-2 rounded-2xl border-2 motion-safe:animate-endgame-flip ${
+          scene.isWorking
+            ? 'border-emerald-400/70 bg-emerald-950/60 text-emerald-200'
+            : 'border-red-500/70 bg-red-950/60 text-red-200'
+        }`}
+        style={delay(250)}
+        aria-label={`Двигатель ${scene.engineNumber}: ${scene.isWorking ? 'Исправен' : 'Неисправен'}`}
+      >
+        <Cog size={30} aria-hidden="true" className={scene.isWorking ? 'motion-safe:animate-spin' : ''} />
+        <span className="text-[10px] font-bold uppercase tracking-widest">
+          {scene.isWorking ? 'Исправен' : 'Неисправен'}
+        </span>
+      </div>
+      <p className="max-w-md text-center text-xs text-slate-300 motion-safe:animate-step-enter" style={delay(900)}>
+        {scene.orderChanged
+          ? 'Жетоны переставлены — корабль уже объявил это всем. Что именно вы сделали, знаете только вы.'
+          : 'Жетоны остались на месте: состояние не изменилось, объявления не было.'}
+      </p>
     </>
   );
 }
@@ -286,22 +319,27 @@ export function ShipIntelSceneView({
         role="dialog"
         aria-modal="true"
         aria-labelledby="ship-intel-title"
-        className="flex w-full max-w-xl flex-col items-center gap-5"
+        className="flex max-h-full w-full max-w-xl flex-col items-center gap-5 overflow-y-auto"
       >
         {scene.kind === 'ENGINES' && <EnginesScene scene={scene} />}
+        {scene.kind === 'ENGINE_TOGGLED' && <EngineToggledScene scene={scene} />}
         {scene.kind === 'COORDINATES' && <CoordinatesScene scene={scene} view={view} />}
         {scene.kind === 'COURSE' && <CourseScene scene={scene} />}
         {scene.kind === 'OBSERVATION' && <ObservationScene scene={scene} view={view} />}
         {scene.kind === 'DECOMPRESSION_STARTED' && <DecompressionStartedScene scene={scene} view={view} />}
         {scene.kind === 'DECOMPRESSION_RESOLVED' && <DecompressionResolvedScene scene={scene} view={view} />}
         {scene.kind === 'EXCHANGE' && <ExchangeScene scene={scene} view={view} />}
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-xl bg-slate-100 px-6 py-2 font-heading text-sm font-bold uppercase tracking-wider text-slate-950 transition hover:bg-white active:scale-95"
-        >
-          Продолжить
-        </button>
+        {isClaimableScene(scene) ? (
+          <ClaimAfterIntel scene={scene} view={view} onDone={onDone} />
+        ) : (
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-xl bg-slate-100 px-6 py-2 font-heading text-sm font-bold uppercase tracking-wider text-slate-950 transition hover:bg-white active:scale-95"
+          >
+            Продолжить
+          </button>
+        )}
       </div>
     </div>
   );

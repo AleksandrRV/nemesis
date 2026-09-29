@@ -14,6 +14,7 @@ export type ShipIntelScene =
       engines: { engineNumber: EngineNumber; isWorking: boolean }[];
     }
   | { kind: 'COORDINATES'; key: string; cardId: string }
+  | { kind: 'ENGINE_TOGGLED'; key: string; engineNumber: EngineNumber; isWorking: boolean; orderChanged: boolean }
   | { kind: 'COURSE'; key: string; playerId: string; fromMarker: CourseMarker; toMarker: CourseMarker }
   | {
       kind: 'OBSERVATION';
@@ -52,6 +53,18 @@ function sceneOf(entry: SanitizedGameLogEntry, viewerId: string | null): ShipInt
       const engines = knownEngines(event);
       return engines ? [{ kind: 'ENGINES', key, source: event.source, engines }] : [];
     }
+    case 'ENGINE_TOGGLED':
+      return event.playerId === viewerId && event.isWorking !== null
+        ? [
+            {
+              kind: 'ENGINE_TOGGLED',
+              key,
+              engineNumber: event.engineNumber as EngineNumber,
+              isWorking: event.isWorking,
+              orderChanged: event.orderChanged,
+            },
+          ]
+        : [];
     case 'COORDINATES_INSPECTED':
       return event.cardId === null ? [] : [{ kind: 'COORDINATES', key, cardId: event.cardId }];
     case 'COURSE_SET':

@@ -24,8 +24,11 @@ import { HandoffShutter } from './components/table/HandoffShutter';
 import { BotActivity, BotTempoControl } from './components/table/BotTableHud';
 import { ReactionBanner } from './components/reactions/ReactionDialogs';
 import { useBotPacing } from './hooks/useBotPacing';
-import { RadioButton } from './components/comms/RadioPanel';
+import { RadioButton, RadioDrawerHost } from './components/comms/RadioPanel';
 import { EngineBroadcast } from './components/comms/EngineBroadcast';
+import { CommsInbox } from './components/comms/CommsInbox';
+import { PlayerDossierPanel } from './components/comms/PlayerDossierPanel';
+import { useCommsUiStore } from './store/commsUiStore';
 import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
@@ -43,6 +46,7 @@ export const App: React.FC = () => {
   const seating = useGameStore((state) => state.seating);
   const handoffTo = useGameStore((state) => state.handoffTo);
   const confirmHandoff = useGameStore((state) => state.confirmHandoff);
+  const openDossier = useCommsUiStore((state) => state.openDossier);
   const selectRoom = useGameStore((state) => state.selectRoom);
   const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
@@ -197,7 +201,7 @@ export const App: React.FC = () => {
       <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
         <section aria-label="Карта корабля" className="relative min-h-0 flex-1 overflow-hidden">
           <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
-          <CrewRoster view={view} onSelectRoom={selectRoom} seating={seating} />
+          <CrewRoster view={view} onSelectRoom={selectRoom} seating={seating} onOpenDossier={openDossier} />
           <RoomInspector />
           {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
         </section>
@@ -242,6 +246,12 @@ export const App: React.FC = () => {
         <SessionNotice />
         <ReactionBanner view={view} />
         <EngineBroadcast view={view} enabled={isPresentationIdle && !showCharacterSelect} />
+        <CommsInbox
+          view={view}
+          enabled={isPresentationIdle && !showCharacterSelect && !handoffTo && !eventPhaseModalOpen}
+        />
+        <RadioDrawerHost view={view} />
+        <PlayerDossierPanel view={view} />
         {!showCharacterSelect && <BotActivity view={view} />}
         <InfectionScanOverlay view={view} />
         <QuestUnlockCinematic view={view} />

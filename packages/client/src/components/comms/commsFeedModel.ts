@@ -21,6 +21,9 @@ export interface FeedItem {
   isFromViewer: boolean;
   text: string;
   request: { expiresAtRound: number; isOpen: boolean; answers: FeedAnswer[]; canAnswer: boolean } | null;
+  mapRoomId: number | null;
+  canDisbelieve: boolean;
+  canThank: boolean;
 }
 
 export interface FeedRound {
@@ -80,6 +83,28 @@ function requestDetails(view: SanitizedGameState, message: Extract<CommsMessage,
   };
 }
 
+function engineRoomId(view: SanitizedGameState, engineNumber: number): number | null {
+  const room = Object.values(view.ship.rooms).find((entry) => entry.definitionId === `ENGINE_0${engineNumber}`);
+  return room?.id ?? null;
+}
+
+/** Куда показать на карте: Комната из сообщения или Машинный Отсек нужного Двигателя. */
+export function mapRoomOf(view: SanitizedGameState, message: CommsMessage): number | null {
+  const body = message.body as { roomId?: number; engineNumber?: number };
+  if (typeof body.roomId === 'number') return body.roomId;
+  if (typeof body.engineNumber === 'number') return engineRoomId(view, body.engineNumber);
+  return null;
+}
+
+function canReact(view: SanitizedGameState, message: CommsMessage): boolean {
+  return (
+    message.authorId !== null &&
+    message.authorId !== view.viewerId &&
+    viewerCanSpeak(view) &&
+    commsUsageView(view).ordinaryLeft > 0
+  );
+}
+
 export function toFeedItem(view: SanitizedGameState, message: CommsMessage): FeedItem {
   const author = message.authorId === null ? undefined : view.players[message.authorId];
   return {
@@ -94,6 +119,9 @@ export function toFeedItem(view: SanitizedGameState, message: CommsMessage): Fee
     isFromViewer: message.authorId === view.viewerId,
     text: messageText(view, message),
     request: message.kind === 'REQUEST' ? requestDetails(view, message) : null,
+    mapRoomId: mapRoomOf(view, message),
+    canDisbelieve: canReact(view, message) && message.kind === 'CLAIM',
+    canThank: canReact(view, message) && message.kind !== 'REACTION',
   };
 }
 

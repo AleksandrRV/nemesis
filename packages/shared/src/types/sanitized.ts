@@ -140,6 +140,8 @@ export interface SanitizedPlayerState extends Omit<
   handLimit: number;
   /** null — чужой инвентарь скрыт (стр. 22). */
   inventory: ItemCard[] | null;
+  /** Рубашки карт в Инвентаре видны всем: цвета без содержимого (стр. 22), по порядку цвета, а не получения. */
+  inventoryColors: ItemCard['color'][];
   /** null — чужие квестовые предметы скрыты до активации (стр. 21). */
   questItems: QuestItemState[] | null;
   /** null — чужие цели скрыты до конца партии (этап 6). */

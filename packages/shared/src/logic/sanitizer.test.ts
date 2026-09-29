@@ -34,6 +34,20 @@ describe('filterStateForPlayer: зритель среза', () => {
   });
 });
 
+describe('filterStateForPlayer: рубашки Инвентаря (стр. 22)', () => {
+  it('цвета карт в чужом Инвентаре видны, сами карты — нет', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const [red, yellow] = [state.decks.items.RED.drawPile[0]!, state.decks.items.YELLOW.drawPile[0]!];
+    state.players['player-2']!.inventory = [yellow, red].filter((card) => !card.isHeavy);
+    const view = filterStateForPlayer(state, 'player-1');
+    expect(view.players['player-2']!.inventory).toBeNull();
+    expect(view.players['player-2']!.inventoryColors).toEqual(
+      state.players['player-2']!.inventory.map((card) => card.color).sort(),
+    );
+    expect(JSON.stringify(view.players['player-2'])).not.toContain(red.name);
+  });
+});
+
 describe('filterStateForPlayer: двигатели и Координаты (стр. 26)', () => {
   it('скрывает состояние всех двигателей, пока персонаж их не проверял', () => {
     const view = filterStateForPlayer(freshState(), VIEWER);

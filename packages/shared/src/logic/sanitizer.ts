@@ -7,6 +7,7 @@ import type {
   ContaminationCard,
   CraftedItemId,
   GameDecksState,
+  ItemCard,
 } from '../types/cards.js';
 import type { IntruderToken, PlayerState, WeaknessSlotState } from '../types/entities.js';
 import type {
@@ -146,6 +147,7 @@ function sanitizeRoom(room: SanitizedRoomState): void {
  */
 function sanitizePlayers(state: SanitizedGameState, viewingPlayerId: string): void {
   for (const [playerId, player] of Object.entries(state.players)) {
+    player.inventoryColors = ((player.inventory ?? []) as ItemCard[]).map((card) => card.color).sort();
     if (playerId !== viewingPlayerId) {
       player.inventory = null;
       player.questItems = null;

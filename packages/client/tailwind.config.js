@@ -676,6 +676,13 @@ export default {
           '60%': { opacity: '1', transform: 'scale(0.94) rotate(-4deg)' },
           '100%': { opacity: '1', transform: 'scale(1) rotate(-4deg)' },
         },
+        'bubble-life': {
+          '0%': { opacity: '0', transform: 'translateY(8px) scale(0.6)' },
+          '8%': { opacity: '1', transform: 'translateY(0) scale(1.06)' },
+          '14%': { transform: 'translateY(0) scale(1)' },
+          '82%': { opacity: '1' },
+          '100%': { opacity: '0', transform: 'translateY(-6px) scale(0.96)' },
+        },
         'dismiss-stamp': {
           '0%': { opacity: '0', transform: 'scale(2.2) rotate(-12deg)' },
           '55%': { opacity: '1', transform: 'scale(0.92) rotate(-6deg)' },
@@ -816,6 +823,7 @@ export default {
         'radio-ping': 'radio-ping 1.2s ease-in-out infinite',
         'drawer-in': 'drawer-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both',
         'stamp-in': 'stamp-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
+        'bubble-life': 'bubble-life 5200ms ease-out both',
         'dismiss-stamp': 'dismiss-stamp 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
       },
       boxShadow: {

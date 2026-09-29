@@ -144,7 +144,9 @@
 | **Контакт** `contact/ContactOverlay.tsx`, `ContactModal.tsx`, `IntruderSilhouette.tsx` | Окна силуэта, Внезапной, боя, Побега. | Читает `gameLog`. |
 | **Решения** `modals/DecisionModal.tsx` | Модалки `pendingDecision`: белая колода, поиск 1 из 2, сброс тяжёлого, цели, Пожарный контроль, Генератор, отдых, переброс. | `ACTION_RESOLVE_DECISION`. |
 | **Новая партия** `lobby/CrewSetupFlow.tsx`, `LobbyScreen.tsx`, `WaitingRoomScreen.tsx`, `CrewBriefingScreen.tsx`, `RoleSelectionScreen.tsx` | Лобби, ожидание участников, брифинг Целей, Драфт или свободный выбор с таймером. | `beginCrewSetup`, `pickRole`, `launchCrew`. |
-| **Рация** `comms/RadioPanel.tsx`, `EngineBroadcast.tsx`, `commsFeedModel.ts`, `commsPhrases.ts` | Лента Рации, ответы на Просьбы, объявление о перестановке жетонов. | `ACTION_COMMS`. |
+| **Рация** `comms/RadioPanel.tsx`, `FeedCard.tsx`, `EngineBroadcast.tsx`, `commsFeedModel.ts`, `commsPhrases.ts` | Лента Рации, ответы и реакции, ссылки «На карте», объявление о перестановке жетонов. | `ACTION_COMMS`. |
+| **Конструктор и «Входящие»** `comms/CommsComposer.tsx`, `composerModel.ts`, `CommsInbox.tsx`, `inboxModel.ts`, `ClaimAfterIntel.tsx` | Фразы без свободного текста, Просьбы и обещания в начале хода, Заявление после Проверки. | `ACTION_COMMS`, `store/commsUiStore.ts`. |
+| **Досье и пузыри** `comms/PlayerDossierPanel.tsx`, `dossierModel.ts`, `SpeechBubbleLayer.tsx`, `speechBubbleModel.ts` | Открытые сведения об игроке и отметки по вашим проверкам; реплики над фишками на карте. | Читает срез. |
 | **Реакции** `reactions/ReactionDialogs.tsx` | Окно «Отставить», согласие на отход, баннер цепочки. | `ACTION_RESOLVE_DECISION`. |
 | **Стол** `table/HandoffShutter.tsx`, `BotTableHud.tsx` | Шторка передачи устройства, кнопка «Быстрее», активность ботов. | Стор. |
 | **Бой** `combat/ShootModal.tsx`, `MeleeModal.tsx`, `CombatActionButtons.tsx` | Стрельба/рукопашная, выбор оружия/цели, цена, отказы. | `ACTION_SHOOT`, `ACTION_MELEE`. |

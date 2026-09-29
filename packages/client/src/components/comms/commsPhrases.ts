@@ -1,6 +1,7 @@
 import type {
   CommitmentStatus,
   CommsClaim,
+  CommsDraft,
   CommsIntent,
   CommsKind,
   CommsMessage,
@@ -137,4 +138,19 @@ export function messageText(view: SanitizedGameState, message: CommsMessage): st
 
 export function addresseeText(view: SanitizedGameState, message: CommsMessage): string {
   return message.to === 'ALL' ? 'всем' : playerName(view, message.to);
+}
+
+export function draftText(view: SanitizedGameState, draft: CommsDraft): string {
+  switch (draft.kind) {
+    case 'CLAIM':
+      return claimText(view, draft.body);
+    case 'INTENT':
+      return intentText(view, draft.body);
+    case 'REQUEST':
+      return requestText(view, draft.body);
+    case 'ANSWER':
+      return draft.body.answer === 'WILL_HELP' ? 'Помогу.' : 'Не могу.';
+    case 'REACTION':
+      return reactionText(view, draft.body);
+  }
 }

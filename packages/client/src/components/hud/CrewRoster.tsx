@@ -1,6 +1,6 @@
 import React from 'react';
 import type { RoomId, SanitizedGameState, TableSeating } from '@nemesis/shared';
-import { Bot } from 'lucide-react';
+import { Bot, FileText } from 'lucide-react';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 import { CrewToken } from '../board/CrewToken';
 import { crewTokenLabel, isCrewOnBoard, toCrewToken } from '../board/crewTokenModel';
@@ -9,6 +9,7 @@ interface CrewRosterProps {
   view: SanitizedGameState;
   onSelectRoom: (roomId: RoomId) => void;
   seating?: readonly TableSeating[];
+  onOpenDossier?: (playerId: string) => void;
 }
 
 function statusLabel(player: SanitizedGameState['players'][string], isActive: boolean): string | null {
@@ -19,7 +20,7 @@ function statusLabel(player: SanitizedGameState['players'][string], isActive: bo
   return null;
 }
 
-export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom, seating = [] }) => {
+export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom, seating = [], onOpenDossier }) => {
   const players = Object.values(view.players).sort((a, b) => a.orderNumber - b.orderNumber);
   if (players.length === 0) return null;
 
@@ -35,43 +36,57 @@ export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom, seat
         const onBoard = isCrewOnBoard(player);
         const status = statusLabel(player, token.isActive);
         return (
-          <button
-            key={player.id}
-            type="button"
-            disabled={!onBoard}
-            onClick={() => onSelectRoom(player.roomId)}
-            title={onBoard ? `${crewTokenLabel(token)} — показать отсек` : crewTokenLabel(token)}
-            aria-current={token.isActive ? 'true' : undefined}
-            className={`flex min-h-9 items-center gap-1.5 rounded-lg border bg-nemesis-hull/90 py-1 pl-1 pr-2 text-left shadow-lg backdrop-blur transition hover:brightness-125 active:scale-95 disabled:cursor-default disabled:opacity-50 ${
-              token.isActive ? 'border-current' : 'border-nemesis-border'
-            }`}
-            style={{ color: identity.color }}
-          >
-            <svg viewBox="-13 -13 26 26" className="h-7 w-7 shrink-0" aria-hidden="true">
-              <CrewToken token={token} showActiveRing={false} />
-            </svg>
-            <span className="flex flex-col leading-none">
-              <span className="flex items-center gap-1 font-mono text-[9px] text-slate-400">
-                ИГРОК {player.orderNumber}
-                {seating.find((seat) => seat.playerId === player.id)?.kind === 'BOT' && (
-                  <Bot size={9} className="text-violet-300" aria-label="бот" />
-                )}
-                {player.id === view.viewerId && <span className="text-cyan-300">· ВЫ</span>}
+          <div key={player.id} className="group relative">
+            <button
+              type="button"
+              disabled={!onBoard}
+              onClick={() => onSelectRoom(player.roomId)}
+              title={onBoard ? `${crewTokenLabel(token)} — показать отсек` : crewTokenLabel(token)}
+              aria-current={token.isActive ? 'true' : undefined}
+              className={`flex min-h-9 items-center gap-1.5 rounded-lg border bg-nemesis-hull/90 py-1 pl-1 pr-2 text-left shadow-lg backdrop-blur transition hover:brightness-125 active:scale-95 disabled:cursor-default disabled:opacity-50 ${
+                token.isActive ? 'border-current' : 'border-nemesis-border'
+              }`}
+              style={{ color: identity.color }}
+            >
+              <svg viewBox="-13 -13 26 26" className="h-7 w-7 shrink-0" aria-hidden="true">
+                <CrewToken token={token} showActiveRing={false} />
+              </svg>
+              <span className="flex flex-col leading-none">
+                <span className="flex items-center gap-1 font-mono text-[9px] text-slate-400">
+                  ИГРОК {player.orderNumber}
+                  {seating.find((seat) => seat.playerId === player.id)?.kind === 'BOT' && (
+                    <Bot size={9} className="text-violet-300" aria-label="бот" />
+                  )}
+                  {player.id === view.viewerId && <span className="text-cyan-300">· ВЫ</span>}
+                </span>
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-wider ${player.isDead ? 'line-through' : ''}`}
+                >
+                  {identity.label}
+                </span>
               </span>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${player.isDead ? 'line-through' : ''}`}>
-                {identity.label}
-              </span>
-            </span>
-            {status && (
-              <span
-                className={`ml-0.5 rounded px-1 py-0.5 font-mono text-[9px] font-bold ${
-                  token.isActive ? 'bg-current' : 'bg-slate-800 text-slate-300'
-                }`}
+              {status && (
+                <span
+                  className={`ml-0.5 rounded px-1 py-0.5 font-mono text-[9px] font-bold ${
+                    token.isActive ? 'bg-current' : 'bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  <span className={token.isActive ? 'text-slate-950' : undefined}>{status}</span>
+                </span>
+              )}
+            </button>
+            {onOpenDossier && (
+              <button
+                type="button"
+                onClick={() => onOpenDossier(player.id)}
+                title={`Досье: ${identity.label}`}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-slate-300 shadow transition hover:scale-110 hover:border-cyan-400 hover:text-cyan-200"
               >
-                <span className={token.isActive ? 'text-slate-950' : undefined}>{status}</span>
-              </span>
+                <FileText size={10} aria-hidden="true" />
+                <span className="sr-only">Досье: {identity.label}</span>
+              </button>
             )}
-          </button>
+          </div>
         );
       })}
     </nav>

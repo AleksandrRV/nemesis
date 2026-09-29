@@ -28,7 +28,8 @@ import { IntruderBoardModal } from './components/intruders/IntruderBoardModal';
 import { MeleeModal } from './components/combat/MeleeModal';
 import { PHASE_LABELS } from './utils/labels';
 import { IS_DEV } from './utils/env';
-import { RotateCcw, Clock, Shield, Bug } from 'lucide-react';
+import { EndgameCinematic } from './components/endgame/EndgameCinematic';
+import { RotateCcw, Clock, Shield, Bug, Trophy } from 'lucide-react';
 
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
@@ -92,6 +93,13 @@ export const App: React.FC = () => {
     setEventPhaseHighlightRoomIds([]);
   };
 
+  const [hiddenEndgameIds, setHiddenEndgameIds] = React.useState<string[]>([]);
+  const endgameHidden = gameId !== null && hiddenEndgameIds.includes(gameId);
+  const hideEndgame = () => {
+    if (gameId) setHiddenEndgameIds((ids) => [...ids, gameId]);
+  };
+  const showEndgame = () => setHiddenEndgameIds((ids) => ids.filter((id) => id !== gameId));
+
   const handleCharacterSelect = (characterClass: CharacterClass) => {
     startNewGame(undefined, { chosenCharacterClass: characterClass });
     setShowCharacterSelect(false);
@@ -134,6 +142,15 @@ export const App: React.FC = () => {
             </span>
           </div>
           <CryoChip view={view} />
+          {view.endgame && endgameHidden && (
+            <button
+              type="button"
+              onClick={showEndgame}
+              className="flex items-center gap-1.5 rounded border border-amber-500/60 bg-amber-950/50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-amber-200 transition hover:bg-amber-900/60"
+            >
+              <Trophy size={14} aria-hidden="true" /> Итоги партии
+            </button>
+          )}
 
           {/* Планшет Чужих: живой бейдж «на борту» + точка «улей шевелился» */}
           <IntruderBoardButton view={view} open={intruderBoardOpen} onOpen={() => setIntruderBoardOpen(true)} />
@@ -219,6 +236,15 @@ export const App: React.FC = () => {
         {isPresentationIdle && <EscapePodConsole view={view} />}
         {isPresentationIdle && <ShootModal />}
         {isPresentationIdle && <MeleeModal />}
+        {view.endgame && !endgameHidden && isPresentationIdle && !eventPhaseModalOpen && !showCharacterSelect && (
+          <EndgameCinematic
+            key={view.meta.gameId}
+            view={view}
+            report={view.endgame}
+            onNewGame={() => setShowCharacterSelect(true)}
+            onClose={hideEndgame}
+          />
+        )}
 
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
       </main>

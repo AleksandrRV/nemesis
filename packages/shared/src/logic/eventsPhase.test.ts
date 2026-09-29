@@ -114,6 +114,8 @@ describe('Шаг 4 Фазы Событий: Счётчики Времени и �
     const state = freshState('evp-hyperjump', 2);
     state.meta.timeTrackPosition = TIME_TRACK_LENGTH - 1;
     state.players['player-2']!.isInHibernation = true;
+    for (const engine of Object.values(state.ship.engines)) engine.isWorking = true;
+    state.ship.coordinates = { cardId: 'COORDINATES_5', currentCourseMarker: 'B' };
 
     advanceTimeAndSelfDestruct(state);
 
@@ -122,6 +124,8 @@ describe('Шаг 4 Фазы Событий: Счётчики Времени и �
     expect(state.players['player-2']!.isDead).toBe(false);
     expect(state.meta.phase).toBe('GAME_OVER');
     expect(state.meta.gameOverReason).toBe('HYPERSPACE_JUMP');
+    expect(state.endgame?.destinationReached).toBe('EARTH');
+    expect(state.endgame?.characters.map((result) => result.death)).toEqual(['LEFT_ON_BOARD', null]);
   });
 
   it('позиция 5 (жёлтое «1») ещё не взрывает корабль', () => {

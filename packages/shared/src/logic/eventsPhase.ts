@@ -1,7 +1,6 @@
 import { isSelfDestructIrreversible } from './selfDestruct.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import type { GameState } from '../types/state.js';
-import { killPlayer } from './characterDamage.js';
 import { resolveEventCardMovement } from './eventCardMovement.js';
 import { resolveEventPhaseAttacks } from './eventsPhaseAttacks.js';
 import { endGame } from './gameEnd.js';
@@ -88,15 +87,12 @@ export function advanceTimeAndSelfDestruct(state: GameState): void {
   });
 
   if (state.meta.selfDestructTrackPosition === SELF_DESTRUCT_EXPLODES_AT) {
-    killEveryoneAboard(state, true);
     endGame(state, 'SHIP_EXPLODED');
     return;
   }
 
   if (state.meta.timeTrackPosition >= TIME_TRACK_LENGTH) {
-    const jumpsDuringSelfDestruct = state.meta.selfDestructTrackPosition !== null;
-    killEveryoneAboard(state, jumpsDuringSelfDestruct);
-    endGame(state, jumpsDuringSelfDestruct ? 'SHIP_EXPLODED' : 'HYPERSPACE_JUMP');
+    endGame(state, state.meta.selfDestructTrackPosition !== null ? 'SHIP_EXPLODED' : 'HYPERSPACE_JUMP');
   }
 }
 
@@ -107,19 +103,6 @@ function unlockAllEscapePods(state: GameState): void {
   for (const pod of pods) pod.isLocked = false;
   if (hadLocked) {
     appendGameLog(state, { type: 'ESCAPE_PODS_UNLOCKED', cause: 'SELF_DESTRUCT' });
-  }
-}
-
-/**
- * Гибель экипажа на борту при завершении партии (стр. 11): взрыв убивает
- * всех, включая Анабиоз; гиперпрыжок — только тех, кто не в Анабиозе.
- * Сбежавшие в Капсулах уже не на корабле.
- */
-function killEveryoneAboard(state: GameState, includeHibernation: boolean): void {
-  for (const player of Object.values(state.players)) {
-    if (player.isDead || player.hasEscapedInPod) continue;
-    if (!includeHibernation && player.isInHibernation) continue;
-    killPlayer(state, player.id);
   }
 }
 

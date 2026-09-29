@@ -9,6 +9,7 @@ export * from './types/contact.js';
 export * from './types/decisions.js';
 export * from './types/state.js';
 export * from './types/sanitized.js';
+export * from './types/endgame.js';
 export * from './logic/fsm.js';
 export * from './logic/setup.js';
 export * from './logic/sanitizer.js';

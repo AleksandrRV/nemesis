@@ -3,12 +3,13 @@ import type { GameDecksState } from './cards.js';
 import type { PendingDecision } from './decisions.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
 import type { InterruptEvent } from './interrupts.js';
+import type { EndgameReport } from './endgame.js';
 import type { GameLogEntry } from './log.js';
 import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
 // Сохранения другой схемы не восстанавливаются (CHANGELOG, 0.6.0).
-export const GAME_STATE_SCHEMA_VERSION = 25;
+export const GAME_STATE_SCHEMA_VERSION = 26;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -112,4 +113,6 @@ export interface GameState {
   interruptQueue: InterruptEvent[];
   /** Ожидающее решение активного игрока (Поиск, выбор отсеков, решений комнат). */
   pendingDecision: PendingDecision | null;
+  /** Итоги партии: заполняются Финальным Валидатором Победы при окончании игры (стр. 11). */
+  endgame: EndgameReport | null;
 }

@@ -83,7 +83,7 @@
 
 ## 3. Архитектура стейта и данных
 
-### 3.1. Полное состояние (`GameState`, схема 25)
+### 3.1. Полное состояние (`GameState`, схема 26)
 
 ```typescript
 // packages/shared/src/types/state.ts
@@ -129,6 +129,7 @@ export interface GameState {
   gameLog: GameLogEntry[]; // публичный журнал, 19 EventEffectOutcome + 6 HiveDevelopmentOutcome
   interruptQueue: InterruptEvent[]; // каскад: EXPLORE_ROOM, NOISE_ROLL, CONTACT, SURPRISE_ATTACK, ESCAPE_ATTACK, etc.
   pendingDecision: PendingDecision | null; // CHOOSE_OBJECTIVE, CHOOSE_SEARCH_ITEM, CHOOSE_WHITE_ROOM_DECK, STEEL_NERVES_OFFER, etc.
+  endgame: EndgameReport | null; // отчёт Финального Валидатора (стр. 11): Двигатели, Курс, Заражение, Цели
 }
 ```
 

@@ -3,7 +3,7 @@
 > Для разработчиков и AI-агентов. Карта «экран / модуль / сущность → что делает → где в коде».
 > Строки смещаются, главная опора — путь к файлу, имя функции/класса/типа.
 > Архитектура и правила — `doc/tech_stack.md`, `doc/design_document.md`, `doc/rules.md`.
-> **Версия документа:** 4.0 (актуализировано после сверки со сканами: версия 0.6.0, схема 25, 1474 теста, 28 коридоров, 2 пакета).
+> **Версия документа:** 4.0 (актуализировано после сверки со сканами: версия 0.7.0, схема 26, 1512 тестов, 28 коридоров, 2 пакета).
 
 ---
 
@@ -32,6 +32,7 @@
 | `log.ts` | `GameLogEntry`, `EventEffectOutcome` (19), `HiveDevelopmentOutcome` (6) | Журнал партии + итоги эффектов Событий и Улья. |
 | `interrupts.ts` | `InterruptEvent` | Стек прерываний: `EXPLORE_ROOM`, `NOISE_ROLL`, `CONTACT`, `SURPRISE_ATTACK`, `ESCAPE_ATTACK`, etc. |
 | `contact.ts` | `IntruderRetreatOutcome`, `AttackVictimStatus`, `IntruderLogEvent` | Презентация Контакта/Атак/Отступления. |
+| `endgame.ts` | `EndgameReport`, `EndgameCharacterResult`, `EndgameDeath` | Отчёт Финального Валидатора (стр. 11): судьба корабля, Двигатели, Курс, Заражение, Цели по Персонажам. |
 
 ### B. Логика движка (`src/logic/`)
 
@@ -74,6 +75,9 @@
 | `shipGraphQueries.ts` | `requireOpenPath()`, `corridorsLeadingInto()` | Запросы графа. |
 | `classCombatCards.ts` | `executeCombatCard()` | Боевые классовые карты, переброс кубика. |
 | `devActions.ts` | `executeToggleDoor()` | Dev-инструменты (IS_DEV). |
+| `gameEnd.ts` | `endGame()` | Перевод в `GAME_OVER` и запуск Финального Валидатора. |
+| `endgame.ts` | `resolveEndgame()`, `killEveryoneAboard()` | Финальный Валидатор (стр. 11): перенос маркера при пустом корабле, Двигатели, Курс, Заражение (4 карты), Цели → `GameState.endgame`. |
+| `objectiveConditions.ts` | `metObjectiveCondition()`, `OBJECTIVE_CONDITIONS` | Проверки условий всех 25 Целей, по варианту «ИЛИ». |
 
 ### C. Данные (`src/data/`)
 

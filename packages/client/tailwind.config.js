@@ -518,6 +518,33 @@ export default {
           '0%': { transform: 'scaleY(0)', opacity: '0' },
           '100%': { transform: 'scaleY(1)', opacity: '1' },
         },
+        'endgame-flash': {
+          '0%': { opacity: '0', transform: 'scale(0.2)' },
+          '15%': { opacity: '1', transform: 'scale(1.6)' },
+          '100%': { opacity: '0.35', transform: 'scale(2.6)' },
+        },
+        'endgame-shockwave': {
+          '0%': { opacity: '0.95', transform: 'scale(0.3)' },
+          '100%': { opacity: '0', transform: 'scale(6)' },
+        },
+        'endgame-flip': {
+          '0%': { opacity: '0', transform: 'perspective(800px) rotateY(-180deg) scale(0.85)' },
+          '55%': { opacity: '1', transform: 'perspective(800px) rotateY(12deg) scale(1.04)' },
+          '100%': { opacity: '1', transform: 'perspective(800px) rotateY(0) scale(1)' },
+        },
+        'endgame-verdict': {
+          '0%': { opacity: '0', transform: 'scale(1.6)', filter: 'blur(4px)' },
+          '60%': { opacity: '1', transform: 'scale(0.96)', filter: 'blur(0)' },
+          '100%': { opacity: '1', transform: 'scale(1)', filter: 'blur(0)' },
+        },
+        'endgame-curtain': {
+          '0%': { opacity: '0', backdropFilter: 'blur(0px)' },
+          '100%': { opacity: '1', backdropFilter: 'blur(6px)' },
+        },
+        'endgame-progress': {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         'noise-glow': 'noise-glow 2.4s ease-in-out infinite',
@@ -620,6 +647,12 @@ export default {
         'objective-card-keep': 'objective-card-keep 900ms ease-out both',
         'objective-card-discard': 'objective-card-discard 1000ms cubic-bezier(0.55, 0, 0.8, 0.4) both',
         'objective-lockdown': 'objective-lockdown 420ms ease-out both',
+        'endgame-flash': 'endgame-flash 1400ms ease-out both',
+        'endgame-shockwave': 'endgame-shockwave 1500ms cubic-bezier(0.1, 0.7, 0.3, 1) both',
+        'endgame-flip': 'endgame-flip 800ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both',
+        'endgame-verdict': 'endgame-verdict 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
+        'endgame-curtain': 'endgame-curtain 900ms ease-out both',
+        'endgame-progress': 'endgame-progress 400ms ease-out both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

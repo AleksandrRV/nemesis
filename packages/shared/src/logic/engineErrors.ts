@@ -88,7 +88,11 @@ export type EngineErrorCode =
   | 'NO_SLIME'
   | 'NO_CONTAMINATION'
   | 'WRONG_ROOM_COLOR'
-  | 'WEAPON_FULL';
+  | 'WEAPON_FULL'
+  | 'COMMS_LIMIT_REACHED'
+  | 'COMMS_INVALID_ADDRESSEE'
+  | 'COMMS_UNKNOWN_TARGET'
+  | 'COMMS_FORBIDDEN';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;

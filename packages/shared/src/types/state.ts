@@ -1,4 +1,4 @@
-import type { ClaimEvent } from './actions.js';
+import type { CommsState } from './comms.js';
 import type { GameDecksState } from './cards.js';
 import type { PendingDecision, PendingReaction } from './decisions.js';
 import type { EscapePodState, IntruderEntity, IntruderToken, PlayerState, WeaknessSlotState } from './entities.js';
@@ -9,7 +9,7 @@ import type { CorridorConnection, RoomId, RoomState } from './rooms.js';
 import type { RngStream } from '../utils/rng.js';
 
 // Сохранения другой схемы не восстанавливаются (CHANGELOG, 0.6.0).
-export const GAME_STATE_SCHEMA_VERSION = 27;
+export const GAME_STATE_SCHEMA_VERSION = 28;
 
 /**
  * Режим партии (стр. 27 «Игровые Режимы»). Базовая игра полукооперативная:
@@ -106,7 +106,8 @@ export interface GameState {
   intrudersPool: IntrudersPoolState;
   decks: GameDecksState;
   players: Record<string, PlayerState>;
-  claimsLog: ClaimEvent[];
+  /** Рация: публичные сообщения, обещания и лимиты текущего хода. */
+  comms: CommsState;
   /** Публичный журнал уже разыгранных событий партии; скрытые данные сюда не попадают. */
   gameLog: GameLogEntry[];
   /** Стек прерываний: действия разрешаются каскадом, а не мгновенно (tech_stack §4). */

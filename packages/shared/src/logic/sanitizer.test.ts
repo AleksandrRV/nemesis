@@ -319,7 +319,7 @@ describe('filterStateForPlayer: границы', () => {
     expect(state.ship.rooms[11]?.hasFire).toBe(false);
   });
 
-  it('сохраняет публичные данные: отсеки, коридоры, состав мешка, лог заявлений, прерывания', () => {
+  it('сохраняет публичные данные: отсеки, коридоры, состав мешка, Рация, прерывания', () => {
     const state = freshState();
     const view = filterStateForPlayer(state, VIEWER);
 
@@ -327,7 +327,7 @@ describe('filterStateForPlayer: границы', () => {
     expect(Object.keys(view.ship.corridors)).toHaveLength(Object.keys(state.ship.corridors).length);
     expect(view.intrudersPool.bag).toEqual({ BLANK: 1, LARVA: 4, CREEPER: 1, QUEEN: 1, ADULT: 4, BREEDER: 0 });
     expect(view.intrudersPool.eggsOnBoard).toBe(state.intrudersPool.eggsOnBoard);
-    expect(view.claimsLog).toEqual(state.claimsLog);
+    expect(view.comms).toEqual(state.comms);
     expect(view.interruptQueue).toEqual(state.interruptQueue);
     expect(view.meta).toEqual(state.meta);
   });

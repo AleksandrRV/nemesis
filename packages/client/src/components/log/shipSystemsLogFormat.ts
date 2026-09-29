@@ -1,6 +1,6 @@
 import { COORDINATE_CARDS, type SanitizedGameLogEvent, type SanitizedGameState } from '@nemesis/shared';
 import { DESTINATION_LABELS } from '../endgame/endgameModel';
-import { playerName, roomLabel, type GameLogSegment } from './gameLogModel';
+import { corridorLabel, playerName, roomLabel, type GameLogSegment } from './gameLogModel';
 
 export type ShipSystemsLogEvent = Extract<
   SanitizedGameLogEvent,
@@ -16,7 +16,9 @@ export type ShipSystemsLogEvent = Extract<
       | 'SLIME_ROOM_ENTERED'
       | 'EXCHANGE_PROPOSED'
       | 'EXCHANGE_ANSWERED'
-      | 'EXCHANGE_COMPLETED';
+      | 'EXCHANGE_COMPLETED'
+      | 'DOOR_CHANGED'
+      | 'FIRE_EXTINGUISHED';
   }
 >;
 
@@ -32,6 +34,8 @@ const SHIP_SYSTEMS_TYPES = new Set<string>([
   'EXCHANGE_PROPOSED',
   'EXCHANGE_ANSWERED',
   'EXCHANGE_COMPLETED',
+  'DOOR_CHANGED',
+  'FIRE_EXTINGUISHED',
 ]);
 
 export function isShipSystemsLogEvent(event: SanitizedGameLogEvent): event is ShipSystemsLogEvent {
@@ -166,5 +170,19 @@ export function formatShipSystemsLogEvent(event: ShipSystemsLogEvent, view: Sani
       ];
     case 'EXCHANGE_COMPLETED':
       return exchangeCompleted(event, view);
+    case 'DOOR_CHANGED':
+      return [
+        actor(view, event.playerId),
+        { text: event.to === 'CLOSED' ? ' закрывает Дверь: ' : ' открывает Дверь: ', tone: 'door' },
+        { text: `Коридор ${corridorLabel(event.corridorId)}`, tone: 'corridor', strong: true },
+        { text: '.' },
+      ];
+    case 'FIRE_EXTINGUISHED':
+      return [
+        actor(view, event.playerId),
+        { text: ' тушит Пожар: ', tone: 'success' },
+        room(view, event.roomId),
+        { text: '.' },
+      ];
   }
 }

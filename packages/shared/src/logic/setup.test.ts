@@ -401,11 +401,11 @@ describe('createInitialGameState: колоды партии', () => {
 });
 
 describe('createInitialGameState: пусковой стол', () => {
-  it('начинает партию с пустыми стеком прерываний и логом заявлений', () => {
+  it('начинает партию с пустыми стеком прерываний и Рацией', () => {
     const state = createInitialGameState('nemesis-alpha');
 
     expect(state.interruptQueue).toEqual([]);
-    expect(state.claimsLog).toEqual([]);
+    expect(state.comms).toEqual({ messages: [], commitments: [], turnUsage: null, trackedLogSequence: 0 });
   });
 });
 

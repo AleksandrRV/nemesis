@@ -101,7 +101,7 @@ export function roomLabel(view: SanitizedGameState, roomId: number): string {
   return `отсек ${numberLabel}`;
 }
 
-function corridorLabel(corridorId: string): string {
+export function corridorLabel(corridorId: string): string {
   return corridorId.replace('-', '–');
 }
 

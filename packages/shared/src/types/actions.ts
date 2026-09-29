@@ -1,6 +1,7 @@
 import type { CraftedItemId, ItemDeckColor } from './cards.js';
 import type { CarefulMoveChosenCorridor, RoomId } from './rooms.js';
 import type { CourseMarker } from './state.js';
+import type { CommsDraft } from './comms.js';
 
 /**
  * Действия игрока — единственный способ изменить состояние партии:
@@ -163,13 +164,8 @@ export type GameAction =
         selectedOption: string;
       };
     }
-  | {
-      type: 'ACTION_CLAIM';
-      payload: {
-        target: 'ENGINE_1' | 'ENGINE_2' | 'ENGINE_3' | 'COORDINATES';
-        declaredStatus: 'WORKING' | 'DAMAGED' | 'DESTINATION_EARTH' | 'DESTINATION_OTHER' | 'SILENCE';
-      };
-    };
+  /** Рация (план 0.8.0, шаг 3): не тратит Действий и карт. */
+  | { type: 'ACTION_COMMS'; payload: CommsDraft };
 
 /**
  * Отладочные действия (переключатели дверей и шума): в продакшн-сборке движок
@@ -182,11 +178,3 @@ export type DevAction =
 
 /** Всё, что движок умеет обрабатывать: действия игрока и отладочные действия. */
 export type EngineAction = GameAction | DevAction;
-
-export interface ClaimEvent {
-  id: string;
-  authorPlayerId: string;
-  target: 'ENGINE_1' | 'ENGINE_2' | 'ENGINE_3' | 'COORDINATES';
-  declaredStatus: 'WORKING' | 'DAMAGED' | 'DESTINATION_EARTH' | 'DESTINATION_OTHER' | 'SILENCE';
-  timestamp: number;
-}

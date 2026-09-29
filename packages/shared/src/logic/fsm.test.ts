@@ -209,7 +209,7 @@ describe('GameEngine: перемещение', () => {
   });
 });
 
-describe('GameEngine: объявленные, но не реализованные действия', () => {
+describe('GameEngine: неизвестные действия', () => {
   it.each([
     ['ACTION_CLAIM', { type: 'ACTION_CLAIM', payload: { target: 'COORDINATES', declaredStatus: 'DESTINATION_EARTH' } }],
   ])('отклоняет %s с явной ошибкой, а не молча', (_name, action) => {

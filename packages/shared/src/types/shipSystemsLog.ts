@@ -1,5 +1,5 @@
 import type { ItemColor } from './cards.js';
-import type { RoomId } from './rooms.js';
+import type { DoorState, RoomId } from './rooms.js';
 import type { CourseMarker, EngineNumber } from './state.js';
 
 export type EngineInspectionSource = 'ENGINE_ROOM' | 'ENGINE_CONTROL';
@@ -26,6 +26,8 @@ export interface ExchangedEntry {
 }
 
 export type ShipSystemsLogEvent =
+  | { type: 'DOOR_CHANGED'; playerId: string; corridorId: string; from: DoorState; to: DoorState }
+  | { type: 'FIRE_EXTINGUISHED'; playerId: string; roomId: RoomId }
   | {
       type: 'ENGINES_INSPECTED';
       playerId: string;

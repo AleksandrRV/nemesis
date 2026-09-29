@@ -1,3 +1,4 @@
+import type { CommitmentStatus } from './comms.js';
 import type { RoomId } from './rooms.js';
 
 /** Взаимодействие Персонажей: согласие на перенос и цепочка «Отставить» (стр. 19, карты Действий). */
@@ -17,4 +18,11 @@ export type CrewLogEvent =
       dismissedBy: string[];
       paidCardCount: number;
     }
-  | { type: 'DISMISS_OVERRULED'; playerId: string; dismissedBy: string[] };
+  | { type: 'DISMISS_OVERRULED'; playerId: string; dismissedBy: string[] }
+  | {
+      type: 'COMMITMENT_RESOLVED';
+      commitmentId: string;
+      helperId: string;
+      requesterId: string;
+      status: Exclude<CommitmentStatus, 'OPEN'>;
+    };

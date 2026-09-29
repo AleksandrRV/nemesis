@@ -94,7 +94,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function isGameState(value: unknown): value is GameState {
   if (!isRecord(value)) return false;
 
-  const { meta, ship, players, intrudersPool, decks, claimsLog, gameLog, interruptQueue } = value;
+  const { meta, ship, players, intrudersPool, decks, comms, gameLog, interruptQueue } = value;
 
   return (
     isRecord(meta) &&
@@ -117,7 +117,9 @@ export function isGameState(value: unknown): value is GameState {
     isRecord(intrudersPool.attackSuppression) &&
     Object.values(players).every((player) => isRecord(player) && typeof player.hasLarva === 'boolean') &&
     isRecord(decks) &&
-    Array.isArray(claimsLog) &&
+    isRecord(comms) &&
+    Array.isArray(comms.messages) &&
+    Array.isArray(comms.commitments) &&
     Array.isArray(gameLog) &&
     Array.isArray(interruptQueue) &&
     'reaction' in value

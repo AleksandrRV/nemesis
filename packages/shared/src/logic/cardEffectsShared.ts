@@ -5,6 +5,7 @@ import type { ExplorationEffect, RoomId, RoomState } from '../types/rooms.js';
 import type { EngineNumber, GameState } from '../types/state.js';
 import type { RoomPeekSource } from '../types/shipSystemsLog.js';
 import { appendGameLog } from './gameLog.js';
+import { announceEngineOrderChanged } from './comms/commsState.js';
 import { EngineError } from './engineErrors.js';
 import { reshuffleDiscard } from './cardPiles.js';
 import { placeDoorToken, placeFireMarker, placeMalfunctionMarker } from './markers.js';
@@ -162,6 +163,7 @@ export function setEngineState(state: GameState, actorId: string, option: string
     isWorking: engine.isWorking,
     orderChanged,
   });
+  if (orderChanged) announceEngineOrderChanged(state, engineNumber);
 }
 
 export function fixRoomMalfunction(state: GameState, actorId: string): void {

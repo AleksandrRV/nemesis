@@ -6,6 +6,9 @@ import { requireActionCardCombatUse, requireItemCombatUse } from './combatUseRul
 import { executeCardPayment } from './cardsPayment.js';
 import { escapeAttackerIds } from './escape.js';
 import { executeToggleDoor, executeToggleNoise } from './devActions.js';
+import { executeComms } from './comms/commsActions.js';
+import { trackCommitments } from './comms/commitments.js';
+import { logActorDeeds, snapshotDeeds } from './comms/deedLog.js';
 import { EngineError } from './engineErrors.js';
 import { drainInterrupts } from './interrupts.js';
 import { movePlayer, requireCarefulMoveAllowed } from './movement.js';
@@ -67,6 +70,7 @@ function validateActor(state: GameState, action: EngineAction, actorId: string, 
   if (state.meta.activePlayerId !== actorId) {
     throw new EngineError('NOT_ACTIVE_PLAYER', `Сейчас ход игрока ${state.meta.activePlayerId}, а не ${actorId}.`);
   }
+  if (action.type === 'ACTION_COMMS') return;
   if (isPlayerInPod(player) && action.type !== 'ACTION_ESCAPE_POD') {
     throw new EngineError(
       'CARD_NOT_USABLE_NOW',
@@ -150,12 +154,17 @@ function handleAction(state: GameState, action: EngineAction, actorId: string): 
       return executeActivateQuest(state, action, actorId);
     case 'ACTION_ESCAPE_POD':
       return executeEscapePodCommand(state, action, actorId);
+    case 'ACTION_COMMS':
+      return executeComms(state, actorId, action.payload);
     case 'DEV_TOGGLE_DOOR':
       return executeToggleDoor(state, action, actorId);
     case 'DEV_TOGGLE_NOISE':
       return executeToggleNoise(state, action, actorId);
     default:
-      throw new EngineError('ACTION_NOT_IMPLEMENTED', `Действие ${action.type} ещё не реализовано движком.`);
+      throw new EngineError(
+        'ACTION_NOT_IMPLEMENTED',
+        `Действие ${(action as EngineAction).type} ещё не реализовано движком.`,
+      );
   }
 }
 
@@ -172,7 +181,11 @@ export class GameEngine {
     const actorId = options.actorId ?? state.meta.activePlayerId;
     return produce(state, (draft) => {
       validateActor(draft, action, actorId, options);
-      const runAction = (declared: EngineAction, declaredBy: string) => handleAction(draft, declared, declaredBy);
+      const runAction = (declared: EngineAction, declaredBy: string) => {
+        const before = snapshotDeeds(draft);
+        handleAction(draft, declared, declaredBy);
+        logActorDeeds(draft, declared, declaredBy, before);
+      };
       const decision = draft.pendingDecision;
       if (action.type === 'ACTION_RESOLVE_DECISION' && decision?.type === 'DISMISS_WINDOW') {
         requireDecisionOwner(decision, action.payload.decisionId, actorId);
@@ -181,9 +194,10 @@ export class GameEngine {
         handleAction(structuredClone(current(draft)), action, actorId);
         openDismissWindow(draft, action, actorId, runAction);
       } else {
-        handleAction(draft, action, actorId);
+        runAction(action, actorId);
       }
       drainInterrupts(draft);
+      trackCommitments(draft);
     });
   }
 }

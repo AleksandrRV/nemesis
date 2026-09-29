@@ -3,7 +3,9 @@ import { playerName, roomLabel, type GameLogSegment } from './gameLogModel';
 
 export type CrewLogEvent = Extract<
   SanitizedGameLogEvent,
-  { type: 'REPOSITION_ANSWERED' | 'DISMISS_PLAYED' | 'ACTION_DISMISSED' | 'DISMISS_OVERRULED' }
+  {
+    type: 'REPOSITION_ANSWERED' | 'DISMISS_PLAYED' | 'ACTION_DISMISSED' | 'DISMISS_OVERRULED' | 'COMMITMENT_RESOLVED';
+  }
 >;
 
 const CREW_LOG_TYPES = new Set<string>([
@@ -11,7 +13,14 @@ const CREW_LOG_TYPES = new Set<string>([
   'DISMISS_PLAYED',
   'ACTION_DISMISSED',
   'DISMISS_OVERRULED',
+  'COMMITMENT_RESOLVED',
 ]);
+
+const COMMITMENT_OUTCOME_TEXT = {
+  FULFILLED: { text: ' выполняет обещание, данное ', tone: 'success' },
+  BROKEN: { text: ' нарушает обещание, данное ', tone: 'danger' },
+  EXPIRED: { text: ' не успел выполнить обещание, данное ', tone: 'warning' },
+} as const satisfies Record<string, GameLogSegment>;
 
 export const DISMISSABLE_ACTION_LABELS: Record<string, string> = {
   ACTION_MOVE: 'Перемещение',
@@ -63,6 +72,14 @@ export function formatCrewLogEvent(event: CrewLogEvent, view: SanitizedGameState
         { text: `${dismissableActionLabel(event.actionType)} ` },
         actor(view, event.playerId),
         { text: ` отменено — Цена оплачена (карт в сброс: ${event.paidCardCount}).` },
+      ];
+    case 'COMMITMENT_RESOLVED':
+      return [
+        { text: 'Рация. ', tone: 'system', strong: true },
+        actor(view, event.helperId),
+        COMMITMENT_OUTCOME_TEXT[event.status],
+        { text: playerName(view, event.requesterId), tone: 'player', strong: true },
+        { text: '.' },
       ];
     case 'DISMISS_OVERRULED':
       return [

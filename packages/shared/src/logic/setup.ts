@@ -24,6 +24,7 @@ import {
 } from '../data/setup.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameLog } from './gameLog.js';
+import { createInitialComms } from './comms/commsState.js';
 import { dealObjectives } from './objectives.js';
 import { createRng, createRngDraws, shuffle } from '../utils/rng.js';
 import type { RngStream } from '../utils/rng.js';
@@ -405,7 +406,7 @@ export function createInitialGameState(seed: string = DEFAULT_SEED, options: Ini
 
     players,
 
-    claimsLog: [],
+    comms: createInitialComms(),
     gameLog: createInitialGameLog(),
     interruptQueue: [],
     pendingDecision: null,

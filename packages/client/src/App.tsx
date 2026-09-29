@@ -1,6 +1,6 @@
 import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
-import type { CharacterClass, RoomId } from '@nemesis/shared';
+import type { RoomId } from '@nemesis/shared';
 import { useGameStore } from './store/gameStore';
 import { usePresentationStore } from './store/presentationStore';
 import { ShipMapSVG } from './components/board/ShipMapSVG';
@@ -19,7 +19,11 @@ import { DevPanel } from './components/dev/DevPanel';
 import { GameLogPanel } from './components/log/GameLogPanel';
 import { PlayerHandPanel } from './components/hand/PlayerHandPanel';
 import { DecisionModal } from './components/modals/DecisionModal';
-import { CharacterSelectModal } from './components/modals/CharacterSelectModal';
+import { CrewSetupFlow } from './components/lobby/CrewSetupFlow';
+import { HandoffShutter } from './components/table/HandoffShutter';
+import { BotActivity, BotTempoControl } from './components/table/BotTableHud';
+import { ReactionBanner } from './components/reactions/ReactionDialogs';
+import { useBotPacing } from './hooks/useBotPacing';
 import { EventPhaseBanner } from './components/events/EventPhaseBanner';
 import { EventPhaseModal } from './components/events/EventPhaseModal';
 import { buildEventPhaseModalModel } from './components/events/eventPhaseModalModel';
@@ -34,7 +38,9 @@ import { RotateCcw, Clock, Shield, Bug, Trophy } from 'lucide-react';
 
 export const App: React.FC = () => {
   const view = useGameStore((state) => state.view);
-  const startNewGame = useGameStore((state) => state.startNewGame);
+  const seating = useGameStore((state) => state.seating);
+  const handoffTo = useGameStore((state) => state.handoffTo);
+  const confirmHandoff = useGameStore((state) => state.confirmHandoff);
   const selectRoom = useGameStore((state) => state.selectRoom);
   const isPresentationIdle = usePresentationStore((s) => s.isIdle);
   const [devPanelOpen, setDevPanelOpen] = React.useState(false);
@@ -43,6 +49,7 @@ export const App: React.FC = () => {
   const [showCharacterSelect, setShowCharacterSelect] = React.useState(() => {
     return !view || view.gameLog.every((entry) => entry.event.type === 'GAME_STARTED');
   });
+  useBotPacing(!showCharacterSelect);
 
   // Кинематографичная презентация Фазы Событий (Шаг 9): открывается один раз
   // на каждую Фазу (ключ — секвенс Сдвига Счётчиков Времени), повторные
@@ -101,11 +108,6 @@ export const App: React.FC = () => {
   };
   const showEndgame = () => setHiddenEndgameIds((ids) => ids.filter((id) => id !== gameId));
 
-  const handleCharacterSelect = (characterClass: CharacterClass) => {
-    startNewGame(undefined, { chosenCharacterClass: characterClass });
-    setShowCharacterSelect(false);
-  };
-
   if (!view) {
     return (
       <div className="relative w-screen h-screen bg-nemesis-bg flex items-center justify-center">
@@ -115,6 +117,10 @@ export const App: React.FC = () => {
   }
 
   const activePlayerName = view.players[view.meta.activePlayerId]?.name ?? 'Экипаж';
+  const seatLabelOf = (playerId: string) => seating.find((seat) => seat.playerId === playerId)?.label;
+  const pendingDecisionIsBot =
+    view.pendingDecisionPlayerId !== null &&
+    seating.find((seat) => seat.playerId === view.pendingDecisionPlayerId)?.kind === 'BOT';
 
   return (
     <div className="relative w-screen h-screen bg-nemesis-bg flex flex-col overflow-hidden">
@@ -143,6 +149,7 @@ export const App: React.FC = () => {
             </span>
           </div>
           <CryoChip view={view} />
+          <BotTempoControl />
           {view.endgame && endgameHidden && (
             <button
               type="button"
@@ -176,7 +183,7 @@ export const App: React.FC = () => {
           <button
             onClick={() => setShowCharacterSelect(true)}
             className="p-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white rounded-lg transition flex items-center gap-1.5 text-xs font-semibold"
-            title="Новая игра с выбором персонажа"
+            title="Новая партия: лобби и подготовка экипажа"
           >
             <RotateCcw size={16} />
             <span className="hidden sm:inline">Новая игра</span>
@@ -187,7 +194,7 @@ export const App: React.FC = () => {
       <main className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
         <section aria-label="Карта корабля" className="relative min-h-0 flex-1 overflow-hidden">
           <ShipMapSVG highlightRoomIds={eventPhaseModalOpen ? eventPhaseHighlightRoomIds : []} />
-          <CrewRoster view={view} onSelectRoom={selectRoom} />
+          <CrewRoster view={view} onSelectRoom={selectRoom} seating={seating} />
           <RoomInspector />
           {isPresentationIdle && !eventPhaseModalOpen && <EventPhaseBanner view={view} />}
         </section>
@@ -201,10 +208,9 @@ export const App: React.FC = () => {
           />
         )}
         {showCharacterSelect && (
-          <CharacterSelectModal
-            onSelect={handleCharacterSelect}
-            defaultSeed={view.meta.seed}
-            onClose={() => setShowCharacterSelect(false)}
+          <CrewSetupFlow
+            onClose={view.gameLog.length > 1 ? () => setShowCharacterSelect(false) : undefined}
+            onLaunched={() => setShowCharacterSelect(false)}
           />
         )}
         {intruderBoardOpen && (
@@ -218,7 +224,7 @@ export const App: React.FC = () => {
           />
         )}
         {isPresentationIdle && view.pendingDecision && <DecisionModal decision={view.pendingDecision} />}
-        {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && (
+        {isPresentationIdle && view.pendingDecisionPlayerId && !view.pendingDecision && !pendingDecisionIsBot && (
           <div
             role="status"
             className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
@@ -231,6 +237,8 @@ export const App: React.FC = () => {
         )}
         <ObjectiveBriefing view={view} enabled={isPresentationIdle && !showCharacterSelect && !view.pendingDecision} />
         <SessionNotice />
+        <ReactionBanner view={view} />
+        {!showCharacterSelect && <BotActivity view={view} />}
         <InfectionScanOverlay view={view} />
         <QuestUnlockCinematic view={view} />
         <EvacuationCinematic view={view} />
@@ -249,6 +257,13 @@ export const App: React.FC = () => {
         )}
 
         {IS_DEV && devPanelOpen && <DevPanel onClose={() => setDevPanelOpen(false)} />}
+        {handoffTo && !showCharacterSelect && (
+          <HandoffShutter
+            recipient={seatLabelOf(handoffTo) ?? view.players[handoffTo]?.name ?? handoffTo}
+            detail={view.players[handoffTo]?.name}
+            onReady={confirmHandoff}
+          />
+        )}
       </main>
 
       <GameLogPanel view={view} />

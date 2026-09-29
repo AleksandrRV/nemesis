@@ -562,6 +562,80 @@ export default {
           '0%': { transform: 'scaleX(0)' },
           '100%': { transform: 'scaleX(1)' },
         },
+        'lobby-rise': {
+          '0%': { opacity: '0', transform: 'translateY(18px) scale(0.98)', filter: 'blur(3px)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)', filter: 'blur(0)' },
+        },
+        'lobby-grid-drift': {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '0 48px' },
+        },
+        'lobby-radar': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        'seat-join': {
+          '0%': { opacity: '0', transform: 'scale(0.7)', boxShadow: '0 0 0 0 rgba(34, 211, 238, 0.7)' },
+          '60%': { opacity: '1', transform: 'scale(1.05)', boxShadow: '0 0 0 14px rgba(34, 211, 238, 0)' },
+          '100%': { opacity: '1', transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(34, 211, 238, 0)' },
+        },
+        'seat-waiting': {
+          '0%, 100%': { opacity: '0.45' },
+          '50%': { opacity: '1' },
+        },
+        'seat-bot-boot': {
+          '0%': { opacity: '0.3', filter: 'hue-rotate(0deg) blur(2px)', transform: 'skewX(0deg)' },
+          '20%': { opacity: '1', transform: 'skewX(-8deg)', filter: 'hue-rotate(90deg) blur(0)' },
+          '40%': { transform: 'skewX(6deg)', filter: 'hue-rotate(-60deg)' },
+          '60%': { transform: 'skewX(-2deg)', filter: 'hue-rotate(0deg)' },
+          '100%': { opacity: '1', transform: 'skewX(0deg)', filter: 'none' },
+        },
+        'draft-deal': {
+          '0%': { opacity: '0', transform: 'translateY(-60px) rotate(-10deg) scale(0.8)' },
+          '70%': { opacity: '1', transform: 'translateY(8px) rotate(2deg) scale(1.02)' },
+          '100%': { opacity: '1', transform: 'translateY(0) rotate(0) scale(1)' },
+        },
+        'draft-flip': {
+          '0%': { transform: 'perspective(900px) rotateY(180deg)' },
+          '100%': { transform: 'perspective(900px) rotateY(0deg)' },
+        },
+        'draft-take': {
+          '0%': { transform: 'translateY(0) scale(1)', filter: 'brightness(1)' },
+          '35%': { transform: 'translateY(-18px) scale(1.08)', filter: 'brightness(1.5)' },
+          '100%': { transform: 'translateY(-6px) scale(1.04)', filter: 'brightness(1.15)' },
+        },
+        'draft-return': {
+          '0%': { opacity: '1', transform: 'translateY(0) rotate(0) scale(1)' },
+          '100%': { opacity: '0', transform: 'translateY(-160px) rotate(12deg) scale(0.6)' },
+        },
+        'number-stamp': {
+          '0%': { opacity: '0', transform: 'scale(2.4) rotate(-8deg)', filter: 'blur(6px)' },
+          '60%': { opacity: '1', transform: 'scale(0.94) rotate(1deg)', filter: 'blur(0)' },
+          '100%': { opacity: '1', transform: 'scale(1) rotate(0)', filter: 'blur(0)' },
+        },
+        'handoff-shutter-top': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        'handoff-shutter-bottom': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        'bot-thinking': {
+          '0%, 80%, 100%': { opacity: '0.25', transform: 'translateY(0)' },
+          '40%': { opacity: '1', transform: 'translateY(-3px)' },
+        },
+        'bot-toast': {
+          '0%': { opacity: '0', transform: 'translateX(24px)' },
+          '12%': { opacity: '1', transform: 'translateX(0)' },
+          '85%': { opacity: '1', transform: 'translateX(0)' },
+          '100%': { opacity: '0', transform: 'translateX(12px)' },
+        },
+        'dismiss-stamp': {
+          '0%': { opacity: '0', transform: 'scale(2.2) rotate(-12deg)' },
+          '55%': { opacity: '1', transform: 'scale(0.92) rotate(-6deg)' },
+          '100%': { opacity: '1', transform: 'scale(1) rotate(-6deg)' },
+        },
       },
       animation: {
         'noise-glow': 'noise-glow 2.4s ease-in-out infinite',
@@ -673,6 +747,22 @@ export default {
         'vacuum-debris': 'vacuum-debris 1100ms cubic-bezier(0.2, 0.6, 0.4, 1) infinite',
         'endgame-curtain': 'endgame-curtain 900ms ease-out both',
         'endgame-progress': 'endgame-progress 400ms ease-out both',
+        'lobby-rise': 'lobby-rise 600ms cubic-bezier(0.22, 0.9, 0.3, 1) both',
+        'lobby-grid-drift': 'lobby-grid-drift 4s linear infinite',
+        'lobby-radar': 'lobby-radar 6s linear infinite',
+        'seat-join': 'seat-join 700ms cubic-bezier(0.34, 1.4, 0.5, 1) both',
+        'seat-waiting': 'seat-waiting 1.6s ease-in-out infinite',
+        'seat-bot-boot': 'seat-bot-boot 900ms steps(8, end) both',
+        'draft-deal': 'draft-deal 700ms cubic-bezier(0.2, 0.9, 0.3, 1.05) both',
+        'draft-flip': 'draft-flip 650ms cubic-bezier(0.3, 0.8, 0.3, 1) both',
+        'draft-take': 'draft-take 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both',
+        'draft-return': 'draft-return 650ms cubic-bezier(0.55, 0, 0.8, 0.4) both',
+        'number-stamp': 'number-stamp 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
+        'handoff-shutter-top': 'handoff-shutter-top 520ms cubic-bezier(0.6, 0, 0.3, 1) both',
+        'handoff-shutter-bottom': 'handoff-shutter-bottom 520ms cubic-bezier(0.6, 0, 0.3, 1) both',
+        'bot-thinking': 'bot-thinking 1.2s ease-in-out infinite',
+        'bot-toast': 'bot-toast 2600ms ease-out both',
+        'dismiss-stamp': 'dismiss-stamp 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
       },
       boxShadow: {
         'neon-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',

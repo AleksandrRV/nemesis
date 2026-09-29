@@ -55,7 +55,7 @@ export function formatCrewLogEvent(event: CrewLogEvent, view: SanitizedGameState
       return [
         actor(view, event.playerId),
         { text: ' играет «Отставить»', tone: 'warning', strong: true },
-        { text: ` против ${playerName(view, event.targetPlayerId)}.` },
+        { text: ` — под отмену: ${playerName(view, event.targetPlayerId)}.` },
       ];
     case 'ACTION_DISMISSED':
       return [

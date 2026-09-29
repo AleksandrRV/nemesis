@@ -46,7 +46,6 @@ const TAB_LABELS: Record<BoardTab, string> = {
 export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const [isExpanded, setIsExpanded] = React.useState(true);
   const [tab, setTab] = React.useState<BoardTab>('CARDS');
-  const [prevTurnKey, setPrevTurnKey] = React.useState('');
   const [showPassConfirm, setShowPassConfirm] = React.useState(false);
   const [inspectCardTarget, setInspectCardTarget] = React.useState<CardDetailsTarget | null>(null);
   const [inspectLocation, setInspectLocation] = React.useState<'INVENTORY' | 'HAND_SLOT'>('INVENTORY');
@@ -84,10 +83,9 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
   const selfId = view.viewerId;
   const player = view.players[selfId];
   const currentTurnKey = `${selfId}-${player?.actionsPerformedThisRound ?? 0}`;
-  if (currentTurnKey !== prevTurnKey) {
-    setPrevTurnKey(currentTurnKey);
+  React.useEffect(() => {
     clearSelection();
-  }
+  }, [currentTurnKey, clearSelection]);
 
   if (!player) return null;
 

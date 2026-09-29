@@ -13,6 +13,7 @@ export function filterCrewSetupForSeat(state: CrewSetupState, viewerId: string):
     throw new EngineError('UNKNOWN_PLAYER', `Места ${viewerId} за столом нет.`);
   }
   const canPick = canPickRole(state, viewerId);
+  const currentPicker = crewSetupPicker(state);
   return {
     viewerId,
     seed: state.seed,
@@ -26,7 +27,8 @@ export function filterCrewSetupForSeat(state: CrewSetupState, viewerId: string):
     ),
     roles: { ...state.roles },
     pickOrder: [...state.pickOrder],
-    currentPicker: crewSetupPicker(state),
+    currentPicker,
+    currentOffer: state.roleSelection === 'DRAFT' && currentPicker ? [...(state.offers[currentPicker] ?? [])] : [],
     availableRoles: canPick ? availableRoles(state, viewerId) : [],
     canPick,
     isReady: isCrewReady(state),

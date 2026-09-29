@@ -72,6 +72,8 @@ export interface GameStoreState {
   seating: TableSeating[];
   /** Чьего хода или ответа ждёт движок, если это бот: темп задаёт интерфейс. */
   pendingBotId: string | null;
+  /** Счётчик попыток ботов: темп перезапускается и после отказа, когда срез не изменился. */
+  botTicks: number;
   botSpeed: BotSpeed;
   botStall: { botId: string; reason: string } | null;
   lastBotAction: { botId: string; action: EngineAction; sequence: number } | null;
@@ -143,6 +145,7 @@ export function createGameStore(createTransport: TransportFactory) {
     carefulHoveredTechnical: false,
     seating: [],
     pendingBotId: null,
+    botTicks: 0,
     botSpeed: 'NORMAL',
     botStall: null,
     lastBotAction: null,
@@ -152,6 +155,7 @@ export function createGameStore(createTransport: TransportFactory) {
 
     stepBot: () => {
       transport.stepBot?.();
+      set({ pendingBotId: transport.pendingBotId?.() ?? null, botTicks: get().botTicks + 1 });
     },
     setBotSpeed: (botSpeed) => set({ botSpeed }),
     confirmHandoff: () => set({ handoffTo: null }),

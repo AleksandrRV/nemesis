@@ -20,12 +20,16 @@ describe('Срез подготовки экипажа', () => {
     expect(JSON.stringify(view)).not.toContain(JSON.stringify(setup.objectives[other!.playerId]));
   });
 
-  it('карты Драфта видит только тот, кто сейчас выбирает', () => {
+  it('карты Драфта вскрыты для всех, но выбрать из них может только текущий игрок (стр. 8, шаг 17)', () => {
     const setup = startCrewSetup('crew-view-draft', SEATS, 'DRAFT');
     const picker = currentDraftPicker(setup)!;
     const waiting = setup.seats.find((seat) => seat.playerId !== picker)!.playerId;
     expect(filterCrewSetupForSeat(setup, picker).availableRoles).toEqual(setup.offers[picker]);
-    expect(filterCrewSetupForSeat(setup, waiting)).toMatchObject({ canPick: false, availableRoles: [] });
+    expect(filterCrewSetupForSeat(setup, waiting)).toMatchObject({
+      canPick: false,
+      availableRoles: [],
+      currentOffer: setup.offers[picker],
+    });
   });
 
   it('в свободном выборе боты ждут, пока выберут все люди', () => {

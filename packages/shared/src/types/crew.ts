@@ -54,7 +54,7 @@ export interface TableSeating {
   label: string;
 }
 
-/** Подготовка экипажа глазами одного места: чужие Цели и чужие карты Драфта скрыты. */
+/** Подготовка экипажа глазами одного места: чужие Цели скрыты. */
 export interface SanitizedCrewSetup {
   viewerId: string;
   seed: string;
@@ -67,6 +67,8 @@ export interface SanitizedCrewSetup {
   roles: Record<string, CharacterClass | null>;
   pickOrder: string[];
   currentPicker: string | null;
+  /** Драфт: 2 карты текущего игрока вскрыты для всех (стр. 8, шаг 17). */
+  currentOffer: CharacterClass[];
   availableRoles: CharacterClass[];
   canPick: boolean;
   isReady: boolean;

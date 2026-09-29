@@ -85,6 +85,12 @@
 | `hygieneAbilities.ts` | `snackInCanteen()`, `takeShower()` | Столовая и Душевая: лечение/Слизь и скан руки. |
 | `slimeRoom.ts` | `stepIntoSlimeRoom()` | Маркер Слизи при входе в Комнату Слизи. |
 | `exchange.ts` | `proposeExchange()`, `resolveExchangeConsent()` | Обмен [1]: предложение, согласие каждого участника, передача без Боезапаса. |
+| `crewSetup.ts` | `startCrewSetup()`, `pickRole()`, `pickRandomRole()`, `crewAssignment()` | Подготовка экипажа (стр. 8, шаги 14–17): номера, Цели до выбора, Драфт и свободный выбор; поток ГСЧ `crew`. |
+| `crewSetupView.ts` | `filterCrewSetupForSeat()`, `crewSetupPicker()` | Срез подготовки для одного места: чужие Цели скрыты. |
+| `reposition.ts` | `executeReposition()`, `resolveRepositionConsent()` | Отход без Атак: согласие переносимого в «Огне на подавление» и «Заградительном огне». |
+| `reactions.ts` | `openDismissWindow()`, `resolveDismissWindow()` | Окно «Отставить»: цепочка встречных карт, оплата Цены отменённого Действия. |
+| `playerToAct.ts` | `playerToAct()` | Чьего ответа ждёт движок. |
+| `../ai/passiveBotPolicy.ts` | `decidePassiveBotAction()` | Базовый бот по своему срезу: Пас, осторожные ответы на решения. |
 
 ### C. Данные (`src/data/`)
 
@@ -119,8 +125,9 @@
 | Файл | Назначение | Экспорты |
 |---|---|---|
 | `App.tsx` | Каркас UI, HUD (раунд, фаза, активный, время, сид, dev). | `App` |
-| `store/gameStore.ts` | Zustand-стор: `view`, `selectedRoomId`, `rejection`. | `useGameStore` |
-| `services/transport/` | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` — изоляция движка. | — |
+| `store/gameStore.ts` | Zustand-стор: `view`, `selectedRoomId`, `rejection`, места, темп ботов, шторка, подготовка экипажа. | `useGameStore` |
+| `hooks/useBotPacing.ts` | Шаг бота, когда отыграли анимации; пауза по скорости. | `useBotPacing` |
+| `services/transport/` | `ITransport`, `LocalInMemoryTransport`, `createLocalTransport` — изоляция движка; `SeatController` — места и ход ботов; `CrewSetupSession` — подготовка экипажа. | — |
 | `services/session/` | `sessionStorage.ts`, `seed.ts` — сохранение и сид. | — |
 
 ### B. Компоненты (`src/components/`)
@@ -133,7 +140,9 @@
 | **Рука** `hand/PlayerHandPanel.tsx`, `HandConfirmModals.tsx` | Карты руки, цена, мультиселект, пас, счётчик 0/2, инвентарь/травмы. | `ACTION_PASS`, `ACTION_PLAY_CARD`, `ACTION_USE_ITEM`. |
 | **Контакт** `contact/ContactOverlay.tsx`, `ContactModal.tsx`, `IntruderSilhouette.tsx` | Окна силуэта, Внезапной, боя, Побега. | Читает `gameLog`. |
 | **Решения** `modals/DecisionModal.tsx` | Модалки `pendingDecision`: белая колода, поиск 1 из 2, сброс тяжёлого, цели, Пожарный контроль, Генератор, отдых, переброс. | `ACTION_RESOLVE_DECISION`. |
-| **Новая партия** `modals/CharacterSelectModal.tsx`, `CardDetailsModal.tsx` | Выбор класса и сида, просмотр карты. | Транспорт / не меняет партию. |
+| **Новая партия** `lobby/CrewSetupFlow.tsx`, `LobbyScreen.tsx`, `WaitingRoomScreen.tsx`, `CrewBriefingScreen.tsx`, `RoleSelectionScreen.tsx` | Лобби, ожидание участников, брифинг Целей, Драфт или свободный выбор с таймером. | `beginCrewSetup`, `pickRole`, `launchCrew`. |
+| **Реакции** `reactions/ReactionDialogs.tsx` | Окно «Отставить», согласие на отход, баннер цепочки. | `ACTION_RESOLVE_DECISION`. |
+| **Стол** `table/HandoffShutter.tsx`, `BotTableHud.tsx` | Шторка передачи устройства, кнопка «Быстрее», активность ботов. | Стор. |
 | **Бой** `combat/ShootModal.tsx`, `MeleeModal.tsx`, `CombatActionButtons.tsx` | Стрельба/рукопашная, выбор оружия/цели, цена, отказы. | `ACTION_SHOOT`, `ACTION_MELEE`. |
 | **Журнал** `log/GameLogPanel.tsx`, `gameLogModel.ts`, `intruderLogModel.ts`, `eventEffectLogModel.ts` | История ходов, 19 итогов Событий, 6 Улья. | Читает `view.gameLog`. |
 | **Dev** `dev/DevPanel.tsx` | Переключение дверей/шума, сырое состояние (IS_DEV). | `DEV_TOGGLE_DOOR/NOISE`. |

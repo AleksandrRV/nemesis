@@ -6,6 +6,7 @@ import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { FirstContactObjectiveChoice } from '../objectives/FirstContactObjectiveChoice';
 import { ExchangeConsentDialog } from '../rooms/ExchangeModal';
+import { DismissWindowDialog, RepositionConsentDialog } from '../reactions/ReactionDialogs';
 
 interface DecisionModalProps {
   decision: PendingDecision;
@@ -47,6 +48,16 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   if (decision.type === 'EXCHANGE_CONSENT') {
     if (!view) return null;
     return <ExchangeConsentDialog decision={decision} view={view} onAnswer={handleSelect} />;
+  }
+
+  if (decision.type === 'DISMISS_WINDOW') {
+    if (!view) return null;
+    return <DismissWindowDialog key={decision.id} decision={decision} view={view} onAnswer={handleSelect} />;
+  }
+
+  if (decision.type === 'REPOSITION_CONSENT') {
+    if (!view) return null;
+    return <RepositionConsentDialog decision={decision} view={view} onAnswer={handleSelect} />;
   }
 
   if (decision.type === 'STEEL_NERVES_OFFER') {

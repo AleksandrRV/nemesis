@@ -1,5 +1,6 @@
 import React from 'react';
-import type { RoomId, SanitizedGameState } from '@nemesis/shared';
+import type { RoomId, SanitizedGameState, TableSeating } from '@nemesis/shared';
+import { Bot } from 'lucide-react';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
 import { CrewToken } from '../board/CrewToken';
 import { crewTokenLabel, isCrewOnBoard, toCrewToken } from '../board/crewTokenModel';
@@ -7,6 +8,7 @@ import { crewTokenLabel, isCrewOnBoard, toCrewToken } from '../board/crewTokenMo
 interface CrewRosterProps {
   view: SanitizedGameState;
   onSelectRoom: (roomId: RoomId) => void;
+  seating?: readonly TableSeating[];
 }
 
 function statusLabel(player: SanitizedGameState['players'][string], isActive: boolean): string | null {
@@ -17,7 +19,7 @@ function statusLabel(player: SanitizedGameState['players'][string], isActive: bo
   return null;
 }
 
-export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom }) => {
+export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom, seating = [] }) => {
   const players = Object.values(view.players).sort((a, b) => a.orderNumber - b.orderNumber);
   if (players.length === 0) return null;
 
@@ -49,7 +51,13 @@ export const CrewRoster: React.FC<CrewRosterProps> = ({ view, onSelectRoom }) =>
               <CrewToken token={token} showActiveRing={false} />
             </svg>
             <span className="flex flex-col leading-none">
-              <span className="font-mono text-[9px] text-slate-400">ИГРОК {player.orderNumber}</span>
+              <span className="flex items-center gap-1 font-mono text-[9px] text-slate-400">
+                ИГРОК {player.orderNumber}
+                {seating.find((seat) => seat.playerId === player.id)?.kind === 'BOT' && (
+                  <Bot size={9} className="text-violet-300" aria-label="бот" />
+                )}
+                {player.id === view.viewerId && <span className="text-cyan-300">· ВЫ</span>}
+              </span>
               <span className={`text-[11px] font-bold uppercase tracking-wider ${player.isDead ? 'line-through' : ''}`}>
                 {identity.label}
               </span>

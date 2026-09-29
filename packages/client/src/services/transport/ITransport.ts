@@ -17,7 +17,13 @@ export type GameEvent =
   | { type: 'ACTION_APPLIED'; action: EngineAction }
   | { type: 'ACTION_REJECTED'; action: EngineAction; reason: string }
   /** Сохранение несовместимо: оно удалено, начата новая партия (С7-2, решение В-5). */
-  | { type: 'SESSION_DISCARDED'; reason: SessionDiscardReason };
+  | { type: 'SESSION_DISCARDED'; reason: SessionDiscardReason }
+  /** Экран перешёл к другому человеку за этим устройством; handoff — нужна шторка передачи. */
+  | { type: 'VIEWER_CHANGED'; viewerId: string; handoff: boolean }
+  | { type: 'BOT_ACTED'; botId: string; action: EngineAction }
+  /** Защита оркестратора сработала: бот не может ответить, партия ждёт людей. */
+  | { type: 'BOT_STALLED'; botId: string; reason: string }
+  | { type: 'SETUP_REJECTED'; reason: string };
 
 export interface IGameTransport {
   /** Готовит транспорт к работе: первая выдача состояния приходит подписчикам. */

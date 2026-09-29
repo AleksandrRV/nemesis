@@ -17,7 +17,7 @@ export const TechCorridorPanel: React.FC = () => {
   if (!view) return null;
 
   const hasNoise = view.ship.technicalCorridorNoise;
-  const activePlayer = view.players[view.meta.activePlayerId];
+  const activePlayer = view.players[view.viewerId];
   const handCardIds = new Set(activePlayer?.actionDeck.hand.map((card) => card.id) ?? []);
   const holdsMechanicCard = handCardIds.has('ACT_MEC_TECH_CORRIDORS');
   const holdsVentPlans = [...handCardIds].some((cardId) => cardId.startsWith('ITEM_YEL_TECH_CORRIDOR_PLANS'));

@@ -53,3 +53,21 @@ export interface TableSeating {
   kind: SeatKind;
   label: string;
 }
+
+/** Подготовка экипажа глазами одного места: чужие Цели и чужие карты Драфта скрыты. */
+export interface SanitizedCrewSetup {
+  viewerId: string;
+  seed: string;
+  playerCount: number;
+  gameMode: GameMode;
+  roleSelection: RoleSelectionMode;
+  seats: CrewSeat[];
+  objectives: ObjectiveCard[];
+  objectiveCounts: Record<string, number>;
+  roles: Record<string, CharacterClass | null>;
+  pickOrder: string[];
+  currentPicker: string | null;
+  availableRoles: CharacterClass[];
+  canPick: boolean;
+  isReady: boolean;
+}

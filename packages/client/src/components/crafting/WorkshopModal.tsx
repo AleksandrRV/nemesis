@@ -263,7 +263,7 @@ export const WorkshopModal: React.FC<WorkshopModalProps> = ({
   };
 
   const componentNames = componentIds.map((id) => items.find((entry) => entry.item.id === id)?.item.name ?? id);
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
   const heavyBlocked = selected?.recipe.itemId === 'FLAMETHROWER' && player !== undefined && !hasFreeHandSlot(player);
 
   return (

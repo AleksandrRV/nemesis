@@ -25,6 +25,15 @@ function expectEngineError(run: () => unknown, code: EngineErrorCode): void {
   throw new Error(`Ожидалась ошибка движка с кодом ${code}, но вызов прошёл без ошибки.`);
 }
 
+describe('filterStateForPlayer: зритель среза', () => {
+  it('помечает, чьими глазами собран срез, независимо от активного игрока', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const other = Object.keys(state.players).find((id) => id !== state.meta.activePlayerId)!;
+    expect(filterStateForPlayer(state, other).viewerId).toBe(other);
+    expect(filterStateForPlayer(state, other).meta.activePlayerId).not.toBe(other);
+  });
+});
+
 describe('filterStateForPlayer: двигатели и Координаты (стр. 26)', () => {
   it('скрывает состояние всех двигателей, пока персонаж их не проверял', () => {
     const view = filterStateForPlayer(freshState(), VIEWER);

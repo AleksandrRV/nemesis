@@ -20,7 +20,7 @@ export const RoomActionButtons: React.FC<{ view: SanitizedGameState; roomId: num
   const convertedCardIds = useGameStore((state) => state.convertedCardIds);
   const [open, setOpen] = React.useState<'CONSOLE' | 'EXCHANGE' | null>(null);
 
-  const selfId = view.meta.activePlayerId;
+  const selfId = view.viewerId;
   const roomConsole = getRoomConsole(view);
   const partners = exchangePartners(view, selfId);
   const definitionId = view.ship.rooms[roomId]?.definitionId ?? null;

@@ -205,7 +205,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   }
 
   if (decision.type === 'CHOOSE_ENERGY_WEAPON') {
-    const activePlayer = view?.players[view.meta.activePlayerId];
+    const activePlayer = view?.players[view.viewerId];
     const weaponSlots = activePlayer?.handSlots.filter(
       (s) => s.source === 'ITEM' && decision.weaponIds.includes(s.card.id),
     );
@@ -252,7 +252,7 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
   }
 
   if (decision.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
-    const activePlayer = view?.players[view.meta.activePlayerId];
+    const activePlayer = view?.players[view.viewerId];
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"

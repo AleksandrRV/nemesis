@@ -16,6 +16,8 @@ export * from './types/crewLog.js';
 export * from './logic/fsm.js';
 export * from './logic/setup.js';
 export * from './logic/sanitizer.js';
+export * from './logic/playerToAct.js';
+export * from './ai/passiveBotPolicy.js';
 export * from './logic/markers.js';
 export * from './logic/cardsPayment.js';
 export {
@@ -31,6 +33,7 @@ export * from './logic/search.js';
 export { isHibernationOpen, isPlayerInPod, isPodUsable, podCommandsFor } from './logic/evacuation.js';
 export { EXCHANGE_OPTION } from './logic/exchange.js';
 export * from './logic/crewSetup.js';
+export * from './logic/crewSetupView.js';
 export { CONSENT_OPTION, executeReposition } from './logic/reposition.js';
 export { DISMISS_OPTION } from './logic/reactions.js';
 export { questReadiness, sacrificeCandidates, type QuestBlocker, type QuestReadiness } from './logic/questItems.js';

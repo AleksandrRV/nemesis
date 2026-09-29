@@ -59,7 +59,7 @@ export function handPaymentCandidates(
   view: SanitizedGameState,
   excluded: ReadonlyMap<string, string>,
 ): PaymentCandidate[] {
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
   if (!player) return [];
   return player.actionDeck.hand.map((card) => {
     if (!('characterClass' in card)) {

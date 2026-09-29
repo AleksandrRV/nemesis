@@ -38,7 +38,7 @@ const BLOCKER_HINTS: Record<QuestBlocker, string> = {
 };
 
 function ownerParts(view: SanitizedGameState) {
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
   return {
     player,
     owned: { inventory: player?.inventory ?? [], handSlots: player?.handSlots ?? [] },

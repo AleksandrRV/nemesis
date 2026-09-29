@@ -1,7 +1,17 @@
-import type { CharacterClass, CorridorNumber, EngineAction, RoomId, SanitizedGameState } from '@nemesis/shared';
+import type {
+  CharacterClass,
+  CorridorNumber,
+  EngineAction,
+  RoomId,
+  SanitizedCrewSetup,
+  SanitizedGameState,
+  TableSeating,
+} from '@nemesis/shared';
 import { create } from 'zustand';
 
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
+import type { LocalTableControls, NewGameOptions } from '../services/transport/LocalInMemoryTransport';
+import type { CrewSetupOptions } from '../services/transport/CrewSetupSession';
 import type { IGameTransport } from '../services/transport/ITransport';
 import type { SessionDiscardReason } from '../services/session/sessionStorage';
 import { IS_DEV } from '../utils/env';
@@ -56,13 +66,35 @@ export interface GameStoreState {
   selectRoom: (roomId: RoomId | null) => void;
   openTechnicalCorridors: () => void;
   closeTechnicalCorridors: () => void;
-  startNewGame: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
+  startNewGame: (seed?: string, options?: NewGameOptions) => void;
+
+  /** Места за столом: кто человек за этим устройством, кто бот (публичные сведения). */
+  seating: TableSeating[];
+  /** Чьего хода или ответа ждёт движок, если это бот: темп задаёт интерфейс. */
+  pendingBotId: string | null;
+  botSpeed: BotSpeed;
+  botStall: { botId: string; reason: string } | null;
+  lastBotAction: { botId: string; action: EngineAction; sequence: number } | null;
+  /** Шторка «Передайте устройство»: срез уже принадлежит следующему человеку и скрыт до подтверждения. */
+  handoffTo: string | null;
+  crewSetup: SanitizedCrewSetup | null;
+  setupRejection: string | null;
+
+  stepBot: () => void;
+  setBotSpeed: (speed: BotSpeed) => void;
+  confirmHandoff: () => void;
+  beginCrewSetup: (options: Omit<CrewSetupOptions, 'seed'> & { seed?: string }) => void;
+  viewCrewSetupAs: (playerId: string) => void;
+  pickRole: (role: CharacterClass) => void;
+  pickRandomRole: () => void;
+  launchCrew: () => void;
+  cancelCrewSetup: () => void;
 }
 
-/** Транспорт локальной партии умеет начинать новый стол; сетевой — нет (это дело сервера). */
-export type TransportFactory = () => IGameTransport & {
-  startNewGame?: (seed?: string, options?: { chosenCharacterClass?: CharacterClass }) => void;
-};
+export type BotSpeed = 'NORMAL' | 'FAST';
+
+/** Транспорт локальной партии умеет начинать новый стол и вести ботов; сетевой — нет (это дело сервера). */
+export type TransportFactory = () => IGameTransport & Partial<LocalTableControls>;
 
 export const SESSION_DISCARD_NOTICES: Record<SessionDiscardReason, string> = {
   OUTDATED_VERSION: 'Сохранение от предыдущей версии — начата новая партия.',
@@ -71,7 +103,7 @@ export const SESSION_DISCARD_NOTICES: Record<SessionDiscardReason, string> = {
 
 /** Отсек, который открыт по умолчанию: там, где стоит играющий персонаж. */
 function defaultRoomId(view: SanitizedGameState | null): RoomId | null {
-  return view?.players[view.meta.activePlayerId]?.roomId ?? null;
+  return view?.players[view.viewerId]?.roomId ?? null;
 }
 
 /**
@@ -109,6 +141,35 @@ export function createGameStore(createTransport: TransportFactory) {
     carefulMoveTargetRoomId: null,
     carefulHoveredNumber: null,
     carefulHoveredTechnical: false,
+    seating: [],
+    pendingBotId: null,
+    botSpeed: 'NORMAL',
+    botStall: null,
+    lastBotAction: null,
+    handoffTo: null,
+    crewSetup: null,
+    setupRejection: null,
+
+    stepBot: () => {
+      transport.stepBot?.();
+    },
+    setBotSpeed: (botSpeed) => set({ botSpeed }),
+    confirmHandoff: () => set({ handoffTo: null }),
+    beginCrewSetup: (options) => {
+      set({ setupRejection: null });
+      transport.beginCrewSetup?.(options);
+    },
+    viewCrewSetupAs: (playerId) => transport.viewCrewSetupAs?.(playerId),
+    pickRole: (role) => {
+      set({ setupRejection: null });
+      transport.pickRole?.(role);
+    },
+    pickRandomRole: () => transport.pickRandomRole?.(),
+    launchCrew: () => {
+      transport.launchCrew?.();
+      syncTable();
+    },
+    cancelCrewSetup: () => transport.cancelCrewSetup?.(),
 
     toggleSelectCard: (cardId) => {
       const { selectedCardIds, convertedCardIds } = get();
@@ -127,7 +188,7 @@ export function createGameStore(createTransport: TransportFactory) {
     convertToEnergy: () => {
       const { selectedCardIds, convertedCardIds, view } = get();
       if (!view) return;
-      const player = view.players[view.meta.activePlayerId];
+      const player = view.players[view.viewerId];
       if (!player) return;
 
       // Фильтруем только существующие на руке карты и не Заражение (Заражение нельзя конвертировать)
@@ -153,7 +214,7 @@ export function createGameStore(createTransport: TransportFactory) {
 
     consumePaymentCards: (count, excludeCardId) => {
       const { convertedCardIds, selectedCardIds, view } = get();
-      const hand = view?.players[view?.meta.activePlayerId ?? '']?.actionDeck.hand ?? [];
+      const hand = view?.players[view?.viewerId ?? '']?.actionDeck.hand ?? [];
       const handCardIds = new Set(hand.map((c) => c.id));
 
       // Сначала берём из конвертированных карт, если они есть
@@ -239,7 +300,11 @@ export function createGameStore(createTransport: TransportFactory) {
         // Локальная партия продолжается тем же транспортом: он уже держит
         // движок и сохранение, достаточно бросить новый стол.
         transport.startNewGame(seed, options);
+        syncTable();
         set({
+          handoffTo: null,
+          botStall: null,
+          lastBotAction: null,
           selectedRoomId: defaultRoomId(store.getState().view),
           technicalCorridorsOpen: false,
           rejection: null,
@@ -259,6 +324,7 @@ export function createGameStore(createTransport: TransportFactory) {
       detach();
       transport = createTransport();
       attach(transport);
+      syncTable();
       void transport.init();
       set({
         view: null,
@@ -276,31 +342,75 @@ export function createGameStore(createTransport: TransportFactory) {
     },
   }));
 
-  function attach(instance: IGameTransport): void {
+  function syncTable(): void {
+    store.setState({
+      seating: transport.getSeating?.() ?? [],
+      pendingBotId: transport.pendingBotId?.() ?? null,
+    });
+  }
+
+  function attach(instance: IGameTransport & Partial<LocalTableControls>): void {
+    let botActionSequence = 0;
     const unsubscribeState = instance.subscribeToState((view) => {
       // Выбор отсека — состояние интерфейса: когда приходит новый снимок,
       // уже открытый отсек остаётся открытым.
-      store.setState((state) => ({ view, selectedRoomId: state.selectedRoomId ?? defaultRoomId(view) }));
+      store.setState((state) => ({
+        view,
+        selectedRoomId: state.selectedRoomId ?? defaultRoomId(view),
+        pendingBotId: instance.pendingBotId?.() ?? null,
+      }));
     });
 
+    const unsubscribeSetup =
+      instance.subscribeToCrewSetup?.((crewSetup) => {
+        store.setState({ crewSetup, pendingBotId: instance.pendingBotId?.() ?? null });
+      }) ?? (() => undefined);
+
     const unsubscribeEvents = instance.subscribeToEvents((event) => {
-      if (event.type === 'SESSION_DISCARDED') {
-        store.setState({ sessionNotice: SESSION_DISCARD_NOTICES[event.reason] });
-        return;
+      switch (event.type) {
+        case 'SESSION_DISCARDED':
+          store.setState({ sessionNotice: SESSION_DISCARD_NOTICES[event.reason] });
+          return;
+        case 'VIEWER_CHANGED':
+          store.setState({
+            handoffTo: event.handoff ? event.viewerId : null,
+            selectedRoomId: defaultRoomId(store.getState().view),
+            selectedCardIds: [],
+            convertedCardIds: [],
+          });
+          return;
+        case 'BOT_ACTED':
+          botActionSequence += 1;
+          store.setState({
+            botStall: null,
+            lastBotAction: { botId: event.botId, action: event.action, sequence: botActionSequence },
+          });
+          return;
+        case 'BOT_STALLED':
+          store.setState({ botStall: { botId: event.botId, reason: event.reason } });
+          return;
+        case 'SETUP_REJECTED':
+          store.setState({ setupRejection: event.reason });
+          return;
+        case 'ACTION_REJECTED':
+          store.setState({ rejection: mapRejectionReason(event.reason) });
+          return;
+        case 'ACTION_APPLIED':
+          store.setState({ rejection: null, botStall: null });
+          return;
       }
-      store.setState(
-        event.type === 'ACTION_REJECTED' ? { rejection: mapRejectionReason(event.reason) } : { rejection: null },
-      );
     });
 
     detach = () => {
       unsubscribeState();
+      unsubscribeSetup();
       unsubscribeEvents();
     };
   }
 
   attach(transport);
   void transport.init();
+  syncTable();
 
   return store;
 }

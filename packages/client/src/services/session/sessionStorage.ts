@@ -1,4 +1,4 @@
-import type { GameState } from '@nemesis/shared';
+import type { GameState, SeatKind, TableSeating } from '@nemesis/shared';
 import { GAME_STATE_SCHEMA_VERSION } from '@nemesis/shared';
 
 /**
@@ -34,6 +34,8 @@ export type SessionDiscardReason = 'OUTDATED_VERSION' | 'CORRUPTED';
 
 export interface SessionRestore {
   state: GameState | null;
+  /** Кто сидит за столом восстановленной партии; пусто, если партии нет. */
+  seating: TableSeating[];
   discarded: SessionDiscardReason | null;
 }
 
@@ -42,13 +44,37 @@ export interface SessionStorage {
   load(): GameState | null;
   /** Как `load`, но несовместимая запись удаляется, а причина возвращается для сообщения игроку (С7-2). */
   restore(): SessionRestore;
-  save(state: GameState): void;
+  save(state: GameState, seating?: readonly TableSeating[]): void;
   clear(): void;
 }
 
 interface PersistedSession {
   version: number;
   state: GameState;
+  seating: TableSeating[];
+}
+
+const SEAT_KINDS = new Set<SeatKind>(['LOCAL_HUMAN', 'REMOTE_HUMAN', 'BOT']);
+
+/** Сохранение без мест за столом: все Персонажи ведутся с этого устройства. */
+export function everyoneAtThisDevice(state: GameState): TableSeating[] {
+  return Object.values(state.players)
+    .sort((left, right) => left.orderNumber - right.orderNumber)
+    .map((player) => ({ playerId: player.id, kind: 'LOCAL_HUMAN', label: player.name }));
+}
+
+export function isTableSeating(value: unknown, state: GameState): value is TableSeating[] {
+  if (!Array.isArray(value)) return false;
+  const seated = value.filter(
+    (seat): seat is TableSeating =>
+      isRecord(seat) &&
+      typeof seat.playerId === 'string' &&
+      typeof seat.label === 'string' &&
+      SEAT_KINDS.has(seat.kind as SeatKind) &&
+      seat.playerId in state.players,
+  );
+  const unique = new Set(seated.map((seat) => seat.playerId));
+  return seated.length === value.length && unique.size === Object.keys(state.players).length;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,18 +119,31 @@ export function isGameState(value: unknown): value is GameState {
     isRecord(decks) &&
     Array.isArray(claimsLog) &&
     Array.isArray(gameLog) &&
-    Array.isArray(interruptQueue)
+    Array.isArray(interruptQueue) &&
+    'reaction' in value
   );
 }
 
-export function serializeSession(state: GameState): string {
-  const persisted: PersistedSession = { version: SESSION_STORAGE_VERSION, state };
+export function serializeSession(
+  state: GameState,
+  seating: readonly TableSeating[] = everyoneAtThisDevice(state),
+): string {
+  const persisted: PersistedSession = { version: SESSION_STORAGE_VERSION, state, seating: [...seating] };
 
   return JSON.stringify(persisted);
 }
 
-/** Разбирает запись сохранения: чужая версия, мусор и обрезанный JSON дают null. */
+interface ParsedSession {
+  state: GameState;
+  seating: TableSeating[];
+}
+
+/** Разбирает запись сохранения: чужая версия, мусор, обрезанный JSON и чужие места дают null. */
 export function parseSession(raw: string | null): GameState | null {
+  return parseSessionRecord(raw)?.state ?? null;
+}
+
+function parseSessionRecord(raw: string | null): ParsedSession | null {
   if (raw === null) return null;
 
   let parsed: unknown;
@@ -118,8 +157,9 @@ export function parseSession(raw: string | null): GameState | null {
   if (!isRecord(parsed) || parsed.version !== SESSION_STORAGE_VERSION || !isGameState(parsed.state)) {
     return null;
   }
+  if (!isTableSeating(parsed.seating, parsed.state)) return null;
 
-  return parsed.state;
+  return { state: parsed.state, seating: parsed.seating };
 }
 
 function savedVersionOf(raw: string): number | null {
@@ -135,12 +175,13 @@ function savedVersionOf(raw: string): number | null {
 }
 
 export function inspectSession(raw: string | null): SessionRestore {
-  if (raw === null) return { state: null, discarded: null };
-  const state = parseSession(raw);
-  if (state) return { state, discarded: null };
+  if (raw === null) return { state: null, seating: [], discarded: null };
+  const parsed = parseSessionRecord(raw);
+  if (parsed) return { ...parsed, discarded: null };
   const savedVersion = savedVersionOf(raw);
   return {
     state: null,
+    seating: [],
     discarded: savedVersion !== null && savedVersion < SESSION_STORAGE_VERSION ? 'OUTDATED_VERSION' : 'CORRUPTED',
   };
 }
@@ -180,7 +221,7 @@ export function createSessionStorage(storage: StorageLike): SessionStorage {
       try {
         result = inspectSession(storage.getItem(SESSION_STORAGE_KEY));
       } catch {
-        return { state: null, discarded: null };
+        return { state: null, seating: [], discarded: null };
       }
       if (result.discarded) {
         try {
@@ -192,9 +233,9 @@ export function createSessionStorage(storage: StorageLike): SessionStorage {
       return result;
     },
 
-    save: (state) => {
+    save: (state, seating) => {
       try {
-        storage.setItem(SESSION_STORAGE_KEY, serializeSession(state));
+        storage.setItem(SESSION_STORAGE_KEY, serializeSession(state, seating));
       } catch {
         // Приватный режим или переполненное хранилище: партия продолжается без сохранения.
       }

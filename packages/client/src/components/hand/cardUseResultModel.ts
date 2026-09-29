@@ -60,7 +60,7 @@ export function buildCardUseResult(
   const result: CardUseResult = { title, variantLabel, error, lines: [], logLines: [] };
   if (error) return result;
 
-  const playerId = after.meta.activePlayerId;
+  const playerId = after.viewerId;
   const beforePlayer = before.players[playerId];
   const afterPlayer = after.players[playerId];
   if (!beforePlayer || !afterPlayer) return result;

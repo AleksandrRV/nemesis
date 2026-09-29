@@ -40,6 +40,11 @@ const INTRUDER_NAMES_RU: Record<string, string> = {
   QUEEN: 'Королева',
 };
 
+const DISENGAGE_CARD_IDS = [
+  'ACT_SOL_SUPPRESSIVE_FIRE',
+  'ACT_CAP_SUPPRESSIVE_FIRE',
+  'ACT_SCO_SUPPRESSIVE_FIRE',
+] as const;
 export const RoomInspector: React.FC = () => {
   const view = useGameStore((state) => state.view);
   const selectedRoomId = useGameStore((state) => state.selectedRoomId);
@@ -75,9 +80,9 @@ export const RoomInspector: React.FC = () => {
     ADDITIONAL_ROOMS_2.find((definition) => definition.id === room.definitionId) ??
     null;
 
-  const activePlayerId = view.meta.activePlayerId;
-  const activePlayer = view.players[activePlayerId];
-  const isPlayerHere = room.occupantPlayerIds.includes(activePlayerId);
+  const selfId = view.viewerId;
+  const activePlayer = view.players[selfId];
+  const isPlayerHere = room.occupantPlayerIds.includes(selfId);
   const occupantNames = room.occupantPlayerIds.map((playerId) => view.players[playerId]?.name ?? playerId);
 
   // Чужие в выбранном отсеке и статус Боя (стр. 18): блокируют Поиск,
@@ -97,11 +102,7 @@ export const RoomInspector: React.FC = () => {
 
   // Шаг 8: классовые боевые карты в руке и параметры для их панелей.
   const handCardIds = (activePlayer?.actionDeck.hand.map((card) => card.id) ?? []) as string[];
-  const disengageCardId = handCardIds.includes('ACT_SOL_SUPPRESSIVE_FIRE')
-    ? ('ACT_SOL_SUPPRESSIVE_FIRE' as const)
-    : handCardIds.includes('ACT_CAP_SUPPRESSIVE_FIRE')
-      ? ('ACT_CAP_SUPPRESSIVE_FIRE' as const)
-      : null;
+  const disengageCardId = DISENGAGE_CARD_IDS.find((cardId) => handCardIds.includes(cardId)) ?? null;
   const disengageCardName =
     disengageCardId === 'ACT_SOL_SUPPRESSIVE_FIRE' ? 'Заградительный огонь' : 'Огонь на подавление';
   const adrenalineAvailable = handCardIds.includes('ACT_SCO_ADRENALINE');
@@ -110,7 +111,7 @@ export const RoomInspector: React.FC = () => {
     .map((slot) => ({ id: slot.card.id, name: slot.card.name, ammo: slot.card.ammo ?? 0 }));
   const companionsHere = isPlayerHere
     ? room.occupantPlayerIds
-        .filter((playerId) => playerId !== activePlayerId)
+        .filter((playerId) => playerId !== selfId)
         .map((playerId) => ({ playerId, name: view.players[playerId]?.name ?? playerId }))
     : [];
   const destinationsFromHome = activePlayer ? findAdjacentOpenRoomIds(view, activePlayer.roomId) : [];
@@ -179,7 +180,7 @@ export const RoomInspector: React.FC = () => {
   ) => {
     setDisengageOpen(false);
     const moves: { playerId: string; targetRoomId: number }[] = [];
-    if (selfTo !== null) moves.push({ playerId: activePlayerId, targetRoomId: selfTo });
+    if (selfTo !== null) moves.push({ playerId: selfId, targetRoomId: selfTo });
     if (companionTo) moves.push({ playerId: companionTo.playerId, targetRoomId: companionTo.roomId });
     dispatch({
       type: 'ACTION_PLAY_CARD',

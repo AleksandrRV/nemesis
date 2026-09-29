@@ -446,9 +446,9 @@ function toChronicle(
   };
 }
 
-/** Отсек активного Персонажа — точка отсчёта фильтра «Рядом со мной». */
+/** Отсек своего Персонажа — точка отсчёта фильтра «Рядом со мной». */
 export function myRoomId(view: SanitizedGameState): number {
-  return view.players[view.meta.activePlayerId]!.roomId;
+  return view.players[view.viewerId]!.roomId;
 }
 
 /**

@@ -123,13 +123,13 @@ describe('DisengagePanel: отход без атак', () => {
     expect(html).toContain('Заградительный огонь: отход без атак');
     expect(html).toContain('Боевая винтовка (Боезапас: 3)');
     expect(html).toContain('Отсек #6');
-    expect(html).toContain('Перенести другого');
+    expect(html).toContain('И/или перенести другого');
     expect(html).toContain('Отойти без атак [карта + 1 Боезапас]');
     // Ничего не выбрано — отправка заблокирована.
     expect(html).toContain('disabled');
   });
 
-  it('у Капитана поле переноса другого персонажа отсутствует', () => {
+  it('у Капитана и Скаута — себя ИЛИ другого: перенос другого предлагается как альтернатива', () => {
     const html = render(
       <DisengagePanel
         cardId="ACT_CAP_SUPPRESSIVE_FIRE"
@@ -142,7 +142,8 @@ describe('DisengagePanel: отход без атак', () => {
       />,
     );
 
-    expect(html).not.toContain('Перенести другого');
+    expect(html).toContain('Или перенести другого');
+    expect(html).not.toContain('И/или');
   });
 });
 

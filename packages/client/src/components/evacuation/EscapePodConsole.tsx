@@ -133,7 +133,7 @@ export const EscapePodConsole: React.FC<{ view: SanitizedGameState }> = ({ view 
       />
     );
   }
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
   if (decision || view.meta.phase !== 'PLAYER_PHASE' || !player?.boardedPodId || player.hasPassed) return null;
   const commands = podCommandsFor(view, player);
   return (

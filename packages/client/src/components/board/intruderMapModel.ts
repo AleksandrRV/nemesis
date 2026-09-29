@@ -75,7 +75,7 @@ export function intrudersInRoom(intruders: readonly IntruderEntity[], roomId: nu
  * блокировки Поиска, Осторожного движения и Действий Комнат.
  */
 export function isActivePlayerInCombat(view: SanitizedGameState): boolean {
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
 
   if (!player) return false;
   if (player.isDead || player.isInHibernation || player.hasEscapedInPod) return false;

@@ -81,9 +81,9 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
     setPendingResult(null);
   }
 
-  const activePlayerId = view.meta.activePlayerId;
-  const player = view.players[activePlayerId];
-  const currentTurnKey = `${activePlayerId}-${player?.actionsPerformedThisRound ?? 0}`;
+  const selfId = view.viewerId;
+  const player = view.players[selfId];
+  const currentTurnKey = `${selfId}-${player?.actionsPerformedThisRound ?? 0}`;
   if (currentTurnKey !== prevTurnKey) {
     setPrevTurnKey(currentTurnKey);
     clearSelection();

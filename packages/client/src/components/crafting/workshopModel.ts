@@ -30,7 +30,7 @@ export interface WorkshopRecipe {
 }
 
 export function componentItems(view: SanitizedGameState, yellowCountsAsTools: boolean): WorkshopComponentItem[] {
-  const player = view.players[view.meta.activePlayerId];
+  const player = view.players[view.viewerId];
   if (!player) return [];
   const owned: { item: ItemCard; location: 'INVENTORY' | 'HAND_SLOT' }[] = [
     ...(player.inventory ?? []).map((item) => ({ item, location: 'INVENTORY' as const })),

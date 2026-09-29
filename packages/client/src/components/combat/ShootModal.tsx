@@ -40,7 +40,7 @@ export function ShootModal() {
 
   if (!open || !view) return null;
 
-  const playerId = view.meta.activePlayerId;
+  const playerId = view.viewerId;
   const player = view.players[playerId];
   if (!player) return null;
 

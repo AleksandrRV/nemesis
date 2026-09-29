@@ -216,7 +216,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
 
   const reachableRoomIds = React.useMemo(() => {
     if (!displayView) return [] as number[];
-    const active = displayView.players[displayView.meta.activePlayerId];
+    const active = displayView.players[displayView.viewerId];
     if (!active) return [] as number[];
     return findAdjacentOpenRoomIds(displayView, active.roomId);
   }, [displayView]);
@@ -228,7 +228,7 @@ export const ShipMapSVG: React.FC<{ highlightRoomIds?: readonly number[] }> = ({
 
   const activeRoomId = React.useMemo(() => {
     if (!displayView) return null;
-    return displayView.players[displayView.meta.activePlayerId]?.roomId ?? null;
+    return displayView.players[displayView.viewerId]?.roomId ?? null;
   }, [displayView]);
 
   const pathActiveCorridorId = React.useMemo(() => {

@@ -14,7 +14,7 @@ export interface UsageContext {
 }
 
 export function buildContext(view: SanitizedGameState): UsageContext {
-  const player = view.players[view.meta.activePlayerId]!;
+  const player = view.players[view.viewerId]!;
   const room = view.ship.rooms[player.roomId]!;
   const weapons = player.handSlots
     .filter((slot): slot is Extract<typeof slot, { source: 'ITEM' }> => slot.source === 'ITEM')

@@ -209,6 +209,8 @@ export interface SanitizedGameState extends Omit<
   GameState,
   'ship' | 'intrudersPool' | 'players' | 'decks' | 'pendingDecision' | 'gameLog' | 'reaction'
 > {
+  /** Чьими глазами собран срез: «я» интерфейса, в отличие от активного игрока. */
+  viewerId: string;
   /** Окно «Отставить»: всем видно, что Действие объявлено и кто его отменяет, но не платёжные карты. */
   reaction: DismissWindowView | null;
   gameLog: SanitizedGameLogEntry[];

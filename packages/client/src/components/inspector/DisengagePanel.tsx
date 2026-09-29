@@ -17,8 +17,7 @@ export interface DisengageCompanion {
 }
 
 interface DisengagePanelProps {
-  /** Доступная карта отхода: Солдат «и/или» (2 переноса) или Капитан «или» (1). */
-  cardId: 'ACT_SOL_SUPPRESSIVE_FIRE' | 'ACT_CAP_SUPPRESSIVE_FIRE';
+  cardId: 'ACT_SOL_SUPPRESSIVE_FIRE' | 'ACT_CAP_SUPPRESSIVE_FIRE' | 'ACT_SCO_SUPPRESSIVE_FIRE';
   cardName: string;
   weapons: DisengageWeapon[];
   destinations: DisengageDestination[];
@@ -31,11 +30,6 @@ interface DisengagePanelProps {
   onCancel: () => void;
 }
 
-/**
- * Отход без Атаки Чужих классовой картой (стр. 19; Шаг 8): «Заградительный
- * огонь» переносит себя и/или другого (до 2), «Огонь на подавление» — себя
- * ИЛИ другого (ровно 1). Цена: карта + 1 ед. Боезапаса; Шум входа работает.
- */
 export function DisengagePanel({
   cardId,
   cardName,
@@ -52,6 +46,7 @@ export function DisengagePanel({
 
   const allowsTwo = cardId === 'ACT_SOL_SUPPRESSIVE_FIRE';
   const companionMove = companionId && companionTo !== null ? { playerId: companionId, roomId: companionTo } : null;
+  const selfBlockedByCompanion = !allowsTwo && companionId !== null;
   const canDispatch = weaponId !== null && (selfTo !== null || companionMove !== null);
 
   return (
@@ -89,8 +84,9 @@ export function DisengagePanel({
         <span className="text-[10px] uppercase tracking-wider text-slate-400">Мне — в соседний отсек</span>
         <select
           value={selfTo ?? ''}
+          disabled={selfBlockedByCompanion}
           onChange={(event) => setSelfTo(event.target.value ? Number(event.target.value) : null)}
-          className="mt-0.5 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
+          className="mt-0.5 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200 disabled:opacity-40"
         >
           <option value="">— остаться —</option>
           {destinations.map((destination) => (
@@ -101,10 +97,12 @@ export function DisengagePanel({
         </select>
       </label>
 
-      {allowsTwo && companions.length > 0 && (
+      {companions.length > 0 && (selfTo === null || allowsTwo) && (
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400">Перенести другого</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">
+              {allowsTwo ? 'И/или перенести другого' : 'Или перенести другого'}
+            </span>
             <select
               value={companionId ?? ''}
               onChange={(event) => {
@@ -139,6 +137,13 @@ export function DisengagePanel({
             </label>
           )}
         </div>
+      )}
+
+      {companionId && (
+        <p className="rounded border border-amber-500/40 bg-amber-950/30 px-2 py-1 text-[10px] leading-snug text-amber-200">
+          {companions.find((companion) => companion.playerId === companionId)?.name} отойдёт, только если согласится:
+          карта и Боезапас тратятся в любом случае.
+        </p>
       )}
 
       <button

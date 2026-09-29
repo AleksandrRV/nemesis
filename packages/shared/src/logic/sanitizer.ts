@@ -54,6 +54,7 @@ export function filterStateForPlayer(state: GameState, viewingPlayerId: string):
   // Копия состояния, в которой скрытые поля заменяются на null/счётчики/FACE_DOWN.
   const sanitized = structuredClone(state) as unknown as SanitizedGameState;
 
+  sanitized.viewerId = viewingPlayerId;
   sanitized.pendingDecisionPlayerId = state.pendingDecision?.playerId ?? null;
   sanitized.reaction = state.reaction ? dismissWindowView(state.reaction) : null;
   sanitizeIntruderPool(sanitized);

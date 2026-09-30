@@ -3,6 +3,9 @@
  * Это настройки цифровой версии, а не правила игры: их правят по отчётам симулятора (шаг 9).
  */
 
+import type { IntruderAttackEffect } from '../types/cards.js';
+import { BOT_DIFFICULTY_PRESETS, BOT_TRAIT_CATALOG } from './botTraitCatalog.js';
+
 export const BOT_TRAITS = [
   'PANICKER',
   'EXTERMINATOR',
@@ -192,17 +195,69 @@ export interface BotTuning {
     /** Выше этой вероятности бот считает, что Цель игрока направлена против него. */
     suspicionThreshold: number;
   };
-  risk: { noise: number; contact: number; fire: number; wound: number; seriousWound: number };
+  risk: {
+    noise: number;
+    contact: number;
+    fire: number;
+    wound: number;
+    seriousWound: number;
+    /** Неисследованная Комната: неизвестный тайл и жетон Исследования. */
+    unexplored: number;
+    slime: number;
+    /** Комната с жетоном Декомпрессии: в конце Фазы Игроков всех внутри выбросит в космос. */
+    decompression: number;
+    /** Доля угрозы Чужого из соседней Комнаты: он может прийти по Шуму. */
+    adjacentIntruderShare: number;
+    /** Оценка бота, насколько опасна карта Атаки; тип Чужого — среднее по картам, которые он играет. */
+    attackEffectSeverity: Record<IntruderAttackEffect, number>;
+    larvaSeverity: number;
+    /** Побег (стр. 19): каждый Чужой отсека атакует уходящего — доля опасности Комнаты, которую бот платит сразу. */
+    escapeAttackShare: number;
+    /** Карта Заражения в колоду (Рукопашная, Контакт). */
+    contamination: number;
+  };
+  navigation: {
+    /** Цена одного Движения в A*; к ней прибавляется риск Комнаты входа. */
+    actionCost: number;
+    /** Неоткрытый тайл может оказаться не тем: штраф за каждую «лишнюю попытку» (1 / вероятность − 1). */
+    unknownTilePenalty: number;
+    /** Закрытая Дверь: нужно открыть или разрушить её отдельным Действием. */
+    closedDoorCost: number;
+    maxExpandedNodes: number;
+  };
+  time: {
+    /** Сколько раундов запаса бот оставляет на путь к Анабиозу или Капсуле. */
+    evacuationMarginRounds: number;
+  };
+  hand: {
+    /** Ценность карты в руке: дешёвые уходят на оплату и сброс первыми. */
+    cardValue: Record<'BASIC' | 'CLASS' | 'COMBAT', number>;
+  };
   desires: Record<BotDesire, number>;
   curves: {
     danger: ResponseCurve;
     distance: ResponseCurve;
     timePressure: ResponseCurve;
   };
-  choice: { temperature: number; topCandidates: number };
+  choice: {
+    temperature: number;
+    topCandidates: number;
+    /** Насколько отданная карта снижает ценность Действия: множитель 1 / (1 + вес × ценность карт). */
+    cardCostWeight: number;
+    /** Ценность Паса: закончить ход, сберечь руку. */
+    passValue: number;
+    /** Ценность бегства: разница опасности своей Комнаты и Комнаты назначения. */
+    fleeWeight: number;
+    /** Доля попутных задач: главная задача Действия идёт целиком, остальные — этой долей. */
+    sideTaskShare: number;
+    /** Закончить ход в опасной Комнате: в Фазе Событий Чужие атакуют (стр. 10). */
+    endTurnDangerWeight: number;
+  };
   comms: { speakChance: number; requestChance: number; requestLifetimeRounds: number };
   memory: {
     maxFacts: number;
+    /** Сколько уже проверенных Заявлений бот помнит; открытые не вытесняются. */
+    maxSettledClaims: number;
     /** Шанс за раунд забыть наблюдение при ручке `forgetChance` = 1 («Склеротик»). */
     forgetChancePerRound: number;
   };
@@ -309,7 +364,33 @@ export const BOT_TUNING = {
     harmLikelihood: 1.6,
     suspicionThreshold: 0.45,
   },
-  risk: { noise: 1, contact: 1.6, fire: 1.2, wound: 1.4, seriousWound: 2.5 },
+  risk: {
+    noise: 1,
+    contact: 1.6,
+    fire: 1.2,
+    wound: 1.4,
+    seriousWound: 2.5,
+    unexplored: 0.4,
+    slime: 0.3,
+    decompression: 8,
+    adjacentIntruderShare: 0.35,
+    attackEffectSeverity: {
+      SCRATCH: 1,
+      BITE: 2.5,
+      CLAW_ATTACK: 2,
+      TAIL_ATTACK: 2.5,
+      TRANSFORMATION: 0.5,
+      FRENZY: 1.5,
+      SLIME: 0.5,
+      CALL: 0.8,
+    },
+    larvaSeverity: 0.8,
+    escapeAttackShare: 0.6,
+    contamination: 0.4,
+  },
+  navigation: { actionCost: 1, unknownTilePenalty: 2, closedDoorCost: 3, maxExpandedNodes: 400 },
+  time: { evacuationMarginRounds: 1 },
+  hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 } },
   desires: {
     SURVIVE: 1,
     ADVANCE_OBJECTIVE: 0.8,
@@ -326,9 +407,17 @@ export const BOT_TUNING = {
     distance: { kind: 'LINEAR', midpoint: 0, steepness: -0.12 },
     timePressure: { kind: 'QUADRATIC', midpoint: 0, steepness: 1 },
   },
-  choice: { temperature: 0.35, topCandidates: 5 },
+  choice: {
+    temperature: 0.35,
+    topCandidates: 5,
+    cardCostWeight: 0.15,
+    passValue: 0.04,
+    fleeWeight: 1.2,
+    sideTaskShare: 0.3,
+    endTurnDangerWeight: 1,
+  },
   comms: { speakChance: 0.6, requestChance: 0.35, requestLifetimeRounds: 2 },
-  memory: { maxFacts: 400, forgetChancePerRound: 0.2 },
+  memory: { maxFacts: 400, maxSettledClaims: 60, forgetChancePerRound: 0.2 },
   knobs: {
     riskAversion: 1,
     temperature: 1,
@@ -359,139 +448,7 @@ export const BOT_TUNING = {
   traits: {
     countWeights: [0.5, 0.35, 0.15],
     splitPersonalitySwitchRounds: 3,
-    catalog: {
-      PANICKER: {
-        label: 'Паникёр',
-        rarity: 6,
-        moraleShift: 0,
-        modifiers: { riskAversion: 2, temperature: 1.6, requestRate: 1.8, combatFlight: 2 },
-        incompatibleWith: ['EXTERMINATOR'],
-      },
-      EXTERMINATOR: {
-        label: 'Истребитель',
-        rarity: 6,
-        moraleShift: 0,
-        modifiers: { combatDesire: 2, killHelpValue: 1.8, fear: 0.6 },
-        incompatibleWith: ['PANICKER'],
-      },
-      HOARDER: {
-        label: 'Барахольщик',
-        rarity: 6,
-        moraleShift: 0,
-        modifiers: { itemHoarding: 2, itemGenerosity: 0.4 },
-        incompatibleWith: ['PHILANTHROPIST'],
-      },
-      EXPLORER: {
-        label: 'Исследователь',
-        rarity: 7,
-        moraleShift: 0,
-        modifiers: { explorationBonus: 1.8 },
-        incompatibleWith: [],
-      },
-      PERFECTIONIST: {
-        label: 'Перфекционист',
-        rarity: 5,
-        moraleShift: 0,
-        modifiers: { selfVerification: 2, promiseDiligence: 1.6 },
-        incompatibleWith: ['FORGETFUL'],
-      },
-      STRATEGIST: {
-        label: 'Стратег',
-        rarity: 5,
-        moraleShift: 0,
-        modifiers: { horizon: 2.5 },
-        incompatibleWith: [],
-      },
-      GENIUS: {
-        label: 'Гений',
-        rarity: 3,
-        moraleShift: 0,
-        modifiers: { temperature: 0.4, riskAccuracy: 1.5 },
-        incompatibleWith: ['FORGETFUL'],
-      },
-      FORGETFUL: {
-        label: 'Склеротик',
-        rarity: 4,
-        moraleShift: 0,
-        modifiers: { forgetChance: 1 },
-        incompatibleWith: ['GENIUS', 'PERFECTIONIST'],
-      },
-      PARANOID: {
-        label: 'Параноик',
-        rarity: 5,
-        moraleShift: -5,
-        modifiers: { initialTrust: 0.5, sharedRoomAvoidance: 2, scanRate: 1.8 },
-        incompatibleWith: ['PHILANTHROPIST'],
-      },
-      EGOIST: {
-        label: 'Эгоист',
-        rarity: 6,
-        moraleShift: -5,
-        modifiers: { othersSuccessWeight: 0.3, harmWillingness: 0.5 },
-        incompatibleWith: ['PHILANTHROPIST'],
-      },
-      EGOCENTRIST: {
-        label: 'Эгоцентрист',
-        rarity: 5,
-        moraleShift: 0,
-        modifiers: { requestRate: 2, refusalResentment: 2 },
-        incompatibleWith: [],
-      },
-      PHILANTHROPIST: {
-        label: 'Филантроп',
-        rarity: 4,
-        moraleShift: 20,
-        modifiers: { itemGenerosity: 2, othersSuccessWeight: 1.6 },
-        incompatibleWith: ['PSYCHOPATH', 'SOCIOPATH', 'EGOIST', 'HOARDER', 'PARANOID'],
-      },
-      SOCIOPATH: {
-        label: 'Социопат',
-        rarity: 3,
-        moraleShift: -20,
-        modifiers: { reciprocityWeight: 0, lieThreshold: 0.5 },
-        incompatibleWith: ['PHILANTHROPIST'],
-      },
-      PSYCHOPATH: {
-        label: 'Психопат',
-        rarity: 2,
-        moraleShift: -40,
-        modifiers: { harmWillingness: 2.5, fear: 0.5 },
-        incompatibleWith: ['PHILANTHROPIST'],
-      },
-      POTENTIAL_LIAR: {
-        label: 'Потенциальный лжец',
-        rarity: 5,
-        moraleShift: 0,
-        modifiers: { lieThreshold: 0.4 },
-        incompatibleWith: [],
-      },
-      TOUCHY: {
-        label: 'Обидчивый',
-        rarity: 5,
-        moraleShift: 0,
-        modifiers: { grudgeMemory: 2, skepticismDecay: 0.1 },
-        incompatibleWith: [],
-      },
-      SPLIT_PERSONALITY: {
-        label: 'Раздвоение личности',
-        rarity: 1,
-        moraleShift: 0,
-        modifiers: {},
-        incompatibleWith: [],
-      },
-    },
+    catalog: BOT_TRAIT_CATALOG,
   },
-  difficulty: {
-    NOVICE: {
-      label: 'Новичок',
-      modifiers: { temperature: 2, riskAccuracy: 0.6, horizon: 0.5 },
-      forgetfulRarityBonus: 6,
-    },
-    CREW: { label: 'Экипаж', modifiers: {}, forgetfulRarityBonus: 0 },
-    VETERAN: {
-      label: 'Ветеран',
-      modifiers: { temperature: 0.5, riskAccuracy: 1.4, horizon: 2.5 },
-      forgetfulRarityBonus: -3,
-    },
-  },
+  difficulty: BOT_DIFFICULTY_PRESETS,
 } as const satisfies BotTuning;

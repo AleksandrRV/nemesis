@@ -39,6 +39,32 @@ function tableFrom(state: GameState, humans: readonly string[]) {
   return { transport, views, events, storage };
 }
 
+/** Ответ человека на решение, которое ему принесли боты: «Отставить» не играет, перенос принимает. */
+function humanAnswer(transport: LocalInMemoryTransport): boolean {
+  const decision = transport.getLocalState().pendingDecision;
+  if (!decision || decision.playerId !== transport.getViewerId()) return false;
+  const options: Partial<Record<string, string>> = {
+    DISMISS_WINDOW: 'ALLOW',
+    REPOSITION_CONSENT: 'ACCEPT',
+    EXCHANGE_CONSENT: 'DECLINE',
+  };
+  const selectedOption =
+    decision.type === 'CHOOSE_OBJECTIVE' ? decision.objectiveIds[0] : (options[decision.type] ?? undefined);
+  if (!selectedOption) return false;
+  transport.sendAction({ type: 'ACTION_RESOLVE_DECISION', payload: { decisionId: decision.id, selectedOption } });
+  return true;
+}
+
+/** Боты ходят, человек отвечает на их решения, пока ход не вернётся к человеку. */
+function settleTable(transport: LocalInMemoryTransport, limit = 400): void {
+  for (let step = 0; step < limit; step++) {
+    if (transport.getLocalState().meta.phase === 'GAME_OVER') return;
+    if (transport.pendingBotId() !== null) {
+      if (!transport.stepBot()) return;
+    } else if (!humanAnswer(transport)) return;
+  }
+}
+
 function runBots(transport: LocalInMemoryTransport, limit = 200): number {
   let steps = 0;
   while (transport.pendingBotId() !== null && steps < limit && transport.stepBot()) steps += 1;
@@ -71,12 +97,13 @@ describe('Стол с местами: 1 человек + 4 бота (план 0.
     const { transport, views } = tableFrom(state, ['player-1']);
     const startRound = transport.getLocalState().meta.currentRound;
 
-    for (let round = 0; round < 3; round++) {
-      runBots(transport);
+    for (let round = 0; round < 3 && transport.getLocalState().meta.phase !== 'GAME_OVER'; round++) {
+      settleTable(transport);
+      if (transport.getLocalState().meta.phase === 'GAME_OVER') break;
       expect(transport.pendingBotId()).toBeNull();
       expect(transport.getLocalState().meta.activePlayerId).toBe('player-1');
       transport.sendAction({ type: 'ACTION_PASS', payload: {} });
-      runBots(transport);
+      settleTable(transport);
     }
 
     expect(transport.getLocalState().meta.currentRound).toBeGreaterThan(startRound);
@@ -187,9 +214,9 @@ describe('Стол с местами: два человека за одним у
     const active = transport.getLocalState().meta.activePlayerId;
     expect(transport.getViewerId()).toBe(active === 'player-2' ? 'player-1' : active);
 
-    for (let guard = 0; guard < 10 && transport.getViewerId() !== 'player-3'; guard++) {
+    for (let guard = 0; guard < 60 && transport.getViewerId() !== 'player-3'; guard++) {
       if (transport.pendingBotId()) transport.stepBot();
-      else transport.sendAction({ type: 'ACTION_PASS', payload: {} });
+      else if (!humanAnswer(transport)) transport.sendAction({ type: 'ACTION_PASS', payload: {} });
     }
 
     expect(events).toContainEqual({ type: 'VIEWER_CHANGED', viewerId: 'player-3', handoff: true });

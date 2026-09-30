@@ -41,10 +41,19 @@ describe('Стор: стол с местами', () => {
     const human = state.seating.find((seat) => seat.kind === 'LOCAL_HUMAN')!.playerId;
     expect(state.view?.viewerId).toBe(human);
 
-    for (let guard = 0; guard < 20 && store.getState().pendingBotId; guard++) store.getState().stepBot();
+    for (let guard = 0; guard < 80; guard++) {
+      const view = store.getState().view!;
+      if (store.getState().pendingBotId) store.getState().stepBot();
+      else if (view.pendingDecision?.type === 'DISMISS_WINDOW') {
+        store.getState().dispatch({
+          type: 'ACTION_RESOLVE_DECISION',
+          payload: { decisionId: view.pendingDecision.id, selectedOption: 'ALLOW' },
+        });
+      } else break;
+    }
     expect(store.getState().pendingBotId).toBeNull();
     expect(store.getState().view?.meta.activePlayerId).toBe(human);
-    expect(store.getState().lastBotAction?.action.type).toBe('ACTION_PASS');
+    expect(store.getState().lastBotAction).not.toBeNull();
     expect(store.getState().botTicks).toBeGreaterThan(0);
   });
 

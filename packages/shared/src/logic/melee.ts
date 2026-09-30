@@ -1,10 +1,10 @@
-import type { CombatDieFace } from '../data/combatDie.js';
-import type { IntruderType } from '../types/entities.js';
+import { meleeInjuriesForFace } from '../data/combatDie.js';
 import type { GameState } from '../types/state.js';
 import type { EngineAction } from '../types/actions.js';
 import { rollCombatDie } from './combatDie.js';
 import { executeCardPayment } from './cardsPayment.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
+import { attackBlock } from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { requireIntruder } from './intruderPlacement.js';
@@ -24,22 +24,7 @@ import { countedCombatFace } from './weaknesses.js';
  * Затем — общая проверка Результата Атаки (стр. 20).
  */
 
-/** Сколько Ран наносит грань кубика Боя в Рукопашной атаке (стр. 19). */
-export function meleeInjuriesForFace(face: CombatDieFace, targetType: IntruderType): number {
-  switch (face) {
-    case 'MISS':
-      return 0;
-    case 'TAIL':
-      return targetType === 'LARVA' || targetType === 'CREEPER' ? 1 : 0;
-    case 'SILHOUETTES':
-      return targetType === 'LARVA' || targetType === 'CREEPER' || targetType === 'ADULT' ? 1 : 0;
-    case 'ONE_WOUND':
-      return 1;
-    case 'TWO_WOUNDS':
-      // «Вы наносите цели 1 Рану (да, лишь 1!)» — стр. 19.
-      return 1;
-  }
-}
+export { meleeInjuriesForFace };
 
 export function executeMelee(
   state: GameState,
@@ -48,20 +33,10 @@ export function executeMelee(
 ): void {
   const player = state.players[actorId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
-  if (!isPlayerInCombat(state, actorId)) {
-    throw new EngineError(
-      'MELEE_NOT_IN_COMBAT',
-      '«Рукопашная атака» выполняется, только когда Персонаж находится в Бою (стр. 12, 19).',
-    );
-  }
-
+  const inCombat = isPlayerInCombat(state, actorId);
+  enforceRule(attackBlock('MELEE', inCombat, player.roomId, inCombat ? player.roomId : null));
   const target = requireIntruder(state, action.payload.targetIntruderId);
-  if (target.roomId !== player.roomId) {
-    throw new EngineError(
-      'INVALID_ATTACK_TARGET',
-      'Атаковать рукопашной можно только Чужих из собственного отсека (стр. 19).',
-    );
-  }
+  enforceRule(attackBlock('MELEE', inCombat, player.roomId, target.roomId));
 
   // Цена базового действия — 1 карта Действия (стр. 12).
   executeCardPayment(state, actorId, action.payload.discardCardIds, 1);

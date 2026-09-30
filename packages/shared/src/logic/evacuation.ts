@@ -4,8 +4,14 @@ import type { EscapePodState, PlayerState } from '../types/entities.js';
 import type { InterruptEvent } from '../types/interrupts.js';
 import type { RoomId, RoomState } from '../types/rooms.js';
 import type { GameState } from '../types/state.js';
-import { HIBERNATION_OPENS_AT_TIME, podSectionOfRoom } from '../data/evacuation.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
+import {
+  boardablePods,
+  hibernationBlock,
+  isHibernationOpen as isTimeForHibernation,
+  isPodUsable,
+  podBoardingBlock,
+} from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 import { allocateEntityId } from './stateIds.js';
 import { performPass, advanceTurnWithoutFire } from './turnCycle.js';
@@ -13,18 +19,10 @@ import { isPlayerInPod, podCommandsFor } from './podQueries.js';
 
 export { isPlayerInPod, podCommandsFor };
 
+export { isPodUsable };
+
 export function isHibernationOpen(state: GameState): boolean {
-  return state.meta.timeTrackPosition >= HIBERNATION_OPENS_AT_TIME;
-}
-
-export function isPodUsable(pod: EscapePodState): boolean {
-  return !pod.isDestroyed && pod.isLaunched !== true;
-}
-
-function podsOfSection(state: GameState, section: 'A' | 'B'): EscapePodState[] {
-  return Object.values(state.ship.escapePods)
-    .filter((pod) => pod.section === section)
-    .sort((a, b) => a.number - b.number);
+  return isTimeForHibernation(state.meta.timeTrackPosition);
 }
 
 function removeFromRoom(room: RoomState, playerId: string): void {
@@ -39,18 +37,7 @@ function queueAttempt(state: GameState, playerId: string, roomId: RoomId, attemp
 }
 
 export function startHibernationAttempt(state: GameState, actorId: string, room: RoomState): void {
-  if (!isHibernationOpen(state)) {
-    throw new EngineError(
-      'ROOM_ABILITY_NOT_ALLOWED',
-      'Камеры Анабиоза закрыты: они откроются, когда маркер Времени дойдёт до синих полей (стр. 11, 26).',
-    );
-  }
-  if (room.occupantIntruderIds.length > 0) {
-    throw new EngineError(
-      'ROOM_ABILITY_NOT_ALLOWED',
-      'Нельзя войти в Камеру Анабиоза, если в Криогенном отсеке есть Чужой.',
-    );
-  }
+  enforceRule(hibernationBlock(state.meta.timeTrackPosition, room));
   queueAttempt(state, actorId, room.id, { type: 'HIBERNATION_ATTEMPT_INTERRUPT', playerId: actorId, roomId: room.id });
 }
 
@@ -70,26 +57,9 @@ export function resolveHibernationAttempt(
 }
 
 export function startPodBoarding(state: GameState, actorId: string, room: RoomState, podId: string | undefined): void {
-  const section = podSectionOfRoom(room.definitionId);
-  if (!section) throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Это не Спасательный отсек.');
-  if (room.occupantIntruderIds.length > 0) {
-    throw new EngineError(
-      'ROOM_ABILITY_NOT_ALLOWED',
-      'В Спасательном отсеке Чужие — войти в Капсулу нельзя (стр. 26).',
-    );
-  }
-  const candidates = podsOfSection(state, section).filter(
-    (pod) => isPodUsable(pod) && !pod.isLocked && pod.occupantIds.length < 2,
-  );
-  const pod = podId ? candidates.find((entry) => entry.id === podId) : candidates[0];
-  if (!pod) {
-    throw new EngineError(
-      'ROOM_ABILITY_NOT_ALLOWED',
-      podId
-        ? 'Эта Капсула заблокирована, занята или уже улетела.'
-        : 'В этом отсеке нет Разблокированной Капсулы со свободным местом.',
-    );
-  }
+  const candidates = boardablePods(state.ship.escapePods, room.definitionId);
+  enforceRule(podBoardingBlock(room, candidates, podId));
+  const pod = (podId ? candidates.find((entry) => entry.id === podId) : candidates[0])!;
   queueAttempt(state, actorId, room.id, {
     type: 'ESCAPE_POD_BOARDING_INTERRUPT',
     playerId: actorId,

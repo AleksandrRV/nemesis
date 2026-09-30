@@ -386,7 +386,7 @@
       }
     },
     "marker-supply": {
-      "file": "packages/shared/src/logic/markers.ts",
+      "file": "packages/shared/src/data/markerSupply.ts",
       "status": "RULES_LOCAL",
       "facts": [
         {
@@ -421,7 +421,7 @@
       }
     },
     "door-rules": {
-      "file": "packages/shared/src/types/rooms.ts, packages/shared/src/logic/markers.ts",
+      "file": "packages/shared/src/types/rooms.ts, packages/shared/src/data/markerSupply.ts",
       "status": "RULES_LOCAL",
       "facts": [
         {

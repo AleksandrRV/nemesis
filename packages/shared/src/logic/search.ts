@@ -1,17 +1,12 @@
 import type { GameState } from '../types/state.js';
 import type { ItemCard, ItemDeckColor } from '../types/cards.js';
-import { BASIC_ROOMS_1, ADDITIONAL_ROOMS_2, SPECIAL_ROOMS } from '../data/roomDefinitions.js';
+import { getRoomDeckColor, searchBlock } from './actionRules.js';
 import { isPlayerInCombat } from './combatStatus.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
 import { allocateEntityId } from './stateIds.js';
 import { hasFreeHandSlot } from './seriousWoundEffects.js';
 
-const ALL_ROOMS = [...SPECIAL_ROOMS, ...BASIC_ROOMS_1, ...ADDITIONAL_ROOMS_2];
-
-export function getRoomDeckColor(definitionId: string | null): ItemDeckColor | 'WHITE' | null {
-  const color = ALL_ROOMS.find((definition) => definition.id === definitionId)?.color;
-  return color === undefined || color === 'NONE' ? null : color;
-}
+export { getRoomDeckColor };
 
 /**
  * Проверяет возможность проведения Поиска в отсеке:
@@ -34,26 +29,8 @@ export function validateSearchConditions(
     throw new EngineError('UNKNOWN_ROOM', `Отсек не найден`);
   }
 
-  if (!room.isExplored) {
-    throw new EngineError('SEARCH_NOT_ALLOWED', 'Нельзя искать в неисследованном отсеке (стр. 14)');
-  }
-
-  if (room.definitionId === 'NEST' || room.definitionId === 'SLIME_ROOM') {
-    throw new EngineError('SEARCH_NOT_ALLOWED', `Поиск в этом отсеке запрещён правилами (${room.definitionId})`);
-  }
-
-  if (room.itemsCount <= 0) {
-    throw new EngineError('NO_ITEMS_LEFT', 'В отсеке не осталось предметов для поиска (счётчик = 0)');
-  }
-
-  if (isPlayerInCombat(state, playerId)) {
-    throw new EngineError('SEARCH_IN_COMBAT', 'Поиск запрещён, пока в отсеке находятся Чужие (стр. 18).');
-  }
-
-  const color = getRoomDeckColor(room.definitionId);
-  if (!color) {
-    throw new EngineError('SEARCH_NOT_ALLOWED', 'У этой Комнаты нет цвета — Поиск в ней невозможен (стр. 26).');
-  }
+  enforceRule(searchBlock(room, isPlayerInCombat(state, playerId)));
+  const color = getRoomDeckColor(room.definitionId)!;
 
   return { roomId: room.id, color };
 }

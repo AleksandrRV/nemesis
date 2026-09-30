@@ -45,8 +45,10 @@ describe('Граница честности ботов (план 0.8.0, В8-5-1)
       "import { createRng } from '../utils/rng.js';",
       "import { findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';",
       "import { podCommandsFor } from '../logic/podQueries.js';",
+      "import { searchBlock } from '../logic/actionRules.js';",
+      "import { escapeCost } from '../logic/seriousWoundEffects.js';",
       'export type Probe = [SanitizedGameState, EngineNumber];',
-      'export const probe = [COORDINATE_CARDS, createRng, findAdjacentOpenRoomIds, podCommandsFor];',
+      'export const probe = [COORDINATE_CARDS, createRng, findAdjacentOpenRoomIds, podCommandsFor, searchBlock, escapeCost];',
       '',
     ].join('\n');
     expect(await restrictedImports(code)).toEqual([]);

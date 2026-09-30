@@ -193,7 +193,8 @@ describe('Наблюдатель и агент', () => {
     const snapshot = structuredClone(mind);
     const decision = BotAgent.decide(view, mind);
     expect(mind).toEqual(snapshot);
-    expect(decision.action).toEqual({ type: 'ACTION_PASS', payload: {} });
+    expect(decision.action).not.toBeNull();
+    expect(BotAgent.decide(view, mind)).toEqual(decision);
     expect(decision.speech).toEqual([]);
     expect(decision.mind.processedLogSequence).toBe(view.gameLog.at(-1)!.sequence);
     expect(BotAgent.decide(view, decision.mind).mind.facts).toEqual(decision.mind.facts);

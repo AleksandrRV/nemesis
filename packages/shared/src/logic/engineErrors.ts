@@ -103,3 +103,15 @@ export class EngineError extends Error {
     this.code = code;
   }
 }
+
+/** Отказ общего правила допустимости (`actionRules.ts`) становится ошибкой движка с той же причиной. */
+export function enforceRule(rule: { code: EngineErrorCode; message: string } | null): void {
+  if (rule) throw new EngineError(rule.code, rule.message);
+}
+
+export function enforceRuleValue<Value>(
+  result: { value: Value; block: null } | { value: null; block: { code: EngineErrorCode; message: string } },
+): Value {
+  if (result.block !== null) throw new EngineError(result.block.code, result.block.message);
+  return result.value;
+}

@@ -228,6 +228,9 @@ export const SOLO_COOP_OBJECTIVE_CARDS: readonly ObjectiveCard[] = [
 
 export const SOLO_OBJECTIVES_DEALT = 2;
 
+/** Минимальный набор Предметов для «Хламовщика». */
+export const SCAVENGER_ITEM_COUNT = 7;
+
 export function objectivesForPlayerCount(cards: readonly ObjectiveCard[], playerCount: number): ObjectiveCard[] {
   return cards.filter((card) => card.minPlayers === null || card.minPlayers <= playerCount);
 }

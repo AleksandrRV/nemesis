@@ -213,7 +213,6 @@ describe('Ответы на Просьбы (В8-6-6)', () => {
       { kind: 'ANSWER', body: { topic: 'ANSWER', requestId: lastRequest(state).id, answer: 'WILL_HELP' } },
     ]);
     expect(decision.mind.ownPromises).toEqual([expect.objectContaining({ requesterId: 'player-1', sincere: true })]);
-    expect(decision.mind.plan).toMatchObject({ desire: 'KEEP_PROMISE' });
 
     const answered = new GameEngine().processAction(
       state,
@@ -252,7 +251,6 @@ describe('Ответы на Просьбы (В8-6-6)', () => {
     });
     const decision = BotAgent.decide(view, sociopath);
     expect(decision.mind.ownPromises).toEqual([expect.objectContaining({ sincere: false })]);
-    expect(decision.mind.plan).toBeNull();
   });
 
   it('не в свой ход бот молчит', () => {

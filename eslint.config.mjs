@@ -128,7 +128,7 @@ const MESSAGES = {
 };
 
 /** Модули logic/, которые ИИ может импортировать: чистые запросы над публичными данными. */
-const BOT_ALLOWED_LOGIC = ['shipGraphQueries', 'podQueries'];
+const BOT_ALLOWED_LOGIC = ['shipGraphQueries', 'podQueries', 'actionRules', 'seriousWoundEffects'];
 
 export default tseslint.config(
   {

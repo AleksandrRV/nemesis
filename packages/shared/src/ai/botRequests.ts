@@ -172,20 +172,14 @@ export function answerRequests(
       });
     }
   }
-  const keepsPromise = promises.some((promise) => promise.sincere);
-  const plan =
-    mind.plan ??
-    (keepsPromise ? { desire: 'KEEP_PROMISE', targetRoomId: null, sinceRound: view.meta.currentRound } : null);
-  return { mind: { ...mind, ownPromises: [...mind.ownPromises, ...promises], plan }, speech };
+  return { mind: { ...mind, ownPromises: [...mind.ownPromises, ...promises] }, speech };
 }
 
-/** Обещание, чья Просьба истекла, снимается; вместе с последним искренним — и план «сдержать слово». */
+/** Обещание, чья Просьба истекла, снимается. */
 export function pruneOwnPromises(mind: BotMind, view: SanitizedGameState): BotMind {
   const ownPromises = mind.ownPromises.filter((promise) => {
     const request = view.comms.messages.find((message) => message.id === promise.requestId);
     return request?.kind === 'REQUEST' && view.meta.currentRound <= request.expiresAtRound;
   });
-  const keepsPromise = ownPromises.some((promise) => promise.sincere);
-  const plan = mind.plan?.desire === 'KEEP_PROMISE' && !keepsPromise ? null : mind.plan;
-  return { ...mind, ownPromises, plan };
+  return ownPromises.length === mind.ownPromises.length ? mind : { ...mind, ownPromises };
 }

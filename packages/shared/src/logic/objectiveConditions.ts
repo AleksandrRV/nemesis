@@ -2,10 +2,10 @@ import type { ObjectiveCard } from '../types/cards.js';
 import type { BoardObject, PlayerState } from '../types/entities.js';
 import type { EndgameFacts } from '../types/endgame.js';
 import type { Destination, GameState } from '../types/state.js';
+import { SCAVENGER_ITEM_COUNT } from '../data/objectiveCards.js';
 import { EngineError } from './engineErrors.js';
 
-/** Минимальный набор Предметов для «Хламовщика». */
-export const SCAVENGER_ITEM_COUNT = 7;
+export { SCAVENGER_ITEM_COUNT };
 
 export interface ObjectiveContext {
   state: GameState;

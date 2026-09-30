@@ -1,10 +1,10 @@
 import type { GameState } from '../types/state.js';
 import type { EngineAction } from '../types/actions.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
+import { pickUpBlock } from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 import { queueActionCompletion } from './actionCompletion.js';
 import { discardItemCard } from './cardEffectsShared.js';
-import { hasFreeHandSlot } from './seriousWoundEffects.js';
 
 /**
  * Базовое действие «Поднять Тяжёлый объект» [1] (стр. 13, 22): «поднимите
@@ -20,15 +20,9 @@ export function executePickUpObject(
 ): void {
   const player = state.players[actorId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
-  if (!hasFreeHandSlot(player)) {
-    throw new EngineError('HAND_SLOTS_FULL', 'Свободного слота Руки нет — некуда положить Тяжёлый объект (стр. 22).');
-  }
-
   const room = state.ship.rooms[player.roomId]!;
+  enforceRule(pickUpBlock(player, room, action.payload.objectId));
   const index = room.objects.findIndex((object) => object.id === action.payload.objectId);
-  if (index === -1) {
-    throw new EngineError('OBJECT_NOT_AVAILABLE', `Такого Тяжёлого объекта нет в отсеке №${room.id} (стр. 22).`);
-  }
 
   // Индекс найден findIndex выше — объект гарантированно существует.
   const object = room.objects[index]!;

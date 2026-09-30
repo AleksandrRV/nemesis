@@ -148,6 +148,14 @@ function contradictedByTwo(mind: BotMind, claim: TrackedClaim): boolean {
   return againstAuthors.size >= 2 && !supporters && !againstAuthors.has(mind.botId);
 }
 
+function withoutOldSettled(claims: TrackedClaim[], tuning: BotTuning): TrackedClaim[] {
+  const settled = claims.filter((claim) => claim.verdict !== 'OPEN');
+  const excess = settled.length - tuning.memory.maxSettledClaims;
+  if (excess <= 0) return claims;
+  const dropped = new Set(settled.slice(0, excess));
+  return claims.filter((claim) => !dropped.has(claim));
+}
+
 export interface ClaimVerdictEvent {
   claim: TrackedClaim;
   refuted: boolean;
@@ -188,5 +196,5 @@ export function verifyClaims(
     verdicts.push({ claim: settled, refuted: verdict === 'REFUTED' });
     return settled;
   });
-  return { mind: { ...mind, claims, players }, verdicts };
+  return { mind: { ...mind, claims: withoutOldSettled(claims, tuning), players }, verdicts };
 }

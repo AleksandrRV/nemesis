@@ -6,7 +6,7 @@ interface WoundHolder {
   seriousWounds: readonly Pick<SeriousWoundCard, 'kind' | 'isTreated'>[] | null;
 }
 
-type WoundedCarrier = WoundHolder & Pick<PlayerState, 'handSlots'>;
+type WoundedCarrier = WoundHolder & { handSlots: readonly PlayerState['handSlots'][number][] };
 
 export const BACK_WOUND_HAND_SIZE = 4;
 export const LEG_WOUND_ESCAPE_COST = 2;

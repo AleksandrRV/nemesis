@@ -11,6 +11,7 @@ import type {
   EndgameReport,
 } from '../types/endgame.js';
 import type { Destination, EngineNumber, GameOverReason, GameState } from '../types/state.js';
+import { current, isDraft } from 'immer';
 import { coursedDestination } from '../data/coordinateCards.js';
 import { SELF_DESTRUCT_EXPLODES_AT } from '../data/evacuation.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
@@ -207,7 +208,7 @@ export function resolveEndgame(state: GameState, cause: GameOverReason): Endgame
     const result = results.get(player.id)!;
     result.death = null;
     result.objectiveResults = player.objectives.map((objective) => ({
-      objective: structuredClone(objective),
+      objective: structuredClone(isDraft(objective) ? current(objective) : objective),
       metConditionIndex: metObjectiveCondition(objective, context),
     }));
     result.isWinner = result.objectiveResults.some((entry) => entry.metConditionIndex !== null);

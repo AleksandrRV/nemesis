@@ -59,7 +59,7 @@ export function requireOpenPath(state: GameState, fromRoomId: RoomId, targetRoom
   return corridors;
 }
 
-export function corridorsLeadingInto(state: GameState, roomId: RoomId): CorridorConnection[] {
+export function corridorsLeadingInto(state: CorridorGraphState, roomId: RoomId): CorridorConnection[] {
   return Object.values(state.ship.corridors).filter(
     (corridor) => corridor.fromRoomId === roomId || corridor.toRoomId === roomId,
   );
@@ -79,7 +79,7 @@ export function corridorNumbersOf(corridor: CorridorConnection, roomId: RoomId):
 export type NoiseTarget =
   { kind: 'TECHNICAL_CORRIDOR' } | { kind: 'CORRIDOR'; corridor: CorridorConnection } | { kind: 'UNMAPPED' };
 
-export function findNoiseTarget(state: GameState, roomId: RoomId, number: CorridorNumber): NoiseTarget {
+export function findNoiseTarget(state: CorridorGraphState, roomId: RoomId, number: CorridorNumber): NoiseTarget {
   const roomNode = SHIP_ROOM_NODES.find((node) => node.id === roomId);
 
   if (roomNode?.techNumbers.includes(number)) {

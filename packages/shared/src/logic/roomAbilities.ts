@@ -1,7 +1,8 @@
 import type { GameState } from '../types/state.js';
 import type { RoomAbilityPayload } from '../types/actions.js';
 import { isPlayerInCombat } from './combatStatus.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
+import { roomAbilityBlock } from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 import { drawSearchCards, placeItemToPlayer } from './search.js';
 import { advanceTurnWithoutFire, applyFireEndTurnEffect, bleedOnPass } from './turnCycle.js';
@@ -38,17 +39,7 @@ export function executeRoomAbility(state: GameState, actorId: string, payload: R
     throw new EngineError('UNKNOWN_ROOM', 'Отсек не найден');
   }
 
-  if (!room.isExplored) {
-    throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать неисследованный отсек');
-  }
-
-  if (room.hasMalfunction) {
-    throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать неисправный отсек (требуется починка)');
-  }
-
-  if (isPlayerInCombat(state, actorId)) {
-    throw new EngineError('ROOM_ABILITY_NOT_ALLOWED', 'Нельзя активировать отсек в Бою с Чужими (стр. 18).');
-  }
+  enforceRule(roomAbilityBlock(room, isPlayerInCombat(state, actorId)));
 
   switch (room.definitionId) {
     case 'ARMORY': {

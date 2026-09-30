@@ -1,13 +1,14 @@
 import type { IntruderAttackCard, ItemCard } from '../types/cards.js';
 import type { PendingShot } from '../types/decisions.js';
-import type { CombatDieFace } from '../data/combatDie.js';
+import { injuriesForFace, type CombatDieFace } from '../data/combatDie.js';
 import type { IntruderType } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
 import type { EngineAction } from '../types/actions.js';
 import { rollCombatDie } from './combatDie.js';
 import { executeCardPayment } from './cardsPayment.js';
 import { drawSharedCard, reshuffleDiscard } from './cardPiles.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule, enforceRuleValue } from './engineErrors.js';
+import { attackBlock, loadedHandWeapon } from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 import { isPlayerInCombat } from './combatStatus.js';
 import { placeIntruderRemains, removeIntruder, requireIntruder } from './intruderPlacement.js';
@@ -34,21 +35,7 @@ import { weaponModifiers } from '../data/weaponModifiers.js';
  * любого. Затем — проверка Результата Атаки (стр. 20).
  */
 
-/** Сколько Ран наносит грань кубика Боя цели указанного типа (стр. 19). */
-export function injuriesForFace(face: CombatDieFace, targetType: IntruderType): number {
-  switch (face) {
-    case 'MISS':
-      return 0;
-    case 'TAIL':
-      return targetType === 'LARVA' || targetType === 'CREEPER' ? 1 : 0;
-    case 'SILHOUETTES':
-      return targetType === 'LARVA' || targetType === 'CREEPER' || targetType === 'ADULT' ? 1 : 0;
-    case 'ONE_WOUND':
-      return 1;
-    case 'TWO_WOUNDS':
-      return 2;
-  }
-}
+export { injuriesForFace };
 
 interface HandWeapon {
   card: ItemCard;
@@ -57,21 +44,7 @@ interface HandWeapon {
 
 /** Оружие должно занимать слот Руки (стр. 19, действие [1]). */
 function requireHandWeapon(state: GameState, playerId: string, params: ShootParams): HandWeapon {
-  const player = state.players[playerId]!;
-  const slot = player.handSlots.find(
-    (candidate) => candidate.source === 'ITEM' && candidate.card.id === params.weaponItemId,
-  );
-  const weapon = slot && slot.source === 'ITEM' ? slot.card : null;
-
-  if (!weapon || !weapon.isWeapon) {
-    throw new EngineError(
-      'WEAPON_NOT_AVAILABLE',
-      'Выбранная карта не занимает слот Руки или не является Оружием (стр. 19).',
-    );
-  }
-  if (weapon.ammo === null || weapon.ammo < 1) {
-    throw new EngineError('WEAPON_NO_AMMO', `На «${weapon.name}» не осталось Боезапаса (стр. 19).`);
-  }
+  const weapon = enforceRuleValue(loadedHandWeapon(state.players[playerId]!, params.weaponItemId));
   if (params.spendExtraAmmoOnTwoWounds) requireExtraAmmo(weapon, params.discardAllAmmo ?? false);
 
   if (params.discardAllAmmo) {
@@ -331,17 +304,10 @@ export function resolveShotFace(
 export function performShoot(state: GameState, actorId: string, params: ShootParams): void {
   const player = state.players[actorId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${actorId}.`);
-  if (!isPlayerInCombat(state, actorId)) {
-    throw new EngineError(
-      'SHOOT_NOT_IN_COMBAT',
-      '«Стрельба» выполняется, только когда Персонаж находится в Бою (стр. 12, 19).',
-    );
-  }
-
+  const inCombat = isPlayerInCombat(state, actorId);
+  enforceRule(attackBlock('SHOOT', inCombat, player.roomId, inCombat ? player.roomId : null));
   const target = requireIntruder(state, params.targetIntruderId);
-  if (target.roomId !== player.roomId) {
-    throw new EngineError('INVALID_ATTACK_TARGET', 'Стрелять можно только в Чужих из собственного отсека (стр. 19).');
-  }
+  enforceRule(attackBlock('SHOOT', inCombat, player.roomId, target.roomId));
 
   const weapon = requireHandWeapon(state, actorId, params);
   executeCardPayment(state, actorId, params.discardCardIds, 1);

@@ -4,11 +4,11 @@ import type { RoomState } from '../types/rooms.js';
 import type { CourseMarker, EngineNumber, GameState } from '../types/state.js';
 import type { EngineInspectionSource } from '../types/shipSystemsLog.js';
 import { engineNumberOfRoom, peekRoom, requirePlayer } from './cardEffectsShared.js';
-import { EngineError } from './engineErrors.js';
+import { EngineError, enforceRule } from './engineErrors.js';
+import { courseBlock, isAnyoneInHibernation } from './actionRules.js';
 import { appendGameLog } from './gameLog.js';
 
 const ALL_ENGINES: readonly EngineNumber[] = [1, 2, 3];
-const COURSE_MARKERS: readonly CourseMarker[] = ['A', 'B', 'C', 'D'];
 
 function inspectEngines(
   state: GameState,
@@ -45,27 +45,13 @@ export function inspectAllEngines(state: GameState, actorId: string, room: RoomS
   inspectEngines(state, actorId, room, ALL_ENGINES, 'ENGINE_CONTROL');
 }
 
-function isAnyoneInHibernation(state: GameState): boolean {
-  return Object.values(state.players).some((player) => player.isInHibernation && !player.isDead);
-}
-
 function setCourse(state: GameState, actorId: string, room: RoomState, marker: CourseMarker | undefined): void {
-  if (!marker || !COURSE_MARKERS.includes(marker)) {
-    throw new EngineError('INVALID_DECISION_OPTION', 'Выберите Координаты A, B, C или D для маркера Курса.');
-  }
-  if (isAnyoneInHibernation(state)) {
-    throw new EngineError('COURSE_CHANGE_FORBIDDEN', 'Курс нельзя изменить, пока кто-то из Персонажей в Анабиозе.');
-  }
-  if (room.occupantIntruderIds.length > 0) {
-    throw new EngineError('COURSE_CHANGE_FORBIDDEN', 'Курс нельзя Установить, если на Мостике есть Чужой.');
-  }
   const coordinates = state.ship.coordinates;
-  if (coordinates.currentCourseMarker === marker) {
-    throw new EngineError('INVALID_DECISION_OPTION', `Маркер Курса уже стоит на Координатах ${marker}.`);
-  }
+  enforceRule(courseBlock(isAnyoneInHibernation(state), room, coordinates.currentCourseMarker, marker));
   const fromMarker = coordinates.currentCourseMarker;
-  coordinates.currentCourseMarker = marker;
-  appendGameLog(state, { type: 'COURSE_SET', playerId: actorId, roomId: room.id, fromMarker, toMarker: marker });
+  const toMarker = marker as CourseMarker;
+  coordinates.currentCourseMarker = toMarker;
+  appendGameLog(state, { type: 'COURSE_SET', playerId: actorId, roomId: room.id, fromMarker, toMarker });
 }
 
 function inspectCoordinates(state: GameState, actorId: string, room: RoomState): void {

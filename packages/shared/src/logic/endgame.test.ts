@@ -1,3 +1,4 @@
+import { produce } from 'immer';
 import { describe, expect, it } from 'vitest';
 import {
   CORPORATE_OBJECTIVE_CARDS,
@@ -247,6 +248,14 @@ describe('Проверка Целей (стр. 11, шаг 4)', () => {
     expect(result(state, 'player-1').death).toBe('DIED_DURING_GAME');
     expect(result(state, 'player-2')).toMatchObject({ isWinner: true });
     expect(result(state, 'player-2').objectiveResults[0]!.metConditionIndex).toBe(0);
+  });
+
+  it('конец партии внутри Действия (черновик immer) не падает на копировании Целей выживших', () => {
+    const state = table('endgame-draft');
+    leaveBoard(state, 'player-2', 'POD');
+    state.players['player-2']!.objectives = [objective('OBJ_CORPORATE_BIDE_YOUR_TIME')];
+    const ended = produce(state, (draft) => endGame(draft, 'HULL_BREACH'));
+    expect(result(ended, 'player-2').objectiveResults[0]!.objective.id).toBe('OBJ_CORPORATE_BIDE_YOUR_TIME');
   });
 
   it('без Первого Контакта обе Цели на руках: хватает любой из двух (решение владельца)', () => {

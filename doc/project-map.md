@@ -98,6 +98,10 @@
 | `../ai/botMind.ts`, `botCharacter.ts`, `botTuning.ts` | `BotMind`, `generateCharacter()`, `BOT_TUNING` | Память бота со своей схемой, характер (мораль, черты), все числа поведения. |
 | `../ai/botSocial.ts`, `botClaims.ts`, `botDeeds.ts`, `botMorale.ts` | `trustIn()`, `verifyClaims()`, `applySignal()` | Социальная модель: шкалы и улики, проверка Заявлений, дела, обещания, Намерения, дрейф морали. |
 | `../ai/botObjectives.ts`, `botLying.ts`, `botRequests.ts`, `botGraph.ts` | `threatFrom()`, `planEngineClaim()`, `assessRequest()` | Угадывание Целей, политика лжи, ответы на Просьбы, расстояния по графу. |
+| `../ai/botActions.ts`, `botRoomActions.ts`, `botCandidates.ts`, `botHand.ts` | `generateCandidates()`, `paymentFor()` | Генератор допустимых Действий по срезу и оплата самыми дешёвыми картами. |
+| `../ai/botGoals.ts`, `botObjectivePlanner.ts`, `botTasks.ts`, `botShipKnowledge.ts` | `buildAgenda()`, `planObjective()` | Повестка желаний и планировщики 25 Целей. |
+| `../ai/botUtility.ts`, `botCurves.ts`, `botRisk.ts`, `botNavigation.ts`, `botChoices.ts` | `scoreCandidates()`, `chooseCandidate()`, `findRoute()`, `decideChoice()` | Utility и softmax, риск, A*, обязательные решения. |
+| `actionRules.ts` | `searchBlock()`, `roomAbilityBlock()`, `carefulMoveBlock()`… | Правила допустимости Действий: их читают и движок, и боты. |
 
 ### C. Данные (`src/data/`)
 

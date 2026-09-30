@@ -33,6 +33,12 @@ export interface TacticsTuning {
   shipBurst: Readonly<Record<'MALFUNCTION' | 'FIRE', number>>;
   /** Каждый горящий отсек ускоряет приток Пожаров: карты Пламени перекидывают огонь на соседей (стр. 10). */
   fireSpread: number;
+  /** Вред раунда на борту в конце партии (доля гибели): ради него бот ложится в открытый Анабиоз заранее. */
+  roundExposure: number;
+  /** Шанс, что непроверенная карта Заражения погубит спасшегося на финальной проверке Инфекции (стр. 11). */
+  infectionPerCard: number;
+  /** Доли веса жизни в эвакуации: Анабиоз со сломанным отсеком, подготовка полёта, отпереть Капсулы (стр. 11, 25). */
+  evacuation: { blockedRoute: number; voyage: number; unlockPods: number };
   /** Шанс не успеть на каждый Коридор до укрытия в последнем раунде: Шум, Встреча, закрытая Дверь. */
   jumpStepRisk: number;
   /** Открыть Дверь на пути — почти шаг к цели: доля ценности Движения за ней. */
@@ -65,6 +71,9 @@ export const TACTICS_TUNING = {
   shipInflowPerRound: { MALFUNCTION: 0.35, FIRE: 0.25 },
   shipBurst: { MALFUNCTION: 2.5, FIRE: 2 },
   fireSpread: 0.35,
+  roundExposure: 0.12,
+  infectionPerCard: 0.15,
+  evacuation: { blockedRoute: 0.15, voyage: 0.3, unlockPods: 0.6 },
   jumpStepRisk: 0.3,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,

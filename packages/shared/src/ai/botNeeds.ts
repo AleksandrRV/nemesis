@@ -86,7 +86,13 @@ function healthTasks(context: NeedsContext): BotTask[] {
   if (contamination > 0) {
     const resting = handOf(view, mind.botId).some((card) => isActionCard(card) && card.effect.kind === 'REST');
     const place = resting || owns(self, ['ALCOHOL']) ? ANYWHERE : { definitionIds: SCAN_ROOMS };
-    const weight = tuning.desires.SURVIVE * clamp01(contamination * tuning.hand.scanPerContamination * knobs.scanRate);
+    const everyday =
+      tuning.desires.SURVIVE * clamp01(contamination * tuning.hand.scanPerContamination * knobs.scanRate);
+    const finalCheck = worth(
+      context,
+      timePressure(view, tuning) * clamp01(contamination * tuning.tactics.infectionPerCard),
+    );
+    const weight = Math.max(everyday, finalCheck);
     tasks.push(task('SCAN_HAND', 'SURVIVE', weight, place, 'Просканировать руку'));
   }
   return tasks;

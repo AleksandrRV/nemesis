@@ -61,6 +61,7 @@ describe('Бой: драться, если есть чем и хватает з�
 
   it('союзник в Бою рядом — вооружённый бот идёт на помощь: вдвоём Чужого добивают до Фазы Событий', () => {
     const state = botTable('tactics-gang');
+    for (const pod of Object.values(state.ship.escapePods)) pod.isDestroyed = true;
     const here = state.players[BOT]!.roomId;
     const allyRoom = openNeighbour(state, here);
     putPlayer(state, 'player-1', allyRoom);
@@ -247,5 +248,22 @@ describe('Закрытая Дверь на пути (стр. 17)', () => {
     for (const corridor of Object.values(state.ship.corridors)) corridor.doorState = 'OPEN';
     handOf(state, [actionCardOfKind('DEMOLITION')], 5);
     expect(rankedFor(state).some((entry) => entry.candidate.opensTo !== undefined)).toBe(false);
+  });
+});
+
+describe('Капсулы: спасение от гибели корабля (стр. 11, 25)', () => {
+  it('пока Капсулы заперты, бот ставит задачу отпереть их в Контроле шлюзов', () => {
+    const state = botTable('tactics-unlock');
+    const unlock = agendaFor(state).tasks.find((entry) => entry.kind === 'UNLOCK_POD');
+    expect(unlock?.place.definitionIds).toEqual(['HATCH_CONTROL']);
+    expect(unlock!.weight).toBeGreaterThan(0);
+  });
+
+  it('открытые Капсулы отпирать незачем — бот идёт садиться', () => {
+    const state = botTable('tactics-unlocked');
+    for (const pod of Object.values(state.ship.escapePods)) pod.isLocked = false;
+    const tasks = agendaFor(state).tasks;
+    expect(tasks.some((entry) => entry.kind === 'UNLOCK_POD')).toBe(false);
+    expect(tasks.some((entry) => entry.kind === 'BOARD_POD')).toBe(true);
   });
 });

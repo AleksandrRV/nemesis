@@ -25,7 +25,7 @@ interface Step {
   evacuation: EvacuationRoute;
 }
 
-interface PlanContext {
+export interface PlanContext {
   view: SanitizedGameState;
   mind: BotMind;
   self: SanitizedPlayerState;
@@ -120,6 +120,14 @@ const reached =
     }
     return step(probabilityEnginesHold(mind) * destinationChance(mind, current, destination), tasks, 'HIBERNATION');
   };
+
+/**
+ * Полёт спящих в Анабиозе (стр. 11): не Земля или меньше 2 исправных Двигателей — гибель всех в Камерах. Те же
+ * шаги, что у Цели «Земля», но ради собственной жизни.
+ */
+export function voyageTasks(context: PlanContext): BotTask[] {
+  return reached('EARTH')(context).tasks.map((entry) => ({ ...entry, desire: 'PREPARE_EVACUATION' }));
+}
 
 /** Насколько починка Двигателя поднимает шанс, что исправны хотя бы 2 из 3. */
 function repairGain(mind: BotMind, engineNumber: (typeof ENGINE_NUMBERS)[number]): number {

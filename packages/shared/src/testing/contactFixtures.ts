@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import type { IntruderAttackEffect } from '../types/cards.js';
-import type { IntruderToken, IntruderType } from '../types/entities.js';
+import type { IntruderEntity, IntruderToken, IntruderType } from '../types/entities.js';
 import type { GameState } from '../types/state.js';
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
 import { createIntruderSupply } from '../data/intruderPool.js';
@@ -46,7 +46,7 @@ export function giveSeriousWounds(state: GameState, playerId: string, count: num
 }
 
 export function existingIntruder(state: GameState, type: IntruderType, roomId = 11): string {
-  const intruder = placeIntruder(state, type, roomId);
+  const intruder = requirePlaced(placeIntruder(state, type, roomId), type);
   state.intrudersPool.firstEncounterOccurred = true;
   return intruder.id;
 }
@@ -58,7 +58,12 @@ export function combatStatusState(seed = 'combat-status'): GameState {
 
 /** Ставит миниатюру Чужого в отсек как это делает движок (с учётом лимитов). */
 export function putIntruder(state: GameState, type: IntruderType, roomId = 11): string {
-  return placeIntruder(state, type, roomId).id;
+  return requirePlaced(placeIntruder(state, type, roomId), type).id;
+}
+
+function requirePlaced(intruder: IntruderEntity | null, type: IntruderType): IntruderEntity {
+  if (!intruder) throw new Error(`Фикстура: все миниатюры ${type} заняты.`);
+  return intruder;
 }
 
 export function expectEngineError(run: () => unknown, code: EngineErrorCode): void {

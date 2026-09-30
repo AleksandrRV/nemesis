@@ -7,8 +7,6 @@ import { seriesSeed, simulateGame, simulationStartState } from './simulateGame.j
 import { rateOf, summarizeSimulations } from './simulationStats.js';
 import type { SimulatedBot, SimulationRecord } from './simulationTypes.js';
 
-const MINIATURE_LIMIT = /свободной миниатюры нет/;
-
 function logOf(events: GameLogEvent[]): GameLogEntry[] {
   return events.map((event, index) => ({ id: `log-${index + 1}`, sequence: index + 1, event }));
 }
@@ -33,7 +31,7 @@ describe('Симулятор партий ботов (план 0.8.0, В8-9-2)',
   });
 
   it.each([1, 2, 3, 4, 5])(
-    'нет зависаний: стол из %i ботов доходит до конца партии или встаёт только на исчерпанных миниатюрах (вопрос владельцу)',
+    'нет зависаний: стол из %i ботов всегда доходит до конца партии',
     (botCount) => {
       for (const index of [0, 1, 2]) {
         const record = simulateGame({
@@ -41,7 +39,7 @@ describe('Симулятор партий ботов (план 0.8.0, В8-9-2)',
           botCount,
           difficulty: 'CREW',
         });
-        expect(record.finished || MINIATURE_LIMIT.test(record.stallReason ?? ''), record.seed).toBe(true);
+        expect(record.finished, `${record.seed}: ${record.stallReason}`).toBe(true);
         expect(record.bots).toHaveLength(botCount);
         expect(record.bots.every((bot) => bot.outcome === 'DIED' || bot.deathCause === null)).toBe(true);
       }

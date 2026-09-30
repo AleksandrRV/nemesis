@@ -199,7 +199,13 @@ export type IntruderLogEvent =
       corridorNumber: CorridorNumber;
       technicalCorridors: boolean;
     }
-  | { type: 'INTRUDER_TRANSFORMED'; intruderId: string; roomId: RoomId };
+  | { type: 'INTRUDER_TRANSFORMED'; intruderId: string; roomId: RoomId }
+  | {
+      /** В-10: все миниатюры типа на поле — миниатюра не ставится, событие игнорируется. */
+      type: 'INTRUDER_MINIATURE_MISSING';
+      intruderType: IntruderType;
+      roomId: RoomId;
+    };
 
 export type ContactPresentationEvent = Extract<
   IntruderLogEvent,

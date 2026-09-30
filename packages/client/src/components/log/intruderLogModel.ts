@@ -152,6 +152,9 @@ export function formatIntruderLogEvent(event: IntruderLogEvent, view: SanitizedG
     case 'INTRUDER_TRANSFORMED':
       text = `Крипер в отсеке #${event.roomId} заменён Трутнем.`;
       break;
+    case 'INTRUDER_MINIATURE_MISSING':
+      text = `Все миниатюры «${INTRUDER_TYPE_NAMES[event.intruderType]}» уже на поле: в отсек #${event.roomId} никто не выставлен, событие проигнорировано.`;
+      break;
   }
   return [{ text, tone: 'danger' }];
 }

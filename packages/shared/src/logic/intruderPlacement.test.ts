@@ -37,19 +37,39 @@ describe('Миниатюры и жетоны — разные запасы (ст
     });
   });
 
-  it.each(['LARVA', 'CREEPER', 'ADULT', 'BREEDER', 'QUEEN'] as const)('не создаёт лишнюю миниатюру %s', (type) => {
+  it.each(['LARVA', 'CREEPER', 'BREEDER', 'QUEEN'] as const)(
+    'В-10: не создаёт лишнюю миниатюру %s — ничего не ставит и пишет пропуск в журнал',
+    (type) => {
+      const state = contactState();
+      for (let index = 0; index < INTRUDER_MINIATURE_LIMITS[type]; index++) existingIntruder(state, type);
+      const boardBefore = structuredClone(state.intrudersPool.boardTokens);
+      expect(placeIntruder(state, type, 11)).toBeNull();
+      expect(state.intrudersPool.boardTokens).toEqual(boardBefore);
+      expect(state.gameLog.at(-1)?.event).toEqual({
+        type: 'INTRUDER_MINIATURE_MISSING',
+        intruderType: type,
+        roomId: 11,
+      });
+    },
+  );
+
+  it('В-10: все 8 Взрослых в Бою — снимать некого, миниатюра не ставится', () => {
     const state = contactState();
-    for (let index = 0; index < INTRUDER_MINIATURE_LIMITS[type]; index++) existingIntruder(state, type);
-    const before = structuredClone(state);
-    expectEngineError(() => placeIntruder(state, type, 11), 'INTRUDER_MINIATURE_UNAVAILABLE');
-    expect(state).toEqual(before);
+    for (let index = 0; index < INTRUDER_MINIATURE_LIMITS.ADULT; index++) existingIntruder(state, 'ADULT');
+    expect(placeIntruder(state, 'ADULT', 2)).toBeNull();
+    expect(state.intrudersPool.boardTokens).toHaveLength(INTRUDER_MINIATURE_LIMITS.ADULT);
+    expect(state.gameLog.some((entry) => entry.event.type === 'INTRUDERS_WITHDRAWN')).toBe(false);
   });
 
   it('учитывает Личинок на планшетах при лимите шести миниатюр', () => {
     const state = contactState(5);
     for (const player of Object.values(state.players)) player.hasLarva = true;
     existingIntruder(state, 'LARVA');
-    expectEngineError(() => placeIntruder(state, 'LARVA', 11), 'INTRUDER_MINIATURE_UNAVAILABLE');
+    expect(placeIntruder(state, 'LARVA', 11)).toBeNull();
+  });
+
+  it('неизвестный отсек по-прежнему отклоняется явной ошибкой', () => {
+    expectEngineError(() => placeIntruder(contactState(), 'ADULT', 999), 'UNKNOWN_ROOM');
   });
 
   it('не синтезирует жетон при возвращении миниатюры, если подходящих жетонов в запасе нет', () => {

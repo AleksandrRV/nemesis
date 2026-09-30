@@ -311,7 +311,7 @@ function resolveMaturation(state: GameState): EventEffectOutcome {
     const roomId = player.roomId;
     killPlayer(state, player.id);
     deadPlayerIds.push(player.id);
-    placeIntruder(state, 'CREEPER', roomId);
+    if (!placeIntruder(state, 'CREEPER', roomId)) continue;
     state.interruptQueue.unshift(...announceIntruderMiniature(state, player.id, roomId));
     creeperRoomIds.push(roomId);
   }

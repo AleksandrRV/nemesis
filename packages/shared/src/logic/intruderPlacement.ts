@@ -51,41 +51,47 @@ export function returnTokenToBag(state: GameState, type: IntruderType): boolean 
   return true;
 }
 
-export function requireAvailableMiniature(state: GameState, type: IntruderType): void {
+function claimFreeMiniature(state: GameState, type: IntruderType): boolean {
   let inUse = state.intrudersPool.boardTokens.filter((intruder) => intruder.type === type).length;
   if (type === 'LARVA') inUse += Object.values(state.players).filter((player) => player.hasLarva).length;
-  if (inUse < INTRUDER_MINIATURE_LIMITS[type]) return;
+  if (inUse < INTRUDER_MINIATURE_LIMITS[type]) return true;
+  if (type !== 'ADULT') return false;
 
-  if (type === 'ADULT') {
-    const withdrawing = state.intrudersPool.boardTokens.filter(
-      (intruder) => intruder.type === 'ADULT' && livingPlayersInRoom(state, intruder.roomId).length === 0,
-    );
-    for (const intruder of withdrawing) {
-      removeIntruder(state, intruder.id);
-      returnTokenToBag(state, 'ADULT');
-    }
-    if (withdrawing.length > 0 && inUse - withdrawing.length < INTRUDER_MINIATURE_LIMITS.ADULT) {
-      appendGameLog(state, { type: 'INTRUDERS_WITHDRAWN', intruderIds: withdrawing.map((intruder) => intruder.id) });
-      return;
-    }
+  const withdrawing = state.intrudersPool.boardTokens.filter(
+    (intruder) => intruder.type === 'ADULT' && livingPlayersInRoom(state, intruder.roomId).length === 0,
+  );
+  for (const intruder of withdrawing) {
+    removeIntruder(state, intruder.id);
+    returnTokenToBag(state, 'ADULT');
   }
-  throw new EngineError('INTRUDER_MINIATURE_UNAVAILABLE', `Все миниатюры ${type} заняты; свободной миниатюры нет.`);
+  if (withdrawing.length > 0) {
+    appendGameLog(state, { type: 'INTRUDERS_WITHDRAWN', intruderIds: withdrawing.map((intruder) => intruder.id) });
+  }
+  return inUse - withdrawing.length < INTRUDER_MINIATURE_LIMITS.ADULT;
 }
 
-export function placeIntruder(state: GameState, type: IntruderType, roomId: RoomId): IntruderEntity {
+/** В-10 (решение владельца): свободной миниатюры нет — миниатюра не ставится, событие игнорируется. */
+export function placeIntruder(state: GameState, type: IntruderType, roomId: RoomId): IntruderEntity | null {
   const room = state.ship.rooms[roomId];
   if (!room) throw new EngineError('UNKNOWN_ROOM', `Отсека ${roomId} нет на корабле.`);
-  requireAvailableMiniature(state, type);
+  if (!claimFreeMiniature(state, type)) {
+    appendGameLog(state, { type: 'INTRUDER_MINIATURE_MISSING', intruderType: type, roomId });
+    return null;
+  }
   const intruder: IntruderEntity = { id: allocateEntityId(state, 'intruder'), type, roomId, woundsCount: 0 };
   state.intrudersPool.boardTokens.push(intruder);
   room.occupantIntruderIds.push(intruder.id);
   return intruder;
 }
 
-export function transformCreeper(state: GameState, intruderId: string): void {
+export function transformCreeper(state: GameState, intruderId: string): boolean {
   const intruder = requireIntruder(state, intruderId);
-  requireAvailableMiniature(state, 'BREEDER');
+  if (!claimFreeMiniature(state, 'BREEDER')) {
+    appendGameLog(state, { type: 'INTRUDER_MINIATURE_MISSING', intruderType: 'BREEDER', roomId: intruder.roomId });
+    return false;
+  }
   intruder.type = 'BREEDER';
   intruder.woundsCount = 0;
   appendGameLog(state, { type: 'INTRUDER_TRANSFORMED', intruderId, roomId: intruder.roomId });
+  return true;
 }

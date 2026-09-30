@@ -98,6 +98,7 @@ function resolveQueenToken(state: GameState): HiveDevelopmentOutcome {
 
   if (occupants.length > 0) {
     const queen = placeIntruder(state, 'QUEEN', nest!.id);
+    if (!queen) return { kind: 'QUEEN', queenPlaced: false, intruderId: null, contactPlayerIds: [], eggAdded: false };
     state.interruptQueue.unshift(...announceIntruderMiniature(state, occupants[0]!, nest!.id));
     for (const playerId of occupants) {
       state.interruptQueue.push({

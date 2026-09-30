@@ -105,8 +105,12 @@ export function resolveContact(
     return;
   }
 
-  state.intrudersPool.supply.push(token);
   const intruder = placeIntruder(state, token.type, roomId);
+  if (!intruder) {
+    bag.push(token);
+    return;
+  }
+  state.intrudersPool.supply.push(token);
   const firstEncounter = !state.intrudersPool.firstEncounterOccurred;
   const surpriseAttack = isSurpriseAttack(state, token, handCount, source);
   if (source === 'CALL') {

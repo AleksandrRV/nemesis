@@ -67,8 +67,7 @@ function applyAttackEffect(
       return victims;
     }
     case 'TRANSFORMATION':
-      transformCreeper(state, intruderId);
-      if (player.actionDeck.hand.length === 0) {
+      if (transformCreeper(state, intruderId) && player.actionDeck.hand.length === 0) {
         state.interruptQueue.unshift({ type: 'SURPRISE_ATTACK_INTERRUPT', playerId, intruderId });
       }
       break;

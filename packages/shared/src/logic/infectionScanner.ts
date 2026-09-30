@@ -28,8 +28,9 @@ export function resolveInfectionFound(
   }
   const roomId = player.roomId;
   killPlayer(state, playerId);
-  placeIntruder(state, 'CREEPER', roomId);
-  state.interruptQueue.unshift(...announceIntruderMiniature(state, playerId, roomId));
+  if (placeIntruder(state, 'CREEPER', roomId)) {
+    state.interruptQueue.unshift(...announceIntruderMiniature(state, playerId, roomId));
+  }
   return 'DIED';
 }
 

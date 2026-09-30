@@ -6,6 +6,7 @@ import {
   combatStatusState,
   expectEngineError,
   forceAttack,
+  forceToken,
   giveSeriousWounds,
   putIntruder,
 } from '../testing/contactFixtures.js';
@@ -186,6 +187,25 @@ describe('Побег из Боя (стр. 19; Шаг 7)', () => {
     expect(escapeEvents(next)[0]!.outcome).toBe('SUPPRESSED');
     expect(next.players['player-1']!.lightWounds).toBe(0);
     expect(next.players['player-1']!.roomId).toBe(target);
+  });
+
+  it('«Зов» при Побеге: призванный Чужой появляется в покидаемой Комнате, затем Персонаж уходит', () => {
+    const state = combatStatusState('escape-call');
+    putIntruder(state, 'QUEEN', 11);
+    state.intrudersPool.firstEncounterOccurred = true;
+    forceAttack(state, 'CALL');
+    forceToken(state, 'ADULT');
+    const target = targetOf(state);
+
+    const next = escapeAction(state, target);
+
+    const contacts = next.gameLog
+      .map((entry) => entry.event)
+      .filter((event) => event.type === 'CONTACT_OCCURRED' && event.source === 'CALL');
+    expect(contacts).toMatchObject([{ roomId: 11, tokenType: 'ADULT', playerId: 'player-1' }]);
+    expect(next.players['player-1']!.roomId).toBe(target);
+    expect(next.players['player-1']!.actionsPerformedThisRound).toBe(1);
+    expect(next.interruptQueue).toEqual([]);
   });
 
   it('нечем оплатить Движение — действие отклонено целиком, атак нет', () => {

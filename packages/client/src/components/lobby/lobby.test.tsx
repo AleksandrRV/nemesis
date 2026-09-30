@@ -29,7 +29,7 @@ describe('Лобби: режимы и места (план 0.8.0, В8-2-2, В8-2
     expect(PLAYER_COUNTS.slice(1).every((count) => gameModeOf(count) === 'SEMI_COOP')).toBe(true);
     const html = renderToStaticMarkup(
       <LobbyScreen
-        config={{ playerCount: 3, roleSelection: 'DRAFT', seed: 'lobby' }}
+        config={{ playerCount: 3, roleSelection: 'DRAFT', seed: 'lobby', botDifficulty: 'VETERAN' }}
         onChange={noop}
         onRerollSeed={noop}
         onContinue={noop}
@@ -39,6 +39,25 @@ describe('Лобби: режимы и места (план 0.8.0, В8-2-2, В8-2
     expect(html).toContain('Драфт по правилам');
     expect(html).toContain('Свободный выбор');
     expect(html).not.toContain('Кооператив<');
+    expect(html).toContain('Ветеран');
+    expect(html).toMatch(/aria-checked="true"[^>]*>(?:(?!<\/button>).)*Ветеран/);
+  });
+
+  it('в Соло выбора сложности ботов нет: свободных мест не будет', () => {
+    const html = renderToStaticMarkup(
+      <LobbyScreen
+        config={{ playerCount: 1, roleSelection: 'DRAFT', seed: 'solo', botDifficulty: 'CREW' }}
+        onChange={noop}
+        onRerollSeed={noop}
+        onContinue={noop}
+      />,
+    );
+    expect(html).not.toContain('Сложность ботов');
+  });
+
+  it('сложность уходит только на места ботов', () => {
+    const seats = toggleLocalSeat(initialWaitingSeats(3), 2);
+    expect(tableSeatsOf(seats, 'NOVICE').map((seat) => seat.difficulty)).toEqual([undefined, 'NOVICE', undefined]);
   });
 
   it('по «Старт» свободные места становятся ботами, занятые за устройством — людьми', () => {

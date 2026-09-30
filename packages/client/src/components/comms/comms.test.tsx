@@ -48,6 +48,20 @@ describe('Рация в интерфейсе: фразы и лента', () => {
     expect(texts).toEqual(['Двигатель №1 сломан.', 'Проверьте Двигатель №1.', 'Не верю: «Двигатель №1 сломан.»']);
   });
 
+  it('реплика бота звучит в интонации его фразы, а смысл остаётся текстом сообщения (В8-8-2)', () => {
+    const state = say(createInitialGameState('radio-voice', { playerCount: 3 }), 'player-2', {
+      kind: 'INTENT',
+      to: 'ALL',
+      body: { topic: 'GO_TO_HIBERNATION' },
+      phraseId: 'INTENT_NERVOUS_1',
+    });
+    const view = filterStateForPlayer(state, 'player-1');
+    const text = messageText(view, view.comms.messages.at(-1)!);
+    expect(text).toBe('Я… я пошёл. Иду в Анабиоз.');
+    const html = renderToStaticMarkup(<RadioDrawer view={view} seenSequence={0} onClose={() => undefined} />);
+    expect(html).toContain('Я… я пошёл. Иду в Анабиоз.');
+  });
+
   it('Просьба к зрителю в его ход предлагает «Помогу» и «Не могу»; ответы видны под Просьбой', () => {
     const state = structuredClone(radioTable());
     state.meta.activePlayerId = 'player-2';

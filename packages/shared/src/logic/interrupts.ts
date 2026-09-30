@@ -4,7 +4,7 @@ import { completeAction } from './actionCompletion.js';
 import { offerSteelNervesOrAttack, resolveContact, requestFirstContactObjective } from './contact.js';
 import { EngineError } from './engineErrors.js';
 import { resolveSurpriseAttack } from './intruderAttacks.js';
-import { resolveEscapeAttack } from './escape.js';
+import { resolveEscapeAttack, resolveEscapeMove } from './escape.js';
 import { drawOneActionCard } from './classCombatCards.js';
 import { resolveNoiseRoll } from './noise.js';
 import { resolveExploreRoom } from './roomExploration.js';
@@ -49,6 +49,8 @@ export function resolveInterrupt(state: GameState, interrupt: InterruptEvent): v
       return resolveSurpriseAttack(state, interrupt.playerId, interrupt.intruderId);
     case 'ESCAPE_ATTACK_INTERRUPT':
       return resolveEscapeAttack(state, interrupt);
+    case 'ESCAPE_MOVE_INTERRUPT':
+      return resolveEscapeMove(state, interrupt);
     case 'DRAW_ACTION_CARD_INTERRUPT':
       return drawOneActionCard(state, interrupt.playerId);
     case 'COMPLETE_ACTION_INTERRUPT':

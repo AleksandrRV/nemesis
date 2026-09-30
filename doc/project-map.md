@@ -30,7 +30,7 @@
 | `decisions.ts` | `PendingDecision` | Отложенные решения: `CHOOSE_OBJECTIVE`, `CHOOSE_SEARCH_ITEM`, `CHOOSE_WHITE_ROOM_DECK`, `DISCARD_HEAVY_ITEM_FOR_NEW`, `ROOM_FIRE_CONTROL_TARGET`, `ROOM_GENERATOR_ACTION`, `CHOOSE_REST_CONTAMINATION_DISCARD`, `REROLL_COMBAT_DIE`. |
 | `sanitized.ts` | `SanitizedGameState`, `SanitizedPlayerState` | Отфильтрованный срез: скрытое как `null`/счётчики. |
 | `log.ts` | `GameLogEntry`, `EventEffectOutcome` (19), `HiveDevelopmentOutcome` (6) | Журнал партии + итоги эффектов Событий и Улья. |
-| `interrupts.ts` | `InterruptEvent` | Стек прерываний: `EXPLORE_ROOM`, `NOISE_ROLL`, `CONTACT`, `SURPRISE_ATTACK`, `ESCAPE_ATTACK`, etc. |
+| `interrupts.ts` | `InterruptEvent` | Стек прерываний: `EXPLORE_ROOM`, `NOISE_ROLL`, `CONTACT`, `SURPRISE_ATTACK`, `ESCAPE_ATTACK`, `ESCAPE_MOVE`, etc. |
 | `contact.ts` | `IntruderRetreatOutcome`, `AttackVictimStatus`, `IntruderLogEvent` | Презентация Контакта/Атак/Отступления. |
 | `endgame.ts` | `EndgameReport`, `EndgameCharacterResult`, `EndgameDeath` | Отчёт Финального Валидатора (стр. 11): судьба корабля, Двигатели, Курс, Заражение, Цели по Персонажам. |
 | `shipSystemsLog.ts` | `ShipSystemsLogEvent`, `ExchangedEntry`, `RoomPeekSource` | События систем корабля: проверки Двигателей и Координат, Курс, Двери, Декомпрессия, Слизь, Обмен. |
@@ -59,7 +59,7 @@
 | `melee.ts` | `executeMelee()` | Рукопашная: Заражение до броска, 2 Раны=1, промах=Тяжёлая. |
 | `weaknesses.ts` | `isWeaknessRevealed()` | Предикат раскрытых Слабостей. |
 | `heavyObjects.ts` | `executePickUpObject()` | Поднять тяжёлый объект [1] в руку. |
-| `escape.ts` | `resolveEscapeAttack()` | Побег: атаки в спину FAQ Rules 5, затем шаг и Шум. |
+| `escape.ts` | `resolveEscapeAttack()`, `resolveEscapeMove()` | Побег: атаки в спину FAQ Rules 5; шаг и Шум — отдельным прерыванием после всего, что подняли Атаки. |
 | `combatStatus.ts` | `isRoomInCombat()` | Статус Боя для блокировок. |
 | `intruderPlacement.ts` | `placeIntruder()` | Миниатюры vs жетоны, лимиты 8/2/1. |
 | `intruderAttacks.ts` | `performIntruderAttack()` | Ядро Атаки: 8 эффектов, Трансформация, Зов с подавлением. |
@@ -101,6 +101,7 @@
 | `../ai/botActions.ts`, `botRoomActions.ts`, `botCandidates.ts`, `botHand.ts` | `generateCandidates()`, `paymentFor()` | Генератор допустимых Действий по срезу и оплата самыми дешёвыми картами. |
 | `../ai/botGoals.ts`, `botObjectivePlanner.ts`, `botTasks.ts`, `botShipKnowledge.ts` | `buildAgenda()`, `planObjective()` | Повестка желаний и планировщики 25 Целей. |
 | `../ai/botUtility.ts`, `botCurves.ts`, `botRisk.ts`, `botNavigation.ts`, `botChoices.ts` | `scoreCandidates()`, `chooseCandidate()`, `findRoute()`, `decideChoice()` | Utility и softmax, риск, A*, обязательные решения. |
+| `../ai/botVoice.ts`, `botPhrases.ts`, `../data/botPhrases.ts` | `speak()`, `toneOf()`, `BOT_PHRASES`, `voicedText()` | Голос бота: когда сказать Заявление, Намерение или Просьбу; банк фраз и интонация характера. |
 | `actionRules.ts` | `searchBlock()`, `roomAbilityBlock()`, `carefulMoveBlock()`… | Правила допустимости Действий: их читают и движок, и боты. |
 
 ### C. Данные (`src/data/`)

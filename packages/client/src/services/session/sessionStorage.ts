@@ -1,5 +1,5 @@
 import type { BotMind, GameState, SeatKind, TableSeating } from '@nemesis/shared';
-import { GAME_STATE_SCHEMA_VERSION, isBotMind } from '@nemesis/shared';
+import { BOT_DIFFICULTIES, GAME_STATE_SCHEMA_VERSION, isBotMind } from '@nemesis/shared';
 
 /**
  * Сохранение партии.
@@ -74,6 +74,7 @@ export function isTableSeating(value: unknown, state: GameState): value is Table
       typeof seat.playerId === 'string' &&
       typeof seat.label === 'string' &&
       SEAT_KINDS.has(seat.kind as SeatKind) &&
+      (seat.difficulty === undefined || (BOT_DIFFICULTIES as readonly unknown[]).includes(seat.difficulty)) &&
       seat.playerId in state.players,
   );
   const unique = new Set(seated.map((seat) => seat.playerId));

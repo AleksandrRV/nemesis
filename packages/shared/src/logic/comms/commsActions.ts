@@ -1,5 +1,6 @@
 import type { CommsAnswer, CommsDraft, CommsMessage, CommsState, CommsTurnUsage } from '../../types/comms.js';
 import type { GameState } from '../../types/state.js';
+import { botPhraseById } from '../../data/botPhrases.js';
 import { EngineError } from '../engineErrors.js';
 import { appendCommsMessage, findCommsMessage } from './commsState.js';
 import { COMMS_SETTINGS } from './commsSettings.js';
@@ -92,6 +93,13 @@ function answerRequest(state: GameState, authorId: string, answer: CommsAnswer):
   });
 }
 
+function requirePhrase(draft: Exclude<CommsDraft, { kind: 'ANSWER' }>): void {
+  if (!('phraseId' in draft) || draft.phraseId === undefined) return;
+  if (botPhraseById(draft.phraseId)?.kind !== draft.kind) {
+    throw new EngineError('COMMS_FORBIDDEN', 'Такой фразы нет в банке фраз для этого типа сообщения.');
+  }
+}
+
 /** Рация (план 0.8.0, В8-3): бесплатно, только в свой ход, в пределах лимитов; содержание не проверяется — блеф законен. */
 export function executeComms(state: GameState, authorId: string, draft: CommsDraft): void {
   if ((draft as { kind: string }).kind === 'SYSTEM') {
@@ -118,6 +126,7 @@ export function executeComms(state: GameState, authorId: string, draft: CommsDra
     default:
       throw new EngineError('COMMS_FORBIDDEN', 'Неизвестный тип сообщения Рации.');
   }
+  requirePhrase(draft);
   spendLimit(state, authorId, draft);
   if (draft.kind === 'REQUEST') {
     appendCommsMessage(state, {
@@ -125,6 +134,7 @@ export function executeComms(state: GameState, authorId: string, draft: CommsDra
       authorId,
       to: draft.to,
       body: draft.body,
+      ...(draft.phraseId === undefined ? {} : { phraseId: draft.phraseId }),
       expiresAtRound: state.meta.currentRound + COMMS_SETTINGS.requestLifetimeRounds,
     });
     return;

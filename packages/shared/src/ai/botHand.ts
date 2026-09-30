@@ -23,6 +23,12 @@ export function cardValue(card: ActionCard, tuning: BotTuning): number {
   return BASIC_KINDS.has(card.effect.kind) ? tuning.hand.cardValue.BASIC : tuning.hand.cardValue.CLASS;
 }
 
+/** Карты Заражения на руке, которых ещё не касался сканер: их убирает скан (стр. 20). */
+export function unscannedContamination(view: SanitizedGameState, botId: string): number {
+  return (view.players[botId]?.actionDeck.hand ?? []).filter((card) => !isActionCard(card) && card.isInfected === null)
+    .length;
+}
+
 export function handOf(view: SanitizedGameState, botId: string): ActionCard[] {
   return (view.players[botId]?.actionDeck.hand ?? []).filter(isActionCard);
 }

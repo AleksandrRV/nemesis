@@ -7,6 +7,7 @@ import { isHibernationOpen } from '../logic/actionRules.js';
 import { effectiveKnobs } from './botCharacter.js';
 import { clamp01, evaluateCurve } from './botCurves.js';
 import type { BotMind, OwnPromise } from './botMind.js';
+import { isActionCard, unscannedContamination } from './botHand.js';
 import { findRoomOfType, searchableRoomIds } from './botNavigation.js';
 import { planObjectives, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
 import { hasAdjacentIntruders, roomThreat, roundsLeft } from './botRisk.js';
@@ -39,7 +40,13 @@ const ACTIONS_PER_TURN = 2;
 const URGENT_DESIRES: ReadonlySet<BotTask['desire']> = new Set(['PREPARE_EVACUATION', 'SURVIVE']);
 const KEY_ROOMS = ['ENGINE_01', 'ENGINE_02', 'ENGINE_03', 'ENGINE_CONTROL', 'COCKPIT', 'HIBERNATORIUM', ...POD_ROOMS];
 
-function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
+const SCAN_ROOMS = ['CANTEEN', 'SHOWER'];
+
+function hasRestCard(self: SanitizedPlayerState): boolean {
+  return self.actionDeck.hand.some((card) => isActionCard(card) && card.effect.kind === 'REST');
+}
+
+export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
   return self.handSlots.some((slot) => slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0);
 }
 
@@ -106,7 +113,7 @@ function podTasks(context: AgendaContext, pressure: number): BotTask[] {
   ];
 }
 
-function survivalTasks({ self, tuning }: AgendaContext): BotTask[] {
+function survivalTasks({ view, mind, self, tuning, knobs }: AgendaContext): BotTask[] {
   const survive = tuning.desires.SURVIVE;
   const tasks: BotTask[] = [];
   const untreated = self.seriousWounds.filter((wound) => !wound.isTreated).length;
@@ -119,6 +126,12 @@ function survivalTasks({ self, tuning }: AgendaContext): BotTask[] {
   }
   if (self.hasLarva)
     tasks.push(task('CLEANSE', 'SURVIVE', survive * 1.5, { definitionIds: ['SURGERY'] }, 'Удалить Личинку'));
+  const contamination = unscannedContamination(view, mind.botId);
+  if (contamination > 0) {
+    const place = hasRestCard(self) ? {} : { definitionIds: SCAN_ROOMS };
+    const weight = survive * clamp01(contamination * tuning.hand.scanPerContamination * knobs.scanRate);
+    tasks.push(task('SCAN_HAND', 'SURVIVE', weight, place, 'Просканировать руку'));
+  }
   return tasks;
 }
 
@@ -315,7 +328,10 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
   const plans = planObjectives(view, mind, tuning);
   const route = evacuationRoute(plans, mind);
   const timePressure = evaluateCurve(tuning.curves.timePressure, 1 - roundsLeft(view) / TIME_TRACK_LENGTH);
-  const danger = evaluateCurve(tuning.curves.danger, roomThreat(view, self.roomId, tuning) / tuning.risk.seriousWound);
+  const danger = evaluateCurve(
+    tuning.curves.danger,
+    roomThreat(view, self.roomId, tuning, knobs.fear) / tuning.risk.seriousWound,
+  );
   const tasks = scaledByDesire(
     [
       ...plans.flatMap((plan) => plan.tasks),

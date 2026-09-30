@@ -7,11 +7,18 @@ export type SeatKind = 'LOCAL_HUMAN' | 'REMOTE_HUMAN' | 'BOT';
 
 export type RoleSelectionMode = 'DRAFT' | 'FREE';
 
+/** Сложность бота (план 0.8.0, В8-8-3): настройка места, а не правило игры. */
+export const BOT_DIFFICULTIES = ['NOVICE', 'CREW', 'VETERAN'] as const;
+
+export type BotDifficulty = (typeof BOT_DIFFICULTIES)[number];
+
 export interface TableSeat {
   seatIndex: number;
   kind: SeatKind;
   /** Подпись места в лобби: «Вы», «Игрок 2», «Бот». */
   label: string;
+  /** Только у места бота: пресет сложности. */
+  difficulty?: BotDifficulty;
 }
 
 /** Место после раздачи карт Памятки (стр. 8, шаг 14): номер игрока решает очередь выбора и Цели «Игрок N». */
@@ -52,6 +59,7 @@ export interface TableSeating {
   playerId: string;
   kind: SeatKind;
   label: string;
+  difficulty?: BotDifficulty;
 }
 
 /** Подготовка экипажа глазами одного места: чужие Цели скрыты. */

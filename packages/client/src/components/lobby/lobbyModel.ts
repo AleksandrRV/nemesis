@@ -1,4 +1,4 @@
-import type { GameMode, RoleSelectionMode, SanitizedCrewSetup, TableSeat } from '@nemesis/shared';
+import type { BotDifficulty, GameMode, RoleSelectionMode, SanitizedCrewSetup, TableSeat } from '@nemesis/shared';
 import { MAX_PLAYER_COUNT, MIN_PLAYER_COUNT } from '@nemesis/shared';
 
 export const ROLE_PICK_SECONDS = 45;
@@ -9,6 +9,7 @@ export interface LobbyConfig {
   playerCount: number;
   roleSelection: RoleSelectionMode;
   seed: string;
+  botDifficulty: BotDifficulty;
 }
 
 export type WaitingSeatStatus = 'YOU' | 'LOCAL' | 'WAITING' | 'BOT';
@@ -50,6 +51,19 @@ export const ROLE_SELECTION_HINTS: Record<RoleSelectionMode, string> = {
   FREE: 'Люди выбирают из всех свободных Персонажей, занятые помечены; боты выбирают последними.',
 };
 
+export const BOT_DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
+  NOVICE: 'Новичок',
+  CREW: 'Экипаж',
+  VETERAN: 'Ветеран',
+};
+
+/** Сложность меняет расчёт, а не правила: черты и Цели у ботов остаются тайной (план 0.8.0, Р-8). */
+export const BOT_DIFFICULTY_HINTS: Record<BotDifficulty, string> = {
+  NOVICE: 'Действует порывисто, хуже чувствует опасность и чаще забывает увиденное.',
+  CREW: 'Обычный член экипажа: взвешивает риск и держит в голове свою Цель.',
+  VETERAN: 'Холодный расчёт, точная оценка риска и план на несколько ходов вперёд.',
+};
+
 export function initialWaitingSeats(playerCount: number): WaitingSeat[] {
   return Array.from({ length: playerCount }, (_, seatIndex) => ({
     seatIndex,
@@ -76,12 +90,12 @@ export function seatLabel(seat: WaitingSeat): string {
   return `Игрок ${seat.seatIndex + 1}`;
 }
 
-export function tableSeatsOf(seats: readonly WaitingSeat[]): TableSeat[] {
-  return fillWithBots(seats).map((seat) => ({
-    seatIndex: seat.seatIndex,
-    kind: seat.status === 'BOT' ? 'BOT' : 'LOCAL_HUMAN',
-    label: seatLabel(seat),
-  }));
+export function tableSeatsOf(seats: readonly WaitingSeat[], difficulty: BotDifficulty = 'CREW'): TableSeat[] {
+  return fillWithBots(seats).map((seat) =>
+    seat.status === 'BOT'
+      ? { seatIndex: seat.seatIndex, kind: 'BOT', label: seatLabel(seat), difficulty }
+      : { seatIndex: seat.seatIndex, kind: 'LOCAL_HUMAN', label: seatLabel(seat) },
+  );
 }
 
 export function seatByPlayer(setup: SanitizedCrewSetup, playerId: string | null) {

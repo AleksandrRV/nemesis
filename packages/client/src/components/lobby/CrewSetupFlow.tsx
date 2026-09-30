@@ -39,6 +39,7 @@ export const CrewSetupFlow: React.FC<CrewSetupFlowProps> = ({ onClose, onLaunche
     playerCount: 1,
     roleSelection: 'DRAFT',
     seed: createSeed(),
+    botDifficulty: 'CREW',
   }));
   const [seats, setSeats] = React.useState<WaitingSeat[]>(() => initialWaitingSeats(1));
   const [booting, setBooting] = React.useState(false);
@@ -61,7 +62,7 @@ export const CrewSetupFlow: React.FC<CrewSetupFlowProps> = ({ onClose, onLaunche
     window.setTimeout(() => {
       store().beginCrewSetup({
         seed: config.seed.trim(),
-        seats: tableSeatsOf(seats),
+        seats: tableSeatsOf(seats, config.botDifficulty),
         roleSelection: config.roleSelection,
       });
       const first = store().crewSetup;

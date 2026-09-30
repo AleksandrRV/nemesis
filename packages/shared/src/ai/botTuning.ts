@@ -4,6 +4,7 @@
  */
 
 import type { IntruderAttackEffect } from '../types/cards.js';
+import type { PhraseTone } from '../data/botPhrases.js';
 import { BOT_DIFFICULTY_PRESETS, BOT_TRAIT_CATALOG } from './botTraitCatalog.js';
 
 export const BOT_TRAITS = [
@@ -28,9 +29,8 @@ export const BOT_TRAITS = [
 
 export type BotTraitId = (typeof BOT_TRAITS)[number];
 
-export const BOT_DIFFICULTIES = ['NOVICE', 'CREW', 'VETERAN'] as const;
-
-export type BotDifficulty = (typeof BOT_DIFFICULTIES)[number];
+export { BOT_DIFFICULTIES, type BotDifficulty } from '../types/crew.js';
+import type { BotDifficulty } from '../types/crew.js';
 
 /** Ручки поведения: базовое значение умножается на модификаторы черт и сложности. */
 export type TuningKnob =
@@ -116,6 +116,8 @@ export interface BotTraitSpec {
   /** Множители ручек: 2 — вдвое сильнее, 0.5 — вдвое слабее. */
   modifiers: Partial<Record<TuningKnob, number>>;
   incompatibleWith: readonly BotTraitId[];
+  /** Интонация фраз Рации: черта слышна в подаче, но не называется. */
+  voice?: PhraseTone;
 }
 
 export interface DifficultyPreset {
@@ -224,6 +226,8 @@ export interface BotTuning {
     /** Закрытая Дверь: нужно открыть или разрушить её отдельным Действием. */
     closedDoorCost: number;
     maxExpandedNodes: number;
+    /** Нижний предел ценности далёкой цели: короткий горизонт (ручка `horizon`) не обнуляет её совсем. */
+    farGoalFloor: number;
   };
   time: {
     /** Сколько раундов запаса бот оставляет на путь к Анабиозу или Капсуле. */
@@ -232,6 +236,8 @@ export interface BotTuning {
   hand: {
     /** Ценность карты в руке: дешёвые уходят на оплату и сброс первыми. */
     cardValue: Record<'BASIC' | 'CLASS' | 'COMBAT', number>;
+    /** Желание просканировать руку за каждую непроверенную карту Заражения (ручка `scanRate`). */
+    scanPerContamination: number;
   };
   desires: Record<BotDesire, number>;
   curves: {
@@ -252,8 +258,25 @@ export interface BotTuning {
     sideTaskShare: number;
     /** Закончить ход в опасной Комнате: в Фазе Событий Чужие атакуют (стр. 10). */
     endTurnDangerWeight: number;
+    /** Опасность Комнаты от соседей по ней (ручка `sharedRoomAvoidance`): любой игрок и подозреваемый враг. */
+    sharedRoomDanger: { anyone: number; suspectedEnemy: number };
   };
-  comms: { speakChance: number; requestChance: number; requestLifetimeRounds: number };
+  comms: {
+    /** Шанс сказать Заявление после своей Проверки или Намерение перед дальним походом. */
+    speakChance: number;
+    /** Шанс попросить о помощи, когда не хватает ресурса (ручка `requestRate`). */
+    requestChance: number;
+    requestLifetimeRounds: number;
+    /** С какого числа Движений до цели поход считается дальним и стоит Намерения. */
+    intentMinHops: number;
+    /** Сколько Заявлений и Намерений бот сам говорит за ход — меньше лимита Рации. */
+    ownMessagesPerTurn: number;
+    /** Проверка считается свежей для Заявления столько раундов. */
+    freshCheckRounds: number;
+    /** Интонация без черты с голосом: тёплая при высокой морали, холодная при низкой. */
+    warmMorale: number;
+    coldMorale: number;
+  };
   memory: {
     maxFacts: number;
     /** Сколько уже проверенных Заявлений бот помнит; открытые не вытесняются. */
@@ -388,9 +411,9 @@ export const BOT_TUNING = {
     escapeAttackShare: 0.6,
     contamination: 0.4,
   },
-  navigation: { actionCost: 1, unknownTilePenalty: 2, closedDoorCost: 3, maxExpandedNodes: 400 },
+  navigation: { actionCost: 1, unknownTilePenalty: 2, closedDoorCost: 3, maxExpandedNodes: 400, farGoalFloor: 0.1 },
   time: { evacuationMarginRounds: 1 },
-  hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 } },
+  hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 }, scanPerContamination: 0.15 },
   desires: {
     SURVIVE: 1,
     ADVANCE_OBJECTIVE: 0.8,
@@ -415,8 +438,18 @@ export const BOT_TUNING = {
     fleeWeight: 1.2,
     sideTaskShare: 0.3,
     endTurnDangerWeight: 1,
+    sharedRoomDanger: { anyone: 0.04, suspectedEnemy: 0.2 },
   },
-  comms: { speakChance: 0.6, requestChance: 0.35, requestLifetimeRounds: 2 },
+  comms: {
+    speakChance: 0.6,
+    requestChance: 0.35,
+    requestLifetimeRounds: 2,
+    intentMinHops: 3,
+    ownMessagesPerTurn: 2,
+    freshCheckRounds: 1,
+    warmMorale: 40,
+    coldMorale: -40,
+  },
   memory: { maxFacts: 400, maxSettledClaims: 60, forgetChancePerRound: 0.2 },
   knobs: {
     riskAversion: 1,

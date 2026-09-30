@@ -10,6 +10,7 @@ import type {
   ItemNeed,
   SanitizedGameState,
 } from '@nemesis/shared';
+import { voicedText } from '@nemesis/shared';
 import { DESTINATION_LABELS } from '../endgame/endgameModel';
 import { corridorLabel, playerName, roomLabel } from '../log/gameLogModel';
 import { roomDefinitionName } from '../log/roomNames';
@@ -124,11 +125,11 @@ export function messageText(view: SanitizedGameState, message: CommsMessage): st
     case 'SYSTEM':
       return `Жетоны Двигателя №${message.body.engineNumber} переставлены.`;
     case 'CLAIM':
-      return claimText(view, message.body);
+      return voicedText(message.phraseId, claimText(view, message.body));
     case 'INTENT':
-      return intentText(view, message.body);
+      return voicedText(message.phraseId, intentText(view, message.body));
     case 'REQUEST':
-      return requestText(view, message.body);
+      return voicedText(message.phraseId, requestText(view, message.body));
     case 'ANSWER':
       return message.body.answer === 'WILL_HELP' ? 'Помогу.' : 'Не могу.';
     case 'REACTION':
@@ -143,11 +144,11 @@ export function addresseeText(view: SanitizedGameState, message: CommsMessage): 
 export function draftText(view: SanitizedGameState, draft: CommsDraft): string {
   switch (draft.kind) {
     case 'CLAIM':
-      return claimText(view, draft.body);
+      return voicedText(draft.phraseId, claimText(view, draft.body));
     case 'INTENT':
-      return intentText(view, draft.body);
+      return voicedText(draft.phraseId, intentText(view, draft.body));
     case 'REQUEST':
-      return requestText(view, draft.body);
+      return voicedText(draft.phraseId, requestText(view, draft.body));
     case 'ANSWER':
       return draft.body.answer === 'WILL_HELP' ? 'Помогу.' : 'Не могу.';
     case 'REACTION':

@@ -11,6 +11,8 @@ export type NoiseRollMode =
 export type InterruptEvent =
   /** Попытка побега: каждый Чужой в отсеке атакует до шага в целевой отсек. */
   | { type: 'ESCAPE_ATTACK_INTERRUPT'; playerId: string; intruderIds: string[]; targetRoomId: RoomId }
+  /** Шаг Побега в целевой отсек — после всего, что подняли Атаки при выходе. */
+  | { type: 'ESCAPE_MOVE_INTERRUPT'; playerId: string; targetRoomId: RoomId }
   /**
    * Вскрытие неисследованного отсека и розыгрыш жетона Исследования.
    * `corridorId` — Коридор, через который персонаж вошёл: эффект «Двери»

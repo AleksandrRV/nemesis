@@ -47,11 +47,16 @@ export type CommsReaction =
   | { topic: 'THANKS'; messageId: string }
   | { topic: 'THANKS_FOR_DEED'; logSequence: number };
 
+/** Интонация из банка фраз ботов (`data/botPhrases.ts`): подача, а не смысл сообщения. */
+interface Voiced {
+  phraseId?: string;
+}
+
 /** Что игрок может отправить действием `ACTION_COMMS`: системных объявлений здесь нет. */
 export type CommsDraft =
-  | { kind: 'CLAIM'; to: CommsAddressee; body: CommsClaim }
-  | { kind: 'INTENT'; to: CommsAddressee; body: CommsIntent }
-  | { kind: 'REQUEST'; to: CommsAddressee; body: CommsRequestTopic }
+  | ({ kind: 'CLAIM'; to: CommsAddressee; body: CommsClaim } & Voiced)
+  | ({ kind: 'INTENT'; to: CommsAddressee; body: CommsIntent } & Voiced)
+  | ({ kind: 'REQUEST'; to: CommsAddressee; body: CommsRequestTopic } & Voiced)
   | { kind: 'ANSWER'; body: CommsAnswer }
   | { kind: 'REACTION'; to: CommsAddressee; body: CommsReaction };
 
@@ -66,9 +71,9 @@ interface CommsEnvelope {
 
 export type CommsMessage =
   | (CommsEnvelope & { kind: 'SYSTEM'; authorId: null; body: SystemAnnouncement })
-  | (CommsEnvelope & { kind: 'CLAIM'; authorId: string; body: CommsClaim })
-  | (CommsEnvelope & { kind: 'INTENT'; authorId: string; body: CommsIntent })
-  | (CommsEnvelope & { kind: 'REQUEST'; authorId: string; body: CommsRequestTopic; expiresAtRound: number })
+  | (CommsEnvelope & Voiced & { kind: 'CLAIM'; authorId: string; body: CommsClaim })
+  | (CommsEnvelope & Voiced & { kind: 'INTENT'; authorId: string; body: CommsIntent })
+  | (CommsEnvelope & Voiced & { kind: 'REQUEST'; authorId: string; body: CommsRequestTopic; expiresAtRound: number })
   | (CommsEnvelope & { kind: 'ANSWER'; authorId: string; body: CommsAnswer })
   | (CommsEnvelope & { kind: 'REACTION'; authorId: string; body: CommsReaction });
 

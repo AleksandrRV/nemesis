@@ -12,6 +12,7 @@ import { answerRequests } from './botRequests.js';
 import { initialPlayerModel } from './botSocial.js';
 import { BOT_TUNING, type BotDifficulty, type BotTuning } from './botTuning.js';
 import { chooseCandidate, scoreCandidates } from './botUtility.js';
+import { speak } from './botVoice.js';
 import { decidePassiveBotAction } from './passiveBotPolicy.js';
 
 export interface BotDecision {
@@ -70,10 +71,10 @@ function onTurn(
   view: SanitizedGameState,
   mind: BotMind,
   tuning: BotTuning,
-): { actions: EngineAction[]; mind: BotMind } {
+): { actions: EngineAction[]; mind: BotMind; speech: CommsDraft[] } {
   const agenda = buildAgenda(view, mind, tuning);
   const candidates = generateCandidates(view, mind, agenda.tasks, tuning);
-  if (candidates.length === 0) return { actions: [], mind };
+  if (candidates.length === 0) return { actions: [], ...speak(view, mind, null, tuning) };
   const chosen = chooseCandidate(scoreCandidates(view, mind, agenda, candidates, tuning), mind, tuning);
   const best = chosen.ordered[0]!;
   const target = best.task ? (roomIdsOf(view, best.task.place)[0] ?? null) : null;
@@ -86,7 +87,8 @@ function onTurn(
   if (!actions.some((action) => action.type === 'ACTION_PASS' || action.type === 'ACTION_ESCAPE_POD')) {
     actions.push({ type: 'ACTION_PASS', payload: {} });
   }
-  return { actions, mind: { ...chosen.mind, plan } };
+  const voice = speak(view, { ...chosen.mind, plan }, best, tuning);
+  return { actions, mind: voice.mind, speech: voice.speech };
 }
 
 /**
@@ -107,6 +109,6 @@ export const BotAgent = {
     }
     const turn = onTurn(view, answered.mind, tuning);
     const [action = fallback, ...alternatives] = turn.actions;
-    return { action, alternatives, mind: turn.mind, speech: answered.speech };
+    return { action, alternatives, mind: turn.mind, speech: [...answered.speech, ...turn.speech] };
   },
 };

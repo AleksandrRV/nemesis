@@ -1,7 +1,7 @@
 import { COMBAT_DIE_FACES, injuriesForFace, meleeInjuriesForFace, type CombatDieFace } from '../data/combatDie.js';
 import { ACTION_CARD_COMBAT_USE } from '../data/combatUse.js';
 import type { IntruderType } from '../types/entities.js';
-import type { ItemDeckColor } from '../types/cards.js';
+import type { ActionCard, ItemDeckColor } from '../types/cards.js';
 import { CARD_OPTION } from '../types/cardOptions.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import type { EngineNumber } from '../types/state.js';
@@ -18,7 +18,7 @@ import { podCommandsFor } from '../logic/podQueries.js';
 import { escapeCost, mustDropHeavyForArmWound } from '../logic/seriousWoundEffects.js';
 import { corridorsLeadingInto, findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';
 import { effect, paidCandidate, type Candidate, type CandidateContext } from './botCandidates.js';
-import { cardValue, handOf } from './botHand.js';
+import { cardValue, handOf, unscannedContamination } from './botHand.js';
 import type { BotMind } from './botMind.js';
 import { roomActionCandidates } from './botRoomActions.js';
 import type { BotTask } from './botTasks.js';
@@ -186,44 +186,68 @@ function engineNumberOf(definitionId: string | null): EngineNumber | null {
   return match ? (Number(match[1]) as EngineNumber) : null;
 }
 
+function cardCandidate(
+  context: CandidateContext,
+  card: ActionCard,
+  option: string | undefined,
+  effects: Candidate['effects'],
+): Candidate | null {
+  const candidate = paidCandidate(
+    context,
+    'CARD',
+    card.playCost,
+    (discardCardIds) => ({
+      type: 'ACTION_PLAY_CARD',
+      payload: { cardId: card.id, ...(option === undefined ? {} : { option }), discardCardIds },
+    }),
+    effects,
+    context.room.id,
+    [card.id],
+  );
+  return candidate
+    ? {
+        ...candidate,
+        spent: candidate.spent + cardValue(card, context.tuning),
+        cardsUsed: (candidate.cardsUsed ?? 0) + 1,
+      }
+    : null;
+}
+
+function playableOutOfCombat(context: CandidateContext, card: ActionCard): boolean {
+  return !(context.inCombat && ACTION_CARD_COMBAT_USE[card.effect.kind] === 'OUT_OF_COMBAT');
+}
+
 /** Карты ремонта (стр. 24): починить или повредить Двигатель в Машинном Отсеке, сбросить Неисправность. */
 function repairCards(context: CandidateContext): Candidate[] {
-  const { view, botId, room, inCombat, tuning } = context;
+  const { view, botId, room } = context;
   const engineNumber = engineNumberOf(room.definitionId);
   return handOf(view, botId)
-    .filter(
-      (card) =>
-        REPAIR_CARDS.has(card.effect.kind) &&
-        !(inCombat && ACTION_CARD_COMBAT_USE[card.effect.kind] === 'OUT_OF_COMBAT'),
-    )
+    .filter((card) => REPAIR_CARDS.has(card.effect.kind) && playableOutOfCombat(context, card))
     .flatMap((card) => {
-      const play = (option: string, effects: Candidate['effects']) => {
-        const candidate = paidCandidate(
-          context,
-          'CARD',
-          card.playCost,
-          (discardCardIds) => ({ type: 'ACTION_PLAY_CARD', payload: { cardId: card.id, option, discardCardIds } }),
-          effects,
-          room.id,
-          [card.id],
-        );
-        return candidate
-          ? {
-              ...candidate,
-              spent: candidate.spent + cardValue(card, tuning),
-              cardsUsed: (candidate.cardsUsed ?? 0) + 1,
-            }
-          : null;
-      };
       const options: (Candidate | null)[] = [];
       if (engineNumber !== null) {
-        options.push(play(CARD_OPTION.ENGINE_REPAIR, [effect('REPAIR_ENGINE', { engineNumber })]));
-        options.push(play(CARD_OPTION.ENGINE_DAMAGE, [effect('DAMAGE_ENGINE', { engineNumber })]));
+        options.push(
+          cardCandidate(context, card, CARD_OPTION.ENGINE_REPAIR, [effect('REPAIR_ENGINE', { engineNumber })]),
+        );
+        options.push(
+          cardCandidate(context, card, CARD_OPTION.ENGINE_DAMAGE, [effect('DAMAGE_ENGINE', { engineNumber })]),
+        );
       }
       if (room.hasMalfunction)
-        options.push(play(CARD_OPTION.FIX_ROOM, [effect('FIX_MALFUNCTION', { roomId: room.id })]));
+        options.push(
+          cardCandidate(context, card, CARD_OPTION.FIX_ROOM, [effect('FIX_MALFUNCTION', { roomId: room.id })]),
+        );
       return options.filter((candidate): candidate is Candidate => candidate !== null);
     });
+}
+
+/** «Отдых» (стр. 20): скан карт Заражения на руке — играется, только когда они есть. */
+function restCards(context: CandidateContext): Candidate[] {
+  if (unscannedContamination(context.view, context.botId) === 0) return [];
+  return handOf(context.view, context.botId)
+    .filter((card) => card.effect.kind === 'REST' && playableOutOfCombat(context, card))
+    .map((card) => cardCandidate(context, card, undefined, [effect('SCAN_HAND')]))
+    .filter((candidate): candidate is Candidate => candidate !== null);
 }
 
 function exchanges(context: CandidateContext, tasks: readonly BotTask[]): Candidate[] {
@@ -320,6 +344,7 @@ export function generateCandidates(
     ...objects(context),
     ...roomActionCandidates(context, tasks, mind.coordinates.cardId !== null),
     ...repairCards(context),
+    ...restCards(context),
     ...exchanges(context, tasks),
     pass(context),
   ];

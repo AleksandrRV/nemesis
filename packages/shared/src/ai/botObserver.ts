@@ -10,7 +10,7 @@ import {
   forgetKnowledge,
   knownCoordinates,
 } from './botBeliefs.js';
-import { botStream, effectiveKnobs } from './botCharacter.js';
+import { botStream, effectiveKnobs, personaForRound } from './botCharacter.js';
 import { trackClaim, verifyClaims, type ClaimVerdictEvent } from './botClaims.js';
 import {
   applySignal,
@@ -264,11 +264,12 @@ function afterVerdict(mind: BotMind, verdict: ClaimVerdictEvent, view: Sanitized
   return next;
 }
 
-/** Смена раунда: забывание «Склеротика» (личный поток `ai`), таяние доверия и обид, дрейф морали. */
+/** Смена раунда: смена личности при раздвоении, забывание «Склеротика» (личный поток `ai`), таяние доверия и обид, дрейф морали. */
 function onNewRounds(mind: BotMind, view: SanitizedGameState, before: number, tuning: BotTuning): BotMind {
   const rounds = mind.observedRound - before;
   if (rounds <= 0) return mind;
-  const knobs = effectiveKnobs(mind.character, mind.difficulty, tuning);
+  const character = personaForRound(mind.character, mind.observedRound, tuning);
+  const knobs = effectiveKnobs(character, mind.difficulty, tuning);
   const initialTrust = tuning.trust.initial * knobs.initialTrust;
   const players = Object.fromEntries(
     Object.entries(mind.players).map(([playerId, model]) => [
@@ -276,7 +277,7 @@ function onNewRounds(mind: BotMind, view: SanitizedGameState, before: number, tu
       relaxPlayerModel(model, rounds, initialTrust, knobs, tuning),
     ]),
   );
-  let next = applyMoraleDrift({ ...mind, players }, view, rounds, tuning);
+  let next = applyMoraleDrift({ ...mind, character, players }, view, rounds, tuning);
   const chance = knobs.forgetChance * tuning.memory.forgetChancePerRound;
   if (chance <= 0) return next;
   const stream = botStream(next.seed, next.rngDraws);

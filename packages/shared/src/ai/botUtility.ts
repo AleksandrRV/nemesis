@@ -51,19 +51,27 @@ function isPlaced(entry: BotTask): boolean {
 /** Опасность Комнаты для бота (0–1): кривая `danger` от угрозы в долях Тяжёлой Раны; «Гений» точнее. */
 type Arrival = 'STAY' | 'ROLL' | 'CAREFUL';
 
+/** Чужое присутствие в Комнате: любой сосед немного тревожит, подозреваемый враг — сильнее. */
+function company(context: ScoringContext, roomId: RoomId): number {
+  const others = (context.view.ship.rooms[roomId]?.occupantPlayerIds ?? []).filter((id) => id !== context.mind.botId);
+  if (others.some((id) => context.enemies.includes(id))) return context.tuning.choice.sharedRoomDanger.suspectedEnemy;
+  return others.length > 0 ? context.tuning.choice.sharedRoomDanger.anyone : 0;
+}
+
 function dangerOf(context: ScoringContext, roomId: RoomId, arrival: Arrival = 'STAY'): number {
   const key = `${arrival}:${roomId}`;
   if (!context.dangerCache.has(key)) {
-    const { view, tuning, knobs, enemies } = context;
+    const { view, tuning, knobs } = context;
     const risk =
-      arrival === 'STAY' ? roomThreat(view, roomId, tuning) : entryRisk(view, roomId, tuning, arrival === 'CAREFUL');
+      arrival === 'STAY'
+        ? roomThreat(view, roomId, tuning, knobs.fear)
+        : entryRisk(view, roomId, tuning, arrival === 'CAREFUL', knobs.fear);
     const threat = risk * knobs.riskAversion;
     const estimate = evaluateCurve(tuning.curves.danger, threat / tuning.risk.seriousWound);
     const accuracy = clamp01(knobs.riskAccuracy);
-    const shared = view.ship.rooms[roomId]?.occupantPlayerIds.some((id) => enemies.includes(id)) ? 0.2 : 0;
     context.dangerCache.set(
       key,
-      clamp01(estimate * accuracy + 0.3 * (1 - accuracy) + shared * knobs.sharedRoomAvoidance),
+      clamp01(estimate * accuracy + 0.3 * (1 - accuracy) + company(context, roomId) * knobs.sharedRoomAvoidance),
     );
   }
   return context.dangerCache.get(key)!;
@@ -100,11 +108,10 @@ function progress(context: ScoringContext, candidate: Candidate, entry: BotTask)
   const now = costs.get(context.here);
   const next = costs.get(candidate.roomId);
   if (now === undefined || next === undefined || next >= now) return 0;
-  const hops = next / context.tuning.navigation.actionCost;
-  return (
-    ((now - next) / Math.max(now, context.tuning.navigation.actionCost)) *
-    evaluateCurve(context.tuning.curves.distance, hops)
-  );
+  const { navigation, curves } = context.tuning;
+  const hops = next / navigation.actionCost;
+  const reach = Math.max(navigation.farGoalFloor, evaluateCurve(curves.distance, hops / context.knobs.horizon));
+  return ((now - next) / Math.max(now, navigation.actionCost)) * reach;
 }
 
 /** Действие оставит бота в опасной Комнате без карт на Побег: в Фазе Событий его атакуют (стр. 10). */

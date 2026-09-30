@@ -11,6 +11,7 @@ import {
   createSessionStorage,
   resolveDefaultStorage,
   isGameState,
+  isTableSeating,
   parseSession,
   serializeSession,
 } from './sessionStorage';
@@ -225,6 +226,16 @@ describe('Сохранение партии: память ботов (план 0
     const restored = createSessionStorage(storage).restore();
     expect(restored.state).not.toBeNull();
     expect(restored.bots).toEqual({});
+  });
+
+  it('сложность бота сохраняется у места, неизвестная сложность — повреждённый стол (В8-8-3)', () => {
+    const state = createInitialGameState(SEED, { playerCount: 2 });
+    const withDifficulty: TableSeating[] = [seating[0]!, { ...seating[1]!, difficulty: 'NOVICE' }];
+    expect(isTableSeating(withDifficulty, state)).toBe(true);
+    expect(isTableSeating([seating[0]!, { ...seating[1]!, difficulty: 'GODLIKE' }], state)).toBe(false);
+    const storage = createMemoryStorage();
+    createSessionStorage(storage).save(state, withDifficulty);
+    expect(createSessionStorage(storage).restore().seating[1]).toMatchObject({ difficulty: 'NOVICE' });
   });
 
   it('запись без поля памяти читается: боты начнут память заново', () => {

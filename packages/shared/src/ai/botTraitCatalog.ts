@@ -8,6 +8,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: 0,
     modifiers: { riskAversion: 2, temperature: 1.6, requestRate: 1.8, combatFlight: 2 },
     incompatibleWith: ['EXTERMINATOR'],
+    voice: 'NERVOUS',
   },
   EXTERMINATOR: {
     label: 'Истребитель',
@@ -15,6 +16,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: 0,
     modifiers: { combatDesire: 2, killHelpValue: 1.8, fear: 0.6 },
     incompatibleWith: ['PANICKER'],
+    voice: 'BOASTFUL',
   },
   HOARDER: {
     label: 'Барахольщик',
@@ -64,6 +66,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: -5,
     modifiers: { initialTrust: 0.5, sharedRoomAvoidance: 2, scanRate: 1.8 },
     incompatibleWith: ['PHILANTHROPIST'],
+    voice: 'CURT',
   },
   EGOIST: {
     label: 'Эгоист',
@@ -71,6 +74,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: -5,
     modifiers: { othersSuccessWeight: 0.3, harmWillingness: 0.5 },
     incompatibleWith: ['PHILANTHROPIST'],
+    voice: 'COLD',
   },
   EGOCENTRIST: {
     label: 'Эгоцентрист',
@@ -78,6 +82,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: 0,
     modifiers: { requestRate: 2, refusalResentment: 2 },
     incompatibleWith: [],
+    voice: 'BOASTFUL',
   },
   PHILANTHROPIST: {
     label: 'Филантроп',
@@ -85,6 +90,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: 20,
     modifiers: { itemGenerosity: 2, othersSuccessWeight: 1.6 },
     incompatibleWith: ['PSYCHOPATH', 'SOCIOPATH', 'EGOIST', 'HOARDER', 'PARANOID'],
+    voice: 'WARM',
   },
   SOCIOPATH: {
     label: 'Социопат',
@@ -92,6 +98,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: -20,
     modifiers: { reciprocityWeight: 0, lieThreshold: 0.5 },
     incompatibleWith: ['PHILANTHROPIST'],
+    voice: 'COLD',
   },
   PSYCHOPATH: {
     label: 'Психопат',
@@ -99,6 +106,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: -40,
     modifiers: { harmWillingness: 2.5, fear: 0.5 },
     incompatibleWith: ['PHILANTHROPIST'],
+    voice: 'COLD',
   },
   POTENTIAL_LIAR: {
     label: 'Потенциальный лжец',
@@ -113,6 +121,7 @@ export const BOT_TRAIT_CATALOG = {
     moraleShift: 0,
     modifiers: { grudgeMemory: 2, skepticismDecay: 0.1 },
     incompatibleWith: [],
+    voice: 'CURT',
   },
   SPLIT_PERSONALITY: {
     label: 'Раздвоение личности',

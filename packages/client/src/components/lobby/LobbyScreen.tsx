@@ -1,7 +1,10 @@
 import React from 'react';
-import type { RoleSelectionMode } from '@nemesis/shared';
-import { Dices, Shuffle, Swords, UserRound, Users } from 'lucide-react';
+import type { BotDifficulty, RoleSelectionMode } from '@nemesis/shared';
+import { BOT_DIFFICULTIES } from '@nemesis/shared';
+import { Bot, Crosshair, Dices, Shield, Shuffle, Sprout, Swords, UserRound, Users } from 'lucide-react';
 import {
+  BOT_DIFFICULTY_HINTS,
+  BOT_DIFFICULTY_LABELS,
   GAME_MODE_HINTS,
   GAME_MODE_LABELS,
   PLAYER_COUNTS,
@@ -20,6 +23,53 @@ interface LobbyScreenProps {
 }
 
 const ROLE_MODES: readonly RoleSelectionMode[] = ['DRAFT', 'FREE'];
+
+const DIFFICULTY_ICONS: Record<BotDifficulty, typeof Sprout> = {
+  NOVICE: Sprout,
+  CREW: Shield,
+  VETERAN: Crosshair,
+};
+
+/** Сложность ботов (план 0.8.0, В8-8-3): только для стола со свободными местами. */
+const BotDifficultyPicker: React.FC<{ config: LobbyConfig; onChange: (config: LobbyConfig) => void }> = ({
+  config,
+  onChange,
+}) => (
+  <fieldset className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 motion-safe:animate-lobby-rise">
+    <legend className="flex items-center gap-1.5 px-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <Bot size={12} aria-hidden="true" /> Боты на свободных местах
+    </legend>
+    <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Сложность ботов">
+      {BOT_DIFFICULTIES.map((difficulty) => {
+        const selected = difficulty === config.botDifficulty;
+        const Icon = DIFFICULTY_ICONS[difficulty];
+        return (
+          <button
+            key={difficulty}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange({ ...config, botDifficulty: difficulty })}
+            className={`flex flex-col gap-1 rounded-xl border-2 p-3 text-left transition ${
+              selected
+                ? 'border-violet-400 bg-violet-950/50 shadow-[0_0_20px_rgba(167,139,250,0.25)]'
+                : 'border-slate-800 bg-slate-900 hover:border-slate-600'
+            }`}
+          >
+            <span className="flex items-center gap-2 font-heading text-sm uppercase tracking-widest text-white">
+              <Icon size={14} aria-hidden="true" className={selected ? 'text-violet-300' : 'text-slate-500'} />
+              {BOT_DIFFICULTY_LABELS[difficulty]}
+            </span>
+            <span className="text-[11px] leading-snug text-slate-400">{BOT_DIFFICULTY_HINTS[difficulty]}</span>
+          </button>
+        );
+      })}
+    </div>
+    <p className="mt-2 text-center text-[11px] text-slate-500">
+      Характер каждого бота — тайна: его выдаст только поведение за столом.
+    </p>
+  </fieldset>
+);
 
 export const LobbyScreen: React.FC<LobbyScreenProps> = ({ config, onChange, onRerollSeed, onContinue }) => {
   const mode = gameModeOf(config.playerCount);
@@ -114,6 +164,8 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ config, onChange, onRe
           })}
         </div>
       </fieldset>
+
+      {mode === 'SEMI_COOP' && <BotDifficultyPicker config={config} onChange={onChange} />}
 
       <fieldset className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
         <legend className="px-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">Сид партии</legend>

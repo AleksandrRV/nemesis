@@ -86,7 +86,12 @@ export class CrewSetupSession {
   seating(): TableSeating[] {
     return [...this.state.seats]
       .sort((left, right) => left.orderNumber - right.orderNumber)
-      .map((seat) => ({ playerId: seat.playerId, kind: seat.kind, label: seat.label }));
+      .map((seat) => ({
+        playerId: seat.playerId,
+        kind: seat.kind,
+        label: seat.label,
+        ...(seat.kind === 'BOT' ? { difficulty: seat.difficulty ?? 'CREW' } : {}),
+      }));
   }
 
   private kindOf(playerId: string): TableSeat['kind'] | undefined {

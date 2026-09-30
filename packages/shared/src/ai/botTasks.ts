@@ -31,6 +31,7 @@ export type TaskKind =
   | 'GIVE_ITEM'
   | 'RELOAD'
   | 'CLEANSE'
+  | 'SCAN_HAND'
   | 'SHIELD_ALLY'
   | 'SET_DOOR'
   | 'BREAK_DOOR';

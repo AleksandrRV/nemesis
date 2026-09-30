@@ -36,11 +36,9 @@ export function escapeAttackerIds(state: GameState, roomId: RoomId): string[] {
 
 /**
  * Разрешение прерывания Побега: атаки по убегающему до выхода из отсека; при
- * гибели Труп остаётся в исходном отсеке (killPlayer кладёт его в текущий
- * отсек персонажа — перемещения ещё не было). Выживший завершает Движение:
- * неисследованный отсек вскрывается, бросок Шума выполняется как при обычном
- * шаге (стр. 19). Завершение действия ставится последним прерыванием — после
- * Шума, чтобы счёт действий и смена хода не обгоняли розыгрыш входа.
+ * гибели Труп остаётся в исходном отсеке. Шаг в целевой отсек ставится
+ * прерыванием сразу за теми, что подняли Атаки: Чужой «Зова» появляется в
+ * покидаемой Комнате, пока Персонаж ещё в ней (стр. 19–20).
  */
 export function resolveEscapeAttack(
   state: GameState,
@@ -48,6 +46,7 @@ export function resolveEscapeAttack(
 ): void {
   const player = state.players[interrupt.playerId];
   if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${interrupt.playerId}.`);
+  const queuedBefore = state.interruptQueue.length;
 
   for (const intruderId of interrupt.intruderIds) {
     if (player.isDead) break;
@@ -58,6 +57,25 @@ export function resolveEscapeAttack(
     );
   }
 
+  const raisedByAttacks = state.interruptQueue.length - queuedBefore;
+  state.interruptQueue.splice(raisedByAttacks, 0, {
+    type: 'ESCAPE_MOVE_INTERRUPT',
+    playerId: interrupt.playerId,
+    targetRoomId: interrupt.targetRoomId,
+  });
+}
+
+/**
+ * Выживший завершает Движение Побега: неисследованный отсек вскрывается, бросок
+ * Шума выполняется как при обычном шаге (стр. 19). Завершение действия ставится
+ * последним — после Шума, чтобы счёт действий и смена хода не обгоняли вход.
+ */
+export function resolveEscapeMove(
+  state: GameState,
+  interrupt: Extract<InterruptEvent, { type: 'ESCAPE_MOVE_INTERRUPT' }>,
+): void {
+  const player = state.players[interrupt.playerId];
+  if (!player) throw new EngineError('UNKNOWN_PLAYER', `Неизвестный персонаж: ${interrupt.playerId}.`);
   if (!player.isDead) {
     const path = requireOpenPath(state, player.roomId, interrupt.targetRoomId);
     movePlayer(state, interrupt.playerId, interrupt.targetRoomId, path[0]!.id, { kind: 'ROLL' });

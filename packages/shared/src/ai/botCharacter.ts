@@ -112,6 +112,14 @@ export function activePersona(character: BotCharacter): BotPersona {
   return character.activePersona === 'ALTER' && character.alterEgo ? character.alterEgo : character;
 }
 
+/** Раздвоение личности: личности сменяются каждые `splitPersonalitySwitchRounds` раундов, начиная с основной. */
+export function personaForRound(character: BotCharacter, round: number, tuning: BotTuning = BOT_TUNING): BotCharacter {
+  if (!character.alterEgo) return character;
+  const period = Math.max(1, tuning.traits.splitPersonalitySwitchRounds);
+  const active = Math.floor(Math.max(0, round - 1) / period) % 2 === 0 ? 'PRIMARY' : 'ALTER';
+  return active === character.activePersona ? character : { ...character, activePersona: active };
+}
+
 /** `forgetChance` складывается, остальные ручки перемножаются: у базы 0 «Склеротик» добавляет шанс забыть. */
 const ADDITIVE_KNOBS: ReadonlySet<TuningKnob> = new Set(['forgetChance']);
 

@@ -24,8 +24,10 @@ export class BotController {
     for (const seat of seating) {
       if (seat.kind !== 'BOT') continue;
       const saved = restored[seat.playerId];
-      const fresh = createBotMind(state.meta.seed, seat.playerId, playerIds);
-      minds.set(seat.playerId, saved && saved.botId === seat.playerId && saved.seed === fresh.seed ? saved : fresh);
+      const fresh = createBotMind(state.meta.seed, seat.playerId, playerIds, seat.difficulty ?? 'CREW');
+      const matches =
+        saved && saved.botId === seat.playerId && saved.seed === fresh.seed && saved.difficulty === fresh.difficulty;
+      minds.set(seat.playerId, matches ? saved : fresh);
     }
     return new BotController(minds);
   }

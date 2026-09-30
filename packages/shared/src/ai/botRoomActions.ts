@@ -14,6 +14,7 @@ import {
 } from '../logic/actionRules.js';
 import { hasFreeHandSlot } from '../logic/seriousWoundEffects.js';
 import { effect, paidCandidate, type Candidate, type CandidateContext, type TaskEffect } from './botCandidates.js';
+import { unscannedContamination } from './botHand.js';
 import type { BotTask } from './botTasks.js';
 
 /** Действие Комнаты стоит 2 карты (стр. 13). */
@@ -29,6 +30,15 @@ function ability(context: CandidateContext, payload: RoomAbilityPayload, effects
     (discardCardIds) => ({ type: 'ACTION_ROOM_ABILITY', payload: { ...payload, discardCardIds } }),
     effects,
   );
+}
+
+/** Столовая и Душевая (стр. 25): своё лечение и, по желанию, скан руки — только если на руке есть Заражение. */
+function hygiene(context: CandidateContext, own: TaskEffect[]): (Candidate | null)[] {
+  const scannable = unscannedContamination(context.view, context.botId) > 0;
+  return [
+    own.length > 0 ? ability(context, {}, own) : null,
+    scannable ? ability(context, { scanContamination: true }, [...own, effect('SCAN_HAND')]) : null,
+  ];
 }
 
 function infirmary(context: CandidateContext): (Candidate | null)[] {
@@ -207,10 +217,10 @@ export function roomActionCandidates(
       found.push(...commandCenter(context, tasks));
       break;
     case 'CANTEEN':
-      if (self.lightWounds > 0) found.push(ability(context, {}, [effect('HEAL')]));
+      found.push(...hygiene(context, self.lightWounds > 0 ? [effect('HEAL')] : []));
       break;
     case 'SHOWER':
-      if (self.hasSlime) found.push(ability(context, {}, [effect('CLEANSE')]));
+      found.push(...hygiene(context, self.hasSlime ? [effect('CLEANSE')] : []));
       break;
     case 'ARMORY':
       if (

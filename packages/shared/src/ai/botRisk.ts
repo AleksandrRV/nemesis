@@ -63,14 +63,16 @@ export function contactChance(view: SanitizedGameState, roomId: RoomId): number 
   return Math.min(1, chance);
 }
 
-/** Угроза, которой Комната грозит тому, кто в ней стоит: Чужие, Пожар, Декомпрессия, Слизь, соседи. */
-export function roomThreat(view: SanitizedGameState, roomId: RoomId, tuning: BotTuning): number {
+/**
+ * Угроза, которой Комната грозит тому, кто в ней стоит: Чужие, Пожар, Декомпрессия, Слизь, соседи.
+ * `fear` — ручка страха перед Чужими: множитель их доли угрозы.
+ */
+export function roomThreat(view: SanitizedGameState, roomId: RoomId, tuning: BotTuning, fear = 1): number {
   const room = view.ship.rooms[roomId];
   if (!room) return 0;
   const adjacent = neighbours(view, roomId).reduce((sum, other) => sum + threatOfIntruders(view, other, tuning), 0);
   return (
-    threatOfIntruders(view, roomId, tuning) +
-    adjacent * tuning.risk.adjacentIntruderShare +
+    (threatOfIntruders(view, roomId, tuning) + adjacent * tuning.risk.adjacentIntruderShare) * fear +
     (room.hasFire ? tuning.risk.fire : 0) +
     (room.hasDecompressionToken ? tuning.risk.decompression : 0) +
     (room.definitionId === 'SLIME_ROOM' ? tuning.risk.slime : 0)
@@ -81,12 +83,18 @@ export function roomThreat(view: SanitizedGameState, roomId: RoomId, tuning: Bot
  * Риск войти в Комнату: её угроза плюс шанс Встречи и неизвестность неисследованного тайла.
  * «Осторожное движение» (стр. 13) кладёт Шум без броска кубика — Встречи при входе нет.
  */
-export function entryRisk(view: SanitizedGameState, roomId: RoomId, tuning: BotTuning, careful = false): number {
+export function entryRisk(
+  view: SanitizedGameState,
+  roomId: RoomId,
+  tuning: BotTuning,
+  careful = false,
+  fear = 1,
+): number {
   const room = view.ship.rooms[roomId];
   if (!room) return Number.POSITIVE_INFINITY;
   return (
-    roomThreat(view, roomId, tuning) +
-    (careful ? 0 : contactChance(view, roomId) * tuning.risk.contact) +
+    roomThreat(view, roomId, tuning, fear) +
+    (careful ? 0 : contactChance(view, roomId) * tuning.risk.contact * fear) +
     (room.isExplored ? 0 : tuning.risk.unexplored)
   );
 }

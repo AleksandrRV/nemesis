@@ -24,7 +24,7 @@ export { commsUsageThisTurn, isRequestOpen, type CommsLedger } from './logic/com
 export * from './ai/passiveBotPolicy.js';
 export * from './ai/botTuning.js';
 export * from './ai/botMind.js';
-export { activePersona, botSeedOf, effectiveKnobs, generateCharacter } from './ai/botCharacter.js';
+export { activePersona, botSeedOf, effectiveKnobs, generateCharacter, personaForRound } from './ai/botCharacter.js';
 export { earthProbability } from './ai/botBeliefs.js';
 export { observe as observeForBot } from './ai/botObserver.js';
 export { BotAgent, createBotMind, type BotDecision } from './ai/botAgent.js';
@@ -83,4 +83,12 @@ export * from './data/explorationTokens.js';
 export * from './data/intruderPool.js';
 export * from './data/intruderMiniatures.js';
 export * from './data/setup.js';
+export {
+  BOT_PHRASES,
+  PHRASE_TONES,
+  botPhraseById,
+  voicedText,
+  type BotPhrase,
+  type PhraseTone,
+} from './data/botPhrases.js';
 export * from './utils/rng.js';

@@ -8,6 +8,7 @@ import { EVENT_CARDS } from '../data/eventCards.js';
 import { EXPLORATION_TOKENS } from '../data/explorationTokens.js';
 import { ESCAPE_POD_NUMBERS } from '../data/setup.js';
 import { COORDINATE_CARDS } from '../data/coordinateCards.js';
+import { STARTING_WEAPONS } from '../data/startingItems.js';
 import { GAME_STATE_SCHEMA_VERSION } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
 
@@ -502,5 +503,19 @@ describe('createInitialGameState: Спасательные Капсулы', () =
         expect(pod.occupantIds).toEqual([]);
       }
     }
+  });
+});
+
+describe('Стартовое Оружие — своя карта у каждой партии (стр. 8, шаг D)', () => {
+  it('Боезапас одной партии не меняет данные коробки и другие партии', () => {
+    const first = createInitialGameState('weapon-copy-1');
+    const slot = first.players['player-1']!.handSlots[0]!;
+    if (slot.source !== 'ITEM') throw new Error('Ожидалось Оружие в руке');
+    const printedAmmo = STARTING_WEAPONS[first.players['player-1']!.characterClass]!.ammo;
+    slot.card.ammo = 0;
+    expect(STARTING_WEAPONS[first.players['player-1']!.characterClass]!.ammo).toBe(printedAmmo);
+    const second = createInitialGameState('weapon-copy-1');
+    const fresh = second.players['player-1']!.handSlots[0]!;
+    expect(fresh.source === 'ITEM' ? fresh.card.ammo : null).toBe(printedAmmo);
   });
 });

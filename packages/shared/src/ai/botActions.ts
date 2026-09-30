@@ -1,16 +1,12 @@
-import { COMBAT_DIE_FACES, injuriesForFace, meleeInjuriesForFace, type CombatDieFace } from '../data/combatDie.js';
 import { ACTION_CARD_COMBAT_USE } from '../data/combatUse.js';
-import type { IntruderType } from '../types/entities.js';
 import type { ActionCard, ItemDeckColor } from '../types/cards.js';
 import { CARD_OPTION } from '../types/cardOptions.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import type { EngineNumber } from '../types/state.js';
 import {
-  attackBlock,
   carefulMoveBlock,
   getRoomDeckColor,
   isPlayerInCombat,
-  loadedHandWeapon,
   pickUpBlock,
   searchBlock,
 } from '../logic/actionRules.js';
@@ -20,6 +16,9 @@ import { corridorsLeadingInto, findAdjacentOpenRoomIds } from '../logic/shipGrap
 import { effect, paidCandidate, type Candidate, type CandidateContext } from './botCandidates.js';
 import { cardValue, handOf, unscannedContamination } from './botHand.js';
 import type { BotMind } from './botMind.js';
+import { combatCandidates } from './botCombatActions.js';
+import { doorCandidates } from './botDoors.js';
+import { craftCandidates, itemCandidates } from './botItemActions.js';
 import { roomActionCandidates } from './botRoomActions.js';
 import type { BotTask } from './botTasks.js';
 import type { BotTuning } from './botTuning.js';
@@ -87,66 +86,6 @@ function search(context: CandidateContext): Candidate[] {
     [effect('SEARCH')],
   );
   return candidate ? [candidate] : [];
-}
-
-/** Ожидаемые Раны по граням кубика Боя (стр. 18–19): бот не знает, что выпадет, но знает кубик. */
-function expectedWounds(injuries: (face: CombatDieFace, type: IntruderType) => number, type: IntruderType): number {
-  return COMBAT_DIE_FACES.reduce((sum, face) => sum + injuries(face, type), 0) / COMBAT_DIE_FACES.length;
-}
-
-function withAttack(candidate: Candidate | null, wounds: number, selfRisk: number): Candidate | null {
-  return candidate ? { ...candidate, quality: Math.min(1, wounds), selfRisk } : null;
-}
-
-/** Рукопашная (стр. 19): Заражение всегда, промах по типу цели — Тяжёлая Травма. */
-function meleeRisk(type: IntruderType, tuning: BotTuning): number {
-  const misses = COMBAT_DIE_FACES.filter((face) => meleeInjuriesForFace(face, type) === 0).length;
-  return (misses / COMBAT_DIE_FACES.length) * tuning.risk.seriousWound + tuning.risk.contamination;
-}
-
-function attacks(context: CandidateContext): Candidate[] {
-  const { view, self, inCombat, tuning } = context;
-  const targets = view.intrudersPool.boardTokens.filter(
-    (token) => attackBlock('SHOOT', inCombat, self.roomId, token.roomId) === null,
-  );
-  const weapons = self.handSlots.flatMap((slot) =>
-    slot.source === 'ITEM' && loadedHandWeapon(self, slot.card.id).block === null ? [slot.card.id] : [],
-  );
-  const fight = effect('FIGHT', { roomId: self.roomId });
-  return targets
-    .flatMap((target) => [
-      ...weapons.map((weaponItemId) =>
-        withAttack(
-          paidCandidate(
-            context,
-            'SHOOT',
-            1,
-            (discardCardIds) => ({
-              type: 'ACTION_SHOOT',
-              payload: { weaponItemId, targetIntruderId: target.id, discardCardIds },
-            }),
-            [fight],
-          ),
-          expectedWounds(injuriesForFace, target.type),
-          0,
-        ),
-      ),
-      withAttack(
-        paidCandidate(
-          context,
-          'MELEE',
-          1,
-          (discardCardIds) => ({
-            type: 'ACTION_MELEE',
-            payload: { targetIntruderId: target.id, discardCardIds },
-          }),
-          [fight],
-        ),
-        expectedWounds(meleeInjuriesForFace, target.type),
-        meleeRisk(target.type, tuning),
-      ),
-    ])
-    .filter((candidate): candidate is Candidate => candidate !== null);
 }
 
 function objects(context: CandidateContext, tasks: readonly BotTask[]): Candidate[] {
@@ -253,6 +192,22 @@ function repairCards(context: CandidateContext): Candidate[] {
     });
 }
 
+/** «Перезарядка» (стр. 24): Боезапас Оружию, названному на карте, если оно в руке и не полное. */
+function reloadCards(context: CandidateContext): Candidate[] {
+  const weapons = context.self.handSlots.flatMap((slot) =>
+    slot.source === 'ITEM' && slot.card.isWeapon ? [slot.card] : [],
+  );
+  return handOf(context.view, context.botId)
+    .filter((card) => card.effect.kind === 'RELOAD' && playableOutOfCombat(context, card))
+    .filter((card) => {
+      const hint = card.effect.kind === 'RELOAD' ? card.effect.weaponHint : undefined;
+      const weapon = hint === undefined ? weapons[0] : weapons.find((entry) => entry.id.includes(hint));
+      return weapon !== undefined && weapon.ammo !== null && weapon.ammo < (weapon.maxAmmo ?? 0);
+    })
+    .map((card) => cardCandidate(context, card, undefined, [effect('RELOAD')]))
+    .filter((candidate): candidate is Candidate => candidate !== null);
+}
+
 /** «Отдых» (стр. 20): скан карт Заражения на руке — играется, только когда они есть. */
 function restCards(context: CandidateContext): Candidate[] {
   if (unscannedContamination(context.view, context.botId) === 0) return [];
@@ -352,11 +307,15 @@ export function generateCandidates(
     ...moves(context),
     ...carefulMoves(context),
     ...search(context),
-    ...attacks(context),
+    ...combatCandidates(context),
     ...objects(context, tasks),
     ...roomActionCandidates(context, tasks, mind.coordinates.cardId !== null),
     ...repairCards(context),
     ...restCards(context),
+    ...reloadCards(context),
+    ...itemCandidates(context),
+    ...craftCandidates(context),
+    ...doorCandidates(context),
     ...exchanges(context, tasks),
     pass(context),
   ];

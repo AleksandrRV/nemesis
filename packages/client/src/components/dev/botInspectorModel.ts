@@ -35,12 +35,10 @@ export function shiftedKnobs(inspection: BotInspection): KnobShift[] {
 
 export const FACTOR_LABELS: Record<keyof InspectedCandidate['factors'], string> = {
   taskValue: 'ценность задач',
-  selfRisk: '− риск себе',
-  flee: '+ бегство',
-  escapeAttack: '− атаки Побега',
-  endTurn: '± конец хода',
+  cleanup: '+ убрать Чужих',
+  harm: 'прогноз вреда (доля гибели)',
+  safety: '± безопаснее Паса',
+  endTurn: '+ конец хода',
   handReserve: '− запас руки',
-  dangerAfter: 'опасность после',
-  safety: '× безопасность',
   economy: '× экономия карт',
 };

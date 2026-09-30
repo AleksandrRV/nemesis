@@ -6,6 +6,7 @@
 import type { IntruderAttackEffect } from '../types/cards.js';
 import type { PhraseTone } from '../data/botPhrases.js';
 import { BOT_DIFFICULTY_PRESETS, BOT_TRAIT_CATALOG } from './botTraitCatalog.js';
+import { TACTICS_TUNING, type TacticsTuning } from './botTacticsTuning.js';
 
 export const BOT_TRAITS = [
   'PANICKER',
@@ -214,8 +215,6 @@ export interface BotTuning {
     /** Оценка бота, насколько опасна карта Атаки; тип Чужого — среднее по картам, которые он играет. */
     attackEffectSeverity: Record<IntruderAttackEffect, number>;
     larvaSeverity: number;
-    /** Побег (стр. 19): каждый Чужой отсека атакует уходящего — доля опасности Комнаты, которую бот платит сразу. */
-    escapeAttackShare: number;
     /** Карта Заражения в колоду (Рукопашная, Контакт). */
     contamination: number;
     /** Шанс Встречи до следующего добора карт: ради него бот не опустошает руку (Внезапная Атака, стр. 18). */
@@ -255,12 +254,8 @@ export interface BotTuning {
     cardCostWeight: number;
     /** Ценность Паса: закончить ход, сберечь руку. */
     passValue: number;
-    /** Ценность бегства: разница опасности своей Комнаты и Комнаты назначения. */
-    fleeWeight: number;
     /** Доля попутных задач: главная задача Действия идёт целиком, остальные — этой долей. */
     sideTaskShare: number;
-    /** Закончить ход в опасной Комнате: в Фазе Событий Чужие атакуют (стр. 10). */
-    endTurnDangerWeight: number;
     /** Опасность Комнаты от соседей по ней (ручка `sharedRoomAvoidance`): любой игрок и подозреваемый враг. */
     sharedRoomDanger: { anyone: number; suspectedEnemy: number };
   };
@@ -287,6 +282,7 @@ export interface BotTuning {
     /** Шанс за раунд забыть наблюдение при ручке `forgetChance` = 1 («Склеротик»). */
     forgetChancePerRound: number;
   };
+  tactics: TacticsTuning;
   knobs: Record<TuningKnob, number>;
   traits: {
     /** Вероятности получить 1, 2 или 3 черты. */
@@ -411,7 +407,6 @@ export const BOT_TUNING = {
       CALL: 0.8,
     },
     larvaSeverity: 0.8,
-    escapeAttackShare: 0.6,
     contamination: 0.4,
     contactBeforeDraw: 0.3,
   },
@@ -439,9 +434,7 @@ export const BOT_TUNING = {
     topCandidates: 5,
     cardCostWeight: 0.15,
     passValue: 0.04,
-    fleeWeight: 1.2,
     sideTaskShare: 0.3,
-    endTurnDangerWeight: 1,
     sharedRoomDanger: { anyone: 0.04, suspectedEnemy: 0.2 },
   },
   comms: {
@@ -455,6 +448,7 @@ export const BOT_TUNING = {
     coldMorale: -40,
   },
   memory: { maxFacts: 400, maxSettledClaims: 60, forgetChancePerRound: 0.2 },
+  tactics: TACTICS_TUNING,
   knobs: {
     riskAversion: 1,
     temperature: 1,

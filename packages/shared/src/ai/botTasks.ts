@@ -26,6 +26,7 @@ export type TaskKind =
   | 'UNLOCK_POD'
   | 'FIGHT'
   | 'HEAL'
+  | 'TREAT_WOUND'
   | 'EXTINGUISH'
   | 'FIX_MALFUNCTION'
   | 'GIVE_ITEM'
@@ -34,7 +35,8 @@ export type TaskKind =
   | 'SCAN_HAND'
   | 'SHIELD_ALLY'
   | 'SET_DOOR'
-  | 'BREAK_DOOR';
+  | 'BREAK_DOOR'
+  | 'CRAFT';
 
 export interface TaskDetail {
   engineNumber?: EngineNumber;
@@ -46,6 +48,7 @@ export interface TaskDetail {
   roomId?: RoomId;
   corridorId?: string;
   doorState?: 'OPEN' | 'CLOSED';
+  itemId?: string;
 }
 
 /** Где выполняется шаг: известные Комнаты или тайлы, которые ещё предстоит найти. */
@@ -62,6 +65,8 @@ export interface BotTask {
   detail: TaskDetail;
   /** Для Инспектора ботов и памяти: зачем этот шаг. */
   reason: string;
+  /** Не успеть — погибнуть: каждый шаг к цели ценен целиком, а не долей пути. */
+  lifeline?: boolean;
 }
 
 export function task(

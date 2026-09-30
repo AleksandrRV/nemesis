@@ -1,4 +1,6 @@
 import { getItemEffectKind } from '../data/itemEffectKinds.js';
+import { injuriesForFace } from '../data/combatDie.js';
+import { weaponModifiers } from '../data/weaponModifiers.js';
 import type { GameAction } from '../types/actions.js';
 import type { ItemCard, ItemDeckColor } from '../types/cards.js';
 import type { PendingDecision } from '../types/decisions.js';
@@ -86,9 +88,17 @@ function podAnswer(view: SanitizedGameState, mind: BotMind): string {
   return waiting && roundsLeft(view) > 2 ? 'WAIT' : 'LAUNCH';
 }
 
-function discardForHeavy(self: SanitizedPlayerState, incoming: ItemCard): string | undefined {
+function discardForHeavy(self: SanitizedPlayerState, incoming: ItemCard): string {
   const held = self.handSlots.flatMap((slot) => (slot.source === 'ITEM' ? [slot.card] : []));
-  return [...held].sort((left, right) => itemValue(left, self) - itemValue(right, self))[0]?.id ?? incoming.id;
+  return [...held, incoming].sort((left, right) => itemValue(left, self) - itemValue(right, self))[0]!.id;
+}
+
+/** Переброс, если выпавшая грань не ранит цель этим Оружием (стр. 18–19). */
+function rerollWasted(view: SanitizedGameState, decision: Extract<PendingDecision, { type: 'REROLL_COMBAT_DIE' }>) {
+  const target = view.intrudersPool.boardTokens.find((token) => token.id === decision.targetIntruderId);
+  if (!target) return decision.firstFace === 'MISS';
+  const face = weaponModifiers(decision.weaponItemId).rolledFaceOverrides[decision.firstFace] ?? decision.firstFace;
+  return injuriesForFace(face, target.type) === 0;
 }
 
 /** Ответы на обязательные решения (В8-7-8) по срезу и памяти бота. */
@@ -113,7 +123,7 @@ export function decideChoice(view: SanitizedGameState, mind: BotMind, tuning: Bo
     case 'ESCAPE_POD_LAUNCH_CHOICE':
       return answer(decision, podAnswer(view, mind));
     case 'REROLL_COMBAT_DIE':
-      return answer(decision, decision.firstFace === 'MISS' ? 'REROLL' : 'KEEP');
+      return answer(decision, rerollWasted(view, decision) ? 'REROLL' : 'KEEP');
     case 'CHOOSE_SEARCH_ITEM':
     case 'CHOOSE_STORAGE_ITEM': {
       const id = bestItemId(decision.cards, self);
@@ -130,8 +140,7 @@ export function decideChoice(view: SanitizedGameState, mind: BotMind, tuning: Bo
       return answer(decision, weakest?.id ?? decision.weaponIds[0]!);
     }
     case 'DISCARD_HEAVY_ITEM_FOR_NEW': {
-      const id = discardForHeavy(self, decision.newItem);
-      return id ? answer(decision, id) : null;
+      return answer(decision, discardForHeavy(self, decision.newItem));
     }
     case 'ROOM_FIRE_CONTROL_TARGET':
     case 'ROOM_GENERATOR_ACTION':

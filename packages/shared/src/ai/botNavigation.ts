@@ -2,6 +2,8 @@ import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import type { CorridorConnection, RoomId } from '../types/rooms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import { entryRisk } from './botRisk.js';
+import { markerCost } from './botShipDoom.js';
+import { explorationOdds } from './botThreat.js';
 import type { BotTuning } from './botTuning.js';
 
 export interface Route {
@@ -40,6 +42,15 @@ function hopsToGoals(view: SanitizedGameState, goals: readonly RoomId[]): Map<Ro
   return distances;
 }
 
+/** Цена вскрыть новую Комнату для корабля: Неисправность или Пожар из жетона Исследования (стр. 14, 17). */
+function explorationShipRisk(view: SanitizedGameState, tuning: BotTuning): number {
+  const odds = explorationOdds(view);
+  const doom =
+    (odds.get('MALFUNCTION') ?? 0) * markerCost(view, 'MALFUNCTION', tuning) +
+    (odds.get('FIRE') ?? 0) * markerCost(view, 'FIRE', tuning);
+  return doom * tuning.desires.SURVIVE * tuning.tactics.harm.weight;
+}
+
 /**
  * A* по графу корабля (В8-7-4). Цена ребра — Движение, риск Комнаты входа (Шум, Встреча, Пожар, Чужие,
  * неизвестный тайл) с множителем осторожности бота и цена закрытой Двери. Эвристика допустима: каждое
@@ -56,8 +67,10 @@ export function findRoute(
   if (goals.includes(from)) return { path: [], cost: 0 };
   const heuristic = hopsToGoals(view, goals);
   const riskCache = new Map<RoomId, number>();
+  const shipRisk = explorationShipRisk(view, tuning);
   const riskOf = (roomId: RoomId): number => {
-    if (!riskCache.has(roomId)) riskCache.set(roomId, entryRisk(view, roomId, tuning) * riskAversion);
+    const unexplored = view.ship.rooms[roomId]?.isExplored === false ? shipRisk : 0;
+    if (!riskCache.has(roomId)) riskCache.set(roomId, (entryRisk(view, roomId, tuning) + unexplored) * riskAversion);
     return riskCache.get(roomId)!;
   };
   const edgeCost = (step: Step): number =>
@@ -170,8 +183,10 @@ export function costsToGoals(
   }
   const settled = new Set<RoomId>();
   const riskCache = new Map<RoomId, number>();
+  const shipRisk = explorationShipRisk(view, tuning);
   const riskOf = (roomId: RoomId): number => {
-    if (!riskCache.has(roomId)) riskCache.set(roomId, entryRisk(view, roomId, tuning) * riskAversion);
+    const unexplored = view.ship.rooms[roomId]?.isExplored === false ? shipRisk : 0;
+    if (!riskCache.has(roomId)) riskCache.set(roomId, (entryRisk(view, roomId, tuning) + unexplored) * riskAversion);
     return riskCache.get(roomId)!;
   };
   while (settled.size < costs.size) {

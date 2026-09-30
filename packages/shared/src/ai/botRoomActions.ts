@@ -43,11 +43,11 @@ function hygiene(context: CandidateContext, own: TaskEffect[]): (Candidate | nul
 
 function infirmary(context: CandidateContext): (Candidate | null)[] {
   const { self } = context;
-  const options: string[] = [];
-  if (self.seriousWounds.some((wound) => !wound.isTreated)) options.push('TREAT_SERIOUS');
-  if (self.seriousWounds.some((wound) => wound.isTreated)) options.push('HEAL_SERIOUS');
-  if (self.lightWounds > 0) options.push('HEAL_LIGHT');
-  return options.map((option) => ability(context, { option }, [effect('HEAL')]));
+  const options: [string, TaskEffect][] = [];
+  if (self.seriousWounds.some((wound) => !wound.isTreated)) options.push(['TREAT_SERIOUS', effect('TREAT_WOUND')]);
+  if (self.seriousWounds.some((wound) => wound.isTreated)) options.push(['HEAL_SERIOUS', effect('HEAL')]);
+  if (self.lightWounds > 0) options.push(['HEAL_LIGHT', effect('HEAL')]);
+  return options.map(([option, produced]) => ability(context, { option }, [produced]));
 }
 
 function cockpit(context: CandidateContext, coordinatesKnown: boolean): (Candidate | null)[] {

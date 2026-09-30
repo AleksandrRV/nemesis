@@ -264,18 +264,21 @@ export function executeDecision(
     return;
   }
   if (decision.type === 'DISCARD_HEAVY_ITEM_FOR_NEW') {
-    const slotIndex = player.handSlots.findIndex(
-      (slot) => slot.source === 'ITEM' && slot.card.id === action.payload.selectedOption,
-    );
-    if (slotIndex === -1) {
-      throw new EngineError('INVALID_DECISION_OPTION', 'Указанный тяжёлый предмет не найден в руках');
+    const chosen = action.payload.selectedOption;
+    if (chosen === decision.newItem.id) {
+      discardItemCard(state, decision.newItem);
+    } else {
+      const slotIndex = player.handSlots.findIndex((slot) =>
+        slot.source === 'ITEM' ? slot.card.id === chosen : slot.object.id === chosen,
+      );
+      if (slotIndex === -1) {
+        throw new EngineError('INVALID_DECISION_OPTION', 'Указанного Тяжёлого Предмета или Объекта нет в руках');
+      }
+      const oldSlot = player.handSlots[slotIndex]!;
+      if (oldSlot.source === 'ITEM') discardItemCard(state, oldSlot.card);
+      else state.ship.rooms[player.roomId]!.objects.push(oldSlot.object);
+      player.handSlots[slotIndex] = { source: 'ITEM', card: decision.newItem };
     }
-    const oldSlot = player.handSlots[slotIndex]!;
-    if (oldSlot.source === 'ITEM') {
-      discardItemCard(state, oldSlot.card);
-    }
-
-    player.handSlots[slotIndex] = { source: 'ITEM', card: decision.newItem };
 
     const roomIdForFinish = decision.roomId ?? player.roomId;
     const currentRoom = state.ship.rooms[roomIdForFinish];

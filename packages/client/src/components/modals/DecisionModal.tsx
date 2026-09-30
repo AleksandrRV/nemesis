@@ -282,8 +282,8 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
             <h3 className="text-lg font-heading tracking-wider text-white">РУКИ ЗАНЯТЫ: ВЫБЕРИТЕ СБРОС</h3>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Обе руки заняты тяжёлыми предметами или объектами. Чтобы взять новый тяжёлый предмет (ID:{' '}
-            {decision.newItem.name}), выберите, какой из текущих предметов сбросить:
+            Обе руки заняты тяжёлыми предметами или объектами. Чтобы взять «{decision.newItem.name}», сбросьте один из
+            них (Объект останется в Комнате) или откажитесь от находки:
           </p>
           <div className="space-y-2">
             {activePlayer?.handSlots.map((slot, index) => {
@@ -301,6 +301,12 @@ export const DecisionModal: React.FC<DecisionModalProps> = ({ decision }) => {
               );
             })}
           </div>
+          <button
+            onClick={() => handleSelect(decision.newItem.id)}
+            className="w-full p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-left text-xs text-slate-300 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+          >
+            Не брать «{decision.newItem.name}» — оставить руки как есть
+          </button>
         </div>
       </div>
     );

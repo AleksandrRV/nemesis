@@ -1,14 +1,13 @@
-import { FIRE_MARKER_SUPPLY, MALFUNCTION_MARKER_SUPPLY } from '../data/markerSupply.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import type { CommsMessage } from '../types/comms.js';
 import type { RoomId } from '../types/rooms.js';
 import type { SanitizedGameState, SanitizedPlayerState } from '../types/sanitized.js';
-import { isHibernationOpen } from '../logic/actionRules.js';
+import { isHibernationOpen, isPodUsable } from '../logic/actionRules.js';
 import { effectiveKnobs } from './botCharacter.js';
-import { clamp01, evaluateCurve } from './botCurves.js';
+import { evaluateCurve } from './botCurves.js';
 import type { BotMind, OwnPromise } from './botMind.js';
-import { isActionCard, unscannedContamination } from './botHand.js';
-import { findRoomOfType, searchableRoomIds } from './botNavigation.js';
+import { findRoomOfType } from './botNavigation.js';
+import { canRepair, needTasks } from './botNeeds.js';
 import { planObjectives, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
 import { hasAdjacentIntruders, roomThreat, roundsLeft } from './botRisk.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
@@ -37,15 +36,9 @@ interface AgendaContext {
 const POD_ROOMS = ['ESCAPE_POD_A', 'ESCAPE_POD_B'];
 /** Два Действия за ход (стр. 13): на путь к Анабиозу бот считает Движения парами. */
 const ACTIONS_PER_TURN = 2;
+/** Анабиоз с Неисправностью, которую бот не починит (стр. 17): путь почти закрыт, остаются Капсулы. */
+const BLOCKED_ROUTE_SHARE = 0.15;
 const URGENT_DESIRES: ReadonlySet<BotTask['desire']> = new Set(['PREPARE_EVACUATION', 'SURVIVE']);
-const KEY_ROOMS = ['ENGINE_01', 'ENGINE_02', 'ENGINE_03', 'ENGINE_CONTROL', 'COCKPIT', 'HIBERNATORIUM', ...POD_ROOMS];
-
-const SCAN_ROOMS = ['CANTEEN', 'SHOWER'];
-
-function hasRestCard(self: SanitizedPlayerState): boolean {
-  return self.actionDeck.hand.some((card) => isActionCard(card) && card.effect.kind === 'REST');
-}
-
 export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
   return self.handSlots.some((slot) => slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0);
 }
@@ -61,29 +54,48 @@ function evacuationTasks(context: AgendaContext, route: EvacuationRoute, pressur
   const { view, self, tuning, mind } = context;
   if (self.boardedPodId) return podTasks(context, pressure);
   const base = tuning.desires.PREPARE_EVACUATION;
+  const lifeline = tuning.desires.SURVIVE * tuning.tactics.harm.weight;
   const rounds = roundsLeft(view);
-  const urgency = (definitionIds: string[]) => {
+  const weightFor = (definitionIds: string[]) => {
     const found = findRoomOfType(view, self.roomId, definitionIds, tuning, context.knobs.riskAversion);
     if (!found) return 0;
     const roundsNeeded = Math.ceil((found.route.path.length + 1) / ACTIONS_PER_TURN);
-    return rounds - roundsNeeded <= tuning.time.evacuationMarginRounds * context.knobs.horizon ? 1 : pressure;
+    const urgent = rounds - roundsNeeded <= tuning.time.evacuationMarginRounds * context.knobs.horizon;
+    return urgent ? Math.max(base, lifeline) : base * pressure;
   };
+  const marked = (entry: BotTask): BotTask => (entry.weight >= lifeline ? { ...entry, lifeline: true } : entry);
   const tasks: BotTask[] = [];
-  if (route !== 'POD') {
-    const weight = base * urgency(['HIBERNATORIUM']) * (isHibernationOpen(view.meta.timeTrackPosition) ? 1 : 0.6);
-    tasks.push(task('HIBERNATE', 'PREPARE_EVACUATION', weight, { definitionIds: ['HIBERNATORIUM'] }, 'Лечь в Анабиоз'));
-  }
-  if (route !== 'HIBERNATION') {
-    const leaning = route === 'POD' ? 1 : 1 - probabilityEnginesHold(mind);
+  const cryo = Object.values(view.ship.rooms).find((room) => room.definitionId === 'HIBERNATORIUM');
+  const cryoBroken = cryo?.hasMalfunction === true && !canRepair(context);
+  const podsOpen = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && !pod.isLocked);
+  if (route !== 'POD' || !podsOpen) {
+    const open = isHibernationOpen(view.meta.timeTrackPosition) ? 1 : 0.6;
+    const weight = weightFor(['HIBERNATORIUM']) * open * (cryoBroken ? BLOCKED_ROUTE_SHARE : 1);
     tasks.push(
-      task(
-        'BOARD_POD',
-        'PREPARE_EVACUATION',
-        base * urgency(POD_ROOMS) * leaning,
-        { definitionIds: POD_ROOMS },
-        'Сесть в Капсулу',
+      marked(task('HIBERNATE', 'PREPARE_EVACUATION', weight, { definitionIds: ['HIBERNATORIUM'] }, 'Лечь в Анабиоз')),
+    );
+  }
+  if (route !== 'HIBERNATION' && podsOpen) {
+    const leaning = route === 'POD' || cryoBroken ? 1 : 1 - probabilityEnginesHold(mind);
+    tasks.push(
+      marked(
+        task(
+          'BOARD_POD',
+          'PREPARE_EVACUATION',
+          weightFor(POD_ROOMS) * leaning,
+          { definitionIds: POD_ROOMS },
+          'Сесть в Капсулу',
+        ),
       ),
     );
+  }
+  const here = view.ship.rooms[self.roomId];
+  const shelterTaken =
+    here?.definitionId !== null &&
+    tasks.some((entry) => entry.lifeline && entry.place.definitionIds?.includes(here?.definitionId ?? '')) &&
+    view.intrudersPool.boardTokens.some((token) => token.roomId === self.roomId);
+  if (shelterTaken) {
+    tasks.push(task('FIGHT', 'SURVIVE', lifeline, { roomIds: [self.roomId] }, 'Отбить Анабиоз или Капсулу'));
   }
   return tasks;
 }
@@ -113,89 +125,9 @@ function podTasks(context: AgendaContext, pressure: number): BotTask[] {
   ];
 }
 
-function survivalTasks({ view, mind, self, tuning, knobs }: AgendaContext): BotTask[] {
-  const survive = tuning.desires.SURVIVE;
-  const tasks: BotTask[] = [];
-  const untreated = self.seriousWounds.filter((wound) => !wound.isTreated).length;
-  const wounds = self.lightWounds + untreated * 2 + (self.seriousWounds.length - untreated);
-  if (wounds > 0) {
-    tasks.push(task('HEAL', 'SURVIVE', survive * clamp01(wounds / 4), { definitionIds: ['INFIRMARY'] }, 'Вылечиться'));
-  }
-  if (self.lightWounds > 0) {
-    tasks.push(task('HEAL', 'SURVIVE', survive * 0.3, { definitionIds: ['CANTEEN'] }, 'Перекусить в Столовой'));
-  }
-  if (self.hasLarva)
-    tasks.push(task('CLEANSE', 'SURVIVE', survive * 1.5, { definitionIds: ['SURGERY'] }, 'Удалить Личинку'));
-  const contamination = unscannedContamination(view, mind.botId);
-  if (contamination > 0) {
-    const place = hasRestCard(self) ? {} : { definitionIds: SCAN_ROOMS };
-    const weight = survive * clamp01(contamination * tuning.hand.scanPerContamination * knobs.scanRate);
-    tasks.push(task('SCAN_HAND', 'SURVIVE', weight, place, 'Просканировать руку'));
-  }
-  return tasks;
-}
-
-function combatTasks({ view, self, tuning, knobs, altruism }: AgendaContext): BotTask[] {
-  const tasks: BotTask[] = [];
-  if (!hasLoadedWeapon(self)) {
-    tasks.push(
-      task(
-        'SEARCH',
-        'EQUIP',
-        tuning.desires.EQUIP * knobs.itemHoarding,
-        { roomIds: searchableRoomIds(view) },
-        'Найти Оружие',
-      ),
-    );
-  }
-  const fightWeight = (tuning.desires.SURVIVE * 0.6 * knobs.combatDesire) / Math.max(knobs.combatFlight, 0.1);
-  const hereIntruders = view.intrudersPool.boardTokens.some((token) => token.roomId === self.roomId);
-  if (hereIntruders)
-    tasks.push(task('FIGHT', 'SURVIVE', fightWeight, { roomIds: [self.roomId] }, 'Бой в своей Комнате'));
-  const helpWeight = tuning.desires.HELP * knobs.killHelpValue * Math.max(0, 0.5 + altruism);
-  for (const ally of Object.values(view.players)) {
-    if (ally.id === self.id || ally.isDead || ally.isInHibernation || ally.hasEscapedInPod) continue;
-    if (!view.intrudersPool.boardTokens.some((token) => token.roomId === ally.roomId)) continue;
-    tasks.push(task('FIGHT', 'HELP', helpWeight, { roomIds: [ally.roomId] }, 'Помочь в Бою', { playerId: ally.id }));
-  }
-  return tasks;
-}
-
-/**
- * Запас маркеров на исходе (стр. 17): без маркера Пожара корабль взрывается, без маркера Неисправности —
- * разгерметизация. Чем ближе конец запаса, тем важнее тушить и чинить — ради собственного выживания.
- */
-function supplyPressure(used: number, supply: number, tuning: BotTuning): number {
-  return tuning.desires.SURVIVE * evaluateCurve(tuning.curves.timePressure, used / supply);
-}
-
 function shipCareTasks({ view, mind, tuning, knobs, altruism }: AgendaContext): BotTask[] {
   const care = tuning.desires.HELP * Math.max(0, 0.5 + altruism);
-  const rooms = Object.values(view.ship.rooms);
-  const fireUrgency = supplyPressure(rooms.filter((room) => room.hasFire).length, FIRE_MARKER_SUPPLY, tuning);
-  const hullUrgency = supplyPressure(
-    rooms.filter((room) => room.hasMalfunction).length,
-    MALFUNCTION_MARKER_SUPPLY,
-    tuning,
-  );
   const tasks: BotTask[] = [];
-  for (const room of rooms) {
-    if (room.hasFire) {
-      tasks.push(
-        task('EXTINGUISH', 'HELP', care + fireUrgency, { definitionIds: ['FIRE_CONTROL'] }, 'Потушить Пожар', {
-          roomId: room.id,
-        }),
-      );
-    }
-    if (room.hasMalfunction) {
-      const key = room.definitionId !== null && KEY_ROOMS.includes(room.definitionId) ? care : 0;
-      tasks.push(
-        task('FIX_MALFUNCTION', 'HELP', key + hullUrgency, { roomIds: [room.id] }, 'Починить Комнату', {
-          roomId: room.id,
-        }),
-      );
-    }
-  }
   for (const ally of Object.values(view.players)) {
     if (ally.id === mind.botId || ally.isDead || ally.isInHibernation || ally.hasEscapedInPod) continue;
     if (
@@ -336,8 +268,7 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
     [
       ...plans.flatMap((plan) => plan.tasks),
       ...evacuationTasks(context, route, timePressure),
-      ...survivalTasks(context),
-      ...combatTasks(context),
+      ...needTasks(context),
       ...shipCareTasks(context),
       ...promiseTasks(context),
     ],

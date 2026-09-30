@@ -86,7 +86,7 @@ function createEscapePods(playerCount: number, podNumbers: number[]): Record<str
 function createPlayer(playerId: string, preset: CharacterPreset, orderNumber: number, seed: string): PlayerState {
   const actionDeckCards = createActionDeckForCharacter(preset.characterClass, seed, orderNumber);
   const startingWeapon = STARTING_WEAPONS[preset.characterClass];
-  const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: startingWeapon }] : [];
+  const handSlots = startingWeapon ? [{ source: 'ITEM' as const, card: structuredClone(startingWeapon) }] : [];
 
   const initialHand = actionDeckCards.slice(0, 5);
   const initialDrawPile = actionDeckCards.slice(5);

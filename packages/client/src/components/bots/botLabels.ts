@@ -50,6 +50,9 @@ export const CANDIDATE_KIND_LABELS: Record<CandidateKind, string> = {
   ABILITY: 'Действие Комнаты',
   CARD: 'Карта',
   EXCHANGE: 'Обмен',
+  ITEM: 'Предмет',
+  CRAFT: 'Создание Предмета',
+  COVERED_ESCAPE: 'Отход без Атак',
   POD: 'Капсула',
   PASS: 'Пас',
 };

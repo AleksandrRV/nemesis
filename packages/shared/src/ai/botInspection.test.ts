@@ -23,10 +23,8 @@ describe('Инспектор ботов (план 0.8.0, В8-9-1)', () => {
     const utilities = inspection.candidates.map((entry) => entry.utility);
     expect(utilities).toEqual([...utilities].sort((left, right) => right - left));
     const [best] = inspection.candidates;
-    const { taskValue, selfRisk, flee, escapeAttack, endTurn, handReserve, safety, economy } = best!.factors;
-    expect(best!.utility).toBeCloseTo(
-      (taskValue - selfRisk + flee - escapeAttack + endTurn - handReserve) * safety * economy,
-    );
+    const { taskValue, cleanup, safety, endTurn, handReserve, economy } = best!.factors;
+    expect(best!.utility).toBeCloseTo((taskValue + cleanup) * economy + safety + endTurn - handReserve);
     expect(inspection.tasks.length).toBeGreaterThan(0);
     expect(inspection.objectives.length).toBeGreaterThan(0);
   });

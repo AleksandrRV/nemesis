@@ -33,6 +33,7 @@ describe('Лобби: режимы и места (план 0.8.0, В8-2-2, В8-2
         onChange={noop}
         onRerollSeed={noop}
         onContinue={noop}
+        onSimulate={noop}
       />,
     );
     expect(html).toContain('Полукооператив');
@@ -50,9 +51,11 @@ describe('Лобби: режимы и места (план 0.8.0, В8-2-2, В8-2
         onChange={noop}
         onRerollSeed={noop}
         onContinue={noop}
+        onSimulate={noop}
       />,
     );
     expect(html).not.toContain('Сложность ботов');
+    expect(html).toContain('Симуляция ботов');
   });
 
   it('сложность уходит только на места ботов', () => {

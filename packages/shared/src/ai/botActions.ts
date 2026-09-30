@@ -149,7 +149,7 @@ function attacks(context: CandidateContext): Candidate[] {
     .filter((candidate): candidate is Candidate => candidate !== null);
 }
 
-function objects(context: CandidateContext): Candidate[] {
+function objects(context: CandidateContext, tasks: readonly BotTask[]): Candidate[] {
   const { self, room } = context;
   const pickUps = room.objects
     .filter((object) => pickUpBlock(self, room, object.id) === null)
@@ -165,20 +165,32 @@ function objects(context: CandidateContext): Candidate[] {
         [effect('PICK_UP', { objectKind: object.kind, objectId: object.id })],
       ),
     );
-  const drops = self.handSlots.flatMap((slot, handSlotIndex): Candidate[] =>
-    slot.source === 'OBJECT'
-      ? [
-          {
-            action: { type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } },
-            kind: 'DROP',
-            effects: [effect('DROP_OBJECT', { objectKind: slot.object.kind })],
-            roomId: self.roomId,
-            spent: 0,
-          },
-        ]
-      : [],
-  );
-  return [...pickUps.filter((candidate): candidate is Candidate => candidate !== null), ...drops];
+  return [...pickUps.filter((candidate): candidate is Candidate => candidate !== null), ...drops(context, tasks)];
+}
+
+function wantsDrop(tasks: readonly BotTask[], objectKind: string): boolean {
+  return tasks.some((entry) => entry.kind === 'DROP_OBJECT' && (entry.detail.objectKind ?? objectKind) === objectKind);
+}
+
+/**
+ * Сброс из Рук ничего не стоит: Объект бот бросает, только когда этого требует задача (Труп в Операционной);
+ * при Тяжёлой Травме «Рука» — любой лишний, и Предмет тоже. Иначе бот поднимал бы и бросал Объект по кругу.
+ */
+function drops(context: CandidateContext, tasks: readonly BotTask[] | 'FORCED'): Candidate[] {
+  const { self } = context;
+  return self.handSlots.flatMap((slot, handSlotIndex): Candidate[] => {
+    const forced = tasks === 'FORCED';
+    if (!forced && (slot.source !== 'OBJECT' || !wantsDrop(tasks, slot.object.kind))) return [];
+    return [
+      {
+        action: { type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } },
+        kind: 'DROP',
+        effects: slot.source === 'OBJECT' ? [effect('DROP_OBJECT', { objectKind: slot.object.kind })] : [],
+        roomId: self.roomId,
+        spent: slot.source === 'OBJECT' ? 0 : 1,
+      },
+    ];
+  });
 }
 
 function engineNumberOf(definitionId: string | null): EngineNumber | null {
@@ -335,13 +347,13 @@ export function generateCandidates(
     tuning,
   };
   if (self.boardedPodId) return podCommands(context);
-  if (mustDropHeavyForArmWound(self)) return objects(context).filter((candidate) => candidate.kind === 'DROP');
+  if (mustDropHeavyForArmWound(self)) return drops(context, 'FORCED');
   return [
     ...moves(context),
     ...carefulMoves(context),
     ...search(context),
     ...attacks(context),
-    ...objects(context),
+    ...objects(context, tasks),
     ...roomActionCandidates(context, tasks, mind.coordinates.cardId !== null),
     ...repairCards(context),
     ...restCards(context),

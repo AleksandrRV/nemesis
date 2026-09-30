@@ -1,5 +1,19 @@
-import type { BotMind, CommsDraft, EngineAction, GameState, TableSeating } from '@nemesis/shared';
-import { BotAgent, createBotMind, filterStateForPlayer } from '@nemesis/shared';
+import type {
+  BotInspection,
+  BotMind,
+  CommsDraft,
+  EngineAction,
+  GameState,
+  MoralePoint,
+  TableSeating,
+} from '@nemesis/shared';
+import { BotAgent, activePersona, createBotMind, filterStateForPlayer, inspectBot } from '@nemesis/shared';
+
+/** Разбор бота для Инспектора (dev-канал): его мысли и история морали за партию. */
+export interface BotInspectionEntry {
+  inspection: BotInspection;
+  moraleHistory: MoralePoint[];
+}
 
 export interface BotThought {
   candidates: EngineAction[];
@@ -11,6 +25,8 @@ export interface BotThought {
  * Полное состояние бот не видит — только `filterStateForPlayer` своего места.
  */
 export class BotController {
+  private readonly moraleHistory = new Map<string, MoralePoint[]>();
+
   private constructor(private readonly minds: Map<string, BotMind>) {}
 
   /** Память восстанавливается из сохранения, если она этого бота и этой партии; иначе рождается заново. */
@@ -37,12 +53,29 @@ export class BotController {
     if (!mind) return { candidates: [], speech: [] };
     const decision = BotAgent.decide(filterStateForPlayer(state, botId), mind);
     this.minds.set(botId, decision.mind);
+    this.recordMorale(botId, state.meta.currentRound, activePersona(decision.mind.character).morale);
     return {
       candidates: [decision.action, ...decision.alternatives].filter(
         (action): action is EngineAction => action !== null,
       ),
       speech: decision.speech,
     };
+  }
+
+  /** Только dev-канал: черты и мысли бота не должны попасть в игровой интерфейс (Р-8). */
+  inspect(state: GameState): BotInspectionEntry[] {
+    return [...this.minds.entries()].map(([botId, mind]) => ({
+      inspection: inspectBot(filterStateForPlayer(state, botId), mind),
+      moraleHistory: this.moraleHistory.get(botId) ?? [],
+    }));
+  }
+
+  private recordMorale(botId: string, round: number, morale: number): void {
+    const history = this.moraleHistory.get(botId) ?? [];
+    const last = history.at(-1);
+    if (last?.round === round) last.morale = morale;
+    else history.push({ round, morale });
+    this.moraleHistory.set(botId, history);
   }
 
   mindOf(botId: string): BotMind | null {

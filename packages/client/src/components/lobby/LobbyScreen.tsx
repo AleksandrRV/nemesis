@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BotDifficulty, RoleSelectionMode } from '@nemesis/shared';
 import { BOT_DIFFICULTIES } from '@nemesis/shared';
-import { Bot, Crosshair, Dices, Shield, Shuffle, Sprout, Swords, UserRound, Users } from 'lucide-react';
+import { Bot, Crosshair, Dices, FlaskConical, Shield, Shuffle, Sprout, Swords, UserRound, Users } from 'lucide-react';
 import {
   BOT_DIFFICULTY_HINTS,
   BOT_DIFFICULTY_LABELS,
@@ -20,6 +20,7 @@ interface LobbyScreenProps {
   onChange: (config: LobbyConfig) => void;
   onRerollSeed: () => void;
   onContinue: () => void;
+  onSimulate: () => void;
 }
 
 const ROLE_MODES: readonly RoleSelectionMode[] = ['DRAFT', 'FREE'];
@@ -71,7 +72,7 @@ const BotDifficultyPicker: React.FC<{ config: LobbyConfig; onChange: (config: Lo
   </fieldset>
 );
 
-export const LobbyScreen: React.FC<LobbyScreenProps> = ({ config, onChange, onRerollSeed, onContinue }) => {
+export const LobbyScreen: React.FC<LobbyScreenProps> = ({ config, onChange, onRerollSeed, onContinue, onSimulate }) => {
   const mode = gameModeOf(config.playerCount);
   const seedValid = isSeedValid(config.seed);
   return (
@@ -200,6 +201,13 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ config, onChange, onRe
         className="mx-auto rounded-xl bg-cyan-500 px-10 py-3 font-heading text-sm uppercase tracking-[0.3em] text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.35)] transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
       >
         Собрать экипаж
+      </button>
+      <button
+        type="button"
+        onClick={onSimulate}
+        className="mx-auto -mt-2 flex items-center gap-2 rounded-lg border border-violet-800/70 bg-violet-950/30 px-5 py-2 text-xs uppercase tracking-[0.2em] text-violet-200 transition hover:border-violet-500 hover:bg-violet-900/40"
+      >
+        <FlaskConical size={14} aria-hidden="true" /> Симуляция ботов
       </button>
     </section>
   );

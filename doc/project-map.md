@@ -102,6 +102,8 @@
 | `../ai/botGoals.ts`, `botObjectivePlanner.ts`, `botTasks.ts`, `botShipKnowledge.ts` | `buildAgenda()`, `planObjective()` | Повестка желаний и планировщики 25 Целей. |
 | `../ai/botUtility.ts`, `botCurves.ts`, `botRisk.ts`, `botNavigation.ts`, `botChoices.ts` | `scoreCandidates()`, `chooseCandidate()`, `findRoute()`, `decideChoice()` | Utility и softmax, риск, A*, обязательные решения. |
 | `../ai/botVoice.ts`, `botPhrases.ts`, `../data/botPhrases.ts` | `speak()`, `toneOf()`, `BOT_PHRASES`, `voicedText()` | Голос бота: когда сказать Заявление, Намерение или Просьбу; банк фраз и интонация характера. |
+| `../ai/botInspection.ts` | `inspectBot()` | Разбор бота для Инспектора (dev): черты, убеждения, доверие, 5 лучших кандидатов с факторами. |
+| `../simulation/simulateGame.ts`, `simulationStats.ts`, `deathCauses.ts` | `simulateGame()`, `summarizeSimulations()` | Симулятор партий ботов: подробный отчёт, сводка серии, причины гибели. |
 | `actionRules.ts` | `searchBlock()`, `roomAbilityBlock()`, `carefulMoveBlock()`… | Правила допустимости Действий: их читают и движок, и боты. |
 
 ### C. Данные (`src/data/`)
@@ -160,7 +162,8 @@
 | **Стол** `table/HandoffShutter.tsx`, `BotTableHud.tsx` | Шторка передачи устройства, кнопка «Быстрее», активность ботов. | Стор. |
 | **Бой** `combat/ShootModal.tsx`, `MeleeModal.tsx`, `CombatActionButtons.tsx` | Стрельба/рукопашная, выбор оружия/цели, цена, отказы. | `ACTION_SHOOT`, `ACTION_MELEE`. |
 | **Журнал** `log/GameLogPanel.tsx`, `gameLogModel.ts`, `intruderLogModel.ts`, `eventEffectLogModel.ts` | История ходов, 19 итогов Событий, 6 Улья. | Читает `view.gameLog`. |
-| **Dev** `dev/DevPanel.tsx` | Переключение дверей/шума, сырое состояние (IS_DEV). | `DEV_TOGGLE_DOOR/NOISE`. |
+| **Dev** `dev/DevPanel.tsx`, `dev/BotInspector.tsx` | Переключение дверей/шума, сырое состояние; Инспектор ботов (IS_DEV). | `DEV_TOGGLE_DOOR/NOISE`, `inspectBots()`. |
+| **Симуляция** `simulation/SimulationScreen.tsx`, `SimulationSetup.tsx`, `SingleGameReport.tsx`, `SeriesReport.tsx`; графики `bots/charts.tsx` | Окно «Симуляция ботов»: одна партия с отчётом или серия из 100 со статистикой; Web Worker `services/simulation/`. | `simulateGame`, `summarizeSimulations`. |
 | **HUD** `hud/SeedChip.tsx` | Сид с копированием. | `view.meta.seed`. |
 
 ---

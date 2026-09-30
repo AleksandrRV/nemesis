@@ -89,7 +89,9 @@ function stepTowardHibernation(state: GameState, mind: BotMind) {
     generateCandidates(view, mind, agenda.tasks, BOT_TUNING),
     BOT_TUNING,
   );
-  return scored.find((entry) => entry.candidate.kind === 'MOVE' && entry.task?.kind === 'HIBERNATE');
+  return scored.find(
+    (entry) => ['MOVE', 'CAREFUL_MOVE'].includes(entry.candidate.kind) && entry.task?.kind === 'HIBERNATE',
+  );
 }
 
 function hibernationTrip(seed: string, far: boolean): GameState {

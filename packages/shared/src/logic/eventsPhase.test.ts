@@ -10,7 +10,8 @@ import {
 import type { GameState } from '../types/state.js';
 import { createInitialGameState } from './setup.js';
 import { advanceTimeAndSelfDestruct, resolveFireDamage, runEventPhase } from './eventsPhase.js';
-import { putIntruder } from '../testing/contactFixtures.js';
+import { forceToken, putIntruder } from '../testing/contactFixtures.js';
+import { findNoiseTarget } from './shipGraphQueries.js';
 
 function freshState(seed: string, playerCount = 1): GameState {
   return createInitialGameState(seed, { playerCount });
@@ -319,5 +320,28 @@ describe('Оркестратор Фазы Событий: порядок Шаг�
     expect(types).toContain('EVENT_CARD_DRAWN');
     expect(types).not.toContain('HIVE_DEVELOPMENT_RESOLVED');
     expect(types).not.toContain('ROUND_STARTED');
+  });
+
+  it('последний активный Персонаж гибнет при Развитии Улья: партия окончена, нового раунда нет (стр. 11)', () => {
+    const state = freshState('evp-orchestrator-last-contact');
+    const player = state.players['player-1']!;
+    player.seriousWounds = state.decks.seriousWounds.drawPile.splice(0, 2);
+    player.actionDeck.hand = [];
+    for (const corridorNumber of [1, 2, 3, 4] as const) {
+      const target = findNoiseTarget(state, player.roomId, corridorNumber);
+      if (target.kind === 'CORRIDOR') target.corridor.hasNoise = true;
+      else state.ship.technicalCorridorNoise = true;
+    }
+    forceToken(state, 'ADULT', 4);
+    state.intrudersPool.firstEncounterOccurred = true;
+    stackToughness(state, 'IAT_BITE_3');
+    state.meta.phase = 'EVENT_PHASE';
+
+    runEventPhase(state);
+
+    expect(player.isDead).toBe(true);
+    expect(state.meta.phase).toBe('GAME_OVER');
+    expect(state.meta.gameOverReason).toBe('NO_ACTIVE_CHARACTERS');
+    expect(lastEvents(state).map((event) => event.type)).not.toContain('ROUND_STARTED');
   });
 });

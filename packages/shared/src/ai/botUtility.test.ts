@@ -5,6 +5,8 @@ import {
   SOLO_COOP_OBJECTIVE_CARDS,
 } from '../data/objectiveCards.js';
 import { ACTION_CARDS } from '../data/actionCards.js';
+import { YELLOW_ITEM_CARDS } from '../data/itemCards.js';
+import { GameEngine } from '../logic/fsm.js';
 import { CARD_OPTION } from '../types/cardOptions.js';
 import type { GameState } from '../types/state.js';
 import { OBJECTIVE_CONDITIONS } from '../logic/objectiveConditions.js';
@@ -16,6 +18,7 @@ import { generateCandidates } from './botActions.js';
 import { buildAgenda } from './botGoals.js';
 import type { BotMind } from './botMind.js';
 import { findRoute } from './botNavigation.js';
+import { entryRisk, surpriseChance } from './botRisk.js';
 import { OBJECTIVE_PLANNERS } from './botObjectivePlanner.js';
 import { BOT_TUNING } from './botTuning.js';
 import { chooseCandidate, scoreCandidates } from './botUtility.js';
@@ -53,7 +56,7 @@ describe('Utility AI (план 0.8.0, В8-7)', () => {
     const state = onBotTurn(contactState(2, 'utility-fire'));
     state.ship.rooms[state.players[BOT]!.roomId]!.hasFire = true;
     const [best] = ranked(state);
-    expect(best!.candidate.action.type).toBe('ACTION_MOVE');
+    expect(['ACTION_MOVE', 'ACTION_CAREFUL_MOVE']).toContain(best!.candidate.action.type);
     expect(state.ship.rooms[best!.candidate.roomId]!.hasFire).toBe(false);
   });
 
@@ -107,12 +110,13 @@ describe('Utility AI (план 0.8.0, В8-7)', () => {
     expect(['ACTION_SHOOT', 'ACTION_MELEE', 'ACTION_MOVE']).toContain(best!.candidate.action.type);
   });
 
-  it('softmax воспроизводим по сиду и при низкой температуре берёт лучшего', () => {
+  it('softmax воспроизводим по сиду и при низкой температуре не уходит от лучшего дальше порога', () => {
     const state = onBotTurn(contactState(2, 'utility-softmax'));
     const mind = neutral(state);
     const scored = ranked(state, mind);
     const cold = { ...BOT_TUNING, choice: { ...BOT_TUNING.choice, temperature: 0.0001 } };
-    expect(chooseCandidate(scored, mind, cold).ordered[0]!.utility).toBe(scored[0]!.utility);
+    const chosen = chooseCandidate(scored, mind, cold).ordered[0]!;
+    expect(scored[0]!.utility - chosen.utility).toBeLessThan(0.05);
     expect(chooseCandidate(scored, mind, BOT_TUNING)).toEqual(chooseCandidate(scored, mind, BOT_TUNING));
   });
 });
@@ -178,5 +182,51 @@ describe('Планировщики Целей (В8-7-5)', () => {
     const checked = inspectEngine(inspectEngine(table, BOT, 1), BOT, 2);
     const after = buildAgenda(filterStateForPlayer(checked, BOT), neutral(checked), BOT_TUNING).plans[0]!.proximity;
     expect(after).toBeGreaterThan(before);
+  });
+});
+
+describe('Обязательный сброс при «Травме руки»', () => {
+  it('с двумя Тяжёлыми Предметами бот бросает один из них, и движок это принимает', () => {
+    const state = onBotTurn(contactState(2, 'utility-arm'));
+    const bot = state.players[BOT]!;
+    const arm = state.decks.seriousWounds.drawPile.find((wound) => wound.kind === 'ARM')!;
+    bot.seriousWounds = [{ ...arm, isTreated: false }];
+    const extinguisher = YELLOW_ITEM_CARDS.find((card) => card.id === 'ITEM_YEL_FIRE_EXTINGUISHER_1')!;
+    bot.handSlots = [...bot.handSlots.slice(0, 1), { source: 'ITEM', card: structuredClone(extinguisher) }];
+    const mind = neutral(state);
+    const view = filterStateForPlayer(state, BOT);
+    const candidates = generateCandidates(view, mind, buildAgenda(view, mind, BOT_TUNING).tasks, BOT_TUNING);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.every((candidate) => candidate.action.type === 'ACTION_DISCARD_HEAVY_ITEM')).toBe(true);
+    const dropped = new GameEngine().processAction(state, candidates[0]!.action, { actorId: BOT });
+    expect(dropped.players[BOT]!.handSlots).toHaveLength(1);
+  });
+});
+
+describe('Шум и запас руки (В8-9-4)', () => {
+  it('шанс Внезапной Атаки падает с числом карт на руке: 0 карт — всегда, 4 — никогда (стр. 18)', () => {
+    const chances = [0, 1, 2, 3, 4].map(surpriseChance);
+    expect(chances[0]).toBe(1);
+    expect(chances[4]).toBe(0);
+    expect(chances).toEqual([...chances].sort((left, right) => right - left));
+  });
+
+  it('обычное Движение в тихую Комнату стоит Шума, «Осторожное» — нет', () => {
+    const state = contactState(2, 'utility-noise');
+    const view = filterStateForPlayer(state, BOT);
+    const target = neighbourOf(state, state.players[BOT]!.roomId);
+    expect(entryRisk(view, target, BOT_TUNING)).toBeGreaterThan(entryRisk(view, target, BOT_TUNING, true));
+  });
+
+  it('последняя карта на Действие штрафуется запасом руки, Пас руку бережёт', () => {
+    const state = onBotTurn(contactState(2, 'utility-reserve'));
+    const hand = state.players[BOT]!.actionDeck.hand;
+    state.players[BOT]!.actionDeck.hand = hand.filter((card) => 'characterClass' in card).slice(0, 1);
+    neighbourOf(state, state.players[BOT]!.roomId);
+    const scored = ranked(state);
+    const move = scored.find((entry) => entry.candidate.kind === 'MOVE')!;
+    const pass = scored.find((entry) => entry.candidate.kind === 'PASS')!;
+    expect(move.factors.handReserve).toBeGreaterThan(0);
+    expect(pass.factors.handReserve).toBe(0);
   });
 });

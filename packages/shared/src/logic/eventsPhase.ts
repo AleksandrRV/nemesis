@@ -37,14 +37,14 @@ export function runEventPhase(state: GameState): void {
   resolveFireDamage(state);
 
   resolveEventCardMovement(state);
-  if (isGameOver(state)) return;
+  if (isGameOver(state) || endIfNoActiveCharacters(state)) return;
 
   resolveHiveDevelopment(state);
 
   // Каскадные эффекты Шага 8 (повторный Шум, Контакты с Внезапными атаками)
   // разыгрываются движком до перехода к новому раунду (стр. 10, шаг 9).
   drainInterrupts(state);
-  if (isGameOver(state)) return;
+  if (isGameOver(state) || endIfNoActiveCharacters(state)) return;
 
   startNewRound(state);
 }
@@ -55,8 +55,8 @@ function isGameOver(state: GameState): boolean {
 }
 
 /**
- * Полная гибель активных Персонажей в Фазе Событий (например, Исступление
- * в переполненном отсеке) завершает партию: ходить больше некому.
+ * Полная гибель активных Персонажей в любом шаге Фазы Событий (Атаки, карта
+ * События, Контакт при Развитии Улья) завершает партию: ходить больше некому.
  */
 function endIfNoActiveCharacters(state: GameState): boolean {
   if (getOrderedPlayers(state).length > 0) return false;

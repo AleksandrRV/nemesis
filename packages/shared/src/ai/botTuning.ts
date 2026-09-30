@@ -198,6 +198,7 @@ export interface BotTuning {
     suspicionThreshold: number;
   };
   risk: {
+    /** Цена Шума: бросок без Встречи кладёт маркер, следующий вход рядом опаснее. */
     noise: number;
     contact: number;
     fire: number;
@@ -217,6 +218,8 @@ export interface BotTuning {
     escapeAttackShare: number;
     /** Карта Заражения в колоду (Рукопашная, Контакт). */
     contamination: number;
+    /** Шанс Встречи до следующего добора карт: ради него бот не опустошает руку (Внезапная Атака, стр. 18). */
+    contactBeforeDraw: number;
   };
   navigation: {
     /** Цена одного Движения в A*; к ней прибавляется риск Комнаты входа. */
@@ -388,7 +391,7 @@ export const BOT_TUNING = {
     suspicionThreshold: 0.45,
   },
   risk: {
-    noise: 1,
+    noise: 0.4,
     contact: 1.6,
     fire: 1.2,
     wound: 1.4,
@@ -410,6 +413,7 @@ export const BOT_TUNING = {
     larvaSeverity: 0.8,
     escapeAttackShare: 0.6,
     contamination: 0.4,
+    contactBeforeDraw: 0.3,
   },
   navigation: { actionCost: 1, unknownTilePenalty: 2, closedDoorCost: 3, maxExpandedNodes: 400, farGoalFloor: 0.1 },
   time: { evacuationMarginRounds: 1 },

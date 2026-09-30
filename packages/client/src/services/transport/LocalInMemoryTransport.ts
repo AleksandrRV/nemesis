@@ -13,7 +13,7 @@ import { GameEngine, createInitialGameState, filterStateForPlayer } from '@nemes
 import type { SessionDiscardReason, SessionStorage } from '../session/sessionStorage';
 import { createLocalSessionStorage, everyoneAtThisDevice } from '../session/sessionStorage';
 import { createSeed } from '../session/seed';
-import { BotController } from './BotController';
+import { BotController, type BotInspectionEntry } from './BotController';
 import { CrewSetupSession, type CrewSetupOptions } from './CrewSetupSession';
 import type { GameEvent, IGameTransport } from './ITransport';
 import { SeatController } from './SeatController';
@@ -50,6 +50,8 @@ export interface LocalTableControls {
   stepBot(): boolean;
   getSeating(): TableSeating[];
   subscribeToCrewSetup(callback: (setup: SanitizedCrewSetup | null) => void): () => void;
+  /** Dev-канал Инспектора ботов (В8-9-1): пусто, если отладочные действия запрещены. */
+  inspectBots(): BotInspectionEntry[];
 }
 
 /**
@@ -196,6 +198,10 @@ export class LocalInMemoryTransport implements IGameTransport, LocalTableControl
 
   getSeating(): TableSeating[] {
     return this.seats.getSeating();
+  }
+
+  inspectBots(): BotInspectionEntry[] {
+    return this.allowDevActions ? this.bots.inspect(this.localState) : [];
   }
 
   getViewerId(): string {

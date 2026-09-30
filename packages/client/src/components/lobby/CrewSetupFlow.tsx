@@ -8,6 +8,7 @@ import { CrewBriefingScreen } from './CrewBriefingScreen';
 import { LobbyScreen } from './LobbyScreen';
 import { RoleSelectionScreen } from './RoleSelectionScreen';
 import { WaitingRoomScreen } from './WaitingRoomScreen';
+import { SimulationScreen } from '../simulation/SimulationScreen';
 import {
   BOT_BOOT_MS,
   BOT_PICK_DELAY_MS,
@@ -21,7 +22,7 @@ import {
   type WaitingSeat,
 } from './lobbyModel';
 
-type FlowStage = 'LOBBY' | 'WAITING' | 'BRIEFING' | 'ROLES';
+type FlowStage = 'LOBBY' | 'WAITING' | 'BRIEFING' | 'ROLES' | 'SIMULATION';
 
 interface CrewSetupFlowProps {
   onClose?: () => void;
@@ -146,8 +147,10 @@ export const CrewSetupFlow: React.FC<CrewSetupFlowProps> = ({ onClose, onLaunche
             onChange={setConfig}
             onRerollSeed={() => setConfig((current) => ({ ...current, seed: createSeed() }))}
             onContinue={goToWaiting}
+            onSimulate={() => setStage('SIMULATION')}
           />
         )}
+        {stage === 'SIMULATION' && <SimulationScreen onBack={() => setStage('LOBBY')} />}
         {stage === 'WAITING' && (
           <WaitingRoomScreen
             seats={seats}

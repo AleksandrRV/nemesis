@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Симулятор исполняется в Node.js (`--experimental-strip-types`) поверх собранного ядра;
+    // для проверки типов ядро берётся из исходников.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
+    "paths": {
+      "@nemesis/shared": ["../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["*.ts"]
+}

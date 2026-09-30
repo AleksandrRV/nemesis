@@ -25,6 +25,7 @@ npm run test:coverage                                        # покрытие 
 npm run lint:fix                                             # автоисправления ESLint
 npm run format                                               # Prettier (AGENTS.md и doc/ исключены)
 npm run build                                                # сборка shared и client в packages/*/dist
+npm run simulate -- --games 100 --bots 4                     # симулятор партий ботов (балансировка, doc/bots.md §9)
 ```
 
 ## 1. Принципы разработки

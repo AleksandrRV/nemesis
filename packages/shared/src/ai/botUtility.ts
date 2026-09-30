@@ -5,11 +5,12 @@ import { botStream, effectiveKnobs } from './botCharacter.js';
 import { clamp01, evaluateCurve } from './botCurves.js';
 import type { BotAgenda } from './botGoals.js';
 import type { BotMind } from './botMind.js';
+import { hopDistances } from './botGraph.js';
 import { costsToGoals, roomTypeProbability, type GoalRoom } from './botNavigation.js';
 import { suspectedEnemies } from './botObjectives.js';
 import { escapeCost } from '../logic/seriousWoundEffects.js';
 import { handOf } from './botHand.js';
-import { entryRisk, roomThreat } from './botRisk.js';
+import { entryRisk, intruderSeverity, roomThreat, surpriseChance } from './botRisk.js';
 import { detailMatches, type BotTask } from './botTasks.js';
 import type { BotTuning, TuningKnob } from './botTuning.js';
 
@@ -18,6 +19,23 @@ export interface ScoredCandidate {
   utility: number;
   /** Задача, которую Действие продвигает сильнее всего: её желание становится планом бота. */
   task: BotTask | null;
+  factors: UtilityFactors;
+}
+
+/**
+ * Разбор полезности для Инспектора ботов:
+ * (ценность − риск + бегство − Побег + конец хода − запас руки) × безопасность × экономия.
+ */
+export interface UtilityFactors {
+  taskValue: number;
+  selfRisk: number;
+  flee: number;
+  escapeAttack: number;
+  endTurn: number;
+  handReserve: number;
+  dangerAfter: number;
+  safety: number;
+  economy: number;
 }
 
 interface ScoringContext {
@@ -28,6 +46,8 @@ interface ScoringContext {
   knobs: Record<TuningKnob, number>;
   here: RoomId;
   costs: Map<BotTask, Map<RoomId, number>>;
+  goals: Map<BotTask, GoalRoom[]>;
+  hops: Map<RoomId, Map<RoomId, number>>;
   dangerCache: Map<string, number>;
   enemies: string[];
 }
@@ -87,11 +107,23 @@ function completes(context: ScoringContext, candidate: Candidate, entry: BotTask
   return rooms.some((goal) => goal.roomId === candidate.roomId && goal.probability >= 1);
 }
 
+function goalsOf(context: ScoringContext, entry: BotTask): GoalRoom[] {
+  if (!context.goals.has(entry)) context.goals.set(entry, goalRooms(context.view, entry));
+  return context.goals.get(entry)!;
+}
+
+/** Коридоров до ближайшей цели задачи по графу: кривая расстояния — о пути, а не о его риске. */
+function hopsToGoal(context: ScoringContext, from: RoomId, entry: BotTask): number {
+  if (!context.hops.has(from)) context.hops.set(from, hopDistances(context.view, from));
+  const distances = context.hops.get(from)!;
+  return Math.min(...goalsOf(context, entry).map((goal) => distances.get(goal.roomId) ?? Number.POSITIVE_INFINITY));
+}
+
 function costsFor(context: ScoringContext, entry: BotTask): Map<RoomId, number> {
   if (!context.costs.has(entry)) {
     context.costs.set(
       entry,
-      costsToGoals(context.view, goalRooms(context.view, entry), context.tuning, context.knobs.riskAversion),
+      costsToGoals(context.view, goalsOf(context, entry), context.tuning, context.knobs.riskAversion),
     );
   }
   return context.costs.get(entry)!;
@@ -109,7 +141,7 @@ function progress(context: ScoringContext, candidate: Candidate, entry: BotTask)
   const next = costs.get(candidate.roomId);
   if (now === undefined || next === undefined || next >= now) return 0;
   const { navigation, curves } = context.tuning;
-  const hops = next / navigation.actionCost;
+  const hops = hopsToGoal(context, candidate.roomId, entry);
   const reach = Math.max(navigation.farGoalFloor, evaluateCurve(curves.distance, hops / context.knobs.horizon));
   return ((now - next) / Math.max(now, navigation.actionCost)) * reach;
 }
@@ -120,12 +152,29 @@ function strandsInDanger(context: ScoringContext, candidate: Candidate): boolean
   return left < escapeCost(context.view.players[context.mind.botId]!);
 }
 
+/** Пустая рука — Внезапная Атака при следующей Встрече: цена — прирост её шанса × ожидаемая Атака Взрослой. */
+function handReserveCost(context: ScoringContext, before: number, after: number): number {
+  const { tuning } = context;
+  const exposure = Math.max(0, surpriseChance(Math.max(0, after)) - surpriseChance(before));
+  const attack = (intruderSeverity('ADULT', tuning) * tuning.risk.wound) / tuning.risk.seriousWound;
+  return tuning.desires.SURVIVE * tuning.risk.contactBeforeDraw * exposure * attack;
+}
+
+function endTurnFactor(context: ScoringContext, candidate: Candidate, moving: boolean, here: number, after: number) {
+  const { tuning } = context;
+  const survive = tuning.desires.SURVIVE;
+  if (candidate.kind === 'PASS') return tuning.choice.passValue - survive * tuning.choice.endTurnDangerWeight * here;
+  if (!moving && strandsInDanger(context, candidate)) return -survive * tuning.choice.endTurnDangerWeight * after * 0.5;
+  return 0;
+}
+
 /**
  * Utility (В8-7-2): ценность задач, которые Действие закрывает или к которым ведёт, × безопасность
  * Комнаты, где бот окажется, × экономия карт. Бегство из опасной Комнаты ценно само по себе.
  */
 function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
   const { tuning, agenda } = context;
+  const survive = tuning.desires.SURVIVE;
   let total = 0;
   let bestTask: BotTask | null = null;
   let bestShare = 0;
@@ -138,8 +187,6 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
       bestTask = entry;
     }
   }
-  let value = (bestShare + tuning.choice.sideTaskShare * (total - bestShare)) * (candidate.quality ?? 1);
-  value -= (tuning.desires.SURVIVE * (candidate.selfRisk ?? 0)) / tuning.risk.seriousWound;
   const moving = candidate.kind === 'MOVE' || candidate.kind === 'ESCAPE' || candidate.kind === 'CAREFUL_MOVE';
   const dangerHere = dangerOf(context, context.here);
   const dangerAfter = dangerOf(
@@ -147,19 +194,22 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
     candidate.roomId,
     candidate.kind === 'CAREFUL_MOVE' ? 'CAREFUL' : moving ? 'ROLL' : 'STAY',
   );
-  if (moving) {
-    value += tuning.desires.SURVIVE * tuning.choice.fleeWeight * Math.max(0, dangerHere - dangerAfter);
-  }
-  if (candidate.kind === 'ESCAPE') {
-    value -= tuning.desires.SURVIVE * tuning.choice.fleeWeight * dangerHere * tuning.risk.escapeAttackShare;
-  }
-  if (candidate.kind === 'PASS') {
-    value += tuning.choice.passValue - tuning.desires.SURVIVE * tuning.choice.endTurnDangerWeight * dangerHere;
-  } else if (!moving && strandsInDanger(context, candidate)) {
-    value -= tuning.desires.SURVIVE * tuning.choice.endTurnDangerWeight * dangerAfter * 0.5;
-  }
-  const economy = 1 / (1 + tuning.choice.cardCostWeight * candidate.spent);
-  return { candidate, utility: value * (1 - dangerAfter * tuning.desires.SURVIVE * 0.5) * economy, task: bestTask };
+  const hand = handOf(context.view, context.mind.botId).length;
+  const factors: UtilityFactors = {
+    taskValue: (bestShare + tuning.choice.sideTaskShare * (total - bestShare)) * (candidate.quality ?? 1),
+    selfRisk: (survive * (candidate.selfRisk ?? 0)) / tuning.risk.seriousWound,
+    flee: moving ? survive * tuning.choice.fleeWeight * Math.max(0, dangerHere - dangerAfter) : 0,
+    escapeAttack:
+      candidate.kind === 'ESCAPE' ? survive * tuning.choice.fleeWeight * dangerHere * tuning.risk.escapeAttackShare : 0,
+    endTurn: endTurnFactor(context, candidate, moving, dangerHere, dangerAfter),
+    handReserve: handReserveCost(context, hand, hand - (candidate.cardsUsed ?? 0)),
+    dangerAfter,
+    safety: 1 - dangerAfter * survive * 0.5,
+    economy: 1 / (1 + tuning.choice.cardCostWeight * candidate.spent),
+  };
+  const value =
+    factors.taskValue - factors.selfRisk + factors.flee - factors.escapeAttack + factors.endTurn - factors.handReserve;
+  return { candidate, utility: value * factors.safety * factors.economy, task: bestTask, factors };
 }
 
 export function scoreCandidates(
@@ -177,6 +227,8 @@ export function scoreCandidates(
     knobs: effectiveKnobs(mind.character, mind.difficulty, tuning),
     here: view.players[mind.botId]!.roomId,
     costs: new Map(),
+    goals: new Map(),
+    hops: new Map(),
     dangerCache: new Map(),
     enemies: suspectedEnemies(mind, view, tuning),
   };

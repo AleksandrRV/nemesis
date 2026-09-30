@@ -1,4 +1,5 @@
 import { INTRUDER_ATTACK_CARDS } from '../data/intruderAttacks.js';
+import { ESCAPE_NUMBERS_BY_TYPE } from '../data/intruderPool.js';
 import { NOISE_DIE_FACES } from '../data/noiseDie.js';
 import { SELF_DESTRUCT_EXPLODES_AT } from '../data/evacuation.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
@@ -80,9 +81,15 @@ export function roomThreat(view: SanitizedGameState, roomId: RoomId, tuning: Bot
 }
 
 /**
- * Риск войти в Комнату: её угроза плюс шанс Встречи и неизвестность неисследованного тайла.
- * «Осторожное движение» (стр. 13) кладёт Шум без броска кубика — Встречи при входе нет.
+ * Риск войти в Комнату: её угроза, шанс Встречи, цена Шума и неизвестность неисследованного тайла.
+ * Бросок без Встречи кладёт маркер Шума (стр. 15) — следующий вход рядом опаснее. «Осторожное движение»
+ * (стр. 13) кладёт Шум без броска кубика — Встречи при входе нет.
  */
+function noisyEntryRisk(view: SanitizedGameState, roomId: RoomId, tuning: BotTuning, fear: number): number {
+  const chance = contactChance(view, roomId);
+  return chance * tuning.risk.contact * fear + (1 - chance) * tuning.risk.noise;
+}
+
 export function entryRisk(
   view: SanitizedGameState,
   roomId: RoomId,
@@ -94,9 +101,17 @@ export function entryRisk(
   if (!room) return Number.POSITIVE_INFINITY;
   return (
     roomThreat(view, roomId, tuning, fear) +
-    (careful ? 0 : contactChance(view, roomId) * tuning.risk.contact * fear) +
+    (careful ? 0 : noisyEntryRisk(view, roomId, tuning, fear)) +
     (room.isExplored ? 0 : tuning.risk.unexplored)
   );
+}
+
+const MINIATURE_TOKENS: readonly IntruderType[] = ['CREEPER', 'ADULT', 'BREEDER', 'QUEEN'];
+const ESCAPE_NUMBERS = MINIATURE_TOKENS.flatMap((type) => ESCAPE_NUMBERS_BY_TYPE[type]);
+
+/** Шанс Внезапной Атаки при Встрече (стр. 18): число на жетоне выше числа карт на руке. */
+export function surpriseChance(handCount: number): number {
+  return ESCAPE_NUMBERS.filter((escapeNumber) => escapeNumber > handCount).length / ESCAPE_NUMBERS.length;
 }
 
 /** Сколько раундов осталось до Прыжка или взрыва Самоуничтожения (стр. 11). */

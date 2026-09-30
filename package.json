@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=packages/client",
     "build": "npm run build --workspaces",
-    "typecheck": "npm run typecheck --workspaces",
+    "typecheck": "npm run typecheck --workspaces && tsc -p scripts/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -17,7 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write . '!TEMP/EXPERT_*_STAGE_4.md'",
     "format:check": "prettier --check . '!TEMP/EXPERT_*_STAGE_4.md'",
-    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "simulate": "npm run build --workspace=packages/shared && node --experimental-strip-types --no-warnings scripts/simulate-bots.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

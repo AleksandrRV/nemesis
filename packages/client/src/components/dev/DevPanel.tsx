@@ -1,10 +1,11 @@
 import React from 'react';
 import { TIME_TRACK_LENGTH } from '@nemesis/shared';
-import { Bug, Copy, Dices, Volume2, VolumeX, X } from 'lucide-react';
+import { BrainCircuit, Bug, Copy, Dices, Volume2, VolumeX, X } from 'lucide-react';
 
 import { useGameStore } from '../../store/gameStore';
 import { GAME_MODE_LABELS, PHASE_LABELS } from '../../utils/labels';
 import { IS_DEV } from '../../utils/env';
+import { BotInspector } from './BotInspector';
 import { DOOR_CYCLE_HINT, GAME_OVER_REASON_LABELS, buildCorridorRows, buildDiagnostics } from './devPanelModel';
 
 interface DevPanelProps {
@@ -36,6 +37,7 @@ export const DevPanel: React.FC<DevPanelProps> = ({ onClose }) => {
   const startNewGame = useGameStore((state) => state.startNewGame);
   const [seed, setSeed] = React.useState('');
   const [copied, setCopied] = React.useState(false);
+  const [inspectorOpen, setInspectorOpen] = React.useState(false);
 
   if (!IS_DEV || !view) return null;
 
@@ -117,6 +119,18 @@ export const DevPanel: React.FC<DevPanelProps> = ({ onClose }) => {
           </dl>
         </section>
 
+        <section>
+          <h3 className="text-cyan-400 uppercase tracking-wider mb-1.5">Боты</h3>
+          <button
+            type="button"
+            onClick={() => setInspectorOpen((open) => !open)}
+            aria-pressed={inspectorOpen}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-violet-900 hover:border-violet-600 hover:text-violet-200 text-violet-300"
+          >
+            <BrainCircuit size={12} /> {inspectorOpen ? 'закрыть инспектор ботов' : 'открыть инспектор ботов'}
+          </button>
+        </section>
+
         {/* Новая партия с заданным сидом — для повторяемых проверок */}
         <section>
           <h3 className="text-cyan-400 uppercase tracking-wider mb-1.5">Новая партия</h3>
@@ -180,6 +194,7 @@ export const DevPanel: React.FC<DevPanelProps> = ({ onClose }) => {
           </ul>
         </section>
       </div>
+      {inspectorOpen && <BotInspector onClose={() => setInspectorOpen(false)} />}
     </aside>
   );
 };

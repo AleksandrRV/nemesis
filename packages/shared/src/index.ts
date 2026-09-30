@@ -28,6 +28,15 @@ export { activePersona, botSeedOf, effectiveKnobs, generateCharacter, personaFor
 export { earthProbability } from './ai/botBeliefs.js';
 export { observe as observeForBot } from './ai/botObserver.js';
 export { BotAgent, createBotMind, type BotDecision } from './ai/botAgent.js';
+export {
+  inspectBot,
+  type BotInspection,
+  type InspectedCandidate,
+  type InspectedObjectiveGuess,
+  type InspectedTrust,
+} from './ai/botInspection.js';
+export type { UtilityFactors } from './ai/botUtility.js';
+export type { CandidateKind } from './ai/botCandidates.js';
 export { hostilityOf, scaleMean, trustIn } from './ai/botSocial.js';
 export { planCoordinatesClaim, planEngineClaim, type ClaimPlan } from './ai/botLying.js';
 export { assessRequest, type RequestAssessment } from './ai/botRequests.js';
@@ -92,3 +101,11 @@ export {
   type PhraseTone,
 } from './data/botPhrases.js';
 export * from './utils/rng.js';
+export * from './simulation/simulationTypes.js';
+export {
+  DEFAULT_SIMULATION_STEP_LIMIT,
+  seriesSeed,
+  simulateGame,
+  simulationStartState,
+} from './simulation/simulateGame.js';
+export { rateOf, summarizeSimulations } from './simulation/simulationStats.js';

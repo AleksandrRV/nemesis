@@ -12,6 +12,7 @@ import { create } from 'zustand';
 import { createLocalTransport } from '../services/transport/LocalInMemoryTransport';
 import type { LocalTableControls, NewGameOptions } from '../services/transport/LocalInMemoryTransport';
 import type { CrewSetupOptions } from '../services/transport/CrewSetupSession';
+import type { BotInspectionEntry } from '../services/transport/BotController';
 import type { IGameTransport } from '../services/transport/ITransport';
 import type { SessionDiscardReason } from '../services/session/sessionStorage';
 import { IS_DEV } from '../utils/env';
@@ -91,6 +92,8 @@ export interface GameStoreState {
   pickRandomRole: () => void;
   launchCrew: () => void;
   cancelCrewSetup: () => void;
+  /** Dev-канал Инспектора ботов: вызывается по требованию, в стор не кладётся. */
+  inspectBots: () => BotInspectionEntry[];
 }
 
 export type BotSpeed = 'NORMAL' | 'FAST';
@@ -174,6 +177,7 @@ export function createGameStore(createTransport: TransportFactory) {
       syncTable();
     },
     cancelCrewSetup: () => transport.cancelCrewSetup?.(),
+    inspectBots: () => transport.inspectBots?.() ?? [],
 
     toggleSelectCard: (cardId) => {
       const { selectedCardIds, convertedCardIds } = get();

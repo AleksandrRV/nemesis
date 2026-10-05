@@ -8,8 +8,11 @@ import { resolveEventCardEffect } from './eventEffects.js';
 import { executeRoomAbility } from './roomAbilities.js';
 import { createInitialGameState } from './setup.js';
 
+/** Все тайлы вскрыты: маркеры Событий ложатся только на исследованные Комнаты (решение владельца В-11). */
 function freshState(seed: string, playerCount = 1): GameState {
-  return createInitialGameState(seed, { playerCount });
+  const state = createInitialGameState(seed, { playerCount });
+  for (const room of Object.values(state.ship.rooms)) room.isExplored = true;
+  return state;
 }
 
 function cardById(cardId: string): EventCard {
@@ -242,6 +245,9 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
   describe('Улей', () => {
     it('неисследованный Улей не шумит', () => {
       const state = freshState('dump');
+      for (const room of Object.values(state.ship.rooms)) {
+        if (room.definitionId === 'NEST') room.isExplored = false;
+      }
 
       const result = outcome(state, 'EVT_HIVE');
 
@@ -485,5 +491,22 @@ describe('Шаг 7б Фазы Событий: текстовые эффекты 
       expect(state.ship.corridors['3-7']!.doorState).toBe('OPEN');
       expect(state.ship.corridors['1-3']!.doorState).toBe('DESTROYED');
     });
+  });
+});
+
+describe('События не кладут маркеры на неисследованные тайлы (решение владельца В-11)', () => {
+  it('«Неполадка жизнеобеспечения» обходит закрытые Зелёные Комнаты', () => {
+    const state = createInitialGameState('dump', { playerCount: 1 });
+    resolveEventCardEffect(state, cardById('EVT_LIFE_SUPPORT_MALFUNCTION'));
+    const hiddenBroken = Object.values(state.ship.rooms).filter((room) => !room.isExplored && room.hasMalfunction);
+    expect(hiddenBroken).toEqual([]);
+  });
+
+  it('огонь не перекидывается на закрытый соседний тайл', () => {
+    const state = createInitialGameState('dump', { playerCount: 1 });
+    const burning = Object.values(state.ship.rooms).find((room) => room.isExplored)!;
+    burning.hasFire = true;
+    resolveEventCardEffect(state, cardById('EVT_DEVOURING_FLAME'));
+    expect(Object.values(state.ship.rooms).filter((room) => !room.isExplored && room.hasFire)).toEqual([]);
   });
 });

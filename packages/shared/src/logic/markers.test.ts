@@ -31,7 +31,12 @@ import { createInitialGameState } from './setup.js';
 
 const SEED = 'markers-test';
 
-const freshState = (): GameState => createInitialGameState(SEED);
+/** Все тайлы вскрыты: на неисследованный тайл маркер не кладётся (решение владельца В-11). */
+function freshState(): GameState {
+  const state = createInitialGameState(SEED);
+  for (const room of Object.values(state.ship.rooms)) room.isExplored = true;
+  return state;
+}
 
 /** Отсеки, куда маркер класть можно: без маркера и не запрещённые для Неисправности (стр. 17). */
 function freeRooms(state: GameState): number[] {
@@ -248,5 +253,17 @@ describe('Жетон Двери (стр. 17)', () => {
 
     expect(placeDoorToken(state, targetId)).toBe('NO_TOKEN_IN_SUPPLY');
     expect(state.ship.corridors[targetId]?.doorState).toBe('OPEN');
+  });
+});
+
+describe('Неисследованный тайл (решение владельца В-11)', () => {
+  it('ни Пожар, ни Неисправность на закрытый тайл не кладутся, запас не тратится', () => {
+    const state = createInitialGameState(SEED);
+    const hidden = Object.values(state.ship.rooms).find((room) => !room.isExplored)!;
+    expect(placeFireMarker(state, hidden.id)).toBe('UNEXPLORED_ROOM');
+    expect(placeMalfunctionMarker(state, hidden.id)).toBe('UNEXPLORED_ROOM');
+    expect(hidden.hasFire).toBe(false);
+    expect(hidden.hasMalfunction).toBe(false);
+    expect(fireMarkersInSupply(state.ship)).toBe(FIRE_MARKER_SUPPLY);
   });
 });

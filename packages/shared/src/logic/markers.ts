@@ -63,10 +63,11 @@ export function doorTokensInSupply(ship: GameState['ship']): number {
 }
 
 /** Результат выкладывания маркера Пожара (стр. 17). */
-export type FirePlacement = 'PLACED' | 'ALREADY_PRESENT' | 'UNKNOWN_ROOM' | 'SHIP_EXPLODED';
+export type FirePlacement = 'PLACED' | 'ALREADY_PRESENT' | 'UNKNOWN_ROOM' | 'UNEXPLORED_ROOM' | 'SHIP_EXPLODED';
 
 /**
- * Кладёт маркер Пожара в отсек. Второй маркер в ту же Комнату не кладётся,
+ * Кладёт маркер Пожара в отсек. На неисследованный тайл маркер не кладётся (решение
+ * владельца В-11). Второй маркер в ту же Комнату не кладётся,
  * а пустой запас означает взрыв корабля — это и возвращает результат
  * (состояние партии переводит в «игра окончена» вызывающий движок).
  */
@@ -74,6 +75,7 @@ export function placeFireMarker(state: GameState, roomId: RoomId): FirePlacement
   const room = state.ship.rooms[roomId];
 
   if (!room) return 'UNKNOWN_ROOM';
+  if (!room.isExplored) return 'UNEXPLORED_ROOM';
   if (room.hasFire) return 'ALREADY_PRESENT';
   if (fireMarkersInSupply(state.ship) <= 0) return 'SHIP_EXPLODED';
 
@@ -83,10 +85,12 @@ export function placeFireMarker(state: GameState, roomId: RoomId): FirePlacement
 }
 
 /** Результат выкладывания маркера Неисправности (стр. 17). */
-export type MalfunctionPlacement = 'PLACED' | 'ALREADY_PRESENT' | 'UNKNOWN_ROOM' | 'FORBIDDEN_ROOM' | 'HULL_BREACH';
+export type MalfunctionPlacement =
+  'PLACED' | 'ALREADY_PRESENT' | 'UNKNOWN_ROOM' | 'UNEXPLORED_ROOM' | 'FORBIDDEN_ROOM' | 'HULL_BREACH';
 
 /**
- * Кладёт маркер Неисправности в отсек. Занятая Комната и запретные отсеки
+ * Кладёт маркер Неисправности в отсек. Неисследованный тайл (решение владельца В-11),
+ * занятая Комната и запретные отсеки
  * (Улей, Комната со Слизью) — «ничего не происходит», пустой запас — разрыв
  * обшивки (стр. 17).
  */
@@ -94,6 +98,7 @@ export function placeMalfunctionMarker(state: GameState, roomId: RoomId): Malfun
   const room = state.ship.rooms[roomId];
 
   if (!room) return 'UNKNOWN_ROOM';
+  if (!room.isExplored) return 'UNEXPLORED_ROOM';
   if (room.hasMalfunction) return 'ALREADY_PRESENT';
   if (
     room.definitionId !== null &&

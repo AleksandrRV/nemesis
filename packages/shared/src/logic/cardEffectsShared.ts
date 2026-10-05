@@ -116,6 +116,7 @@ export function toggleDoor(
 
 export function placeFireFromCard(state: GameState, roomId: RoomId, actorId: string): void {
   const placement = placeFireMarker(state, roomId);
+  if (placement === 'UNEXPLORED_ROOM') return;
   if (placement === 'ALREADY_PRESENT') {
     throw new EngineError('FIRE_PRESENT', 'В этой комнате уже горит Пожар.');
   }
@@ -125,6 +126,7 @@ export function placeFireFromCard(state: GameState, roomId: RoomId, actorId: str
 
 export function placeMalfunctionFromCard(state: GameState, roomId: RoomId): void {
   const placement = placeMalfunctionMarker(state, roomId);
+  if (placement === 'UNEXPLORED_ROOM') return;
   if (placement === 'ALREADY_PRESENT') {
     throw new EngineError('MALFUNCTION_PRESENT', 'В этой комнате уже стоит маркер Неисправности.');
   }

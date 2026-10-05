@@ -17,6 +17,7 @@ import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
 import { othersSuccessWeight } from './botSocial.js';
 import { task, type BotTask } from './botTasks.js';
+import { sharedAmongCrew } from './botTeam.js';
 import type { BotTuning, TuningKnob } from './botTuning.js';
 
 export interface BotAgenda {
@@ -115,19 +116,31 @@ function evacuationTasks(
   const lockedPods = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && pod.isLocked);
   if (!podsOpen && lockedPods) {
     tasks.push(
-      task(
-        'UNLOCK_POD',
-        'PREPARE_EVACUATION',
-        lifeline * onBoard * tuning.tactics.evacuation.unlockPods,
-        { definitionIds: ['HATCH_CONTROL'] },
-        'Разблокировать Капсулы',
+      ...sharedAmongCrew(
+        view,
+        self.id,
+        [
+          task(
+            'UNLOCK_POD',
+            'PREPARE_EVACUATION',
+            lifeline * onBoard * tuning.tactics.evacuation.unlockPods,
+            { definitionIds: ['HATCH_CONTROL'] },
+            'Разблокировать Капсулы',
+          ),
+        ],
+        tuning.tactics.teamShare,
       ),
     );
   }
   if (route !== 'POD' || !podsOpen) {
-    tasks.push(
-      ...voyageTasks({ view, mind, self, tuning, weight: lifeline * pressure * tuning.tactics.evacuation.voyage }),
-    );
+    const voyage = voyageTasks({
+      view,
+      mind,
+      self,
+      tuning,
+      weight: lifeline * pressure * tuning.tactics.evacuation.voyage,
+    });
+    tasks.push(...sharedAmongCrew(view, self.id, voyage, tuning.tactics.teamShare));
   }
   const here = view.ship.rooms[self.roomId];
   const shelterTaken =

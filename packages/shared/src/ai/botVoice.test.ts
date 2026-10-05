@@ -21,8 +21,8 @@ function tuned(comms: Partial<BotTuning['comms']>): BotTuning {
   return { ...BOT_TUNING, comms: { ...BOT_TUNING.comms, ...comms } };
 }
 
-const TALKATIVE = tuned({ speakChance: 1, requestChance: 1 });
-const SILENT = tuned({ speakChance: 0, requestChance: 0 });
+const TALKATIVE = tuned({ speakChance: 1, intentChance: 1, requestChance: 1 });
+const SILENT = tuned({ speakChance: 0, intentChance: 0, requestChance: 0 });
 
 function phraseOf(draft: CommsDraft): string {
   return 'phraseId' in draft && draft.phraseId !== undefined ? draft.phraseId : '';

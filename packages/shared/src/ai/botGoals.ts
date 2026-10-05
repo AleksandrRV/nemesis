@@ -17,7 +17,7 @@ import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
 import { othersSuccessWeight } from './botSocial.js';
 import { task, type BotTask } from './botTasks.js';
-import { sharedAmongCrew } from './botTeam.js';
+import { escortTasks, sharedAmongCrew, yieldClaimedTasks } from './botTeam.js';
 import type { BotTuning, TuningKnob } from './botTuning.js';
 
 export interface BotAgenda {
@@ -360,7 +360,9 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
     tuning.curves.danger,
     roomThreat(view, self.roomId, tuning, knobs.fear) / tuning.risk.seriousWound,
   );
-  const tasks = scaledByDesire(
+  const own = yieldClaimedTasks(
+    view,
+    mind,
     [
       ...plans.flatMap((plan) => plan.tasks),
       ...evacuationTasks(context, route, timePressure, plans),
@@ -368,9 +370,9 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
       ...shipCareTasks(context),
       ...promiseTasks(context),
     ],
-    knobs,
-    timePressure,
+    tuning,
   );
+  const tasks = scaledByDesire([...own, ...escortTasks(view, mind, own, tuning)], knobs, timePressure);
   return { tasks, plans, danger, timePressure, evacuation: route };
 }
 

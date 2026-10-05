@@ -58,6 +58,15 @@ export interface TacticsTuning {
   teamShare: number;
   /** Множитель веса разовых вех Целей (Сигнал, Координаты, Курс) против остальных шагов Цели. */
   milestoneBoost: number;
+  /** Работа командой по Намерениям в Рации: занятые товарищем общие задачи и прикрытие по двое. */
+  team: {
+    /** Доля веса общей задачи, которую объявил надёжный товарищ. */
+    claimedShare: number;
+    /** Доверие, начиная с которого Намерение товарища принимается в расчёт. */
+    claimTrust: number;
+    /** Вес задачи «Прикрыть товарища» (0 — групп нет). */
+    escort: number;
+  };
   /** Шанс не успеть на каждый Коридор до укрытия в последнем раунде: Шум, Встреча, закрытая Дверь. */
   jumpStepRisk: number;
   /** Открыть Дверь на пути — почти шаг к цели: доля ценности Движения за ней. */
@@ -105,6 +114,7 @@ export const TACTICS_TUNING = {
   localWork: 0.6,
   teamShare: 1,
   milestoneBoost: 1,
+  team: { claimedShare: 1, claimTrust: 0.4, escort: 0 },
   jumpStepRisk: 0.3,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,

@@ -1,14 +1,14 @@
-import type { CommsDraft, CommsIntent, CommsMessage, CommsRequestTopic } from '../types/comms.js';
+import type { CommsDraft, CommsMessage, CommsRequestTopic } from '../types/comms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import type { EngineNumber } from '../types/state.js';
 import { botStream, effectiveKnobs } from './botCharacter.js';
 import { distanceBetween, intentTargetRooms } from './botGraph.js';
-import { hasLoadedWeapon, roomIdsOf } from './botGoals.js';
+import { hasLoadedWeapon } from './botGoals.js';
+import { intentForTask, SHARED_TASKS } from './botTeam.js';
 import { planCoordinatesClaim, planEngineClaim } from './botLying.js';
 import type { BotMind } from './botMind.js';
 import { pickPhraseId } from './botPhrases.js';
 import { hasAdjacentIntruders } from './botRisk.js';
-import type { BotTask } from './botTasks.js';
 import type { BotTuning } from './botTuning.js';
 import type { ScoredCandidate } from './botUtility.js';
 
@@ -75,33 +75,6 @@ function claimAfterCheck(view: SanitizedGameState, mind: BotMind, tuning: BotTun
   return null;
 }
 
-function intentOf(view: SanitizedGameState, entry: BotTask): CommsIntent | null {
-  switch (entry.kind) {
-    case 'HIBERNATE':
-      return { topic: 'GO_TO_HIBERNATION' };
-    case 'CHECK_ENGINE':
-    case 'REPAIR_ENGINE':
-      return { topic: 'GO_TO_ENGINES' };
-    case 'CHECK_COORDINATES':
-    case 'SET_COURSE':
-      return { topic: 'GO_TO_BRIDGE' };
-    case 'HEAL':
-      return { topic: 'GO_HEAL' };
-    case 'EXPLORE':
-      return { topic: 'EXPLORE' };
-    case 'BOARD_POD':
-      if (entry.detail.podId) return { topic: 'GO_TO_POD', podId: entry.detail.podId };
-      break;
-    case 'SHIELD_ALLY':
-      if (entry.detail.playerId) return { topic: 'COVER_PLAYER', playerId: entry.detail.playerId };
-      break;
-    default:
-      break;
-  }
-  const [roomId] = roomIdsOf(view, entry.place);
-  return roomId === undefined ? null : { topic: 'GO_TO_ROOM', roomId };
-}
-
 /** Намерение перед дальним походом: только о своём настоящем пути и не о вредительстве. */
 function intentBeforeTrip(
   view: SanitizedGameState,
@@ -111,12 +84,16 @@ function intentBeforeTrip(
 ): CommsDraft | null {
   const entry = chosen.task;
   if (!entry || entry.desire === 'SABOTAGE' || !MOVING_KINDS.has(chosen.candidate.kind)) return null;
-  const intent = intentOf(view, entry);
+  const intent = intentForTask(view, entry);
   if (!intent) return null;
   const targets = intentTargetRooms(view, intent);
   const here = view.players[mind.botId]!.roomId;
   const distance = distanceBetween(view, here, targets);
-  if (!Number.isFinite(distance) || distance < tuning.comms.intentMinHops) return null;
+  const minHops =
+    SHARED_TASKS.has(entry.kind) || entry.kind === 'ESCORT'
+      ? tuning.comms.sharedIntentMinHops
+      : tuning.comms.intentMinHops;
+  if (!Number.isFinite(distance) || distance < minHops) return null;
   if (distanceBetween(view, chosen.candidate.roomId, targets) >= distance) return null;
   const since = view.meta.currentRound - tuning.trust.intentWindowRounds;
   const repeated = claimedSince(
@@ -178,7 +155,7 @@ export function speak(
     if (ordinary) budget -= 1;
   };
   say(claimAfterCheck(view, mind, tuning), tuning.comms.speakChance);
-  if (chosen) say(intentBeforeTrip(view, mind, chosen, tuning), tuning.comms.speakChance);
+  if (chosen) say(intentBeforeTrip(view, mind, chosen, tuning), tuning.comms.intentChance);
   if (!hasOpenRequest(view, mind.botId)) {
     const help = neededHelp(view, mind);
     const draft: CommsDraft | null = help ? { kind: 'REQUEST', to: 'ALL', body: help } : null;

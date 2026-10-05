@@ -36,7 +36,8 @@ export type TaskKind =
   | 'SHIELD_ALLY'
   | 'SET_DOOR'
   | 'BREAK_DOOR'
-  | 'CRAFT';
+  | 'CRAFT'
+  | 'ESCORT';
 
 export interface TaskDetail {
   engineNumber?: EngineNumber;

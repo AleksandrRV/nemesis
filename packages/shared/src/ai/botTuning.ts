@@ -267,6 +267,10 @@ export interface BotTuning {
     requestLifetimeRounds: number;
     /** С какого числа Движений до цели поход считается дальним и стоит Намерения. */
     intentMinHops: number;
+    /** Шанс объявить Намерение перед походом (новое или изменённое — повтор того же не звучит). */
+    intentChance: number;
+    /** С какого числа Движений объявляется поход к общей задаче корабля или за товарищем. */
+    sharedIntentMinHops: number;
     /** Сколько Заявлений и Намерений бот сам говорит за ход — меньше лимита Рации. */
     ownMessagesPerTurn: number;
     /** Проверка считается свежей для Заявления столько раундов. */
@@ -442,6 +446,8 @@ export const BOT_TUNING = {
     requestChance: 0.35,
     requestLifetimeRounds: 2,
     intentMinHops: 3,
+    intentChance: 0.6,
+    sharedIntentMinHops: 3,
     ownMessagesPerTurn: 2,
     freshCheckRounds: 1,
     warmMorale: 40,

@@ -18,6 +18,9 @@ import { task, type BotTask } from './botTasks.js';
 import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
 import type { BotTuning } from './botTuning.js';
 
+/** Разовые вехи Целей в одной Комнате: Сигнал, Координаты, Курс. */
+const MILESTONES: ReadonlySet<BotTask['kind']> = new Set(['SEND_SIGNAL', 'CHECK_COORDINATES', 'SET_COURSE']);
+
 export type EvacuationRoute = 'HIBERNATION' | 'POD' | 'ANY';
 
 interface Step {
@@ -395,6 +398,10 @@ export function planObjectives(view: SanitizedGameState, mind: BotMind, tuning: 
     .filter((plan): plan is ObjectivePlan => plan !== null)
     .map((plan) => ({
       ...plan,
-      tasks: plan.tasks.map((entry) => ({ ...entry, weight: entry.weight * (0.5 + plan.proximity) })),
+      tasks: plan.tasks.map((entry) => ({
+        ...entry,
+        weight:
+          entry.weight * (0.5 + plan.proximity) * (MILESTONES.has(entry.kind) ? tuning.tactics.milestoneBoost : 1),
+      })),
     }));
 }

@@ -56,6 +56,8 @@ export interface TacticsTuning {
   localWork: number;
   /** Доля веса общей задачи корабля (Капсулы, Мостик, Двигатели) для того, кто дальше от неё, чем товарищ. */
   teamShare: number;
+  /** Множитель веса разовых вех Целей (Сигнал, Координаты, Курс) против остальных шагов Цели. */
+  milestoneBoost: number;
   /** Шанс не успеть на каждый Коридор до укрытия в последнем раунде: Шум, Встреча, закрытая Дверь. */
   jumpStepRisk: number;
   /** Открыть Дверь на пути — почти шаг к цели: доля ценности Движения за ней. */
@@ -102,6 +104,7 @@ export const TACTICS_TUNING = {
   intruderAlarm: 0,
   localWork: 0.6,
   teamShare: 1,
+  milestoneBoost: 1,
   jumpStepRisk: 0.3,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,

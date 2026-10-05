@@ -79,7 +79,13 @@ function mateIntents(view: SanitizedGameState, mind: BotMind, tuning: BotTuning)
   });
 }
 
-/** Общую задачу, которую объявил надёжный товарищ, бот оставляет ему: её вес — доля `claimedShare`. */
+function distanceFrom(view: SanitizedGameState, roomId: RoomId, targets: readonly RoomId[]): number {
+  if (targets.length === 0) return Number.POSITIVE_INFINITY;
+  const distances = hopDistances(view, roomId);
+  return Math.min(...targets.map((target) => distances.get(target) ?? Number.POSITIVE_INFINITY));
+}
+
+/** Общую задачу, которую объявил надёжный товарищ не дальше от неё, бот оставляет ему: вес — доля `claimedShare`. */
 export function yieldClaimedTasks(
   view: SanitizedGameState,
   mind: BotMind,
@@ -88,24 +94,32 @@ export function yieldClaimedTasks(
 ): BotTask[] {
   const share = tuning.tactics.team.claimedShare;
   if (share >= 1) return tasks;
-  const claimed = new Set(mateIntents(view, mind, tuning).map((message) => intentKey(message.body)));
-  if (claimed.size === 0) return tasks;
+  const claims = mateIntents(view, mind, tuning);
+  const self = view.players[mind.botId];
+  if (claims.length === 0 || !self) return tasks;
   return tasks.map((entry) => {
     const intent = SHARED_TASKS.has(entry.kind) ? intentForTask(view, entry) : null;
-    return intent && claimed.has(intentKey(intent)) ? { ...entry, weight: entry.weight * share } : entry;
+    if (!intent) return entry;
+    const targets = targetRooms(view, entry.place);
+    const mine = distanceFrom(view, self.roomId, targets);
+    const yielded = claims.some(
+      (message) =>
+        intentKey(message.body) === intentKey(intent) &&
+        distanceFrom(view, view.players[message.authorId]!.roomId, targets) <= mine,
+    );
+    return yielded ? { ...entry, weight: entry.weight * share } : entry;
   });
 }
 
 /**
- * Прикрытие (группа по двое): бот без своей общей задачи идёт за ближайшим товарищем, который объявил поход и
+ * Прикрытие (группа по двое): бот без дела весомее прикрытия идёт за ближайшим товарищем, который объявил поход и
  * которого ещё никто не прикрывает. Вход в Комнату к товарищу не бросает кубик Шума (стр. 15).
  */
 export function escortTasks(view: SanitizedGameState, mind: BotMind, tasks: BotTask[], tuning: BotTuning): BotTask[] {
   const value = tuning.tactics.team.escort;
   const self = view.players[mind.botId];
   if (value <= 0 || !self || !isActiveCrew(self)) return [];
-  const ownShared = Math.max(0, ...tasks.filter((entry) => SHARED_TASKS.has(entry.kind)).map((entry) => entry.weight));
-  if (ownShared > value) return [];
+  if (tasks.some((entry) => entry.weight >= value)) return [];
   const intents = mateIntents(view, mind, tuning);
   const covered = new Set(
     view.comms.messages

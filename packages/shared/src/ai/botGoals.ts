@@ -7,11 +7,13 @@ import { effectiveKnobs } from './botCharacter.js';
 import { evaluateCurve } from './botCurves.js';
 import type { BotMind, OwnPromise } from './botMind.js';
 import { findRoomOfType } from './botNavigation.js';
+import { earthProbability } from './botBeliefs.js';
 import { canRepair, needTasks } from './botNeeds.js';
 import { fragilityCost, vitalityOf } from './botHarm.js';
 import { breachChance, markersLeft } from './botShipDoom.js';
 import { planObjectives, voyageTasks, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
 import { hasAdjacentIntruders, roomThreat, roundsLeft } from './botRisk.js';
+import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
 import { othersSuccessWeight } from './botSocial.js';
 import { task, type BotTask } from './botTasks.js';
@@ -35,9 +37,9 @@ interface AgendaContext {
   altruism: number;
 }
 
-const POD_ROOMS = ['ESCAPE_POD_A', 'ESCAPE_POD_B'];
 /** Два Действия за ход (стр. 13): на путь к Анабиозу бот считает Движения парами. */
 const ACTIONS_PER_TURN = 2;
+const MISSION_DONE = 0.99;
 const URGENT_DESIRES: ReadonlySet<BotTask['desire']> = new Set(['PREPARE_EVACUATION', 'SURVIVE']);
 export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
   return self.handSlots.some((slot) => slot.source === 'ITEM' && slot.card.isWeapon && (slot.card.ammo ?? 0) > 0);
@@ -50,12 +52,16 @@ export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
 function evacuationRoute(view: SanitizedGameState, plans: readonly ObjectivePlan[], mind: BotMind): EvacuationRoute {
   if (plans.some((plan) => plan.evacuation === 'POD')) return 'POD';
   if (plans.some((plan) => plan.evacuation === 'HIBERNATION')) return 'HIBERNATION';
-  const podsOpen = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && !pod.isLocked);
-  return podsOpen || probabilityEnginesHold(mind) < 0.35 ? 'POD' : 'ANY';
+  return boardablePodDefinitions(view).length > 0 || probabilityEnginesHold(mind) < 0.35 ? 'POD' : 'ANY';
 }
 
 /** Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. */
-function evacuationTasks(context: AgendaContext, route: EvacuationRoute, pressure: number): BotTask[] {
+function evacuationTasks(
+  context: AgendaContext,
+  route: EvacuationRoute,
+  pressure: number,
+  plans: readonly ObjectivePlan[],
+): BotTask[] {
   const { view, self, tuning, mind } = context;
   if (self.boardedPodId) return podTasks(context, pressure);
   const base = tuning.desires.PREPARE_EVACUATION;
@@ -68,14 +74,16 @@ function evacuationTasks(context: AgendaContext, route: EvacuationRoute, pressur
     const urgent = rounds - roundsNeeded <= tuning.time.evacuationMarginRounds * context.knobs.horizon;
     const shelterEarly =
       lifeline * tuning.tactics.roundExposure * rounds * (1 + fragilityCost(vitalityOf(self), tuning));
-    return urgent ? Math.max(base, lifeline) : Math.max(base * pressure, pressure * shelterEarly);
+    const voyage = definitionIds.includes('HIBERNATORIUM') ? voyageChance(view, mind, tuning) : 1;
+    return urgent ? Math.max(base, lifeline) : Math.max(base * pressure, pressure * shelterEarly * voyage);
   };
   const onBoard = stayOnBoardRisk(view, self, tuning);
   const marked = (entry: BotTask): BotTask => (entry.weight >= lifeline ? { ...entry, lifeline: true } : entry);
   const tasks: BotTask[] = [];
   const cryo = Object.values(view.ship.rooms).find((room) => room.definitionId === 'HIBERNATORIUM');
   const cryoBroken = cryo?.hasMalfunction === true && !canRepair(context);
-  const podsOpen = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && !pod.isLocked);
+  const podTargets = boardablePodDefinitions(view);
+  const podsOpen = podTargets.length > 0;
   if (route !== 'POD' || !podsOpen) {
     const open = isHibernationOpen(view.meta.timeTrackPosition) ? 1 : 0.6;
     const weight = weightFor(['HIBERNATORIUM']) * open * (cryoBroken ? tuning.tactics.evacuation.blockedRoute : 1);
@@ -90,13 +98,15 @@ function evacuationTasks(context: AgendaContext, route: EvacuationRoute, pressur
         : route === 'HIBERNATION'
           ? shipLossRisk(view, tuning)
           : 1 - probabilityEnginesHold(mind) * (1 - shipLossRisk(view, tuning));
+    const preferred = Math.min(1, leaning * tuning.tactics.evacuation.podPreference);
+    const over = missionOver(context, plans) ? lifeline * tuning.tactics.evacuation.missionOver : 0;
     tasks.push(
       marked(
         task(
           'BOARD_POD',
           'PREPARE_EVACUATION',
-          Math.max(weightFor(POD_ROOMS), lifeline * onBoard) * leaning,
-          { definitionIds: POD_ROOMS },
+          Math.max(Math.max(weightFor(podTargets), lifeline * onBoard) * preferred, over),
+          { definitionIds: podTargets },
           'Сесть в Капсулу',
         ),
       ),
@@ -159,9 +169,36 @@ function podTasks(context: AgendaContext, pressure: number): BotTask[] {
  * каждого раунда рядом с Чужими — то, от чего спасает запущенная Капсула.
  */
 function stayOnBoardRisk(view: SanitizedGameState, self: SanitizedPlayerState, tuning: BotTuning): number {
-  const exposure = tuning.tactics.roundExposure * (1 + fragilityCost(vitalityOf(self), tuning));
+  const alarm = 1 + view.intrudersPool.boardTokens.length * tuning.tactics.intruderAlarm;
+  const exposure = tuning.tactics.roundExposure * alarm * (1 + fragilityCost(vitalityOf(self), tuning));
   const rounds = Math.max(0, roundsLeft(view));
   return 1 - (1 - shipLossRisk(view, tuning)) * Math.pow(1 - Math.min(1, exposure), rounds);
+}
+
+/**
+ * Задание закончено: все Цели выполнены или безнадёжны к концу партии и ни одна не требует Анабиоза — дальше на борту
+ * только риск, пора в Капсулу.
+ */
+function missionOver(context: AgendaContext, plans: readonly ObjectivePlan[]): boolean {
+  const { evacuation } = context.tuning.tactics;
+  const late = roundsLeft(context.view) <= evacuation.missionOverRounds;
+  return (
+    plans.length > 0 &&
+    plans.every(
+      (plan) =>
+        plan.evacuation !== 'HIBERNATION' &&
+        (plan.proximity >= MISSION_DONE || (late && plan.proximity < evacuation.missionHopeless)),
+    )
+  );
+}
+
+/**
+ * Шанс, что спящие в Анабиозе долетят (стр. 11): хотя бы 2 исправных Двигателя, Курс на Землю и корабль цел до
+ * Прыжка — по убеждениям бота. Лечь рано без этого — уснуть навсегда: когда все в Анабиозе, Прыжок наступает сразу.
+ */
+function voyageChance(view: SanitizedGameState, mind: BotMind, tuning: BotTuning): number {
+  const earth = earthProbability(mind.coordinates, view.ship.coordinates.currentCourseMarker);
+  return probabilityEnginesHold(mind) * earth * (1 - shipLossRisk(view, tuning));
 }
 
 /** Шанс, что корабль погибнет до Прыжка — вместе со всеми, кто лежит в Анабиозе (стр. 11). */
@@ -270,7 +307,7 @@ function promiseTasks({ view, mind, tuning, knobs }: AgendaContext): BotTask[] {
         ];
       case 'WAIT_IN_POD':
         return [
-          task('BOARD_POD', 'KEEP_PROMISE', weight, { definitionIds: POD_ROOMS }, 'Ждать в Капсуле', {
+          task('BOARD_POD', 'KEEP_PROMISE', weight, { definitionIds: POD_DEFINITIONS }, 'Ждать в Капсуле', {
             podId: body.podId,
           }),
         ];
@@ -313,7 +350,7 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
   const tasks = scaledByDesire(
     [
       ...plans.flatMap((plan) => plan.tasks),
-      ...evacuationTasks(context, route, timePressure),
+      ...evacuationTasks(context, route, timePressure, plans),
       ...needTasks(context),
       ...shipCareTasks(context),
       ...promiseTasks(context),

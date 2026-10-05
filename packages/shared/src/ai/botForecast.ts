@@ -1,10 +1,10 @@
 import type { RoomId } from '../types/rooms.js';
 import type { Candidate } from './botCandidates.js';
 import { handOf } from './botHand.js';
-import { isPodUsable } from '../logic/actionRules.js';
 import { hopDistances } from './botGraph.js';
 import { roundsLeft } from './botRisk.js';
 import {
+  boardablePodDefinitions,
   survivalUnderFire,
   combatHarm,
   entryHarm,
@@ -65,13 +65,12 @@ const SHELTER_EFFECTS: ReadonlySet<string> = new Set(['HIBERNATE', 'BOARD_POD'])
 
 /** Укрытия от Прыжка (стр. 11): исправный Криогенный отсек и Комнаты с открытой Капсулой. */
 function shelterRooms(context: ThreatContext): RoomId[] {
-  const { view } = context;
-  const podsOpen = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && !pod.isLocked);
-  return Object.values(view.ship.rooms)
+  const pods = boardablePodDefinitions(context.view);
+  return Object.values(context.view.ship.rooms)
     .filter(
       (room) =>
         (room.definitionId === 'HIBERNATORIUM' && !room.hasMalfunction) ||
-        (podsOpen && (room.definitionId === 'ESCAPE_POD_A' || room.definitionId === 'ESCAPE_POD_B')),
+        (room.definitionId !== null && pods.includes(room.definitionId)),
     )
     .map((room) => room.id);
 }

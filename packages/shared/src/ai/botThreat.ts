@@ -3,7 +3,7 @@ import { ESCAPE_NUMBERS_BY_TYPE } from '../data/intruderPool.js';
 import type { IntruderEntity, IntruderToken, IntruderType } from '../types/entities.js';
 import type { ExplorationEffect, RoomId } from '../types/rooms.js';
 import type { SanitizedGameState, SanitizedPlayerState } from '../types/sanitized.js';
-import { loadedHandWeapon } from '../logic/actionRules.js';
+import { boardablePods, loadedHandWeapon } from '../logic/actionRules.js';
 import { findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';
 import {
   attackHarm,
@@ -230,8 +230,21 @@ export function entryHarm(context: ThreatContext, roomId: RoomId, handAfter: num
   if (!room) return Number.POSITIVE_INFINITY;
   const exploration = room.isExplored ? 0 : explorationHarm(context);
   const company = crewIn(view, roomId).some((player) => player.id !== context.self.id);
-  if (company || intrudersIn(view, roomId).length > 0 || careful) return exploration;
+  if (company || intrudersIn(view, roomId).length > 0) return exploration;
+  if (careful) return exploration + tuning.tactics.harm.noise;
   const silenceOdds = room.isExplored ? 0 : (explorationOdds(view).get('SILENCE') ?? 0);
   const chance = contactChance(view, roomId) * (context.self.hasSlime ? 1 : 1 - silenceOdds);
   return exploration + chance * contactHarm(context, handAfter) + (1 - chance) * tuning.tactics.harm.noise;
+}
+
+export const POD_DEFINITIONS = ['ESCAPE_POD_A', 'ESCAPE_POD_B'];
+
+/** Спасательные отсеки, где можно сесть в Капсулу (стр. 26): цела, не улетела, Разблокирована, есть место, нет Неисправности. */
+export function boardablePodDefinitions(view: SanitizedGameState): string[] {
+  const rooms = Object.values(view.ship.rooms);
+  return POD_DEFINITIONS.filter(
+    (definitionId) =>
+      boardablePods(view.ship.escapePods, definitionId).length > 0 &&
+      rooms.find((room) => room.definitionId === definitionId)?.hasMalfunction !== true,
+  );
 }

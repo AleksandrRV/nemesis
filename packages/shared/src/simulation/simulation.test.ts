@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOT_DIFFICULTIES } from '../ai/botTuning.js';
 import type { GameLogEntry, GameLogEvent } from '../types/log.js';
 import { GameEngine } from '../logic/fsm.js';
+import { filterStateForPlayer } from '../logic/sanitizer.js';
 import { deathCauseInLog, deathsInLog } from './deathCauses.js';
 import { seriesSeed, simulateGame, simulationStartState } from './simulateGame.js';
 import { rateOf, summarizeSimulations } from './simulationStats.js';
@@ -26,7 +27,8 @@ describe('Симулятор партий ботов (план 0.8.0, В8-9-2)',
       (state, move) => engine.processAction(state, move.action, { actorId: move.actorId }),
       simulationStartState({ seed: 'sim-replay', botCount: 4, difficulty: 'VETERAN' }),
     );
-    expect(replayed.gameLog).toEqual(record.finalView!.gameLog);
+    const firstSeat = Object.keys(replayed.players)[0]!;
+    expect(filterStateForPlayer(replayed, firstSeat).gameLog).toEqual(record.finalView!.gameLog);
     expect(record.transcript!.every((move) => move.action.type.startsWith('ACTION_'))).toBe(true);
   });
 

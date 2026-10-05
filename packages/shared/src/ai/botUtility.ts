@@ -164,6 +164,10 @@ function cleanupValue(context: ScoringContext, candidate: Candidate): number {
   return context.tuning.tactics.intruderRemoval * context.knobs.combatDesire * removed * (1 + saved);
 }
 
+function localWork(context: ScoringContext, candidate: Candidate): number {
+  return isRelocation(candidate) || candidate.kind === 'PASS' ? 1 : 1 + context.tuning.tactics.localWork;
+}
+
 /**
  * Utility (В8-7-2, В8-10): ценность задач, которые Действие закрывает или к которым ведёт, и убранные Чужие ×
  * экономия карт, плюс выигрыш безопасности против Паса по прогнозу вреда.
@@ -189,7 +193,10 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
   const caution =
     tuning.desires.SURVIVE * tuning.tactics.harm.weight * knobs.riskAversion * clamp01(knobs.riskAccuracy);
   const factors: UtilityFactors = {
-    taskValue: (bestShare + tuning.choice.sideTaskShare * (total - bestShare)) * (candidate.quality ?? 1),
+    taskValue:
+      (bestShare + tuning.choice.sideTaskShare * (total - bestShare)) *
+      (candidate.quality ?? 1) *
+      localWork(context, candidate),
     cleanup: cleanupValue(context, candidate),
     harm,
     safety: caution * (context.passHarm - harm),

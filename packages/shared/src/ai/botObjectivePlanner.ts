@@ -15,6 +15,7 @@ import {
   probabilityWorking,
 } from './botShipKnowledge.js';
 import { task, type BotTask } from './botTasks.js';
+import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
 import type { BotTuning } from './botTuning.js';
 
 export type EvacuationRoute = 'HIBERNATION' | 'POD' | 'ANY';
@@ -34,8 +35,6 @@ export interface PlanContext {
 }
 
 type ConditionPlanner = (context: PlanContext) => Step;
-
-const POD_ROOMS = ['ESCAPE_POD_A', 'ESCAPE_POD_B'];
 
 function step(progress: number, tasks: BotTask[] = [], evacuation: EvacuationRoute = 'ANY'): Step {
   return { progress: Math.max(0, Math.min(1, progress)), tasks, evacuation };
@@ -147,9 +146,11 @@ function othersOnShip(view: SanitizedGameState, selfId: string): SanitizedPlayer
   );
 }
 
-function podEscape(weight: number): BotTask[] {
+function podEscape(view: SanitizedGameState, weight: number): BotTask[] {
+  const boardable = boardablePodDefinitions(view);
+  const definitionIds = boardable.length > 0 ? boardable : POD_DEFINITIONS;
   return [
-    task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: POD_ROOMS }, 'Сесть в Капсулу'),
+    task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds }, 'Сесть в Капсулу'),
     task('LAUNCH_POD', 'PREPARE_EVACUATION', weight, {}, 'Запустить Капсулу'),
   ];
 }
@@ -158,14 +159,14 @@ const onlyYouSurvive: ConditionPlanner = ({ view, self, weight }) => {
   const players = Object.values(view.players).filter((player) => player.id !== self.id);
   const gone = players.filter((player) => player.isDead).length;
   return step(players.length === 0 ? 1 : (gone / players.length) * 0.8, [
-    ...podEscape(weight),
+    ...podEscape(view, weight),
     task('LOCK_POD', 'SABOTAGE', weight * 0.5, { definitionIds: ['HATCH_CONTROL'] }, 'Заблокировать чужие Капсулы'),
   ]);
 };
 
 const shipDestroyed: ConditionPlanner = ({ view, mind, weight }) => {
   const armed = view.meta.selfDestructTrackPosition !== null;
-  const tasks = podEscape(weight);
+  const tasks = podEscape(view, weight);
   if (!armed) {
     tasks.push(
       task('SELF_DESTRUCT', 'SABOTAGE', weight, { definitionIds: ['GENERATOR'] }, 'Запустить Самоуничтожение'),
@@ -278,8 +279,8 @@ const carriesBlueCorpse: ConditionPlanner = (context) =>
         acquire(context, 'CORPSE', isBlueCorpse),
       );
 
-const endedInPod: ConditionPlanner = ({ self, weight }) =>
-  step(self.boardedPodId ? 0.8 : 0.3, podEscape(weight), 'POD');
+const endedInPod: ConditionPlanner = ({ view, self, weight }) =>
+  step(self.boardedPodId ? 0.8 : 0.3, podEscape(view, weight), 'POD');
 
 function ownedItems(self: SanitizedPlayerState): number {
   return (self.inventory?.length ?? 0) + self.handSlots.filter((slot) => slot.source === 'ITEM').length;

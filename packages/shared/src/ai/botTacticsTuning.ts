@@ -38,7 +38,22 @@ export interface TacticsTuning {
   /** Шанс, что непроверенная карта Заражения погубит спасшегося на финальной проверке Инфекции (стр. 11). */
   infectionPerCard: number;
   /** Доли веса жизни в эвакуации: Анабиоз со сломанным отсеком, подготовка полёта, отпереть Капсулы (стр. 11, 25). */
-  evacuation: { blockedRoute: number; voyage: number; unlockPods: number };
+  evacuation: {
+    blockedRoute: number;
+    voyage: number;
+    unlockPods: number;
+    /** Насколько Капсула предпочтительнее Анабиоза, когда Цели не требуют Анабиоза (1 — только по шансу гибели корабля). */
+    podPreference: number;
+    /** Доля веса жизни у посадки в Капсулу, когда Цель уже выполнена или безнадёжна. */
+    missionOver: number;
+    /** Цель безнадёжна, если её близость ниже этой, а до Прыжка не больше `missionOverRounds` раундов. */
+    missionHopeless: number;
+    missionOverRounds: number;
+  };
+  /** Тревога: каждый Чужой на борту прибавляет эту долю к вреду раунда (`roundExposure`). */
+  intruderAlarm: number;
+  /** Надбавка к ценности задачи за Действие на месте, без Движения (своя Комната, рука, Предметы). */
+  localWork: number;
   /** Шанс не успеть на каждый Коридор до укрытия в последнем раунде: Шум, Встреча, закрытая Дверь. */
   jumpStepRisk: number;
   /** Открыть Дверь на пути — почти шаг к цели: доля ценности Движения за ней. */
@@ -73,7 +88,17 @@ export const TACTICS_TUNING = {
   fireSpread: 0.35,
   roundExposure: 0.12,
   infectionPerCard: 0.15,
-  evacuation: { blockedRoute: 0.15, voyage: 0.3, unlockPods: 0.6 },
+  evacuation: {
+    blockedRoute: 0.15,
+    voyage: 0.3,
+    unlockPods: 0.6,
+    podPreference: 1,
+    missionOver: 0,
+    missionHopeless: 0.3,
+    missionOverRounds: 4,
+  },
+  intruderAlarm: 0,
+  localWork: 0,
   jumpStepRisk: 0.3,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,

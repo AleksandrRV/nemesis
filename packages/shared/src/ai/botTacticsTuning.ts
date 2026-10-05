@@ -98,7 +98,7 @@ export const TACTICS_TUNING = {
     missionOverRounds: 4,
   },
   intruderAlarm: 0,
-  localWork: 0,
+  localWork: 0.6,
   jumpStepRisk: 0.3,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,

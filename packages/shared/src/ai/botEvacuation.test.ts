@@ -86,8 +86,14 @@ describe('Ручка localWork: Действие на месте против Д
     const mind = neutralMind(state);
     const agenda = buildAgenda(view, mind, BOT_TUNING);
     const candidates = generateCandidates(view, mind, agenda.tasks, BOT_TUNING);
-    const tuned: BotTuning = { ...BOT_TUNING, tactics: { ...BOT_TUNING.tactics, localWork: 0.5 } };
-    const plain = new Map(scoreCandidates(view, mind, agenda, candidates, BOT_TUNING).map((e) => [e.candidate, e]));
+    const withLocalWork = (localWork: number): BotTuning => ({
+      ...BOT_TUNING,
+      tactics: { ...BOT_TUNING.tactics, localWork },
+    });
+    const tuned = withLocalWork(0.5);
+    const plain = new Map(
+      scoreCandidates(view, mind, agenda, candidates, withLocalWork(0)).map((e) => [e.candidate, e]),
+    );
     const boosted = scoreCandidates(view, mind, agenda, candidates, tuned);
     const local = boosted.filter((entry) => !isRelocation(entry.candidate) && entry.candidate.kind !== 'PASS');
     expect(local.some((entry) => entry.factors.taskValue > 0)).toBe(true);

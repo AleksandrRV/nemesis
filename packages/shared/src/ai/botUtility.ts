@@ -10,6 +10,7 @@ import { costsToGoals, roomTypeProbability, type GoalRoom } from './botNavigatio
 import { suspectedEnemies } from './botObjectives.js';
 import { handOf } from './botHand.js';
 import { forecastHarm, forecastTotal, isRelocation } from './botForecast.js';
+import { routeHarm, shelterAccess, SHELTER_TASKS } from './botShelter.js';
 import { contactHarm, intrudersIn, threatContext, type ThreatContext } from './botThreat.js';
 import { detailMatches, type BotTask } from './botTasks.js';
 import type { BotTuning, TuningKnob } from './botTuning.js';
@@ -49,13 +50,16 @@ interface ScoringContext {
   costs: Map<BotTask, Map<RoomId, number>>;
   goals: Map<BotTask, GoalRoom[]>;
   hops: Map<RoomId, Map<RoomId, number>>;
+  access: Map<RoomId, number>;
+  arrivals: Map<string, number>;
   threat: ThreatContext;
   inCombat: boolean;
   passHarm: number;
   enemies: string[];
 }
 
-function goalRooms(view: SanitizedGameState, entry: BotTask): GoalRoom[] {
+/** Где цель задачи по тайлам: известные Комнаты и закрытые тайлы с шансом оказаться нужным. */
+function tileGoals(view: SanitizedGameState, entry: BotTask): GoalRoom[] {
   const known = (entry.place.roomIds ?? []).map((roomId) => ({ roomId, probability: 1 }));
   const byType = Object.values(view.ship.rooms).flatMap((room) => {
     const probability = (entry.place.definitionIds ?? []).reduce(
@@ -93,20 +97,35 @@ function completes(context: ScoringContext, candidate: Candidate, entry: BotTask
   );
   if (!matches) return false;
   if (!isPlaced(entry) || (isRelocation(candidate) && candidate.kind !== 'ESCAPE')) return true;
-  const rooms = goalRooms(context.view, entry);
+  const rooms = tileGoals(context.view, entry);
   return rooms.some((goal) => goal.roomId === candidate.roomId && goal.probability >= 1);
 }
 
+function accessOf(context: ScoringContext, roomId: RoomId): number {
+  if (!context.access.has(roomId)) context.access.set(roomId, shelterAccess(context.threat, roomId));
+  return context.access.get(roomId)!;
+}
+
+/** Цели задачи для пути: укрытие, занятое Чужими, достижимо лишь с шансом его освободить. */
 function goalsOf(context: ScoringContext, entry: BotTask): GoalRoom[] {
-  if (!context.goals.has(entry)) context.goals.set(entry, goalRooms(context.view, entry));
+  if (!context.goals.has(entry)) {
+    const tiles = tileGoals(context.view, entry);
+    const goals = SHELTER_TASKS.has(entry.kind)
+      ? tiles.map((goal) => ({ ...goal, probability: goal.probability * accessOf(context, goal.roomId) }))
+      : tiles;
+    context.goals.set(entry, goals);
+  }
   return context.goals.get(entry)!;
+}
+
+function hopsBetween(context: ScoringContext, from: RoomId, to: RoomId): number {
+  if (!context.hops.has(from)) context.hops.set(from, hopDistances(context.view, from));
+  return context.hops.get(from)!.get(to) ?? Number.POSITIVE_INFINITY;
 }
 
 /** Коридоров до ближайшей цели задачи по графу: кривая расстояния — о пути, а не о его риске. */
 function hopsToGoal(context: ScoringContext, from: RoomId, entry: BotTask): number {
-  if (!context.hops.has(from)) context.hops.set(from, hopDistances(context.view, from));
-  const distances = context.hops.get(from)!;
-  return Math.min(...goalsOf(context, entry).map((goal) => distances.get(goal.roomId) ?? Number.POSITIVE_INFINITY));
+  return Math.min(...goalsOf(context, entry).map((goal) => hopsBetween(context, from, goal.roomId)));
 }
 
 function costsFor(context: ScoringContext, entry: BotTask): Map<RoomId, number> {
@@ -119,20 +138,78 @@ function costsFor(context: ScoringContext, entry: BotTask): Map<RoomId, number> 
   return context.costs.get(entry)!;
 }
 
+/** Шанс дойти до укрытия из Комнаты и укрыться: вред оставшегося пути и доступность самого укрытия. */
+function arrivalChance(context: ScoringContext, from: RoomId, shelter: RoomId): number {
+  const key = `${from}>${shelter}`;
+  if (!context.arrivals.has(key)) {
+    const harm = routeHarm(context.threat, from, shelter, context.knobs.riskAversion);
+    context.arrivals.set(key, Math.max(0, 1 - harm) * accessOf(context, shelter));
+  }
+  return context.arrivals.get(key)!;
+}
+
+/**
+ * Шаг к спасению, когда время на исходе (стр. 11): без него к Прыжку не успеть, поэтому шаг стоит шанса дойти от
+ * следующей Комнаты до известного укрытия, к которому он приближает, и укрыться. Укрытие ещё не найдено — шаг к
+ * ближайшему возможному тайлу стоит всей задачи.
+ */
+function lifelineProgress(context: ScoringContext, candidate: Candidate, entry: BotTask): number {
+  const next = candidate.roomId;
+  const shelters = SHELTER_TASKS.has(entry.kind)
+    ? tileGoals(context.view, entry).filter((goal) => goal.probability >= 1)
+    : [];
+  if (shelters.length === 0) return hopsToGoal(context, next, entry) < hopsToGoal(context, context.here, entry) ? 1 : 0;
+  return shelters.reduce((best, { roomId }) => {
+    if (hopsBetween(context, next, roomId) >= hopsBetween(context, context.here, roomId)) return best;
+    return Math.max(best, arrivalChance(context, next, roomId));
+  }, 0);
+}
+
 /** Движение к цели задачи: доля сокращённого пути, умноженная на кривую расстояния до цели. */
 function progress(context: ScoringContext, candidate: Candidate, entry: BotTask): number {
   if (!isRelocation(candidate) || !isPlaced(entry)) return 0;
-  if (entry.lifeline) {
-    return hopsToGoal(context, candidate.roomId, entry) < hopsToGoal(context, context.here, entry) ? 1 : 0;
-  }
+  if (entry.lifeline) return lifelineProgress(context, candidate, entry);
   const costs = costsFor(context, entry);
   const now = costs.get(context.here);
   const next = costs.get(candidate.roomId);
   if (now === undefined || next === undefined || next >= now) return 0;
+  const reach = reachAt(context, hopsToGoal(context, candidate.roomId, entry));
+  return ((now - next) / Math.max(now, context.tuning.navigation.actionCost)) * reach;
+}
+
+/** Кривая расстояния до цели в Коридорах с нижним пределом: короткий горизонт не обнуляет далёкую цель. */
+function reachAt(context: ScoringContext, hops: number): number {
   const { navigation, curves } = context.tuning;
-  const hops = hopsToGoal(context, candidate.roomId, entry);
-  const reach = Math.max(navigation.farGoalFloor, evaluateCurve(curves.distance, hops / context.knobs.horizon));
-  return ((now - next) / Math.max(now, navigation.actionCost)) * reach;
+  return Math.max(navigation.farGoalFloor, evaluateCurve(curves.distance, hops / context.knobs.horizon));
+}
+
+interface ScoutedTile {
+  roomId: RoomId;
+  /** Доля ценности находки: вошедший уже на месте, подсмотревший ещё должен дойти. */
+  reach: number;
+}
+
+function scoutedTile(context: ScoringContext, candidate: Candidate): ScoutedTile | null {
+  if (isRelocation(candidate)) {
+    const entered = context.view.ship.rooms[candidate.roomId];
+    return entered?.isExplored === false ? { roomId: candidate.roomId, reach: 1 } : null;
+  }
+  const observed = candidate.effects.find((produced) => produced.kind === 'OBSERVE')?.detail.roomId;
+  if (observed === undefined) return null;
+  return { roomId: observed, reach: reachAt(context, hopsBetween(context, context.here, observed)) };
+}
+
+/**
+ * Разведка (стр. 6, 14, 25): закрытый тайл, который может оказаться целью задачи, с этим шансом сразу приводит к
+ * цели — войти в него или подсмотреть его из Комнаты Наблюдения, — а в остальных случаях остаётся обычным шагом пути.
+ */
+function withSearch(context: ScoringContext, candidate: Candidate, entry: BotTask, travel: number): number {
+  const tile = isPlaced(entry) ? scoutedTile(context, candidate) : null;
+  if (!tile) return travel;
+  const found = Math.min(1, goalsOf(context, entry).find((goal) => goal.roomId === tile.roomId)?.probability ?? 0);
+  const learns = isRelocation(candidate) || found < 1;
+  const value = context.tuning.navigation.findShare * tile.reach;
+  return learns ? travel + found * Math.max(0, value - travel) : travel;
 }
 
 /** Дверь, открытая к цели, ценится как Движение за неё с поправкой на второе Действие. */
@@ -180,7 +257,7 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
   for (const entry of agenda.tasks) {
     const share = completes(context, candidate, entry)
       ? 1
-      : progress(context, candidate, entry) + doorway(context, candidate, entry);
+      : withSearch(context, candidate, entry, progress(context, candidate, entry) + doorway(context, candidate, entry));
     const gained = entry.weight * share * focusOn(context, entry);
     total += gained;
     if (gained > bestShare) {
@@ -232,6 +309,8 @@ export function scoreCandidates(
     costs: new Map(),
     goals: new Map(),
     hops: new Map(),
+    access: new Map(),
+    arrivals: new Map(),
     threat,
     inCombat: intrudersIn(view, view.players[mind.botId]!.roomId).length > 0,
     passHarm: 0,

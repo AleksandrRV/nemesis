@@ -15,6 +15,7 @@ import {
 import { hasFreeHandSlot } from '../logic/seriousWoundEffects.js';
 import { effect, paidCandidate, type Candidate, type CandidateContext, type TaskEffect } from './botCandidates.js';
 import { unscannedContamination } from './botHand.js';
+import { peeksOf } from './botPeeks.js';
 import type { BotTask } from './botTasks.js';
 
 /** Действие Комнаты стоит 2 карты (стр. 13). */
@@ -139,6 +140,14 @@ function doorsOf(context: CandidateContext, roomId: number) {
   );
 }
 
+/** Комната Наблюдения (стр. 25): оборот и жетон Исследования любой закрытой Комнаты, которую бот ещё не видел. */
+function observation(context: CandidateContext): (Candidate | null)[] {
+  const seen = peeksOf(context.view).tiles;
+  return Object.values(context.view.ship.rooms)
+    .filter((room) => !room.isExplored && !seen.has(room.id))
+    .map((room) => ability(context, { targetRoomId: room.id }, [effect('OBSERVE', { roomId: room.id })]));
+}
+
 function engineRoom(context: CandidateContext): (Candidate | null)[] {
   const match = /^ENGINE_0([123])$/.exec(context.room.definitionId ?? '');
   const engineNumber = match ? (Number(match[1]) as EngineNumber) : null;
@@ -215,6 +224,9 @@ export function roomActionCandidates(
       break;
     case 'COMMAND_CENTER':
       found.push(...commandCenter(context, tasks));
+      break;
+    case 'OBSERVATION_ROOM':
+      found.push(...observation(context));
       break;
     case 'CANTEEN':
       found.push(...hygiene(context, self.lightWounds > 0 ? [effect('HEAL')] : []));

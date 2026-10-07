@@ -7,7 +7,7 @@ import { filterStateForPlayer } from '../logic/sanitizer.js';
 import { generateCandidates } from '../ai/botActions.js';
 import { buildAgenda } from '../ai/botGoals.js';
 import type { BotMind } from '../ai/botMind.js';
-import { BOT_TUNING } from '../ai/botTuning.js';
+import { BOT_TUNING, type BotTuning } from '../ai/botTuning.js';
 import { scoreCandidates, type ScoredCandidate } from '../ai/botUtility.js';
 import { contactState } from './contactFixtures.js';
 import { BOT, mindFor, seen, withCharacter } from './botSocialFixtures.js';
@@ -27,11 +27,11 @@ export function neutralMind(state: GameState): BotMind {
   return seen(state, withCharacter(mindFor(state), {}));
 }
 
-export function rankedFor(state: GameState): ScoredCandidate[] {
+export function rankedFor(state: GameState, tuning: BotTuning = BOT_TUNING): ScoredCandidate[] {
   const view = filterStateForPlayer(state, BOT);
   const mind = neutralMind(state);
-  const agenda = buildAgenda(view, mind, BOT_TUNING);
-  return scoreCandidates(view, mind, agenda, generateCandidates(view, mind, agenda.tasks, BOT_TUNING), BOT_TUNING);
+  const agenda = buildAgenda(view, mind, tuning);
+  return scoreCandidates(view, mind, agenda, generateCandidates(view, mind, agenda.tasks, tuning), tuning);
 }
 
 export function agendaFor(state: GameState) {

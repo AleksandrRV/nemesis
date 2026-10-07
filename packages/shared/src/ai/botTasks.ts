@@ -37,7 +37,8 @@ export type TaskKind =
   | 'SET_DOOR'
   | 'BREAK_DOOR'
   | 'CRAFT'
-  | 'ESCORT';
+  | 'ESCORT'
+  | 'OBSERVE';
 
 export interface TaskDetail {
   engineNumber?: EngineNumber;

@@ -1,17 +1,18 @@
 import type { RoomId } from '../types/rooms.js';
-import type { Candidate } from './botCandidates.js';
+import type { Candidate, Neutralization } from './botCandidates.js';
 import { handOf } from './botHand.js';
 import { hopDistances } from './botGraph.js';
 import { roundsLeft } from './botRisk.js';
 import {
+  ammoAfter,
   boardablePodDefinitions,
-  survivalUnderFire,
   combatHarm,
   entryHarm,
+  attacksFromRoom,
   hazardHarm,
-  intruderHarm,
   intrudersIn,
   shooterOf,
+  standingAtEventPhase,
   type Shooter,
   type ThreatContext,
 } from './botThreat.js';
@@ -41,18 +42,21 @@ function futureShooter(context: ThreatContext, candidate: Candidate | null, hand
   return trusted > 0 ? { weapon: shooter.weapon, attempts: trusted } : null;
 }
 
-function escapeAttacks(context: ThreatContext, roomId: RoomId): number {
-  return intrudersIn(context.view, roomId).reduce((sum, intruder) => sum + intruderHarm(context, intruder.type), 0);
+function removalsOf(candidate: Candidate | null): Map<string, Neutralization> {
+  return new Map((candidate?.neutralizes ?? []).map((entry) => [entry.intruderId, entry]));
 }
 
 function roundEndHarm(context: ThreatContext, roomId: RoomId, handAfter: number, candidate: Candidate | null) {
-  const removed = new Map((candidate?.neutralizes ?? []).map((entry) => [entry.intruderId, entry.chance]));
+  const removed = removalsOf(candidate);
   const focusId = candidate?.neutralizes?.[0]?.intruderId;
+  const ownShots = futureShooter(context, candidate, handAfter);
+  const spent = (candidate?.ammoUsed ?? 0) + (ownShots?.attempts ?? 0);
   return (
     combatHarm(context, roomId, {
       handAfter,
-      ownShots: futureShooter(context, candidate, handAfter),
+      ownShots,
       removed,
+      ammoAfter: ammoAfter(context, spent),
       ...(focusId ? { focusId } : {}),
     }) + hazardHarm(context, roomId)
   );
@@ -95,12 +99,11 @@ function unshelteredAtJump(context: ThreatContext, candidate: Candidate | null, 
     const { jumpStepRisk } = context.tuning.tactics;
     return Math.min(1, hops * jumpStepRisk + (occupied ? jumpStepRisk * 2 : 0));
   }
-  const removed = new Map((candidate.neutralizes ?? []).map((entry) => [entry.intruderId, entry.chance]));
+  const removed = removalsOf(candidate);
   const shooter = futureShooter(context, candidate, handAfter - SHELTER_ACTION_COST);
   const clear = intrudersIn(context.view, room).reduce(
     (chance, intruder) =>
-      chance *
-      (1 - (1 - (removed.get(intruder.id) ?? 0)) * survivalUnderFire(context, intruder, shooter ? [shooter] : [])),
+      chance * (1 - standingAtEventPhase(context, intruder, removed.get(intruder.id), shooter ? [shooter] : [])),
     1,
   );
   return 1 - clear * (1 - context.tuning.tactics.jumpStepRisk * DELAY_SHARE);
@@ -120,7 +123,7 @@ export function forecastHarm(context: ThreatContext, candidate: Candidate | null
   if (!candidate || !isRelocation(candidate) || target === here) {
     return { now: own, later: roundEndHarm(context, here, handAfter, candidate) + jump };
   }
-  const attacks = candidate.kind === 'ESCAPE' ? escapeAttacks(context, here) : 0;
+  const attacks = candidate.kind === 'ESCAPE' ? attacksFromRoom(context, here) : 0;
   const entry = entryHarm(context, target, handAfter, candidate.kind === 'CAREFUL_MOVE');
   return { now: own + attacks + entry, later: roundEndHarm(context, target, handAfter, candidate) + jump };
 }

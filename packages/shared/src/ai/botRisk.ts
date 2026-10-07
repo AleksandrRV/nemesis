@@ -7,6 +7,7 @@ import type { IntruderType } from '../types/entities.js';
 import type { CorridorNumber, RoomId } from '../types/rooms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import { findNoiseTarget } from '../logic/shipGraphQueries.js';
+import { corridorsAround, otherEnd } from './botGraph.js';
 import type { BotTuning } from './botTuning.js';
 
 const CORRIDOR_NUMBERS: readonly CorridorNumber[] = [1, 2, 3, 4];
@@ -34,9 +35,7 @@ function intrudersIn(view: SanitizedGameState, roomId: RoomId): IntruderType[] {
 }
 
 function neighbours(view: SanitizedGameState, roomId: RoomId): RoomId[] {
-  return Object.values(view.ship.corridors).flatMap((corridor) =>
-    corridor.fromRoomId === roomId ? [corridor.toRoomId] : corridor.toRoomId === roomId ? [corridor.fromRoomId] : [],
-  );
+  return corridorsAround(view, roomId).map((corridor) => otherEnd(corridor, roomId));
 }
 
 function threatOfIntruders(view: SanitizedGameState, roomId: RoomId, tuning: BotTuning): number {
@@ -47,11 +46,23 @@ export function hasAdjacentIntruders(view: SanitizedGameState, roomId: RoomId): 
   return neighbours(view, roomId).some((room) => intrudersIn(view, room).length > 0);
 }
 
+const contactChances = new WeakMap<SanitizedGameState, Map<RoomId, number>>();
+
 /**
  * Шанс Встречи при входе (стр. 15): выпавший номер Коридора, где уже лежит маркер Шума, — Встреча;
  * «Опасность» приводит соседних Чужих. Грани — состав кубика Шума (`NOISE_DIE_FACES`).
  */
 export function contactChance(view: SanitizedGameState, roomId: RoomId): number {
+  let byRoom = contactChances.get(view);
+  if (!byRoom) {
+    byRoom = new Map();
+    contactChances.set(view, byRoom);
+  }
+  if (!byRoom.has(roomId)) byRoom.set(roomId, rolledContactChance(view, roomId));
+  return byRoom.get(roomId)!;
+}
+
+function rolledContactChance(view: SanitizedGameState, roomId: RoomId): number {
   let chance = hasAdjacentIntruders(view, roomId) ? DANGER_SHARE : 0;
   for (const number of CORRIDOR_NUMBERS) {
     const target = findNoiseTarget(view, roomId, number);

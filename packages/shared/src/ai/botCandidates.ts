@@ -3,6 +3,7 @@ import type { RoomId } from '../types/rooms.js';
 import type { SanitizedGameState, SanitizedPlayerState, SanitizedRoomState } from '../types/sanitized.js';
 import type { BotTuning } from './botTuning.js';
 import type { TaskDetail, TaskKind } from './botTasks.js';
+import type { InjuryOdds } from './botHarm.js';
 import { paymentFor, paymentValue } from './botHand.js';
 
 export type CandidateKind =
@@ -28,6 +29,13 @@ export interface TaskEffect {
   detail: TaskDetail;
 }
 
+export interface Neutralization {
+  intruderId: string;
+  chance: number;
+  /** Раны попадания: к ним до конца раунда добавятся выстрелы, и Раны сложатся (стр. 20). */
+  hit?: InjuryOdds;
+}
+
 /** Допустимое по срезу Действие и то, какие шаги повестки оно закрывает (В8-7-1). */
 export interface Candidate {
   action: GameAction;
@@ -43,8 +51,8 @@ export interface Candidate {
   quality?: number;
   /** Вред себе сразу, в долях гибели: промах Рукопашной, Граната или Коктейль в своей Комнате. */
   harmNow?: number;
-  /** Шанс убрать каждого из Чужих (убить или заставить Отступить) этим Действием. */
-  neutralizes?: readonly { intruderId: string; chance: number }[];
+  /** Шанс убрать каждого из Чужих (убить или заставить Отступить) этим Действием и Раны попадания, если оно ранит. */
+  neutralizes?: readonly Neutralization[];
   /** Сколько Боезапаса уйдёт: оставшийся — выстрелы до конца раунда. */
   ammoUsed?: number;
   /** Комната за Дверью, которую Действие открывает: путь туда становится проходимым. */

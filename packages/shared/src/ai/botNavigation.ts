@@ -1,9 +1,11 @@
 import { ADDITIONAL_ROOMS_2, BASIC_ROOMS_1 } from '../data/roomDefinitions.js';
 import type { CorridorConnection, RoomId } from '../types/rooms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
+import { corridorsAround, otherEnd } from './botGraph.js';
+import { peeksOf } from './botPeeks.js';
 import { entryRisk } from './botRisk.js';
 import { markerCost } from './botShipDoom.js';
-import { explorationOdds } from './botThreat.js';
+import { explorationOdds, tokenOdds } from './botThreat.js';
 import type { BotTuning } from './botTuning.js';
 
 export interface Route {
@@ -18,13 +20,7 @@ interface Step {
 }
 
 function stepsFrom(view: SanitizedGameState, roomId: RoomId): Step[] {
-  return Object.values(view.ship.corridors).flatMap((corridor) =>
-    corridor.fromRoomId === roomId
-      ? [{ to: corridor.toRoomId, corridor }]
-      : corridor.toRoomId === roomId
-        ? [{ to: corridor.fromRoomId, corridor }]
-        : [],
-  );
+  return corridorsAround(view, roomId).map((corridor) => ({ to: otherEnd(corridor, roomId), corridor }));
 }
 
 /** Эвристика A*: кратчайшее число Коридоров до ближайшей цели (многоисточниковый поиск в ширину). */
@@ -42,13 +38,25 @@ function hopsToGoals(view: SanitizedGameState, goals: readonly RoomId[]): Map<Ro
   return distances;
 }
 
-/** Цена вскрыть новую Комнату для корабля: Неисправность или Пожар из жетона Исследования (стр. 14, 17). */
-function explorationShipRisk(view: SanitizedGameState, tuning: BotTuning): number {
-  const odds = explorationOdds(view);
+function shipDoomOf(view: SanitizedGameState, odds: ReadonlyMap<string, number>, tuning: BotTuning): number {
   const doom =
     (odds.get('MALFUNCTION') ?? 0) * markerCost(view, 'MALFUNCTION', tuning) +
     (odds.get('FIRE') ?? 0) * markerCost(view, 'FIRE', tuning);
   return doom * tuning.desires.SURVIVE * tuning.tactics.harm.weight;
+}
+
+/**
+ * Цена вскрыть новую Комнату для корабля: Неисправность или Пожар из жетона Исследования (стр. 14, 17); подсмотренный
+ * жетон бот знает точно.
+ */
+function explorationShipRisk(view: SanitizedGameState, tuning: BotTuning): (roomId: RoomId) => number {
+  let unseen: number | undefined;
+  return (roomId) => {
+    if (view.ship.rooms[roomId]?.isExplored !== false) return 0;
+    if (peeksOf(view).tokens.has(roomId)) return shipDoomOf(view, tokenOdds(view, roomId), tuning);
+    unseen ??= shipDoomOf(view, explorationOdds(view), tuning);
+    return unseen;
+  };
 }
 
 /**
@@ -69,8 +77,8 @@ export function findRoute(
   const riskCache = new Map<RoomId, number>();
   const shipRisk = explorationShipRisk(view, tuning);
   const riskOf = (roomId: RoomId): number => {
-    const unexplored = view.ship.rooms[roomId]?.isExplored === false ? shipRisk : 0;
-    if (!riskCache.has(roomId)) riskCache.set(roomId, (entryRisk(view, roomId, tuning) + unexplored) * riskAversion);
+    if (!riskCache.has(roomId))
+      riskCache.set(roomId, (entryRisk(view, roomId, tuning) + shipRisk(roomId)) * riskAversion);
     return riskCache.get(roomId)!;
   };
   const edgeCost = (step: Step): number =>
@@ -114,21 +122,32 @@ const TILE_POOLS: Record<'ROOM_1' | 'ROOM_2', readonly string[]> = {
   ROOM_2: ADDITIONAL_ROOMS_2.map((definition) => definition.id),
 };
 
+const placedTiles = new WeakMap<SanitizedGameState, ReadonlySet<string>>();
+
+/** Тайлы, место которых боту известно: открытые и подсмотренные. */
+function placedTilesOf(view: SanitizedGameState): ReadonlySet<string> {
+  const cached = placedTiles.get(view);
+  if (cached) return cached;
+  const placed = new Set(peeksOf(view).tiles.values());
+  for (const room of Object.values(view.ship.rooms)) if (room.definitionId !== null) placed.add(room.definitionId);
+  placedTiles.set(view, placed);
+  return placed;
+}
+
 /**
- * Вероятность, что Комната — тайл `definitionId`. Открытый тайл известен; закрытый равновероятно любой из
- * ещё не открытых тайлов своей стопки (стр. 6: стопки «1» и «2» перемешиваются; лишние тайлы «2» не видны).
+ * Вероятность, что Комната — тайл `definitionId`. Открытый или подсмотренный тайл известен; закрытый равновероятно
+ * любой из тайлов своей стопки, чьё место боту неизвестно (стр. 6: стопки «1» и «2» перемешиваются; лишние тайлы
+ * «2» не видны).
  */
 export function roomTypeProbability(view: SanitizedGameState, roomId: RoomId, definitionId: string): number {
   const room = view.ship.rooms[roomId];
   if (!room) return 0;
   if (room.definitionId !== null) return room.definitionId === definitionId ? 1 : 0;
+  const seen = peeksOf(view).tiles.get(roomId);
+  if (seen !== undefined) return seen === definitionId ? 1 : 0;
   if (room.category !== 'ROOM_1' && room.category !== 'ROOM_2') return 0;
-  const revealed = new Set(
-    Object.values(view.ship.rooms)
-      .map((other) => other.definitionId)
-      .filter((id): id is string => id !== null),
-  );
-  const remaining = TILE_POOLS[room.category].filter((id) => !revealed.has(id));
+  const placed = placedTilesOf(view);
+  const remaining = TILE_POOLS[room.category].filter((id) => !placed.has(id));
   return remaining.includes(definitionId) ? 1 / remaining.length : 0;
 }
 
@@ -185,8 +204,8 @@ export function costsToGoals(
   const riskCache = new Map<RoomId, number>();
   const shipRisk = explorationShipRisk(view, tuning);
   const riskOf = (roomId: RoomId): number => {
-    const unexplored = view.ship.rooms[roomId]?.isExplored === false ? shipRisk : 0;
-    if (!riskCache.has(roomId)) riskCache.set(roomId, (entryRisk(view, roomId, tuning) + unexplored) * riskAversion);
+    if (!riskCache.has(roomId))
+      riskCache.set(roomId, (entryRisk(view, roomId, tuning) + shipRisk(roomId)) * riskAversion);
     return riskCache.get(roomId)!;
   };
   while (settled.size < costs.size) {

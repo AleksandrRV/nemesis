@@ -66,6 +66,7 @@ describe('Бой: драться, если есть чем и хватает з�
     const allyRoom = openNeighbour(state, here);
     putPlayer(state, 'player-1', allyRoom);
     putIntruder(state, 'ADULT', allyRoom);
+    state.ship.rooms[allyRoom]!.isExplored = true;
     expect(agendaFor(state).tasks.some((entry) => entry.kind === 'FIGHT' && entry.desire === 'HELP')).toBe(true);
     const [best] = rankedFor(state);
     expect(best!.candidate.roomId).toBe(allyRoom);

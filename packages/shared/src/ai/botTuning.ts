@@ -230,6 +230,8 @@ export interface BotTuning {
     maxExpandedNodes: number;
     /** Нижний предел ценности далёкой цели: короткий горизонт (ручка `horizon`) не обнуляет её совсем. */
     farGoalFloor: number;
+    /** Вход в закрытый тайл, который может оказаться целью задачи, или его подгляд: доля задачи при находке цели. */
+    findShare: number;
   };
   time: {
     /** Сколько раундов запаса бот оставляет на путь к Анабиозу или Капсуле. */
@@ -414,7 +416,14 @@ export const BOT_TUNING = {
     contamination: 0.4,
     contactBeforeDraw: 0.3,
   },
-  navigation: { actionCost: 1, unknownTilePenalty: 2, closedDoorCost: 3, maxExpandedNodes: 400, farGoalFloor: 0.1 },
+  navigation: {
+    actionCost: 1,
+    unknownTilePenalty: 2,
+    closedDoorCost: 3,
+    maxExpandedNodes: 400,
+    farGoalFloor: 0.1,
+    findShare: 1,
+  },
   time: { evacuationMarginRounds: 1 },
   hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 }, scanPerContamination: 0.15 },
   desires: {

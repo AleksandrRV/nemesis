@@ -41,15 +41,17 @@ function handCard(context: CandidateContext, cardId: string): ActionCard | undef
   );
 }
 
-/** Кандидат с шансом убрать цель: он же качество задачи «Бой». */
-function withShot(candidate: Candidate | null, target: IntruderEntity, chance: number, ammoUsed: number) {
-  return candidate
-    ? { ...candidate, quality: chance, neutralizes: [{ intruderId: target.id, chance }], ammoUsed }
-    : null;
-}
-
-function neutralizing(context: CandidateContext, target: IntruderEntity, odds: InjuryOdds): number {
-  return neutralizeChance(context.view, target.type, target.woundsCount, odds, 1);
+/** Кандидат с шансом убрать цель (он же качество задачи «Бой») и Ранами попадания для прогноза Боя. */
+function withShot(
+  context: CandidateContext,
+  candidate: Candidate | null,
+  target: IntruderEntity,
+  odds: InjuryOdds,
+  ammoUsed: number,
+): Candidate | null {
+  if (!candidate) return null;
+  const chance = neutralizeChance(context.view, target.type, target.woundsCount, odds, 1);
+  return { ...candidate, quality: chance, neutralizes: [{ intruderId: target.id, chance, hit: odds }], ammoUsed };
 }
 
 /** Переброс «Прицельного огня»: грань без Ран бросается заново (стр. 24). */
@@ -94,7 +96,7 @@ function shots(context: CandidateContext, weapon: ItemCard, target: IntruderEnti
     }),
     fight,
   );
-  const variants: (Candidate | null)[] = [withShot(plain, target, neutralizing(context, target, odds), 1)];
+  const variants: (Candidate | null)[] = [withShot(context, plain, target, odds, 1)];
   const aimed = handCard(context, AIMED_FIRE);
   if (aimed && weapon.isEnergyWeapon) {
     const candidate = paidCandidate(
@@ -113,8 +115,7 @@ function shots(context: CandidateContext, weapon: ItemCard, target: IntruderEnti
       context.self.roomId,
       [aimed.id],
     );
-    const chance = neutralizing(context, target, withReroll(odds));
-    variants.push(withShot(cardPlayed(candidate, aimed, context), target, chance, 1));
+    variants.push(withShot(context, cardPlayed(candidate, aimed, context), target, withReroll(odds), 1));
   }
   const burst = handCard(context, BURST_FIRE);
   const ammo = weapon.ammo ?? 0;
@@ -135,8 +136,7 @@ function shots(context: CandidateContext, weapon: ItemCard, target: IntruderEnti
       context.self.roomId,
       [burst.id],
     );
-    const chance = neutralizing(context, target, withBurst(odds, ammo));
-    variants.push(withShot(cardPlayed(candidate, burst, context), target, chance, ammo));
+    variants.push(withShot(context, cardPlayed(candidate, burst, context), target, withBurst(odds, ammo), ammo));
   }
   const adrenaline = handCard(context, ADRENALINE);
   if (adrenaline) {
@@ -158,7 +158,7 @@ function shots(context: CandidateContext, weapon: ItemCard, target: IntruderEnti
     );
     const played = cardPlayed(candidate, adrenaline, context);
     const drawn = played ? { ...played, cardsUsed: (played.cardsUsed ?? 1) - 1 } : null;
-    variants.push(withShot(drawn, target, neutralizing(context, target, odds), 1));
+    variants.push(withShot(context, drawn, target, odds, 1));
   }
   return variants;
 }
@@ -175,7 +175,7 @@ function melee(context: CandidateContext, target: IntruderEntity): Candidate | n
   );
   const vitality = vitalityOf(context.self);
   const harmNow = meleeMissChance(target.type) * seriousWoundHarm(vitality, tuning) + tuning.tactics.harm.contamination;
-  const shot = withShot(candidate, target, neutralizing(context, target, meleeInjuryOdds(target.type)), 0);
+  const shot = withShot(context, candidate, target, meleeInjuryOdds(target.type), 0);
   return shot ? { ...shot, harmNow } : null;
 }
 

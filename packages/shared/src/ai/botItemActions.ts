@@ -8,9 +8,16 @@ import type { UseItemActionPayload } from '../types/actions.js';
 import type { RoomId } from '../types/rooms.js';
 import { itemUseSurcharge } from '../logic/seriousWoundEffects.js';
 import { findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';
-import { effect, paidCandidate, type Candidate, type CandidateContext, type TaskEffect } from './botCandidates.js';
+import {
+  effect,
+  paidCandidate,
+  type Candidate,
+  type CandidateContext,
+  type Neutralization,
+  type TaskEffect,
+} from './botCandidates.js';
 import { unscannedContamination } from './botHand.js';
-import { neutralizeChance, seriousWoundHarm, vitalityOf } from './botHarm.js';
+import { neutralizeChance, seriousWoundHarm, vitalityOf, type InjuryOdds } from './botHarm.js';
 import { markerCost } from './botShipDoom.js';
 import { crewIn, intrudersIn } from './botThreat.js';
 
@@ -115,16 +122,20 @@ function grenadeUses(context: CandidateContext): ItemUse[] {
       payload: { targetRoomId: roomId, targetIntruderId: target.id },
       effects: [effect('FIGHT', { roomId })],
       harmNow: blastHarm(context, roomId),
-      neutralizes: intrudersIn(context.view, roomId).map((intruder) => ({
-        intruderId: intruder.id,
-        chance: blastChance(context, intruder, intruder === target ? GRENADE_TARGET_WOUNDS : 1),
-      })),
+      neutralizes: intrudersIn(context.view, roomId).map((intruder) =>
+        blast(context, intruder, intruder === target ? GRENADE_TARGET_WOUNDS : 1),
+      ),
     })),
   );
 }
 
-function blastChance(context: CandidateContext, intruder: IntruderEntity, wounds: number): number {
-  return neutralizeChance(context.view, intruder.type, intruder.woundsCount, new Map([[wounds, 1]]), 1);
+function blast(context: CandidateContext, intruder: IntruderEntity, wounds: number): Neutralization {
+  const hit: InjuryOdds = new Map([[wounds, 1]]);
+  return {
+    intruderId: intruder.id,
+    chance: neutralizeChance(context.view, intruder.type, intruder.woundsCount, hit, 1),
+    hit,
+  };
 }
 
 function molotovUses(context: CandidateContext): ItemUse[] {
@@ -133,10 +144,7 @@ function molotovUses(context: CandidateContext): ItemUse[] {
     payload: { targetRoomId: roomId },
     effects: [effect('FIGHT', { roomId })],
     harmNow: blastHarm(context, roomId) + (context.view.ship.rooms[roomId]?.hasFire ? 0 : fireCost),
-    neutralizes: intrudersIn(context.view, roomId).map((intruder) => ({
-      intruderId: intruder.id,
-      chance: blastChance(context, intruder, 1),
-    })),
+    neutralizes: intrudersIn(context.view, roomId).map((intruder) => blast(context, intruder, 1)),
   }));
 }
 

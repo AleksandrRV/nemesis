@@ -12,6 +12,7 @@ import {
   meleeMissChance,
   neutralizeChance,
   shotInjuryOdds,
+  standingByRound,
 } from './botHarm.js';
 import { BOT_TUNING } from './botTuning.js';
 
@@ -72,6 +73,15 @@ describe('Выстрел и проверка Стойкости (стр. 19–20
     expect(three).toBeGreaterThan(one * 2);
     expect(neutralizeChance(view, 'ADULT', 3, odds, 1)).toBeGreaterThan(one);
     expect(killChance(view, 'ADULT', 4, odds)).toBeGreaterThan(killChance(view, 'ADULT', 0, odds));
+  });
+
+  it('Раны копятся и между раундами: два раунда по выстрелу — как два выстрела подряд, раунд без огня — без перемен', () => {
+    const odds = shotInjuryOdds(view, STARTING_WEAPONS.SOLDIER, 'ADULT');
+    const shot = [{ odds, attempts: 1 }];
+    const [first, second, idle] = standingByRound(view, 'ADULT', 0, [shot, shot, []]);
+    expect(1 - first!).toBeCloseTo(neutralizeChance(view, 'ADULT', 0, odds, 1));
+    expect(1 - second!).toBeCloseTo(neutralizeChance(view, 'ADULT', 0, odds, 2));
+    expect(idle).toBeCloseTo(second!);
   });
 
   it('Огнемёт ранит на любой грани, кроме Промаха; Рукопашная по Взрослой промахивается чаще', () => {

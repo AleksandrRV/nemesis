@@ -1,8 +1,31 @@
 import type { CommsIntent } from '../types/comms.js';
-import type { RoomId } from '../types/rooms.js';
+import type { CorridorConnection, RoomId } from '../types/rooms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 
 type GraphView = Pick<SanitizedGameState, 'ship'>;
+
+const corridorIndex = new WeakMap<object, Map<RoomId, CorridorConnection[]>>();
+
+/** Коридоры Комнаты: связи корабля постоянны, поэтому список строится раз на срез. */
+export function corridorsAround(view: GraphView, roomId: RoomId): readonly CorridorConnection[] {
+  let byRoom = corridorIndex.get(view.ship.corridors);
+  if (!byRoom) {
+    byRoom = new Map();
+    for (const corridor of Object.values(view.ship.corridors)) {
+      for (const end of [corridor.fromRoomId, corridor.toRoomId]) {
+        const around = byRoom.get(end);
+        if (around) around.push(corridor);
+        else byRoom.set(end, [corridor]);
+      }
+    }
+    corridorIndex.set(view.ship.corridors, byRoom);
+  }
+  return byRoom.get(roomId) ?? [];
+}
+
+export function otherEnd(corridor: CorridorConnection, roomId: RoomId): RoomId {
+  return corridor.fromRoomId === roomId ? corridor.toRoomId : corridor.fromRoomId;
+}
 
 const HEALING_ROOMS = ['INFIRMARY', 'SURGERY', 'CANTEEN', 'SHOWER'];
 const ENGINE_ROOMS = ['ENGINE_01', 'ENGINE_02', 'ENGINE_03'];
@@ -11,14 +34,12 @@ const ENGINE_ROOMS = ['ENGINE_01', 'ENGINE_02', 'ENGINE_03'];
 export function hopDistances(view: GraphView, fromRoomId: RoomId): Map<RoomId, number> {
   const distances = new Map<RoomId, number>([[fromRoomId, 0]]);
   const queue: RoomId[] = [fromRoomId];
-  const corridors = Object.values(view.ship.corridors);
   while (queue.length > 0) {
     const room = queue.shift()!;
     const distance = distances.get(room)!;
-    for (const corridor of corridors) {
-      const next =
-        corridor.fromRoomId === room ? corridor.toRoomId : corridor.toRoomId === room ? corridor.fromRoomId : null;
-      if (next === null || distances.has(next)) continue;
+    for (const corridor of corridorsAround(view, room)) {
+      const next = otherEnd(corridor, room);
+      if (distances.has(next)) continue;
       distances.set(next, distance + 1);
       queue.push(next);
     }

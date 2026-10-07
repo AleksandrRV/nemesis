@@ -210,10 +210,49 @@ function injuryCheckOdds(view: SanitizedGameState, type: IntruderType): InjuryCh
   return odds;
 }
 
+/** Залп: броски с одним распределением Ран — выстрелы из одного Оружия, удар или взрыв. */
+export interface Volley {
+  odds: InjuryOdds;
+  attempts: number;
+}
+
+type WoundSpread = Map<number, number>;
+
+function afterHit(standing: WoundSpread, odds: InjuryOdds, check: InjuryCheckOdds): WoundSpread {
+  const next: WoundSpread = new Map();
+  for (const [wounds, mass] of standing) {
+    for (const [injuries, chance] of odds) {
+      const total = wounds + injuries;
+      const stays = injuries === 0 ? 1 : 1 - check.retreat - check.killAt(total);
+      next.set(total, (next.get(total) ?? 0) + mass * chance * stays);
+    }
+  }
+  return next;
+}
+
 /**
- * Шанс, что Чужой покинет Комнату (убит или Отступил) за несколько попаданий подряд: Раны копятся на миниатюре,
- * каждая проверка тянет новые карты.
+ * Доля, в которой Чужой ещё стоит в Комнате после каждого раунда огня: Раны копятся на миниатюре между выстрелами
+ * и раундами, каждое попадание — новая проверка по картам Атак (стр. 20).
  */
+export function standingByRound(
+  view: SanitizedGameState,
+  type: IntruderType,
+  woundsBefore: number,
+  rounds: readonly (readonly Volley[])[],
+): number[] {
+  const check = injuryCheckOdds(view, type);
+  let standing: WoundSpread = new Map([[woundsBefore, 1]]);
+  const result: number[] = [];
+  for (const volleys of rounds) {
+    for (const volley of volleys) {
+      for (let attempt = 0; attempt < volley.attempts; attempt++) standing = afterHit(standing, volley.odds, check);
+    }
+    result.push([...standing.values()].reduce((sum, mass) => sum + mass, 0));
+  }
+  return result;
+}
+
+/** Шанс, что Чужой покинет Комнату (убит или Отступил) за несколько попаданий подряд. */
 export function neutralizeChance(
   view: SanitizedGameState,
   type: IntruderType,
@@ -222,27 +261,8 @@ export function neutralizeChance(
   attempts: number,
 ): number {
   if (attempts <= 0) return 0;
-  const check = injuryCheckOdds(view, type);
-  let standing = new Map<number, number>([[woundsBefore, 1]]);
-  let gone = 0;
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    const next = new Map<number, number>();
-    for (const [wounds, mass] of standing) {
-      for (const [injuries, chance] of odds) {
-        const weight = mass * chance;
-        if (injuries === 0) {
-          next.set(wounds, (next.get(wounds) ?? 0) + weight);
-          continue;
-        }
-        const total = wounds + injuries;
-        const removed = check.retreat + check.killAt(total);
-        gone += weight * removed;
-        next.set(total, (next.get(total) ?? 0) + weight * (1 - removed));
-      }
-    }
-    standing = next;
-  }
-  return Math.min(1, gone);
+  const [standing] = standingByRound(view, type, woundsBefore, [[{ odds, attempts }]]);
+  return Math.min(1, Math.max(0, 1 - standing!));
 }
 
 /** Шанс убить (без Отступления) одним попаданием: ценность добить раненого Чужого. */

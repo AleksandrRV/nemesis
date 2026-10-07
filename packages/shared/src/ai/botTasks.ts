@@ -32,6 +32,7 @@ export type TaskKind =
   | 'GIVE_ITEM'
   | 'RELOAD'
   | 'CLEANSE'
+  | 'CURE'
   | 'SCAN_HAND'
   | 'SHIELD_ALLY'
   | 'SET_DOOR'

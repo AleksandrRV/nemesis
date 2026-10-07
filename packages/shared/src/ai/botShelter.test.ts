@@ -71,6 +71,17 @@ describe('Путь к укрытию по цене всего маршрута (
     expect(valueFor(state, 'BOARD_POD', 2)).toBeGreaterThan(0.9 * board.weight);
   });
 
+  it('соседняя Капсула занята — шаг к закрытому тайлу, где может быть второй Спасательный отсек, тоже ценен', () => {
+    const state = podRace('shelter-unknown-pod');
+    state.players[BOT]!.handSlots = [];
+    state.ship.rooms[10]!.isExplored = false;
+    putIntruder(state, 'ADULT', 2);
+    const board = agendaFor(state).tasks.find((entry) => entry.kind === 'BOARD_POD')!;
+    expect(board.lifeline).toBe(true);
+    expect(board.place.definitionIds).toContain('ESCAPE_POD_B');
+    expect(valueFor(state, 'BOARD_POD', 5)).toBeGreaterThan(0);
+  });
+
   it('путь к Анабиозу в обход Комнаты с Чужим ценнее: уходя из неё, бот получит Атаку', () => {
     const state = botTable('shelter-detour');
     for (const corridor of Object.values(state.ship.corridors)) corridor.doorState = 'OPEN';

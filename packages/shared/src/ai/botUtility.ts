@@ -150,18 +150,17 @@ function arrivalChance(context: ScoringContext, from: RoomId, shelter: RoomId): 
 
 /**
  * Шаг к спасению, когда время на исходе (стр. 11): без него к Прыжку не успеть, поэтому шаг стоит шанса дойти от
- * следующей Комнаты до известного укрытия, к которому он приближает, и укрыться. Укрытие ещё не найдено — шаг к
- * ближайшему возможному тайлу стоит всей задачи.
+ * следующей Комнаты до укрытия, к которому он приближает, и укрыться; закрытый тайл — ещё и на шанс, что укрытие там.
+ * Так занятый Чужим Спасательный отсек уступает поиску второго.
  */
 function lifelineProgress(context: ScoringContext, candidate: Candidate, entry: BotTask): number {
   const next = candidate.roomId;
-  const shelters = SHELTER_TASKS.has(entry.kind)
-    ? tileGoals(context.view, entry).filter((goal) => goal.probability >= 1)
-    : [];
-  if (shelters.length === 0) return hopsToGoal(context, next, entry) < hopsToGoal(context, context.here, entry) ? 1 : 0;
-  return shelters.reduce((best, { roomId }) => {
+  if (!SHELTER_TASKS.has(entry.kind)) {
+    return hopsToGoal(context, next, entry) < hopsToGoal(context, context.here, entry) ? 1 : 0;
+  }
+  return tileGoals(context.view, entry).reduce((best, { roomId, probability }) => {
     if (hopsBetween(context, next, roomId) >= hopsBetween(context, context.here, roomId)) return best;
-    return Math.max(best, arrivalChance(context, next, roomId));
+    return Math.max(best, probability * arrivalChance(context, next, roomId));
   }, 0);
 }
 

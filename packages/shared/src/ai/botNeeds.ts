@@ -7,6 +7,7 @@ import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import { clamp01, evaluateCurve } from './botCurves.js';
 import { roundsLeft } from './botRisk.js';
 import { handOf, isActionCard, unscannedContamination } from './botHand.js';
+import { infectionDeath, nextMaturationChance } from './botFinale.js';
 import { attackHarm, fragilityCost, vitalityOf, type Vitality } from './botHarm.js';
 import type { BotMind } from './botMind.js';
 import { searchableRoomIds } from './botNavigation.js';
@@ -78,9 +79,13 @@ function healthTasks(context: NeedsContext): BotTask[] {
     const place = owns(self, ['BANDAGES']) ? ANYWHERE : { definitionIds: ['INFIRMARY', 'CANTEEN'] };
     tasks.push(task('HEAL', 'SURVIVE', worth(context, healLight), place, 'Залечить Лёгкие Раны'));
   }
-  if (self.hasLarva) {
+  const infection = infectionDeath(view, self);
+  if (infection > 0) {
     const place = owns(self, ['ANTIDOTE']) ? ANYWHERE : { definitionIds: ['SURGERY'] };
-    tasks.push(task('CLEANSE', 'SURVIVE', worth(context, tuning.tactics.harm.larva), place, 'Удалить Личинку'));
+    const reason = self.hasLarva ? 'Удалить Личинку' : 'Удалить ИНФЕКЦИЮ';
+    const delay = nextMaturationChance(view, self) + timePressure(view, tuning) * infection;
+    const carrier = self.hasLarva ? tuning.tactics.harm.larva : 0;
+    tasks.push(task('CURE', 'SURVIVE', worth(context, Math.max(carrier, delay)), place, reason));
   }
   const contamination = unscannedContamination(view, mind.botId);
   if (contamination > 0) {

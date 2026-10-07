@@ -1,9 +1,9 @@
-import { EVENT_CARDS } from '../data/eventCards.js';
 import type { EventCard } from '../types/cards.js';
 import type { IntruderEntity } from '../types/entities.js';
 import type { RoomId } from '../types/rooms.js';
 import type { SanitizedGameState } from '../types/sanitized.js';
 import { findNoiseTarget } from '../logic/shipGraphQueries.js';
+import { eventDeckOf } from './botEventDeck.js';
 import { findRoute } from './botNavigation.js';
 import type { BotTask } from './botTasks.js';
 import {
@@ -19,23 +19,6 @@ import {
 
 /** Укрытия от Прыжка (стр. 11): Анабиоз и Капсула — Действия Комнаты, а в Бою их не выполнить (стр. 25). */
 export const SHELTER_TASKS: ReadonlySet<BotTask['kind']> = new Set(['HIBERNATE', 'BOARD_POD']);
-
-const eventDecks = new WeakMap<SanitizedGameState, readonly EventCard[]>();
-
-/** Колода Событий глазами бота: карты, которых нет ни в открытом сбросе, ни среди удалённых из игры (стр. 10). */
-function eventDeckOf(view: SanitizedGameState): readonly EventCard[] {
-  const cached = eventDecks.get(view);
-  if (cached) return cached;
-  const discarded = new Set(view.decks.events.discard.map((card) => card.id));
-  const removed = new Set<string>();
-  for (const { event } of view.gameLog) {
-    if (event.type === 'EVENT_CARD_DRAWN' && event.card.isDestroyedOnResolve) removed.add(event.card.id);
-  }
-  const unseen = EVENT_CARDS.filter((card) => !discarded.has(card.id) && !removed.has(card.id));
-  const deck = unseen.length > 0 ? unseen : EVENT_CARDS.filter((card) => discarded.has(card.id));
-  eventDecks.set(view, deck);
-  return deck;
-}
 
 function leadsOut(view: SanitizedGameState, roomId: RoomId, card: EventCard): boolean {
   const target = findNoiseTarget(view, roomId, card.corridorNumber);

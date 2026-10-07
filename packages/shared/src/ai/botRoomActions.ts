@@ -203,7 +203,7 @@ export function roomActionCandidates(
       found.push(...hatchControl(context));
       break;
     case 'SURGERY':
-      found.push(ability(context, {}, [effect('CLEANSE')]));
+      found.push(ability(context, {}, [effect('CURE')]));
       break;
     case 'ENGINE_01':
     case 'ENGINE_02':

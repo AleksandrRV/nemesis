@@ -8,7 +8,7 @@ export interface TacticsTuning {
     fragility: readonly [number, number, number, number];
     contamination: number;
     slime: number;
-    /** Личинка на планшете: без Хирургии или Антидота — гибель в «Созревании». */
+    /** Личинка на Планшете, пока её можно удалить: цена Атаки Личинки и нижняя граница задачи её удаления. */
     larva: number;
     /** Мера вреда в полезности: вред × желание выжить × этот вес. */
     weight: number;

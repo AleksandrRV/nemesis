@@ -16,6 +16,7 @@ import {
   type Neutralization,
   type TaskEffect,
 } from './botCandidates.js';
+import { infectionDeath } from './botFinale.js';
 import { unscannedContamination } from './botHand.js';
 import { neutralizeChance, seriousWoundHarm, vitalityOf, type InjuryOdds } from './botHarm.js';
 import { markerCost } from './botShipDoom.js';
@@ -198,7 +199,7 @@ function itemUses(context: CandidateContext, item: ItemCard): ItemUse[] {
         ? [{ payload: {}, effects: [effect('SCAN_HAND')] }]
         : [];
     case 'ANTIDOTE':
-      return context.self.hasLarva ? [{ payload: {}, effects: [effect('CLEANSE')] }] : [];
+      return infectionDeath(context.view, context.self) > 0 ? [{ payload: {}, effects: [effect('CURE')] }] : [];
     case 'SYNTHETIC_FOOD':
       return [{ payload: {}, effects: [], drawn: 2 }];
     case 'ADRENALINE_INJECTION':

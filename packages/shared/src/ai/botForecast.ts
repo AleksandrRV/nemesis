@@ -1,5 +1,6 @@
 import type { RoomId } from '../types/rooms.js';
 import type { Candidate, Neutralization } from './botCandidates.js';
+import { scanDeathChance } from './botFinale.js';
 import { handOf } from './botHand.js';
 import { hopDistances } from './botGraph.js';
 import { roundsLeft } from './botRisk.js';
@@ -118,7 +119,8 @@ export function forecastHarm(context: ThreatContext, candidate: Candidate | null
   const hand = handOf(context.view, context.self.id).length;
   const handAfter = Math.max(0, hand - (candidate?.cardsUsed ?? 0));
   const target = candidate?.roomId ?? here;
-  const own = candidate?.harmNow ?? 0;
+  const scans = candidate?.effects.some((produced) => produced.kind === 'SCAN_HAND') ?? false;
+  const own = (candidate?.harmNow ?? 0) + (scans ? scanDeathChance(context.self) : 0);
   const jump = unshelteredAtJump(context, candidate, handAfter);
   if (!candidate || !isRelocation(candidate) || target === here) {
     return { now: own, later: roundEndHarm(context, here, handAfter, candidate) + jump };

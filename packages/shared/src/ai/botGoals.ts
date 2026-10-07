@@ -56,7 +56,10 @@ function evacuationRoute(view: SanitizedGameState, plans: readonly ObjectivePlan
   return boardablePodDefinitions(view).length > 0 || probabilityEnginesHold(mind) < 0.35 ? 'POD' : 'ANY';
 }
 
-/** Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. */
+/**
+ * Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. Капсула
+ * предпочтительнее Анабиоза на шанс, что Анабиоз не спасёт: Двигатели, Курс и корабль (стр. 11).
+ */
 function evacuationTasks(
   context: AgendaContext,
   route: EvacuationRoute,
@@ -98,19 +101,12 @@ function evacuationTasks(
         ? 1
         : route === 'HIBERNATION'
           ? shipLossRisk(view, tuning)
-          : 1 - probabilityEnginesHold(mind) * (1 - shipLossRisk(view, tuning));
+          : 1 - voyageChance(view, mind, tuning);
     const preferred = Math.min(1, leaning * tuning.tactics.evacuation.podPreference);
     const over = missionOver(context, plans) ? lifeline * tuning.tactics.evacuation.missionOver : 0;
+    const weight = Math.max(Math.max(weightFor(podTargets), lifeline * onBoard) * preferred, over);
     tasks.push(
-      marked(
-        task(
-          'BOARD_POD',
-          'PREPARE_EVACUATION',
-          Math.max(Math.max(weightFor(podTargets), lifeline * onBoard) * preferred, over),
-          { definitionIds: podTargets },
-          'Сесть в Капсулу',
-        ),
-      ),
+      marked(task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: podTargets }, 'Сесть в Капсулу')),
     );
   }
   const lockedPods = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && pod.isLocked);

@@ -9,6 +9,7 @@ import type { BotMind, OwnPromise } from './botMind.js';
 import { findRoomOfType } from './botNavigation.js';
 import { earthProbability } from './botBeliefs.js';
 import { canRepair, needTasks } from './botNeeds.js';
+import { withRepairValue } from './botRepairs.js';
 import { fragilityCost, vitalityOf } from './botHarm.js';
 import { breachChance, markersLeft } from './botShipDoom.js';
 import { planObjectives, voyageTasks, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
@@ -359,13 +360,17 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
   const own = yieldClaimedTasks(
     view,
     mind,
-    [
-      ...plans.flatMap((plan) => plan.tasks),
-      ...evacuationTasks(context, route, timePressure, plans),
-      ...needTasks(context),
-      ...shipCareTasks(context),
-      ...promiseTasks(context),
-    ],
+    withRepairValue(
+      view,
+      [
+        ...plans.flatMap((plan) => plan.tasks),
+        ...evacuationTasks(context, route, timePressure, plans),
+        ...needTasks(context),
+        ...shipCareTasks(context),
+        ...promiseTasks(context),
+      ],
+      tuning,
+    ),
     tuning,
   );
   const tasks = scaledByDesire([...own, ...escortTasks(view, mind, own, tuning)], knobs, timePressure);

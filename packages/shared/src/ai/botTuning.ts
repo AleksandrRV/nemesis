@@ -260,6 +260,8 @@ export interface BotTuning {
     sideTaskShare: number;
     /** Опасность Комнаты от соседей по ней (ручка `sharedRoomAvoidance`): любой игрок и подозреваемый враг. */
     sharedRoomDanger: { anyone: number; suspectedEnemy: number };
+    /** Насколько вред Действия, доли гибели, может превышать вред лучшего, чтобы попасть в случайный выбор (× ручка `temperature`). */
+    riskSpread: number;
   };
   comms: {
     /** Шанс сказать Заявление после своей Проверки или Намерение перед дальним походом. */
@@ -449,6 +451,7 @@ export const BOT_TUNING = {
     passValue: 0.04,
     sideTaskShare: 0.3,
     sharedRoomDanger: { anyone: 0.04, suspectedEnemy: 0.2 },
+    riskSpread: 0.05,
   },
   comms: {
     speakChance: 0.6,

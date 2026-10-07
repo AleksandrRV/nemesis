@@ -65,6 +65,16 @@ function withReroll(odds: InjuryOdds): InjuryOdds {
   return rerolled;
 }
 
+/**
+ * «Очередь» стоит всего Боезапаса, поэтому оправдана, только если убирает Чужого вернее, чем тот же Боезапас,
+ * выпущенный обычными выстрелами, — на них хватает карт на руке без самой карты «Очереди».
+ */
+function burstPaysOff(context: CandidateContext, target: IntruderEntity, odds: InjuryOdds, ammo: number): boolean {
+  const shots = Math.min(ammo, handOf(context.view, context.botId).length - 1);
+  const single = neutralizeChance(context.view, target.type, target.woundsCount, withBurst(odds, ammo), 1);
+  return single > neutralizeChance(context.view, target.type, target.woundsCount, odds, shots);
+}
+
 /** «Стрельба очередью» (стр. 26): весь Боезапас в один выстрел, +1 Рана за каждые 2 ед. при попадании. */
 function withBurst(odds: InjuryOdds, ammo: number): InjuryOdds {
   const bonus = Math.floor(ammo / 2);
@@ -119,7 +129,7 @@ function shots(context: CandidateContext, weapon: ItemCard, target: IntruderEnti
   }
   const burst = handCard(context, BURST_FIRE);
   const ammo = weapon.ammo ?? 0;
-  if (burst && ammo >= 2) {
+  if (burst && ammo >= 2 && burstPaysOff(context, target, odds, ammo)) {
     const candidate = paidCandidate(
       context,
       'SHOOT',

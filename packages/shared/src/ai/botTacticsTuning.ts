@@ -35,6 +35,8 @@ export interface TacticsTuning {
   fireSpread: number;
   /** Вред раунда на борту в конце партии (доля гибели): ради него бот ложится в открытый Анабиоз заранее. */
   roundExposure: number;
+  /** Доля веса задачи, которую держит неисправная Комната, переходящая к её ремонту. */
+  repairInheritance: number;
   /** Шанс, что непроверенная карта Заражения погубит спасшегося на финальной проверке Инфекции (стр. 11). */
   infectionPerCard: number;
   /** Доли веса жизни в эвакуации: Анабиоз со сломанным отсеком, подготовка полёта, отпереть Капсулы (стр. 11, 25). */
@@ -116,6 +118,7 @@ export const TACTICS_TUNING = {
   milestoneBoost: 1,
   team: { claimedShare: 1, claimTrust: 0.4, escort: 0 },
   jumpStepRisk: 0.3,
+  repairInheritance: 0.5,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,
   woundEffects: { BLEEDING: 0.12, LEG: 0.04, ARM: 0.03, HAND: 0.02, BACK: 0.04 },

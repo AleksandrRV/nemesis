@@ -196,9 +196,8 @@ function shipTasks(context: NeedsContext): BotTask[] {
   const tasks: BotTask[] = [];
   if (canRepair(context)) {
     const relief = worth(context, markerRelief(view, 'MALFUNCTION', tuning));
-    const hibernationAtStake = worth(context, timePressure(view, tuning));
     for (const room of rooms.filter((entry) => entry.hasMalfunction)) {
-      const weight = relief + care * 0.5 + (room.definitionId === 'HIBERNATORIUM' ? hibernationAtStake : 0);
+      const weight = relief + care * 0.5;
       tasks.push(
         task('FIX_MALFUNCTION', 'SURVIVE', weight, { roomIds: [room.id] }, 'Починить Комнату', {
           roomId: room.id,

@@ -320,7 +320,8 @@ export function scoreCandidates(
 }
 
 /**
- * Выбор (В8-7-2): softmax по лучшим кандидатам с температурой характера; бросок — личным потоком `ai`.
+ * Выбор (В8-7-2): softmax по лучшим кандидатам с температурой характера; бросок — личным потоком `ai`. В розыгрыш
+ * не попадает Действие заметно опаснее лучшего: случайность — в выборе равноценного, а не в лишнем риске.
  * Возвращает выбранного первым, остальных — по убыванию полезности как запасные для движка.
  */
 export function chooseCandidate(
@@ -328,12 +329,14 @@ export function chooseCandidate(
   mind: BotMind,
   tuning: BotTuning,
 ): { ordered: ScoredCandidate[]; mind: BotMind } {
-  const pool = scored.filter((entry) => entry.utility > 0).slice(0, tuning.choice.topCandidates);
+  const knob = effectiveKnobs(mind.character, mind.difficulty, tuning).temperature;
+  const best = scored[0];
+  const riskCap = (best?.factors.harm ?? 0) + tuning.choice.riskSpread * knob;
+  const pool = scored
+    .filter((entry) => entry.utility > 0 && entry.factors.harm <= riskCap)
+    .slice(0, tuning.choice.topCandidates);
   if (pool.length <= 1) return { ordered: [...scored], mind };
-  const temperature = Math.max(
-    0.01,
-    tuning.choice.temperature * effectiveKnobs(mind.character, mind.difficulty, tuning).temperature,
-  );
+  const temperature = Math.max(0.01, tuning.choice.temperature * knob);
   const top = pool[0]!.utility;
   const weights = pool.map((entry) => Math.exp((entry.utility - top) / temperature));
   const total = weights.reduce((sum, weight) => sum + weight, 0);

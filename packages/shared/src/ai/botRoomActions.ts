@@ -16,6 +16,8 @@ import { hasFreeHandSlot } from '../logic/seriousWoundEffects.js';
 import { effect, paidCandidate, type Candidate, type CandidateContext, type TaskEffect } from './botCandidates.js';
 import { unscannedContamination } from './botHand.js';
 import { peeksOf } from './botPeeks.js';
+import { canStartSelfDestruct, canStopSelfDestruct, explosionDeath } from './botSelfDestruct.js';
+import { threatContext } from './botThreat.js';
 import type { BotTask } from './botTasks.js';
 
 /** Действие Комнаты стоит 2 карты (стр. 13). */
@@ -154,6 +156,18 @@ function engineRoom(context: CandidateContext): (Candidate | null)[] {
   return engineNumber === null ? [] : [ability(context, {}, [effect('CHECK_ENGINE', { engineNumber })])];
 }
 
+/**
+ * Генератор (стр. 24): запуск Самоуничтожения несёт шанс самому погибнуть при взрыве; пока маркер на зелёном, его
+ * можно остановить.
+ */
+function generator(context: CandidateContext): (Candidate | null)[] {
+  const { view, self, tuning } = context;
+  if (canStopSelfDestruct(view)) return [ability(context, {}, [effect('STOP_SELF_DESTRUCT')])];
+  if (!canStartSelfDestruct(view)) return [];
+  const arm = ability(context, {}, [effect('SELF_DESTRUCT')]);
+  return [arm && { ...arm, harmNow: explosionDeath(threatContext(view, self, tuning), 0) }];
+}
+
 /** Кандидаты Действия своей Комнаты (стр. 25–26) по тем же правилам допустимости, что у движка. */
 export function roomActionCandidates(
   context: CandidateContext,
@@ -171,7 +185,7 @@ export function roomActionCandidates(
       found.push(...infirmary(context));
       break;
     case 'GENERATOR':
-      if (view.meta.selfDestructTrackPosition === null) found.push(ability(context, {}, [effect('SELF_DESTRUCT')]));
+      found.push(...generator(context));
       break;
     case 'FIRE_CONTROL':
       for (const target of Object.values(view.ship.rooms)) {

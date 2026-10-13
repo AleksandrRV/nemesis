@@ -14,7 +14,8 @@ import { fragilityCost, vitalityOf } from './botHarm.js';
 import { breachChance, markersLeft } from './botShipDoom.js';
 import { planObjectives, voyageTasks, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
 import { hasAdjacentIntruders, roomThreat, roundsLeft } from './botRisk.js';
-import { boardablePodDefinitions, POD_DEFINITIONS, repairablePodDefinitions } from './botThreat.js';
+import { isSelfDestructArmed, stopSelfDestructTasks } from './botSelfDestruct.js';
+import { boardablePodDefinitions, POD_DEFINITIONS, repairablePodDefinitions, threatContext } from './botThreat.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
 import { othersSuccessWeight } from './botSocial.js';
 import { task, type BotTask } from './botTasks.js';
@@ -103,7 +104,9 @@ function evacuationTasks(
   const podsOpen = podTargets.length > 0;
   if (route !== 'POD' || !podsOpen) {
     const open = isHibernationOpen(view.meta.timeTrackPosition) ? 1 : 0.6;
-    const weight = weightFor(['HIBERNATORIUM']) * open * (cryoBroken ? tuning.tactics.evacuation.blockedRoute : 1);
+    const doomed = isSelfDestructArmed(view) ? 0 : 1;
+    const weight =
+      weightFor(['HIBERNATORIUM']) * open * doomed * (cryoBroken ? tuning.tactics.evacuation.blockedRoute : 1);
     tasks.push(
       marked(task('HIBERNATE', 'PREPARE_EVACUATION', weight, { definitionIds: ['HIBERNATORIUM'] }, 'Лечь в Анабиоз')),
     );
@@ -221,8 +224,12 @@ function voyageChance(view: SanitizedGameState, mind: BotMind, tuning: BotTuning
   return probabilityEnginesHold(mind) * earth * (1 - shipLossRisk(view, tuning));
 }
 
-/** Шанс, что корабль погибнет до Прыжка — вместе со всеми, кто лежит в Анабиозе (стр. 11). */
+/**
+ * Шанс, что корабль погибнет до Прыжка — вместе со всеми, кто лежит в Анабиозе (стр. 11): идущее Самоуничтожение
+ * губит его наверняка, если его не остановить (стр. 24).
+ */
 function shipLossRisk(view: SanitizedGameState, tuning: BotTuning): number {
+  if (isSelfDestructArmed(view)) return 1;
   const hull = breachChance(view, 'MALFUNCTION', markersLeft(view, 'MALFUNCTION'), tuning);
   const fire = breachChance(view, 'FIRE', markersLeft(view, 'FIRE'), tuning);
   return 1 - (1 - hull) * (1 - fire);
@@ -376,6 +383,12 @@ export function buildAgenda(view: SanitizedGameState, mind: BotMind, tuning: Bot
         ...plans.flatMap((plan) => plan.tasks),
         ...evacuationTasks(context, route, timePressure, plans),
         ...needTasks(context),
+        ...stopSelfDestructTasks(
+          threatContext(view, self, tuning),
+          self,
+          plans.some((plan) => plan.destroysShip),
+          tuning,
+        ),
         ...shipCareTasks(context),
         ...promiseTasks(context),
       ],

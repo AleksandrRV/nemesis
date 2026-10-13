@@ -27,6 +27,8 @@ interface Step {
   progress: number;
   tasks: BotTask[];
   evacuation: EvacuationRoute;
+  /** Вариант Цели требует гибели корабля: Самоуничтожение бот не останавливает. */
+  destroysShip?: boolean;
 }
 
 export interface PlanContext {
@@ -48,11 +50,12 @@ const all =
   (context) => {
     const steps = planners.map((planner) => planner(context));
     const evacuation = steps.find((entry) => entry.evacuation !== 'ANY')?.evacuation ?? 'ANY';
-    return step(
+    const combined = step(
       steps.reduce((product, entry) => product * entry.progress, 1),
       steps.flatMap((entry) => entry.tasks),
       evacuation,
     );
+    return steps.some((entry) => entry.destroysShip) ? { ...combined, destroysShip: true } : combined;
   };
 
 function holds(self: SanitizedPlayerState, matches: (object: BoardObject) => boolean): boolean {
@@ -192,7 +195,7 @@ const shipDestroyed: ConditionPlanner = ({ view, mind, weight }) => {
       );
     }
   }
-  return step(armed ? 0.7 : 1 - probabilityEnginesHold(mind), tasks, 'POD');
+  return { ...step(armed ? 0.7 : 1 - probabilityEnginesHold(mind), tasks, 'POD'), destroysShip: true };
 };
 
 const fightAtNest: ConditionPlanner = ({ weight }) =>
@@ -366,6 +369,7 @@ export interface ObjectivePlan {
   proximity: number;
   tasks: BotTask[];
   evacuation: EvacuationRoute;
+  destroysShip: boolean;
 }
 
 /** Лучший вариант Цели по близости: его невыполненные шаги становятся задачами желания «продвинуть Цель». */
@@ -389,6 +393,7 @@ export function planObjective(
     proximity: best.progress,
     tasks: best.tasks,
     evacuation: best.evacuation,
+    destroysShip: best.destroysShip === true,
   };
 }
 

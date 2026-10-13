@@ -22,6 +22,7 @@ export type TaskKind =
   | 'DROP_OBJECT'
   | 'SEARCH'
   | 'SELF_DESTRUCT'
+  | 'STOP_SELF_DESTRUCT'
   | 'LOCK_POD'
   | 'UNLOCK_POD'
   | 'FIGHT'

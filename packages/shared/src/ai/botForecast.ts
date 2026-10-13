@@ -4,6 +4,7 @@ import { scanDeathChance } from './botFinale.js';
 import { handOf } from './botHand.js';
 import { hopDistances } from './botGraph.js';
 import { roundsLeft } from './botRisk.js';
+import { isSelfDestructArmed } from './botSelfDestruct.js';
 import {
   ammoAfter,
   boardablePodDefinitions,
@@ -66,15 +67,20 @@ function roundEndHarm(context: ThreatContext, roomId: RoomId, handAfter: number,
 const SHELTER_ACTION_COST = 2;
 /** Отложить Анабиоз на Действие в последнем раунде — риск меньше шага, но не ноль: может прийти Чужой. */
 const DELAY_SHARE = 0.3;
-const SHELTER_EFFECTS: ReadonlySet<string> = new Set(['HIBERNATE', 'BOARD_POD']);
+
+/** Анабиоз при идущем Самоуничтожении не спасает: взрыв губит и спящих (стр. 11, 24). */
+function isShelterEffect(context: ThreatContext, kind: string): boolean {
+  return kind === 'BOARD_POD' || (kind === 'HIBERNATE' && !isSelfDestructArmed(context.view));
+}
 
 /** Укрытия от Прыжка (стр. 11): исправный Криогенный отсек и Комнаты с открытой Капсулой. */
 function shelterRooms(context: ThreatContext): RoomId[] {
   const pods = boardablePodDefinitions(context.view);
+  const cryoSaves = !isSelfDestructArmed(context.view);
   return Object.values(context.view.ship.rooms)
     .filter(
       (room) =>
-        (room.definitionId === 'HIBERNATORIUM' && !room.hasMalfunction) ||
+        (cryoSaves && room.definitionId === 'HIBERNATORIUM' && !room.hasMalfunction) ||
         (room.definitionId !== null && pods.includes(room.definitionId)),
     )
     .map((room) => room.id);
@@ -86,7 +92,7 @@ function shelterRooms(context: ThreatContext): RoomId[] {
  */
 function unshelteredAtJump(context: ThreatContext, candidate: Candidate | null, handAfter: number): number {
   if (roundsLeft(context.view) > 1 || !candidate) return 0;
-  if (candidate.effects.some((produced) => SHELTER_EFFECTS.has(produced.kind))) return 0;
+  if (candidate.effects.some((produced) => isShelterEffect(context, produced.kind))) return 0;
   if (candidate.kind === 'PASS') return 1;
   const room = candidate.roomId;
   const distances = hopDistances(context.view, room);

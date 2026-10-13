@@ -7,7 +7,7 @@ import { findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';
 import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import { clamp01, evaluateCurve } from './botCurves.js';
 import { roundsLeft } from './botRisk.js';
-import { handOf, isActionCard, unscannedContamination } from './botHand.js';
+import { handOf, isActionCard, REPAIR_CARD_KINDS, unscannedContamination } from './botHand.js';
 import { infectionDeath, nextMaturationChance } from './botFinale.js';
 import { attackHarm, fragilityCost, vitalityOf, type Vitality } from './botHarm.js';
 import type { BotMind } from './botMind.js';
@@ -26,7 +26,6 @@ export interface NeedsContext {
   altruism: number;
 }
 
-const REPAIR_CARD_KINDS = new Set(['BASIC_REPAIR', 'REPAIR', 'FAST_REPAIR']);
 const REPAIR_ITEMS: readonly ItemEffectKind[] = ['TOOLS', 'DUCT_TAPE'];
 const TREATING_ITEMS: readonly ItemEffectKind[] = ['MEDKIT', 'BANDAGES', 'CLOTHES'];
 const SCAN_ROOMS = ['CANTEEN', 'SHOWER'];

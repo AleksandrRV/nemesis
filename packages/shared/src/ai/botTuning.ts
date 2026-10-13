@@ -242,6 +242,8 @@ export interface BotTuning {
     cardValue: Record<'BASIC' | 'CLASS' | 'COMBAT', number>;
     /** Желание просканировать руку за каждую непроверенную карту Заражения (ручка `scanRate`). */
     scanPerContamination: number;
+    /** С какого числа Неисправностей на борту карта Ремонта в оплате стоит как боевая (`doc/bots.md` §7.7). */
+    repairReserveFrom: number;
   };
   desires: Record<BotDesire, number>;
   curves: {
@@ -427,7 +429,7 @@ export const BOT_TUNING = {
     findShare: 1,
   },
   time: { evacuationMarginRounds: 1 },
-  hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 }, scanPerContamination: 0.15 },
+  hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 }, scanPerContamination: 0.15, repairReserveFrom: 3 },
   desires: {
     SURVIVE: 1,
     ADVANCE_OBJECTIVE: 0.8,

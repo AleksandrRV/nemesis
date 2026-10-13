@@ -23,6 +23,25 @@ export function cardValue(card: ActionCard, tuning: BotTuning): number {
   return BASIC_KINDS.has(card.effect.kind) ? tuning.hand.cardValue.BASIC : tuning.hand.cardValue.CLASS;
 }
 
+/** Карты Ремонта (стр. 17): каждая снимает маркер Неисправности. */
+export const REPAIR_CARD_KINDS: ReadonlySet<string> = new Set(['BASIC_REPAIR', 'REPAIR', 'FAST_REPAIR']);
+
+function malfunctionsOnBoard(view: SanitizedGameState): number {
+  return Object.values(view.ship.rooms).filter((room) => room.hasMalfunction).length;
+}
+
+/**
+ * Цена карты в оплате: карту Ремонта, пока на борту не меньше `repairReserveFrom` Неисправностей, бот бережёт
+ * как боевую — сброшенная на оплату, она не уберёт маркер, а 9-й маркер губит корабль (стр. 11, 17).
+ */
+export function paymentWorth(view: SanitizedGameState, card: ActionCard, tuning: BotTuning): number {
+  const base = cardValue(card, tuning);
+  if (!REPAIR_CARD_KINDS.has(card.effect.kind)) return base;
+  return malfunctionsOnBoard(view) >= tuning.hand.repairReserveFrom
+    ? Math.max(base, tuning.hand.cardValue.COMBAT)
+    : base;
+}
+
 /** Карты Заражения на руке, которых ещё не касался сканер: их убирает скан (стр. 20). */
 export function unscannedContamination(view: SanitizedGameState, botId: string): number {
   return (view.players[botId]?.actionDeck.hand ?? []).filter((card) => !isActionCard(card) && card.isInfected === null)
@@ -44,7 +63,10 @@ export function paymentFor(
   if (count === 0) return [];
   const payable = handOf(view, botId)
     .filter((card) => !excludeIds.includes(card.id))
-    .sort((left, right) => cardValue(left, tuning) - cardValue(right, tuning) || left.id.localeCompare(right.id));
+    .sort(
+      (left, right) =>
+        paymentWorth(view, left, tuning) - paymentWorth(view, right, tuning) || left.id.localeCompare(right.id),
+    );
   return payable.length >= count ? payable.slice(0, count).map((card) => card.id) : null;
 }
 
@@ -53,6 +75,6 @@ export function paymentValue(view: SanitizedGameState, botId: string, cardIds: r
   const hand = handOf(view, botId);
   return cardIds.reduce((sum, id) => {
     const card = hand.find((entry) => entry.id === id);
-    return sum + (card ? cardValue(card, tuning) : 0);
+    return sum + (card ? paymentWorth(view, card, tuning) : 0);
   }, 0);
 }

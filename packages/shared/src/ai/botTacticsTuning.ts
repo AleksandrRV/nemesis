@@ -46,6 +46,11 @@ export interface TacticsTuning {
     unlockPods: number;
     /** Насколько Капсула предпочтительнее Анабиоза, когда Цели не требуют Анабиоза (1 — только по шансу гибели корабля). */
     podPreference: number;
+    /**
+     * Доля веса жизни, с которой посадка в открытую Капсулу — задача-«спасение»: шаг к ней стоит шанса дойти и сесть,
+     * а не доли сокращённого пути (`doc/bots.md` §7.3).
+     */
+    podLifeline: number;
     /** Доля веса жизни у посадки в Капсулу, когда Цель уже выполнена или безнадёжна. */
     missionOver: number;
     /** Цель безнадёжна, если её близость ниже этой, а до Прыжка не больше `missionOverRounds` раундов. */
@@ -113,6 +118,7 @@ export const TACTICS_TUNING = {
     voyage: 0.3,
     unlockPods: 0.6,
     podPreference: 1,
+    podLifeline: 0.8,
     missionOver: 0,
     missionHopeless: 0.3,
     missionOverRounds: 4,

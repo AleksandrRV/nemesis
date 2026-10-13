@@ -21,7 +21,7 @@ import type { BotTuning } from './botTuning.js';
 /** Разовые вехи Целей в одной Комнате: Сигнал, Координаты, Курс. */
 const MILESTONES: ReadonlySet<BotTask['kind']> = new Set(['SEND_SIGNAL', 'CHECK_COORDINATES', 'SET_COURSE']);
 
-export type EvacuationRoute = 'HIBERNATION' | 'POD' | 'ANY';
+export type EvacuationRoute = 'POD' | 'ANY';
 
 interface Step {
   progress: number;
@@ -74,7 +74,10 @@ const signalSent: ConditionPlanner = ({ self, weight }) =>
         task('SEND_SIGNAL', 'ADVANCE_OBJECTIVE', weight, { definitionIds: ['COMM_ROOM'] }, 'Отправить Сигнал'),
       ]);
 
-/** «Корабль должен достигнуть …» (стр. 11): Координаты, Курс, 2 исправных Двигателя и Анабиоз к Прыжку. */
+/**
+ * «Корабль должен достигнуть …» (стр. 11): Координаты, Курс и 2 исправных Двигателя. Цель — о корабле, а выжить
+ * можно и в Анабиозе, и в Капсуле (стр. 12): Курс проверяется, пока есть хоть один выживший.
+ */
 const reached =
   (destination: Destination): ConditionPlanner =>
   ({ view, mind, weight, tuning }) => {
@@ -120,7 +123,7 @@ const reached =
         );
       }
     }
-    return step(probabilityEnginesHold(mind) * destinationChance(mind, current, destination), tasks, 'HIBERNATION');
+    return step(probabilityEnginesHold(mind) * destinationChance(mind, current, destination), tasks);
   };
 
 /**

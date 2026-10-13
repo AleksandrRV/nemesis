@@ -53,13 +53,23 @@ export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
  */
 function evacuationRoute(view: SanitizedGameState, plans: readonly ObjectivePlan[], mind: BotMind): EvacuationRoute {
   if (plans.some((plan) => plan.evacuation === 'POD')) return 'POD';
-  if (plans.some((plan) => plan.evacuation === 'HIBERNATION')) return 'HIBERNATION';
   return boardablePodDefinitions(view).length > 0 || probabilityEnginesHold(mind) < 0.35 ? 'POD' : 'ANY';
 }
 
 /**
- * Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. Капсула
- * предпочтительнее Анабиоза на шанс, что Анабиоз не спасёт: Двигатели, Курс и корабль (стр. 11).
+ * Шанс, что Анабиоз спасёт (стр. 11): долетят спящие при 2 исправных Двигателях и Курсе на Землю; сломанный
+ * Криогенный отсек без ремонта — лишь долей `blockedRoute`. Гибель корабля — в риске остаться на борту.
+ */
+function cryoRescue(context: AgendaContext, cryoBroken: boolean): number {
+  const { view, mind, tuning } = context;
+  const landing =
+    probabilityEnginesHold(mind) * earthProbability(mind.coordinates, view.ship.coordinates.currentCourseMarker);
+  return landing * (cryoBroken ? tuning.tactics.evacuation.blockedRoute : 1);
+}
+
+/**
+ * Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. Открытая Капсула
+ * стоит не меньше шанса погибнуть без неё: остаться на борту до Прыжка и не долететь в Анабиозе (стр. 11).
  */
 function evacuationTasks(
   context: AgendaContext,
@@ -83,7 +93,8 @@ function evacuationTasks(
     return urgent ? Math.max(base, lifeline) : Math.max(base * pressure, pressure * shelterEarly * voyage);
   };
   const onBoard = stayOnBoardRisk(view, self, tuning);
-  const marked = (entry: BotTask): BotTask => (entry.weight >= lifeline ? { ...entry, lifeline: true } : entry);
+  const marked = (entry: BotTask, threshold = lifeline): BotTask =>
+    entry.weight >= threshold ? { ...entry, lifeline: true } : entry;
   const tasks: BotTask[] = [];
   const cryo = Object.values(view.ship.rooms).find((room) => room.definitionId === 'HIBERNATORIUM');
   const cryoBroken = cryo?.hasMalfunction === true && !canRepair(context);
@@ -97,17 +108,15 @@ function evacuationTasks(
     );
   }
   if (podsOpen) {
-    const leaning =
-      route === 'POD' || cryoBroken
-        ? 1
-        : route === 'HIBERNATION'
-          ? shipLossRisk(view, tuning)
-          : 1 - voyageChance(view, mind, tuning);
-    const preferred = Math.min(1, leaning * tuning.tactics.evacuation.podPreference);
+    const preferred = Math.min(1, tuning.tactics.evacuation.podPreference);
     const over = missionOver(context, plans) ? lifeline * tuning.tactics.evacuation.missionOver : 0;
-    const weight = Math.max(Math.max(weightFor(podTargets), lifeline * onBoard) * preferred, over);
+    const declined = 1 - (1 - onBoard) * cryoRescue(context, cryoBroken);
+    const weight = Math.max(Math.max(weightFor(podTargets), lifeline * declined) * preferred, over);
     tasks.push(
-      marked(task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: podTargets }, 'Сесть в Капсулу')),
+      marked(
+        task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: podTargets }, 'Сесть в Капсулу'),
+        lifeline * tuning.tactics.evacuation.podLifeline,
+      ),
     );
   }
   const lockedPods = Object.values(view.ship.escapePods).some((pod) => isPodUsable(pod) && pod.isLocked);
@@ -186,19 +195,15 @@ function stayOnBoardRisk(view: SanitizedGameState, self: SanitizedPlayerState, t
 }
 
 /**
- * Задание закончено: все Цели выполнены или безнадёжны к концу партии и ни одна не требует Анабиоза — дальше на борту
- * только риск, пора в Капсулу.
+ * Задание закончено: все Цели выполнены или безнадёжны к концу партии — дальше на борту только риск, пора в
+ * Капсулу.
  */
 function missionOver(context: AgendaContext, plans: readonly ObjectivePlan[]): boolean {
   const { evacuation } = context.tuning.tactics;
   const late = roundsLeft(context.view) <= evacuation.missionOverRounds;
   return (
     plans.length > 0 &&
-    plans.every(
-      (plan) =>
-        plan.evacuation !== 'HIBERNATION' &&
-        (plan.proximity >= MISSION_DONE || (late && plan.proximity < evacuation.missionHopeless)),
-    )
+    plans.every((plan) => plan.proximity >= MISSION_DONE || (late && plan.proximity < evacuation.missionHopeless))
   );
 }
 

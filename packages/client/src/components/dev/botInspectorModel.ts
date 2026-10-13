@@ -37,6 +37,7 @@ export const FACTOR_LABELS: Record<keyof InspectedCandidate['factors'], string> 
   taskValue: 'ценность задач',
   cleanup: '+ убрать Чужих',
   harm: 'прогноз вреда (доля гибели)',
+  deferral: 'цена откладывания укрытия (доля гибели)',
   safety: '± безопаснее Паса',
   endTurn: '+ конец хода',
   handReserve: '− запас руки',

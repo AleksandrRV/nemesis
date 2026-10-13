@@ -6,6 +6,7 @@ import { clamp01, evaluateCurve } from './botCurves.js';
 import type { BotAgenda } from './botGoals.js';
 import type { BotMind } from './botMind.js';
 import { hopDistances } from './botGraph.js';
+import { deferralCosts, type ShelterPlan } from './botDeferral.js';
 import { costsToGoals, roomTypeProbability, type GoalRoom } from './botNavigation.js';
 import { suspectedEnemies } from './botObjectives.js';
 import { handOf } from './botHand.js';
@@ -33,7 +34,9 @@ export interface UtilityFactors {
   cleanup: number;
   /** Прогноз вреда Действия в долях гибели (сразу и до конца раунда). */
   harm: number;
-  /** Насколько Действие безопаснее Паса: разница прогнозов вреда × желание выжить. */
+  /** Цена откладывания укрытия в долях гибели: доля лучшей перспективы укрыться, которую Действие теряет. */
+  deferral: number;
+  /** Насколько Действие безопаснее Паса: разница прогнозов вреда и цены откладывания × желание выжить. */
   safety: number;
   endTurn: number;
   handReserve: number;
@@ -55,6 +58,7 @@ interface ScoringContext {
   threat: ThreatContext;
   inCombat: boolean;
   passHarm: number;
+  deferral: Map<Candidate, number>;
   enemies: string[];
 }
 
@@ -265,6 +269,7 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
     }
   }
   const harm = harmOf(context, candidate);
+  const deferral = context.deferral.get(candidate) ?? 0;
   const hand = handOf(context.view, context.mind.botId).length;
   const caution =
     tuning.desires.SURVIVE * tuning.tactics.harm.weight * knobs.riskAversion * clamp01(knobs.riskAccuracy);
@@ -275,7 +280,8 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
       localWork(context, candidate),
     cleanup: cleanupValue(context, candidate),
     harm,
-    safety: caution * (context.passHarm - harm),
+    deferral,
+    safety: caution * (context.passHarm - harm - deferral),
     endTurn: candidate.kind === 'PASS' ? tuning.choice.passValue : 0,
     handReserve: handReserveCost(context, hand, hand - (candidate.cardsUsed ?? 0)),
     economy: 1 / (1 + tuning.choice.cardCostWeight * candidate.spent),
@@ -287,6 +293,14 @@ function score(context: ScoringContext, candidate: Candidate): ScoredCandidate {
 
 function passCandidate(roomId: RoomId): Candidate {
   return { action: { type: 'ACTION_PASS', payload: {} }, kind: 'PASS', effects: [], roomId, spent: 0 };
+}
+
+/** Укрытия повестки для цены откладывания: вес задачи в долях гибели и тайлы, где укрытие может быть. */
+function shelterPlans(context: ScoringContext): ShelterPlan[] {
+  const lifeline = context.tuning.desires.SURVIVE * context.tuning.tactics.harm.weight;
+  return context.agenda.tasks
+    .filter((entry) => SHELTER_TASKS.has(entry.kind) && entry.weight > 0)
+    .map((entry) => ({ kind: entry.kind, stake: entry.weight / lifeline, goals: tileGoals(context.view, entry) }));
 }
 
 export function scoreCandidates(
@@ -313,9 +327,12 @@ export function scoreCandidates(
     threat,
     inCombat: intrudersIn(view, view.players[mind.botId]!.roomId).length > 0,
     passHarm: 0,
+    deferral: new Map(),
     enemies: suspectedEnemies(mind, view, tuning),
   };
-  context.passHarm = harmOf(context, passCandidate(context.here));
+  const pass = passCandidate(context.here);
+  context.deferral = deferralCosts(threat, shelterPlans(context), [...candidates, pass], knobs.riskAversion);
+  context.passHarm = harmOf(context, pass) + (context.deferral.get(pass) ?? 0);
   return candidates.map((candidate) => score(context, candidate)).sort((left, right) => right.utility - left.utility);
 }
 

@@ -56,20 +56,37 @@ export function shelterAccess(context: ThreatContext, roomId: RoomId): number {
   }, 1);
 }
 
+/** Оставшийся путь к укрытию: его вред и число Движений до входа. */
+export interface ShelterRoute {
+  harm: number;
+  moves: number;
+}
+
 /**
- * Вред оставшегося пути к укрытию (стр. 13–19): уходя из Комнаты с Чужими — Атака каждого, входя в Комнату — бросок
- * Шума и жетон Исследования с добранной рукой без карты на Движение; в занятом укрытии — Атаки, пока оно не
- * освободится. Пути нет — дойти нельзя.
+ * Путь к укрытию (стр. 13–19): уходя из Комнаты с Чужими — Атака каждого, входя в Комнату — бросок Шума и жетон
+ * Исследования с добранной рукой без карты на Движение; в занятом укрытии — Атаки, пока оно не освободится. Пути нет
+ * — дойти нельзя.
  */
-export function routeHarm(context: ThreatContext, from: RoomId, shelter: RoomId, riskAversion: number): number {
+export function shelterRoute(
+  context: ThreatContext,
+  from: RoomId,
+  shelter: RoomId,
+  riskAversion: number,
+): ShelterRoute | null {
   const route = findRoute(context.view, from, [shelter], context.tuning, riskAversion);
-  if (!route) return Number.POSITIVE_INFINITY;
+  if (!route) return null;
   let harm = 0;
   let current = from;
   for (const next of route.path) {
     harm += attacksFromRoom(context, current) + entryHarm(context, next, context.self.handLimit - 1, false);
     current = next;
   }
-  if (route.path.length === 0) return harm;
-  return harm + (1 - shelterAccess(context, shelter)) * attacksFromRoom(context, shelter);
+  const moves = route.path.length;
+  if (moves > 0) harm += (1 - shelterAccess(context, shelter)) * attacksFromRoom(context, shelter);
+  return { harm, moves };
+}
+
+/** Вред оставшегося пути к укрытию; пути нет — бесконечность. */
+export function routeHarm(context: ThreatContext, from: RoomId, shelter: RoomId, riskAversion: number): number {
+  return shelterRoute(context, from, shelter, riskAversion)?.harm ?? Number.POSITIVE_INFINITY;
 }

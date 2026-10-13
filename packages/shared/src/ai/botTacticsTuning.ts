@@ -52,6 +52,11 @@ export interface TacticsTuning {
     missionHopeless: number;
     missionOverRounds: number;
   };
+  /**
+   * Цена откладывания укрытия (стр. 11): `weight` — доля веса укрытия, которую теряет Действие без лучшей перспективы
+   * укрыться; `routeGrowth` — рост вреда пути к укрытию за раунд ожидания (замер симулятора, `doc/bots.md` §9.4).
+   */
+  deferral: { weight: number; routeGrowth: number };
   /** Тревога: каждый Чужой на борту прибавляет эту долю к вреду раунда (`roundExposure`). */
   intruderAlarm: number;
   /** Надбавка к ценности задачи за Действие на месте, без Движения (своя Комната, рука, Предметы). */
@@ -112,6 +117,7 @@ export const TACTICS_TUNING = {
     missionHopeless: 0.3,
     missionOverRounds: 4,
   },
+  deferral: { weight: 1, routeGrowth: 0.1 },
   intruderAlarm: 0,
   localWork: 0.6,
   teamShare: 1,

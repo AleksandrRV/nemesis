@@ -1,5 +1,6 @@
 import type { CraftedItemId } from '../types/cards.js';
 import type { SanitizedGameState, SanitizedPlayerState } from '../types/sanitized.js';
+import { ACTION_CARDS } from '../data/actionCards.js';
 import { ACTION_CARD_COMBAT_USE } from '../data/combatUse.js';
 import { getItemEffectKind, type ItemEffectKind } from '../data/itemEffectKinds.js';
 import { findAdjacentOpenRoomIds } from '../logic/shipGraphQueries.js';
@@ -183,6 +184,24 @@ export function canRepair(context: Pick<NeedsContext, 'view' | 'mind' | 'self'>)
     owns(context.self, REPAIR_ITEMS) ||
     holdsCard(context.view, context.mind.botId, (kind) => REPAIR_CARD_KINDS.has(kind))
   );
+}
+
+/**
+ * Шанс починить Комнату к следующему раунду: карта Ремонта или Предмет для Ремонта уже в руке — наверняка; иначе —
+ * шанс, что своя карта Ремонта из колоды добора придёт при доборе до полной руки (стр. 18).
+ */
+export function repairOdds(context: Pick<NeedsContext, 'view' | 'mind' | 'self'>): number {
+  if (canRepair(context)) return 1;
+  const deck = context.self.actionDeck;
+  const seen = new Set([...deck.hand, ...deck.discard].filter(isActionCard).map((card) => card.id));
+  const waiting = ACTION_CARDS.filter(
+    (card) =>
+      card.characterClass === context.self.characterClass &&
+      REPAIR_CARD_KINDS.has(card.effect.kind) &&
+      !seen.has(card.id),
+  ).length;
+  if (waiting === 0 || deck.drawPileCount === 0) return 0;
+  return Math.min(1, (waiting * context.self.handLimit) / deck.drawPileCount);
 }
 
 /**

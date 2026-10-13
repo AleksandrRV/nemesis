@@ -398,3 +398,13 @@ export function boardablePodDefinitions(view: SanitizedGameState): string[] {
       rooms.find((room) => room.definitionId === definitionId)?.hasMalfunction !== true,
   );
 }
+
+/** Спасательные отсеки, где сесть мешает лишь Неисправность: Ремонт откроет их Капсулы (стр. 17, 26). */
+export function repairablePodDefinitions(view: SanitizedGameState): string[] {
+  const rooms = Object.values(view.ship.rooms);
+  return POD_DEFINITIONS.filter(
+    (definitionId) =>
+      boardablePods(view.ship.escapePods, definitionId).length > 0 &&
+      rooms.find((room) => room.definitionId === definitionId)?.hasMalfunction === true,
+  );
+}

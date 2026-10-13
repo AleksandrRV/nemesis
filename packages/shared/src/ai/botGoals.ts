@@ -8,13 +8,13 @@ import { evaluateCurve } from './botCurves.js';
 import type { BotMind, OwnPromise } from './botMind.js';
 import { findRoomOfType } from './botNavigation.js';
 import { earthProbability } from './botBeliefs.js';
-import { canRepair, needTasks } from './botNeeds.js';
+import { canRepair, needTasks, repairOdds } from './botNeeds.js';
 import { withRepairValue } from './botRepairs.js';
 import { fragilityCost, vitalityOf } from './botHarm.js';
 import { breachChance, markersLeft } from './botShipDoom.js';
 import { planObjectives, voyageTasks, type EvacuationRoute, type ObjectivePlan } from './botObjectivePlanner.js';
 import { hasAdjacentIntruders, roomThreat, roundsLeft } from './botRisk.js';
-import { boardablePodDefinitions, POD_DEFINITIONS } from './botThreat.js';
+import { boardablePodDefinitions, POD_DEFINITIONS, repairablePodDefinitions } from './botThreat.js';
 import { ENGINE_NUMBERS, isEngineUncertain, probabilityEnginesHold } from './botShipKnowledge.js';
 import { othersSuccessWeight } from './botSocial.js';
 import { task, type BotTask } from './botTasks.js';
@@ -69,7 +69,8 @@ function cryoRescue(context: AgendaContext, cryoBroken: boolean): number {
 
 /**
  * Эвакуация (В8-7-3): время до Прыжка против пути до Анабиоза или Капсулы; два Движения за ход. Открытая Капсула
- * стоит не меньше шанса погибнуть без неё: остаться на борту до Прыжка и не долететь в Анабиозе (стр. 11).
+ * стоит не меньше шанса погибнуть без неё: остаться на борту до Прыжка и не долететь в Анабиозе (стр. 11). Капсула в
+ * отсеке с Неисправностью — тоже цель, на шанс её починить: тогда Ремонт отсека наследует вес посадки.
  */
 function evacuationTasks(
   context: AgendaContext,
@@ -107,14 +108,18 @@ function evacuationTasks(
       marked(task('HIBERNATE', 'PREPARE_EVACUATION', weight, { definitionIds: ['HIBERNATORIUM'] }, 'Лечь в Анабиоз')),
     );
   }
-  if (podsOpen) {
+  const brokenPods = repairablePodDefinitions(view);
+  const repair = brokenPods.length > 0 ? repairOdds(context) : 0;
+  if (podsOpen || repair > 0) {
+    const targets = podsOpen ? (repair === 1 ? [...podTargets, ...brokenPods] : podTargets) : brokenPods;
+    const reach = podsOpen ? 1 : repair;
     const preferred = Math.min(1, tuning.tactics.evacuation.podPreference);
     const over = missionOver(context, plans) ? lifeline * tuning.tactics.evacuation.missionOver : 0;
     const declined = 1 - (1 - onBoard) * cryoRescue(context, cryoBroken);
-    const weight = Math.max(Math.max(weightFor(podTargets), lifeline * declined) * preferred, over);
+    const weight = Math.max(Math.max(weightFor(targets), lifeline * declined) * preferred * reach, over);
     tasks.push(
       marked(
-        task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: podTargets }, 'Сесть в Капсулу'),
+        task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: targets }, 'Сесть в Капсулу'),
         lifeline * tuning.tactics.evacuation.podLifeline,
       ),
     );

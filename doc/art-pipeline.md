@@ -101,7 +101,7 @@ Avoid: text, letters, logos, card frames, borders, UI, watermarks, extra limbs, 
 
 | Партия | Состав | Слоты |
 | --- | --- | --- |
-| `b01-characters` | 6 персонажей (планшеты из `roles.pdf`) | splash, portrait, avatar |
+| `b01-characters` | 6 персонажей (планшеты из `roles.pdf`; промо-Медика в игре нет) | splash, portrait, avatar |
 | `b02-intruders` | 5 типов Чужих (жетоны, планшет Чужих, карты Атак) | splash, portrait, token |
 | `b03`–`b08` | карты Действий: по партии на персонажа (10 карт) | action-art |
 | `b09`–`b12` | Предметы: жёлтые, зелёные, красные, синие; стартовое оружие и квестовые | item-art |

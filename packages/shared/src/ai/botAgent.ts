@@ -62,6 +62,7 @@ export function createBotMind(
     ownPromises: [],
     ownLies: [],
     plan: null,
+    cleanContamination: 0,
   };
 }
 

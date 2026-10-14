@@ -79,7 +79,7 @@ function healthTasks(context: NeedsContext): BotTask[] {
     const place = owns(self, ['BANDAGES']) ? ANYWHERE : { definitionIds: ['INFIRMARY', 'CANTEEN'] };
     tasks.push(task('HEAL', 'SURVIVE', worth(context, healLight), place, 'Залечить Лёгкие Раны'));
   }
-  const infection = infectionDeath(view, self);
+  const infection = infectionDeath(view, self, mind.cleanContamination);
   if (infection > 0) {
     const place = owns(self, ['ANTIDOTE']) ? ANYWHERE : { definitionIds: ['SURGERY'] };
     const reason = self.hasLarva ? 'Удалить Личинку' : 'Удалить ИНФЕКЦИЮ';

@@ -199,7 +199,9 @@ function itemUses(context: CandidateContext, item: ItemCard): ItemUse[] {
         ? [{ payload: {}, effects: [effect('SCAN_HAND')] }]
         : [];
     case 'ANTIDOTE':
-      return infectionDeath(context.view, context.self) > 0 ? [{ payload: {}, effects: [effect('CURE')] }] : [];
+      return infectionDeath(context.view, context.self, context.cleanContamination) > 0
+        ? [{ payload: {}, effects: [effect('CURE')] }]
+        : [];
     case 'SYNTHETIC_FOOD':
       return [{ payload: {}, effects: [], drawn: 2 }];
     case 'ADRENALINE_INJECTION':

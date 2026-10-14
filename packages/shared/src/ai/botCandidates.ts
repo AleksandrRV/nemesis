@@ -66,6 +66,8 @@ export interface CandidateContext {
   room: SanitizedRoomState;
   inCombat: boolean;
   tuning: BotTuning;
+  /** Свои карты Заражения, проверенные чистыми (`BotMind.cleanContamination`). */
+  cleanContamination: number;
 }
 
 /** Собирает кандидата с самой дешёвой оплатой; null — карт не хватает. */

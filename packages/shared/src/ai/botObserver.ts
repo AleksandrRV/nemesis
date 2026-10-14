@@ -1,4 +1,5 @@
 import type { CommsMessage } from '../types/comms.js';
+import type { ContaminationScanSource } from '../types/log.js';
 import type { SanitizedGameLogEntry, SanitizedGameState } from '../types/sanitized.js';
 import {
   COURSE_CLAIM_DESTINATIONS,
@@ -48,6 +49,9 @@ function ownPendingAnnouncement(mind: BotMind, engineNumber: number, delta: numb
   return { ...mind, pendingOwnAnnouncements: { ...mind.pendingOwnAnnouncements, [key]: count } };
 }
 
+/** Операция и Антидот проверяют все свои карты Заражения и оставляют только чистые (стр. 23, 25). */
+const WHOLE_DECK_SCANS: ReadonlySet<ContaminationScanSource> = new Set(['SURGERY', 'ANTIDOTE']);
+
 /** Одна запись журнала: публичный факт плюс то, что бот узнал сам (свои проверки в его срезе открыты). */
 function observeShipLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning: BotTuning): BotMind {
   const event = entry.event;
@@ -56,6 +60,10 @@ function observeShipLogEntry(mind: BotMind, entry: SanitizedGameLogEntry, tuning
   switch (event.type) {
     case 'ROUND_STARTED':
       return { ...mind, observedRound: event.round };
+    case 'CONTAMINATION_SCANNED':
+      return event.playerId === self && WHOLE_DECK_SCANS.has(event.source)
+        ? { ...mind, cleanContamination: event.results.filter((result) => result === 'CLEAN').length }
+        : mind;
     case 'PLAYER_MOVED':
       return withFact(
         mind,

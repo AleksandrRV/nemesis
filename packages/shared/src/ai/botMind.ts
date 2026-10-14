@@ -5,7 +5,7 @@ import type { BotDifficulty, BotTraitId, RequestTopic, SocialSignal } from './bo
 import { BOT_DIFFICULTIES, BOT_TRAITS } from './botTuning.js';
 
 /** Версия схемы памяти бота: живёт в сохранении сессии, отдельно от `GameState`. */
-export const BOT_MIND_SCHEMA_VERSION = 2;
+export const BOT_MIND_SCHEMA_VERSION = 3;
 
 export interface BotPersona {
   traits: BotTraitId[];
@@ -168,6 +168,8 @@ export interface BotMind {
   ownPromises: OwnPromise[];
   ownLies: OwnLie[];
   plan: BotPlan | null;
+  /** Свои карты Заражения, проверенные чистыми Операцией или Антидотом (стр. 23, 25): они лежат в колоде добора. */
+  cleanContamination: number;
 }
 
 export function serializeBotMind(mind: BotMind): string {
@@ -245,7 +247,8 @@ export function isBotMind(value: unknown): value is BotMind {
     isRecord(value.objectiveGuesses) &&
     isFiniteNumber(value.pendingMorale) &&
     Array.isArray(value.ownPromises) &&
-    Array.isArray(value.ownLies)
+    Array.isArray(value.ownLies) &&
+    isFiniteNumber(value.cleanContamination)
   );
 }
 

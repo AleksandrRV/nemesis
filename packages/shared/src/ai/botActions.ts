@@ -299,6 +299,7 @@ export function generateCandidates(
     self,
     room,
     inCombat: isPlayerInCombat(view, mind.botId),
+    cleanContamination: mind.cleanContamination,
     tuning,
   };
   if (self.boardedPodId) return podCommands(context);

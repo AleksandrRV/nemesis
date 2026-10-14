@@ -21,19 +21,24 @@ interface OwnDeck {
   infectedKnown: boolean;
 }
 
-/** Своя колода глазами бота: рука и сброс открыты владельцу, в колоде добора — всё, чего там не видно (стр. 18). */
-function ownDeck(self: SanitizedPlayerState): OwnDeck {
+/**
+ * Своя колода глазами бота: рука и сброс открыты владельцу, в колоде добора — всё, чего там не видно (стр. 18).
+ * Карты, проверенные чистыми Операцией или Антидотом, бот помнит и в колоде добора (`cleanContamination`).
+ */
+function ownDeck(self: SanitizedPlayerState, cleanContamination: number): OwnDeck {
   const deck = self.actionDeck;
   const cards = deck.handCount + deck.discardCount + deck.drawPileCount;
   const contamination = Math.max(0, cards - classDeckSize(self));
   const known = [...deck.hand, ...deck.discard].filter(
     (card): card is SanitizedContaminationCard => !isActionCard(card) && card.isInfected !== null,
   );
+  const infected = known.filter((card) => card.isInfected === true).length;
+  const clean = Math.max(known.length - infected, Math.min(cleanContamination, contamination - infected));
   return {
     cards,
     contamination,
-    unknown: Math.max(0, contamination - known.length),
-    infectedKnown: known.some((card) => card.isInfected === true),
+    unknown: Math.max(0, contamination - infected - clean),
+    infectedKnown: infected > 0,
   };
 }
 
@@ -52,8 +57,8 @@ function drawsContamination(deck: OwnDeck): number {
  * Гибель на проверке Заражения у спасшегося (стр. 11): с Личинкой — сразу шаг Б; без неё — только если среди карт
  * Заражения есть ИНФЕКЦИЯ (доля таких карт в колоде Заражения).
  */
-export function finalCheckDeath(self: SanitizedPlayerState): number {
-  const deck = ownDeck(self);
+export function finalCheckDeath(self: SanitizedPlayerState, cleanContamination = 0): number {
+  const deck = ownDeck(self, cleanContamination);
   if (deck.contamination === 0 && !self.hasLarva) return 0;
   const infected = self.hasLarva || deck.infectedKnown ? 1 : 1 - Math.pow(1 - INFECTED_SHARE, deck.unknown);
   return infected * drawsContamination(deck);
@@ -70,9 +75,9 @@ export function nextMaturationChance(view: SanitizedGameState, self: SanitizedPl
 }
 
 /** Цена Заражения в долях гибели: «Созревание» на борту и проверка в финале, если до неё дожить. */
-export function infectionDeath(view: SanitizedGameState, self: SanitizedPlayerState): number {
+export function infectionDeath(view: SanitizedGameState, self: SanitizedPlayerState, cleanContamination = 0): number {
   const matures = maturationChance(view, self);
-  return matures + (1 - matures) * finalCheckDeath(self);
+  return matures + (1 - matures) * finalCheckDeath(self, cleanContamination);
 }
 
 /**

@@ -8,7 +8,7 @@ import { evaluateCurve } from './botCurves.js';
 import type { BotMind, OwnPromise } from './botMind.js';
 import { findRoomOfType } from './botNavigation.js';
 import { earthProbability } from './botBeliefs.js';
-import { canRepair, needTasks, repairOdds } from './botNeeds.js';
+import { ACTIONS_PER_TURN, canRepair, curedBeforeEscape, needTasks, repairOdds } from './botNeeds.js';
 import { withRepairValue } from './botRepairs.js';
 import { fragilityCost, vitalityOf } from './botHarm.js';
 import { breachChance, markersLeft } from './botShipDoom.js';
@@ -40,8 +40,6 @@ interface AgendaContext {
   altruism: number;
 }
 
-/** Два Действия за ход (стр. 13): на путь к Анабиозу бот считает Движения парами. */
-const ACTIONS_PER_TURN = 2;
 const MISSION_DONE = 0.99;
 const URGENT_DESIRES: ReadonlySet<BotTask['desire']> = new Set(['PREPARE_EVACUATION', 'SURVIVE']);
 export function hasLoadedWeapon(self: SanitizedPlayerState): boolean {
@@ -119,7 +117,8 @@ function evacuationTasks(
     const preferred = Math.min(1, tuning.tactics.evacuation.podPreference);
     const over = missionOver(context, plans) ? lifeline * tuning.tactics.evacuation.missionOver : 0;
     const declined = 1 - (1 - onBoard) * cryoRescue(context, cryoBroken);
-    const weight = Math.max(Math.max(weightFor(targets), lifeline * declined) * preferred * reach, over);
+    const uncured = 1 - curedBeforeEscape(context);
+    const weight = Math.max(Math.max(weightFor(targets), lifeline * declined) * preferred * reach * uncured, over);
     tasks.push(
       marked(
         task('BOARD_POD', 'PREPARE_EVACUATION', weight, { definitionIds: targets }, 'Сесть в Капсулу'),

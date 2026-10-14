@@ -35,6 +35,11 @@ export interface TacticsTuning {
   fireSpread: number;
   /** Вред раунда на борту в конце партии (доля гибели): ради него бот ложится в открытый Анабиоз заранее. */
   roundExposure: number;
+  /**
+   * Носитель Личинки, успевающий вылечиться до эвакуации: доля гибели на проверке Заражения, которую весит излечение и
+   * на которую дешевле посадка в Капсулу без него (стр. 11).
+   */
+  larvaCure: number;
   /** Доля веса задачи, которую держит неисправная Комната, переходящая к её ремонту. */
   repairInheritance: number;
   /** Шанс, что непроверенная карта Заражения погубит спасшегося на финальной проверке Инфекции (стр. 11). */
@@ -131,6 +136,7 @@ export const TACTICS_TUNING = {
   team: { claimedShare: 1, claimTrust: 0.4, escort: 0 },
   jumpStepRisk: 0.3,
   repairInheritance: 0.5,
+  larvaCure: 1,
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,
   woundEffects: { BLEEDING: 0.12, LEG: 0.04, ARM: 0.03, HAND: 0.02, BACK: 0.04 },

@@ -8,14 +8,17 @@ import { TIME_TRACK_LENGTH } from '../data/setup.js';
 import { clamp01, evaluateCurve } from './botCurves.js';
 import { roundsLeft } from './botRisk.js';
 import { handOf, isActionCard, REPAIR_CARD_KINDS, unscannedContamination } from './botHand.js';
-import { infectionDeath, nextMaturationChance } from './botFinale.js';
+import { finalCheckDeath, infectionDeath, nextMaturationChance } from './botFinale.js';
 import { attackHarm, fragilityCost, vitalityOf, type Vitality } from './botHarm.js';
 import type { BotMind } from './botMind.js';
-import { searchableRoomIds } from './botNavigation.js';
+import { findRoomOfType, searchableRoomIds } from './botNavigation.js';
 import { task, type BotTask } from './botTasks.js';
 import { markerRelief } from './botShipDoom.js';
 import { intrudersIn, shooterOf } from './botThreat.js';
 import type { BotTuning, TuningKnob } from './botTuning.js';
+
+/** Два Действия за ход (стр. 13): путь бот считает Движениями парами. */
+export const ACTIONS_PER_TURN = 2;
 
 export interface NeedsContext {
   view: SanitizedGameState;
@@ -84,7 +87,7 @@ function healthTasks(context: NeedsContext): BotTask[] {
     const place = owns(self, ['ANTIDOTE']) ? ANYWHERE : { definitionIds: ['SURGERY'] };
     const reason = self.hasLarva ? 'Удалить Личинку' : 'Удалить ИНФЕКЦИЮ';
     const delay = nextMaturationChance(view, self) + timePressure(view, tuning) * infection;
-    const carrier = self.hasLarva ? tuning.tactics.harm.larva : 0;
+    const carrier = self.hasLarva ? Math.max(tuning.tactics.harm.larva, curedBeforeEscape(context)) : 0;
     tasks.push(task('CURE', 'SURVIVE', worth(context, Math.max(carrier, delay)), place, reason));
   }
   const contamination = unscannedContamination(view, mind.botId);
@@ -176,6 +179,29 @@ function armsTasks(context: NeedsContext): BotTask[] {
 /** Неисправный Криогенный отсек закрывает Анабиоз (стр. 17, 26): чем ближе Прыжок, тем это смертельнее. */
 function timePressure(view: SanitizedGameState, tuning: BotTuning): number {
   return evaluateCurve(tuning.curves.timePressure, 1 - roundsLeft(view) / TIME_TRACK_LENGTH);
+}
+
+/**
+ * Излечение успевает до эвакуации: Антидот в руке или открытая исправная Операционная, после Операции (она кончает
+ * ход Пасом, стр. 25) остаётся запас раундов `evacuationMarginRounds` на путь к укрытию.
+ */
+export function cureInTime(context: Pick<NeedsContext, 'view' | 'self' | 'tuning' | 'knobs'>): boolean {
+  const { view, self, tuning, knobs } = context;
+  if (owns(self, ['ANTIDOTE'])) return true;
+  const found = findRoomOfType(view, self.roomId, ['SURGERY'], tuning, knobs.riskAversion);
+  if (!found || found.probability < 1 || view.ship.rooms[found.roomId]?.hasMalfunction) return false;
+  const rounds = Math.ceil((found.route.path.length + 1) / ACTIONS_PER_TURN) + 1;
+  return roundsLeft(view) - rounds >= tuning.time.evacuationMarginRounds;
+}
+
+/**
+ * Носитель Личинки, спасшийся с ней, — сразу шаг Б проверки Заражения (стр. 11). Успевает вылечиться — излечение
+ * стоит этой гибели × `larvaCure`; не успевает — ничего: лучше укрыться с Личинкой, чем не укрыться.
+ */
+export function curedBeforeEscape(context: NeedsContext): number {
+  const { self, mind, tuning } = context;
+  if (!self.hasLarva || !cureInTime(context)) return 0;
+  return finalCheckDeath(self, mind.cleanContamination) * tuning.tactics.larvaCure;
 }
 
 export function canRepair(context: Pick<NeedsContext, 'view' | 'mind' | 'self'>): boolean {

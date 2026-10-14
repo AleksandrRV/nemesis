@@ -232,6 +232,10 @@ export interface BotTuning {
     farGoalFloor: number;
     /** Вход в закрытый тайл, который может оказаться целью задачи, или его подгляд: доля задачи при находке цели. */
     findShare: number;
+    /** Подгляд из Комнаты Наблюдения ищет цель лишь задачи не легче этого веса, чья цель ещё не найдена. */
+    peekMinStake: number;
+    /** Подгляд не опускает руку ниже запаса: шанс Внезапной Атаки при Встрече с оставшейся рукой — не выше этого. */
+    peekSurpriseCap: number;
   };
   time: {
     /** Сколько раундов запаса бот оставляет на путь к Анабиозу или Капсуле. */
@@ -427,6 +431,8 @@ export const BOT_TUNING = {
     maxExpandedNodes: 400,
     farGoalFloor: 0.1,
     findShare: 1,
+    peekMinStake: 1,
+    peekSurpriseCap: 0.5,
   },
   time: { evacuationMarginRounds: 1 },
   hand: { cardValue: { BASIC: 1, CLASS: 1.5, COMBAT: 2 }, scanPerContamination: 0.15, repairReserveFrom: 3 },

@@ -14,10 +14,10 @@ import {
 } from '../logic/actionRules.js';
 import { hasFreeHandSlot } from '../logic/seriousWoundEffects.js';
 import { effect, paidCandidate, type Candidate, type CandidateContext, type TaskEffect } from './botCandidates.js';
-import { unscannedContamination } from './botHand.js';
+import { handOf, unscannedContamination } from './botHand.js';
 import { peeksOf } from './botPeeks.js';
 import { canStartSelfDestruct, canStopSelfDestruct, explosionDeath } from './botSelfDestruct.js';
-import { threatContext } from './botThreat.js';
+import { surpriseChance, threatContext } from './botThreat.js';
 import type { BotTask } from './botTasks.js';
 
 /** Действие Комнаты стоит 2 карты (стр. 13). */
@@ -142,8 +142,13 @@ function doorsOf(context: CandidateContext, roomId: number) {
   );
 }
 
-/** Комната Наблюдения (стр. 25): оборот и жетон Исследования любой закрытой Комнаты, которую бот ещё не видел. */
+/**
+ * Комната Наблюдения (стр. 25): оборот и жетон Исследования любой закрытой Комнаты, которую бот ещё не видел, — если
+ * после оплаты рука держит риск Внезапной Атаки не выше `peekSurpriseCap` (стр. 18).
+ */
 function observation(context: CandidateContext): (Candidate | null)[] {
+  const handAfter = handOf(context.view, context.botId).length - ROOM_ACTION_COST;
+  if (surpriseChance(context.view, handAfter) > context.tuning.navigation.peekSurpriseCap) return [];
   const seen = peeksOf(context.view).tiles;
   return Object.values(context.view.ship.rooms)
     .filter((room) => !room.isExplored && !seen.has(room.id))

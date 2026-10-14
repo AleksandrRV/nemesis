@@ -204,6 +204,16 @@ interface ScoutedTile {
   reach: number;
 }
 
+function isPeek(candidate: Candidate): boolean {
+  return candidate.effects.some((produced) => produced.kind === 'OBSERVE');
+}
+
+/** Подгляд ищет лишь цель весомой задачи, которая ещё не найдена: найденную искать незачем (стр. 25). */
+function worthPeeking(context: ScoringContext, entry: BotTask): boolean {
+  if (entry.weight < context.tuning.navigation.peekMinStake) return false;
+  return !tileGoals(context.view, entry).some((goal) => goal.probability >= 1);
+}
+
 function scoutedTile(context: ScoringContext, candidate: Candidate): ScoutedTile | null {
   if (isRelocation(candidate)) {
     const entered = context.view.ship.rooms[candidate.roomId];
@@ -220,7 +230,7 @@ function scoutedTile(context: ScoringContext, candidate: Candidate): ScoutedTile
  */
 function withSearch(context: ScoringContext, candidate: Candidate, entry: BotTask, travel: number): number {
   const tile = isPlaced(entry) ? scoutedTile(context, candidate) : null;
-  if (!tile) return travel;
+  if (!tile || (isPeek(candidate) && !worthPeeking(context, entry))) return travel;
   const found = Math.min(1, goalsOf(context, entry).find((goal) => goal.roomId === tile.roomId)?.probability ?? 0);
   const learns = isRelocation(candidate) || found < 1;
   const value = context.tuning.navigation.findShare * tile.reach;
@@ -256,8 +266,10 @@ function cleanupValue(context: ScoringContext, candidate: Candidate): number {
   return context.tuning.tactics.intruderRemoval * context.knobs.combatDesire * removed * (1 + saved);
 }
 
+/** Работа на месте — своя Комната, рука, Предметы; подгляд добывает сведения о чужой Комнате и надбавки не получает. */
 function localWork(context: ScoringContext, candidate: Candidate): number {
-  return isRelocation(candidate) || candidate.kind === 'PASS' ? 1 : 1 + context.tuning.tactics.localWork;
+  const remote = isRelocation(candidate) || candidate.kind === 'PASS' || isPeek(candidate);
+  return remote ? 1 : 1 + context.tuning.tactics.localWork;
 }
 
 /**

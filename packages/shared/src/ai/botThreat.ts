@@ -270,6 +270,17 @@ function surpriseShare(type: BagType, hand: number): number {
   return numbers.filter((escapeNumber) => escapeNumber > hand).length / numbers.length;
 }
 
+/** Шанс Внезапной Атаки при Встрече с рукой `hand` (стр. 18): жетоны открытого состава мешка, чьё число больше руки. */
+export function surpriseChance(view: SanitizedGameState, hand: number): number {
+  const bag = view.intrudersPool.bag;
+  const total = Object.values(bag).reduce((sum, count) => sum + count, 0);
+  if (total === 0) return 0;
+  return (Object.entries(bag) as [BagType, number][]).reduce(
+    (sum, [type, count]) => sum + (count / total) * surpriseShare(type, hand),
+    0,
+  );
+}
+
 /**
  * Вред Встречи (стр. 18) по открытому составу мешка: Внезапная Атака, если на руке меньше карт, чем число
  * на жетоне, и Бой с появившимся Чужим.

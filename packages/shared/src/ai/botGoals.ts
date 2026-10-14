@@ -175,15 +175,17 @@ function waitsForAlly(context: AgendaContext): OwnPromise | undefined {
   );
 }
 
+/** Капсулу, в которой ждут, запускают лишь со следующего раунда (стр. 26): в раунде посадки остаться — сохранить запуск. */
 function podTasks(context: AgendaContext, pressure: number): BotTask[] {
   const { view, self, tuning, knobs } = context;
   const waiting = waitsForAlly(context);
-  const stay = waiting ? tuning.desires.KEEP_PROMISE * knobs.promiseDiligence * (1 - pressure) : 0;
+  const promised = waiting ? tuning.desires.KEEP_PROMISE * knobs.promiseDiligence * (1 - pressure) : 0;
   const lifeline = tuning.desires.SURVIVE * tuning.tactics.harm.weight;
   const launch = Math.max(
     tuning.desires.PREPARE_EVACUATION * (0.5 + pressure),
     lifeline * stayOnBoardRisk(view, self, tuning),
   );
+  const stay = Math.max(promised, self.boardedRound === view.meta.currentRound ? launch : 0);
   return [
     task('LAUNCH_POD', 'PREPARE_EVACUATION', launch, {}, 'Запустить Капсулу'),
     task('STAY_IN_POD', 'KEEP_PROMISE', stay, {}, 'Дождаться союзника в Капсуле'),

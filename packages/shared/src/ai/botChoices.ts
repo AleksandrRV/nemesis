@@ -8,6 +8,7 @@ import { CONSENT_OPTION, DISMISS_OPTION, EXCHANGE_OPTION } from '../types/decisi
 import type { SanitizedGameState, SanitizedPlayerState } from '../types/sanitized.js';
 import type { BotMind } from './botMind.js';
 import { planObjective } from './botObjectivePlanner.js';
+import { waitsForCompanion } from './botPodWait.js';
 import { roomThreat, roundsLeft } from './botRisk.js';
 import { trustIn } from './botSocial.js';
 import type { BotTuning } from './botTuning.js';
@@ -81,11 +82,11 @@ function repositionAnswer(
   return safer ? CONSENT_OPTION.ACCEPT : CONSENT_OPTION.DECLINE;
 }
 
-function podAnswer(view: SanitizedGameState, mind: BotMind): string {
-  const waiting = mind.ownPromises.some(
+function podAnswer(view: SanitizedGameState, mind: BotMind, tuning: BotTuning): string {
+  const promised = mind.ownPromises.some(
     (promise) => promise.sincere && promise.topic === 'WAIT_IN_POD' && !view.players[promise.requesterId]?.boardedPodId,
   );
-  return waiting && roundsLeft(view) > 2 ? 'WAIT' : 'LAUNCH';
+  return (promised && roundsLeft(view) > 2) || waitsForCompanion(view, mind, tuning) ? 'WAIT' : 'LAUNCH';
 }
 
 function discardForHeavy(self: SanitizedPlayerState, incoming: ItemCard): string {
@@ -121,7 +122,7 @@ export function decideChoice(view: SanitizedGameState, mind: BotMind, tuning: Bo
     case 'STEEL_NERVES_OFFER':
       return answer(decision, 'USE_STEEL_NERVES');
     case 'ESCAPE_POD_LAUNCH_CHOICE':
-      return answer(decision, podAnswer(view, mind));
+      return answer(decision, podAnswer(view, mind, tuning));
     case 'REROLL_COMBAT_DIE':
       return answer(decision, rerollWasted(view, decision) ? 'REROLL' : 'KEEP');
     case 'CHOOSE_SEARCH_ITEM':

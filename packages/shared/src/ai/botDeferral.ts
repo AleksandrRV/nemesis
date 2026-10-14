@@ -19,7 +19,7 @@ interface OutlookContext {
   threat: ThreatContext;
   riskAversion: number;
   routes: Map<string, ShelterRoute | null>;
-  access: Map<RoomId, number>;
+  access: Map<string, number>;
 }
 
 function routeOf(context: OutlookContext, from: RoomId, shelter: RoomId): ShelterRoute | null {
@@ -30,9 +30,10 @@ function routeOf(context: OutlookContext, from: RoomId, shelter: RoomId): Shelte
   return context.routes.get(key)!;
 }
 
-function accessOf(context: OutlookContext, shelter: RoomId): number {
-  if (!context.access.has(shelter)) context.access.set(shelter, shelterAccess(context.threat, shelter));
-  return context.access.get(shelter)!;
+function accessOf(context: OutlookContext, shelter: RoomId, present: boolean): number {
+  const key = `${shelter}:${present}`;
+  if (!context.access.has(key)) context.access.set(key, shelterAccess(context.threat, shelter, present));
+  return context.access.get(key)!;
 }
 
 /**
@@ -64,7 +65,7 @@ function outlook(context: OutlookContext, candidate: Candidate, plan: ShelterPla
   return plan.goals.reduce((best, goal) => {
     const route = routeOf(context, from, goal.roomId);
     if (!route || route.moves + 1 > budget) return best;
-    const arrival = Math.max(0, 1 - route.harm * growth) * accessOf(context, goal.roomId);
+    const arrival = Math.max(0, 1 - route.harm * growth) * accessOf(context, goal.roomId, from === goal.roomId);
     return Math.max(best, goal.probability * arrival);
   }, 0);
 }

@@ -41,17 +41,18 @@ export function eventLeaveChance(view: SanitizedGameState, intruder: IntruderEnt
 
 /**
  * Доступность укрытия: каждый его Чужой должен уйти — сам по карте События до прихода бота или под огнём бота с
- * добранной рукой (огонь сходится на самом опасном).
+ * добранной рукой (огонь сходится на самом опасном). Бот, который будет в укрытии к Фазе Событий (`present`), держит
+ * Чужого в Бою: по карте События тот не уйдёт (стр. 9, 18).
  */
-export function shelterAccess(context: ThreatContext, roomId: RoomId): number {
+export function shelterAccess(context: ThreatContext, roomId: RoomId, present = false): number {
   const intruders = intrudersIn(context.view, roomId);
   if (intruders.length === 0) return 1;
   const shooter = shooterOf(context.self, context.self.handLimit);
   const target = mostDangerous(context, intruders);
   return intruders.reduce((access, intruder) => {
     const fire = intruder === target && shooter && shooter.attempts > 0 ? [shooter] : [];
-    const stays =
-      (1 - eventLeaveChance(context.view, intruder)) * standingAtEventPhase(context, intruder, undefined, fire);
+    const leaves = present ? 0 : eventLeaveChance(context.view, intruder);
+    const stays = (1 - leaves) * standingAtEventPhase(context, intruder, undefined, fire);
     return access * (1 - stays);
   }, 1);
 }

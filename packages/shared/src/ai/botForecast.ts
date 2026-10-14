@@ -1,8 +1,10 @@
 import type { RoomId } from '../types/rooms.js';
+import { isHibernationOpen } from '../logic/actionRules.js';
 import type { Candidate, Neutralization } from './botCandidates.js';
 import { scanDeathChance } from './botFinale.js';
 import { handOf } from './botHand.js';
 import { hopDistances } from './botGraph.js';
+import { eventPursuitHarm, returnTripHarm } from './botPursuit.js';
 import { roundsLeft } from './botRisk.js';
 import { isSelfDestructArmed } from './botSelfDestruct.js';
 import {
@@ -86,6 +88,14 @@ function shelterRooms(context: ThreatContext): RoomId[] {
     .map((room) => room.id);
 }
 
+/** Укрытия, где можно укрыться уже сейчас: Камеры Анабиоза открываются лишь на синем поле Счетчика Времени (стр. 9). */
+function openShelterRooms(context: ThreatContext): RoomId[] {
+  const chambersOpen = isHibernationOpen(context.view.meta.timeTrackPosition);
+  return shelterRooms(context).filter(
+    (roomId) => chambersOpen || context.view.ship.rooms[roomId]?.definitionId !== 'HIBERNATORIUM',
+  );
+}
+
 /**
  * Прыжок в конце раунда (стр. 11): кто не в Анабиозе и не в Капсуле, погибает. Шанс не успеть — по расстоянию до
  * укрытия, картам на Движения и Действие Комнаты и Чужим, которых ещё надо убрать из укрытия.
@@ -118,7 +128,8 @@ function unshelteredAtJump(context: ThreatContext, candidate: Candidate | null, 
 
 /**
  * Прогноз вреда (В8-10): Побег — Атака каждого Чужого Комнаты (стр. 19); вход — Встреча по Шуму и жетон
- * Исследования; остаться — Бой до Фазы Событий с учётом выстрелов бота и союзников и Пожар в Комнате.
+ * Исследования; остаться — Бой до Фазы Событий с учётом выстрелов бота и союзников и Пожар в Комнате. Уход от Чужих
+ * не кончает Бой, если они придут следом, а из занятого укрытия к нему ещё возвращаться.
  */
 export function forecastHarm(context: ThreatContext, candidate: Candidate | null): HarmForecast {
   const here = context.self.roomId;
@@ -133,5 +144,7 @@ export function forecastHarm(context: ThreatContext, candidate: Candidate | null
   }
   const attacks = candidate.kind === 'ESCAPE' ? attacksFromRoom(context, here) : 0;
   const entry = entryHarm(context, target, handAfter, candidate.kind === 'CAREFUL_MOVE');
-  return { now: own + attacks + entry, later: roundEndHarm(context, target, handAfter, candidate) + jump };
+  const pursuit =
+    eventPursuitHarm(context, here, target) + returnTripHarm(context, here, target, openShelterRooms(context));
+  return { now: own + attacks + entry, later: roundEndHarm(context, target, handAfter, candidate) + pursuit + jump };
 }

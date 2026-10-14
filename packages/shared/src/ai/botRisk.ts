@@ -16,7 +16,8 @@ function faceShare(matches: (face: (typeof NOISE_DIE_FACES)[number]) => boolean)
   return NOISE_DIE_FACES.filter(matches).length / NOISE_DIE_FACES.length;
 }
 
-const DANGER_SHARE = faceShare((face) => face.kind === 'DANGER');
+export const DANGER_SHARE = faceShare((face) => face.kind === 'DANGER');
+export const SILENCE_SHARE = faceShare((face) => face.kind === 'SILENCE');
 
 function numberShare(number: CorridorNumber): number {
   return faceShare((face) => face.kind === 'CORRIDOR' && face.number === number);

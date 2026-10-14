@@ -54,6 +54,7 @@ interface ScoringContext {
   goals: Map<BotTask, GoalRoom[]>;
   hops: Map<RoomId, Map<RoomId, number>>;
   access: Map<RoomId, number>;
+  presentAccess: Map<RoomId, number>;
   arrivals: Map<string, number>;
   threat: ThreatContext;
   inCombat: boolean;
@@ -110,6 +111,13 @@ function accessOf(context: ScoringContext, roomId: RoomId): number {
   return context.access.get(roomId)!;
 }
 
+function presentAccessOf(context: ScoringContext, roomId: RoomId): number {
+  if (!context.presentAccess.has(roomId)) {
+    context.presentAccess.set(roomId, shelterAccess(context.threat, roomId, true));
+  }
+  return context.presentAccess.get(roomId)!;
+}
+
 /** Цели задачи для пути: укрытие, занятое Чужими, достижимо лишь с шансом его освободить. */
 function goalsOf(context: ScoringContext, entry: BotTask): GoalRoom[] {
   if (!context.goals.has(entry)) {
@@ -142,12 +150,16 @@ function costsFor(context: ScoringContext, entry: BotTask): Map<RoomId, number> 
   return context.costs.get(entry)!;
 }
 
-/** Шанс дойти до укрытия из Комнаты и укрыться: вред оставшегося пути и доступность самого укрытия. */
+/**
+ * Шанс дойти до укрытия из Комнаты и укрыться: вред оставшегося пути и доступность самого укрытия. Вошедший в укрытие
+ * встретит Фазу Событий в нём.
+ */
 function arrivalChance(context: ScoringContext, from: RoomId, shelter: RoomId): number {
   const key = `${from}>${shelter}`;
   if (!context.arrivals.has(key)) {
     const harm = routeHarm(context.threat, from, shelter, context.knobs.riskAversion);
-    context.arrivals.set(key, Math.max(0, 1 - harm) * accessOf(context, shelter));
+    const access = from === shelter ? presentAccessOf(context, shelter) : accessOf(context, shelter);
+    context.arrivals.set(key, Math.max(0, 1 - harm) * access);
   }
   return context.arrivals.get(key)!;
 }
@@ -323,6 +335,7 @@ export function scoreCandidates(
     goals: new Map(),
     hops: new Map(),
     access: new Map(),
+    presentAccess: new Map(),
     arrivals: new Map(),
     threat,
     inCombat: intrudersIn(view, view.players[mind.botId]!.roomId).length > 0,

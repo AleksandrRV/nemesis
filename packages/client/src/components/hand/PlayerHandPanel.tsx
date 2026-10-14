@@ -14,6 +14,7 @@ import { CombatActionButtons } from '../combat/CombatActionButtons';
 import { isActivePlayerInCombat } from '../board/intruderMapModel';
 import { buildPlayerBoardSummary, type BoardTab } from './playerBoardModel';
 import { PlayerBoardSummaryBar } from './PlayerBoardSummary';
+import { CharacterPortrait } from '../art/CharacterArt';
 import { BoardCardsSection } from './BoardCardsSection';
 import { BoardGearSection } from './BoardGearSection';
 import { BoardVitalsSection } from './BoardVitalsSection';
@@ -228,80 +229,87 @@ export const PlayerHandPanel: React.FC<PlayerHandPanelProps> = ({ view }) => {
       />
 
       {isExpanded && (
-        <div id="player-board-body" className="border-t border-slate-800">
-          <div role="tablist" aria-label="Разделы планшета" className="flex gap-1 px-3 pt-2 sm:px-4">
-            {(Object.keys(TAB_LABELS) as BoardTab[]).map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                role="tab"
-                id={`board-tab-${entry}`}
-                aria-selected={tab === entry}
-                aria-controls={`board-panel-${entry}`}
-                onClick={() => setTab(entry)}
-                className={`flex h-9 items-center gap-1.5 rounded-t-lg border-b-2 px-3 text-xs font-bold uppercase tracking-wider transition ${
-                  tab === entry
-                    ? 'border-cyan-400 bg-slate-800/70 text-cyan-200'
-                    : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                }`}
-              >
-                {TAB_LABELS[entry]}
-                <span className="rounded bg-slate-950 px-1.5 font-mono text-[10px] text-slate-400">
-                  {tabCounts[entry]}
-                </span>
-                {entry === 'QUESTS' && questStats.ready > 0 && (
-                  <span className="relative flex h-2 w-2" aria-label="Есть квест, готовый к активации">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75 motion-safe:animate-ping" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
+        <div id="player-board-body" className="border-t border-slate-800 md:flex">
+          <aside aria-hidden="true" className="hidden w-28 shrink-0 py-3 pl-4 md:block lg:w-32">
+            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-slate-700 shadow-lg">
+              <CharacterPortrait role={player.characterClass} iconSize={32} />
+            </div>
+          </aside>
+          <div className="min-w-0 flex-1">
+            <div role="tablist" aria-label="Разделы планшета" className="flex gap-1 px-3 pt-2 sm:px-4">
+              {(Object.keys(TAB_LABELS) as BoardTab[]).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  role="tab"
+                  id={`board-tab-${entry}`}
+                  aria-selected={tab === entry}
+                  aria-controls={`board-panel-${entry}`}
+                  onClick={() => setTab(entry)}
+                  className={`flex h-9 items-center gap-1.5 rounded-t-lg border-b-2 px-3 text-xs font-bold uppercase tracking-wider transition ${
+                    tab === entry
+                      ? 'border-cyan-400 bg-slate-800/70 text-cyan-200'
+                      : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                  }`}
+                >
+                  {TAB_LABELS[entry]}
+                  <span className="rounded bg-slate-950 px-1.5 font-mono text-[10px] text-slate-400">
+                    {tabCounts[entry]}
                   </span>
-                )}
-              </button>
-            ))}
-          </div>
-          <div
-            role="tabpanel"
-            id={`board-panel-${tab}`}
-            aria-labelledby={`board-tab-${tab}`}
-            className="max-h-[38vh] overflow-y-auto border-t border-slate-800 bg-slate-950/60 px-3 py-3 sm:px-4"
-          >
-            {tab === 'CARDS' && (
-              <BoardCardsSection
-                hand={handCards}
-                selectedCardIds={selectedCardIds}
-                convertedCardIds={convertedCardIds}
-                playabilityOf={playabilityOf}
-                onToggle={toggleSelectCard}
-                onPlay={(card) => openUseModal({ kind: 'ACTION', card })}
-                onInspect={setInspectCardTarget}
-                onRefund={refundConvertedCard}
-                onConvert={convertToEnergy}
-                onRefundAll={() => convertedCardIds.forEach((id) => refundConvertedCard(id))}
-              />
-            )}
-            {tab === 'GEAR' && (
-              <BoardGearSection
-                player={player}
-                canAct={canAct}
-                onUseItem={(item, location) => openUseModal({ kind: 'ITEM', card: item, location })}
-                onInspectItem={inspectItem}
-                onInspectObject={(object) => setInspectCardTarget({ kind: 'OBJECT', object })}
-                onDiscardHeavy={(handSlotIndex) =>
-                  dispatch({ type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } })
-                }
-                onCraft={() => setWorkshop({ kind: 'BASIC' })}
-                canCraft={canAct && hasCraftableRecipe(view, false)}
-              />
-            )}
-            {tab === 'QUESTS' && (
-              <BoardQuestSection
-                view={view}
-                canAct={canAct}
-                onActivate={setQuestToActivate}
-                onShowRoom={(roomId) => selectRoom(roomId)}
-              />
-            )}
-            {tab === 'OBJECTIVES' && <BoardObjectivesSection view={view} />}
-            {tab === 'VITALS' && <BoardVitalsSection player={player} statuses={summary.statuses} />}
+                  {entry === 'QUESTS' && questStats.ready > 0 && (
+                    <span className="relative flex h-2 w-2" aria-label="Есть квест, готовый к активации">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75 motion-safe:animate-ping" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div
+              role="tabpanel"
+              id={`board-panel-${tab}`}
+              aria-labelledby={`board-tab-${tab}`}
+              className="max-h-[38vh] overflow-y-auto border-t border-slate-800 bg-slate-950/60 px-3 py-3 sm:px-4"
+            >
+              {tab === 'CARDS' && (
+                <BoardCardsSection
+                  hand={handCards}
+                  selectedCardIds={selectedCardIds}
+                  convertedCardIds={convertedCardIds}
+                  playabilityOf={playabilityOf}
+                  onToggle={toggleSelectCard}
+                  onPlay={(card) => openUseModal({ kind: 'ACTION', card })}
+                  onInspect={setInspectCardTarget}
+                  onRefund={refundConvertedCard}
+                  onConvert={convertToEnergy}
+                  onRefundAll={() => convertedCardIds.forEach((id) => refundConvertedCard(id))}
+                />
+              )}
+              {tab === 'GEAR' && (
+                <BoardGearSection
+                  player={player}
+                  canAct={canAct}
+                  onUseItem={(item, location) => openUseModal({ kind: 'ITEM', card: item, location })}
+                  onInspectItem={inspectItem}
+                  onInspectObject={(object) => setInspectCardTarget({ kind: 'OBJECT', object })}
+                  onDiscardHeavy={(handSlotIndex) =>
+                    dispatch({ type: 'ACTION_DISCARD_HEAVY_ITEM', payload: { handSlotIndex } })
+                  }
+                  onCraft={() => setWorkshop({ kind: 'BASIC' })}
+                  canCraft={canAct && hasCraftableRecipe(view, false)}
+                />
+              )}
+              {tab === 'QUESTS' && (
+                <BoardQuestSection
+                  view={view}
+                  canAct={canAct}
+                  onActivate={setQuestToActivate}
+                  onShowRoom={(roomId) => selectRoom(roomId)}
+                />
+              )}
+              {tab === 'OBJECTIVES' && <BoardObjectivesSection view={view} />}
+              {tab === 'VITALS' && <BoardVitalsSection player={player} statuses={summary.statuses} />}
+            </div>
           </div>
         </div>
       )}

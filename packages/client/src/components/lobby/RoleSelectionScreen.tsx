@@ -2,6 +2,7 @@ import React from 'react';
 import { CHARACTERS, type CharacterClass, type SanitizedCrewSetup } from '@nemesis/shared';
 import { Bot, Rocket, Timer } from 'lucide-react';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterSplash } from '../art/CharacterArt';
 import { RoleCard, RoleCardBack, type RoleCardState } from './RoleCard';
 import { ROLE_PICK_SECONDS, ROLE_SELECTION_LABELS, seatByPlayer } from './lobbyModel';
 
@@ -97,9 +98,27 @@ const PickOrderTrack: React.FC<{ setup: SanitizedCrewSetup }> = ({ setup }) => (
   </ol>
 );
 
+const ViewerRoleBanner: React.FC<{ setup: SanitizedCrewSetup }> = ({ setup }) => {
+  const role = setup.roles[setup.viewerId];
+  const seat = seatByPlayer(setup, setup.viewerId);
+  if (!role || !seat) return null;
+  const identity = CREW_IDENTITIES[role];
+  return (
+    <CharacterSplash role={role} className="max-w-2xl motion-safe:animate-lobby-rise">
+      <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-slate-300">
+        Игрок {seat.orderNumber} · {seat.label}
+      </span>
+      <span className="font-heading text-3xl uppercase tracking-[0.2em] sm:text-4xl" style={{ color: identity.color }}>
+        {identity.label}
+      </span>
+    </CharacterSplash>
+  );
+};
+
 const CrewManifest: React.FC<{ setup: SanitizedCrewSetup; onLaunch: () => void }> = ({ setup, onLaunch }) => (
-  <div className="flex flex-col items-center gap-6 motion-safe:animate-lobby-rise">
+  <div className="flex w-full flex-col items-center gap-6 motion-safe:animate-lobby-rise">
     <h3 className="font-heading text-2xl tracking-[0.3em] text-white">ЭКИПАЖ СОБРАН</h3>
+    <ViewerRoleBanner setup={setup} />
     <div className="flex flex-wrap justify-center gap-3">
       {[...setup.seats]
         .sort((left, right) => left.orderNumber - right.orderNumber)

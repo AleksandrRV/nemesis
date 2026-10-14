@@ -13,7 +13,7 @@ import {
   ThumbsDown,
   type LucideIcon,
 } from 'lucide-react';
-import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterAvatar } from '../art/CharacterArt';
 import { COMMITMENT_STATUS_LABELS, COMMS_KIND_LABELS } from './commsPhrases';
 import type { FeedAnswer, FeedItem } from './commsFeedModel';
 
@@ -51,17 +51,15 @@ const Avatar: React.FC<{ item: FeedItem; onOpenDossier: (playerId: string) => vo
       </span>
     );
   }
-  const identity = CREW_IDENTITIES[item.authorClass];
   const authorId = item.authorId;
   return (
     <button
       type="button"
       onClick={() => onOpenDossier(authorId)}
       title={`Досье: ${item.authorName}`}
-      style={{ borderColor: identity.color }}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-slate-950 transition hover:scale-110"
+      className="shrink-0 rounded-full transition hover:scale-110"
     >
-      <identity.Icon size={16} color={identity.color} aria-hidden="true" />
+      <CharacterAvatar role={item.authorClass} className="h-9 w-9" iconSize={16} />
       <span className="sr-only">Досье: {item.authorName}</span>
     </button>
   );

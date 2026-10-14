@@ -2,6 +2,7 @@ import React from 'react';
 import { Biohazard, CheckCircle2, Cog, Navigation, Rocket, ScanLine, Skull, XCircle } from 'lucide-react';
 import type { EndgameCharacterResult, EndgameReport, EngineNumber, SanitizedGameState } from '@nemesis/shared';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterSplash } from '../art/CharacterArt';
 import { ObjectiveCardFace } from '../objectives/ObjectiveCardView';
 import { playerNumberHint } from '../objectives/objectiveModel';
 import { DESTINATION_LABELS, courseRow, isExplosionFate, shipFateLines, survivalLine } from './endgameModel';
@@ -223,8 +224,10 @@ export const ObjectivesScene: React.FC<{ view: SanitizedGameState; result: Endga
   const player = view.players[result.playerId]!;
   const identity = CREW_IDENTITIES[player.characterClass];
   return (
-    <div className="flex flex-col items-center gap-5">
-      <SceneTitle kicker={`Проверка 4 · ${identity.label} · ${survivalLine(result)}`} title="Проверка Целей" />
+    <div className="flex w-full flex-col items-center gap-5">
+      <CharacterSplash role={player.characterClass} aspect="aspect-[16/7]" className="max-w-3xl">
+        <SceneTitle kicker={`Проверка 4 · ${identity.label} · ${survivalLine(result)}`} title="Проверка Целей" />
+      </CharacterSplash>
       <ul className="flex flex-wrap justify-center gap-5">
         {result.objectiveResults.map((entry, index) => {
           const met = entry.metConditionIndex !== null;

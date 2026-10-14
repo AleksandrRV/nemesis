@@ -2,6 +2,7 @@ import React from 'react';
 import type { CharacterClass } from '@nemesis/shared';
 import { Lock } from 'lucide-react';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterPortrait } from '../art/CharacterArt';
 
 export type RoleCardState = 'OPEN' | 'SHOWN' | 'CHOSEN' | 'TAKEN' | 'RETURNING';
 
@@ -43,7 +44,6 @@ export const RoleCard: React.FC<RoleCardProps> = ({
   compact = false,
 }) => {
   const identity = CREW_IDENTITIES[role];
-  const Icon = identity.Icon;
   const interactive = state === 'OPEN' && onPick !== undefined;
   return (
     <button
@@ -54,20 +54,20 @@ export const RoleCard: React.FC<RoleCardProps> = ({
       style={{ animationDelay: `${dealDelayMs}ms`, borderColor: identity.color }}
       className={`group relative flex ${compact ? 'h-40 w-28' : 'h-56 w-40'} flex-col overflow-hidden rounded-2xl border-2 bg-slate-950 text-left transition duration-300 motion-safe:animate-draft-deal ${STATE_CLASSES[state]} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-300`}
     >
+      <span className="absolute inset-0 transition duration-500 group-hover:scale-105">
+        <CharacterPortrait role={role} iconSize={compact ? 26 : 38} />
+      </span>
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent"
+      />
       <span
         aria-hidden="true"
         style={{ backgroundColor: identity.color }}
-        className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-20 blur-2xl transition group-hover:opacity-35"
+        className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-10 blur-2xl transition group-hover:opacity-30"
       />
-      <span className="relative flex flex-1 items-center justify-center">
-        <span
-          style={{ borderColor: identity.color }}
-          className={`flex ${compact ? 'h-14 w-14' : 'h-20 w-20'} items-center justify-center rounded-full border-2 bg-slate-900/80 shadow-inner`}
-        >
-          <Icon size={compact ? 26 : 38} color={identity.color} aria-hidden="true" />
-        </span>
-      </span>
-      <span className="relative border-t border-slate-800 bg-slate-900/80 px-2 py-2 text-center">
+      <span className="relative flex-1" />
+      <span className="relative border-t border-slate-800/70 bg-slate-950/75 px-2 py-2 text-center backdrop-blur-sm">
         <span className={`block font-heading ${compact ? 'text-sm' : 'text-lg'} uppercase tracking-widest text-white`}>
           {identity.label}
         </span>

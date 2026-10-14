@@ -1,5 +1,7 @@
 import React from 'react';
+import { characterArtUrl } from '../../art/characterArt';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { useArtFallback } from '../../art/useArtFallback';
 import { CREW_TOKEN_RADIUS, crewTokenLabel, type CrewTokenData } from './crewTokenModel';
 
 interface CrewTokenProps {
@@ -11,6 +13,7 @@ interface CrewTokenProps {
 }
 
 const R = CREW_TOKEN_RADIUS;
+const AVATAR_RADIUS = R - 1;
 const CENTERED: React.CSSProperties = { transformBox: 'fill-box', transformOrigin: 'center' };
 
 export const CrewToken: React.FC<CrewTokenProps> = ({ token, x = 0, y = 0, scale = 1, showActiveRing = true }) => {
@@ -18,6 +21,9 @@ export const CrewToken: React.FC<CrewTokenProps> = ({ token, x = 0, y = 0, scale
   const Icon = identity.Icon;
   const label = crewTokenLabel(token);
   const dimmed = token.hasPassed || token.isInHibernation;
+  const avatarSrc = characterArtUrl(token.characterClass, 'avatar');
+  const art = useArtFallback(avatarSrc);
+  const clipId = `crew-avatar-${React.useId().replace(/:/g, '')}`;
 
   return (
     <g
@@ -52,15 +58,44 @@ export const CrewToken: React.FC<CrewTokenProps> = ({ token, x = 0, y = 0, scale
       )}
       <g opacity={dimmed ? 0.55 : 1}>
         <circle cy={1.3} r={R + 0.4} fill="#020409" opacity={0.65} />
+        <circle r={R} fill="#070d18" />
+        {art.failed ? (
+          <>
+            <circle r={R - 2.6} fill={identity.color} fillOpacity={0.16} />
+            <Icon
+              x={-5.5}
+              y={-5.5}
+              width={11}
+              height={11}
+              color={identity.color}
+              strokeWidth={2.4}
+              aria-hidden="true"
+            />
+          </>
+        ) : (
+          <>
+            <clipPath id={clipId}>
+              <circle r={AVATAR_RADIUS} />
+            </clipPath>
+            <image
+              href={avatarSrc}
+              x={-AVATAR_RADIUS}
+              y={-AVATAR_RADIUS}
+              width={AVATAR_RADIUS * 2}
+              height={AVATAR_RADIUS * 2}
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#${clipId})`}
+              onError={art.onError}
+            />
+          </>
+        )}
         <circle
           r={R}
-          fill="#070d18"
+          fill="none"
           stroke={identity.color}
           strokeWidth={2}
           strokeDasharray={token.isInHibernation ? '3 2' : undefined}
         />
-        <circle r={R - 2.6} fill={identity.color} fillOpacity={0.16} />
-        <Icon x={-5.5} y={-5.5} width={11} height={11} color={identity.color} strokeWidth={2.4} aria-hidden="true" />
       </g>
       <g transform={`translate(${R - 1.6} ${-(R - 1.6)})`}>
         <circle r={5} fill={identity.color} stroke="#05070c" strokeWidth={1.4} />

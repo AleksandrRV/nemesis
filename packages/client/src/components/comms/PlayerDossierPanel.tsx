@@ -5,6 +5,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useCommsUiStore } from '../../store/commsUiStore';
 import { useGameStore } from '../../store/gameStore';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterAvatar } from '../art/CharacterArt';
 import { COMMS_KIND_LABELS } from './commsPhrases';
 import {
   buildPlayerDossier,
@@ -90,12 +91,7 @@ export const DossierView: React.FC<{ dossier: PlayerDossier; onShowOnMap?: () =>
     <article className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl motion-safe:animate-lobby-rise">
       <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: identity.color }} />
       <header className="flex items-center gap-3 border-b border-slate-800 p-4">
-        <span
-          style={{ borderColor: identity.color }}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 bg-slate-900"
-        >
-          <identity.Icon size={26} color={identity.color} aria-hidden="true" />
-        </span>
+        <CharacterAvatar role={dossier.characterClass} className="h-14 w-14" iconSize={26} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-500">
             <FileText size={11} aria-hidden="true" /> Досье · игрок {dossier.orderNumber}

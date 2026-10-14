@@ -4,7 +4,7 @@ import { EXCHANGE_OPTION, type ExchangeTransfer, type PendingDecision, type Sani
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { autoFillPayment, handPaymentCandidates, initialPayment, paymentBlocker } from '../hand/cardUseFlow';
 import { PaymentStep } from '../hand/CardUseSteps';
-import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterAvatar } from '../art/CharacterArt';
 import {
   EXCHANGE_COST,
   buildTransfers,
@@ -114,7 +114,6 @@ export const ExchangeModal: React.FC<{
           </p>
           <div role="radiogroup" aria-label="Партнёр по Обмену" className="flex flex-wrap gap-2">
             {partners.map((candidate) => {
-              const identity = CREW_IDENTITIES[candidate.characterClass];
               return (
                 <button
                   key={candidate.id}
@@ -125,13 +124,13 @@ export const ExchangeModal: React.FC<{
                     setPartnerId(candidate.id);
                     setTakeIds([]);
                   }}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-semibold transition ${
                     candidate.id === partnerId
                       ? 'border-emerald-400 bg-emerald-950/60 text-white'
                       : 'border-slate-700 text-slate-300'
                   }`}
                 >
-                  <identity.Icon size={14} style={{ color: identity.color }} aria-hidden="true" />
+                  <CharacterAvatar role={candidate.characterClass} className="h-6 w-6" iconSize={12} />
                   {candidate.name}
                 </button>
               );

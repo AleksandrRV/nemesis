@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { EndgameReport, SanitizedGameState } from '@nemesis/shared';
 import { CREW_IDENTITIES } from '../../utils/crewIdentity';
+import { CharacterAvatar } from '../art/CharacterArt';
 import {
   CAUSE_TITLES,
   DESTINATION_LABELS,
@@ -134,12 +135,7 @@ export const EndgameSummary: React.FC<{
               }`}
               style={delay(200 + index * 180)}
             >
-              <span
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2"
-                style={{ borderColor: identity.color, color: identity.color }}
-              >
-                <identity.Icon size={22} aria-hidden="true" />
-              </span>
+              <CharacterAvatar role={player.characterClass} className="h-12 w-12" iconSize={22} />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <span className="font-heading text-xl tracking-wider text-white">{player.name}</span>

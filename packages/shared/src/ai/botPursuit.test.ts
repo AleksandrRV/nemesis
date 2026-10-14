@@ -7,10 +7,10 @@ import { roomOf } from '../testing/roomFixtures.js';
 import { BOT, botTable, rankedFor } from '../testing/botTacticsFixtures.js';
 import { forecastHarm } from './botForecast.js';
 import { corridorsAround, otherEnd } from './botGraph.js';
-import { eventPursuitChance, followChance, returnTripHarm } from './botPursuit.js';
+import { eventPursuitChance, eventPursuitHarm, followChance, returnTripHarm } from './botPursuit.js';
 import { SILENCE_SHARE } from './botRisk.js';
 import { eventLeaveChance, shelterAccess } from './botShelter.js';
-import { attacksFromRoom, threatContext } from './botThreat.js';
+import { attacksFromRoom, intruderHarm, threatContext } from './botThreat.js';
 import { BOT_TUNING } from './botTuning.js';
 
 const context = (state: GameState) => {
@@ -63,6 +63,20 @@ describe('Чужой идёт следом за ботом (стр. 9, 15, 18)',
     const ctx = context(state);
     const intruder = ctx.view.intrudersPool.boardTokens.find((token) => token.roomId === pod)!;
     expect(eventPursuitChance(ctx, intruder, exit)).toBe(0);
+  });
+
+  it('вред погони по карте События — продолжение Боя × вес `pursuit.event`, по умолчанию выключенный', () => {
+    const { state, pod, exit } = occupiedPod('pursuit-weight');
+    const ctx = context(state);
+    const intruder = ctx.view.intrudersPool.boardTokens.find((token) => token.roomId === pod)!;
+    expect(eventPursuitHarm(ctx, pod, exit)).toBe(0);
+    const weighted = {
+      ...ctx,
+      tuning: { ...BOT_TUNING, tactics: { ...BOT_TUNING.tactics, pursuit: { event: 1, returnTrip: 1 } } },
+    };
+    expect(eventPursuitHarm(weighted, pod, exit)).toBeCloseTo(
+      eventPursuitChance(ctx, intruder, exit) * intruderHarm(ctx, 'ADULT') * BOT_TUNING.tactics.harm.combatContinuation,
+    );
   });
 
   it('Чужого, которого держит в Бою другой Персонаж, уход бота не освобождает', () => {

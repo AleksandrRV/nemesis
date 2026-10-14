@@ -42,7 +42,7 @@ export interface TacticsTuning {
   larvaCure: number;
   /**
    * Погоня за уходящим из Боя (стр. 9, 15): доля вреда Чужих, пришедших следом по карте События, и Побега обратно в
-   * покинутое укрытие.
+   * покинутое укрытие. Вред погони для каждого Побега проверен на симуляторе и выключен (§9.4).
    */
   pursuit: { event: number; returnTrip: number };
   /** Доля веса задачи, которую держит неисправная Комната, переходящая к её ремонту. */
@@ -142,7 +142,7 @@ export const TACTICS_TUNING = {
   jumpStepRisk: 0.3,
   repairInheritance: 0.5,
   larvaCure: 1,
-  pursuit: { event: 1, returnTrip: 1 },
+  pursuit: { event: 0, returnTrip: 1 },
   doorProgressShare: 0.7,
   intruderRemoval: 0.25,
   woundEffects: { BLEEDING: 0.12, LEG: 0.04, ARM: 0.03, HAND: 0.02, BACK: 0.04 },

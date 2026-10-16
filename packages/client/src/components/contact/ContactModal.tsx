@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, ShieldAlert } from 'lucide-react';
 import type { ContactPresentationEntry } from './contactPresentationModel';
 import { INTRUDER_NAMES } from './contactPresentationModel';
 import { IntruderSilhouette } from './IntruderSilhouette';
+import { IntruderSplashArt } from '../art/IntruderArt';
 import { COMBAT_DIE_PRESENTATION } from '../combat/shootPresentation';
 import { retreatNumberLabel, retreatOutcomeText } from '../combat/retreatPresentation';
 import { ToughnessCheckPanel } from '../combat/ToughnessCheckPanel';
@@ -72,17 +73,26 @@ export function ContactModal({ entry, view, onClose }: ContactModalProps) {
 
         <div className="space-y-5 px-5 py-5 sm:px-7">
           <div className="flex flex-col items-center gap-3">
-            <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-gradient-to-br from-cyan-900/50 via-slate-950 to-slate-900 shadow-neon-cyan motion-safe:animate-contact-reveal motion-reduce:animate-none sm:h-48 sm:w-48">
-              <IntruderSilhouette type={type} />
-              {isContact && type !== 'BLANK' && !event.infestation && (
-                <div
-                  aria-label={`Число Внезапной атаки: ${event.escapeNumber}`}
-                  className="absolute bottom-0 right-1 flex h-11 w-11 items-center justify-center rounded-full border border-amber-400/70 bg-slate-950 font-mono text-2xl font-bold text-amber-300"
-                >
-                  {event.escapeNumber}
-                </div>
-              )}
-            </div>
+            {type === 'BLANK' ? (
+              <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-2 border-cyan-400/60 bg-gradient-to-br from-cyan-900/50 via-slate-950 to-slate-900 shadow-neon-cyan motion-safe:animate-contact-reveal motion-reduce:animate-none sm:h-48 sm:w-48">
+                <IntruderSilhouette type={type} />
+              </div>
+            ) : (
+              <IntruderSplashArt
+                type={type}
+                label={INTRUDER_NAMES[type]}
+                className="shadow-neon-cyan motion-safe:animate-contact-reveal motion-reduce:animate-none"
+              >
+                {isContact && !event.infestation && (
+                  <div
+                    aria-label={`Число Внезапной атаки: ${event.escapeNumber}`}
+                    className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full border border-amber-400/70 bg-slate-950/90 font-mono text-2xl font-bold text-amber-300"
+                  >
+                    {event.escapeNumber}
+                  </div>
+                )}
+              </IntruderSplashArt>
+            )}
             <h3 className="text-center font-heading text-xl uppercase tracking-wider text-cyan-100">
               {INTRUDER_NAMES[type]}
             </h3>

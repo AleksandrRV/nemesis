@@ -477,3 +477,9 @@ export function filterBoardRooms(
 
 /** Вместимость кладки — реэкспорт для компонентов планшета. */
 export { HIVE_EGGS_CAPACITY };
+
+export function countOnBoardByType(model: IntruderBoardModel): Record<IntruderType, number> {
+  const counts: Record<IntruderType, number> = { LARVA: 0, CREEPER: 0, ADULT: 0, BREEDER: 0, QUEEN: 0 };
+  for (const row of model.boardByRoom) for (const token of row.tokens) counts[token.type] += 1;
+  return counts;
+}

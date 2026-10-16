@@ -4,6 +4,8 @@ import { hasRetreatArrow, type BoardObjectKind, type SanitizedGameState } from '
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
 import { INTRUDER_NAMES_RU } from '../board/intruderReference';
+import { IntruderRoster } from './IntruderRoster';
+import { IntruderTokenArt } from '../art/IntruderArt';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { attackCardPopoverStyle } from './attackCardPresentation';
 import { RETREAT_ARROW_LABEL, toughnessCardLabel, toughnessGlyph } from '../combat/toughnessPresentation';
@@ -137,6 +139,8 @@ export const IntruderBoardModal: React.FC<IntruderBoardModalProps> = ({ view, on
             <X size={20} />
           </button>
         </header>
+
+        <IntruderRoster model={model} />
 
         {/* Мобайл: табы вместо сетки */}
         <div role="tablist" aria-label="Разделы планшета Чужих" className="grid grid-cols-4 gap-1 lg:hidden">
@@ -829,11 +833,11 @@ function OnBoardSection({
                 </div>
                 <ul className="mt-1 space-y-0.5">
                   {room.tokens.map((token) => (
-                    <li key={token.id} className="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ background: INTRUDER_COLORS[token.type] }}
-                      />
+                    <li
+                      key={token.id}
+                      className="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap py-0.5"
+                    >
+                      <IntruderTokenArt type={token.type} className="h-5 w-5" />
                       <span className="text-slate-200">{token.typeName}</span>
                       <span className="font-mono">ран: {token.wounds}</span>
                       <span className="text-slate-500">— {token.survivalLabel}</span>

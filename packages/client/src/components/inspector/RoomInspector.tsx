@@ -17,7 +17,7 @@ import { DisengagePanel } from './DisengagePanel';
 import { FloorObjectsPanel } from './FloorObjectsPanel';
 import { RoomStatusGrid } from './RoomStatusGrid';
 import { TechCorridorPanel } from './TechCorridorPanel';
-import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
+import { IntruderTokenArt } from '../art/IntruderArt';
 import { X, Package, User, Footprints, Ban, ShieldAlert, Bug, Droplets, Crosshair, Hand } from 'lucide-react';
 import { EvacuationActions } from '../evacuation/EvacuationActions';
 import { RoomActionButtons } from '../rooms/RoomActionButtons';
@@ -261,14 +261,7 @@ export const RoomInspector: React.FC = () => {
                 className="flex items-center justify-between gap-2 bg-slate-950/60 rounded px-2 py-1.5 text-xs"
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <svg
-                    viewBox="0 0 96 96"
-                    className="h-4 w-4 shrink-0"
-                    role="img"
-                    aria-label={INTRUDER_NAMES_RU[intruder.type]}
-                  >
-                    <path d={INTRUDER_SHAPES[intruder.type]} fill={INTRUDER_COLORS[intruder.type]} />
-                  </svg>
+                  <IntruderTokenArt type={intruder.type} label={INTRUDER_NAMES_RU[intruder.type]} className="h-7 w-7" />
                   <span className="text-slate-200 font-semibold">{INTRUDER_NAMES_RU[intruder.type]}</span>
                 </span>
                 <span

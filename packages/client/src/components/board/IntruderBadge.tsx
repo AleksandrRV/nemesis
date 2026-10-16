@@ -1,7 +1,14 @@
+import { useId } from 'react';
+import { intruderArtUrl } from '../../art/intruderArt';
+import { useArtFallback } from '../../art/useArtFallback';
 import type { IntruderBadgeModel } from './intruderMapModel';
 import { isDominantIntruder } from './intruderMapModel';
 import { INTRUDER_COLORS, INTRUDER_SHAPES } from './intruderShapes';
 import { INTRUDER_NAMES_RU } from './intruderReference';
+
+const TOKEN_CX = 8;
+const TOKEN_CY = 7.5;
+const TOKEN_R = 6.3;
 
 interface IntruderBadgeProps {
   badge: IntruderBadgeModel;
@@ -12,8 +19,8 @@ interface IntruderBadgeProps {
 }
 
 /**
- * Бейдж Чужих в узле отсека: цветной силуэт типа, число миниатюр и суммарные
- * раны. Доминантные классы (Трутень, Королева) получают увеличенный силуэт
+ * Бейдж Чужих в узле отсека: значок типа, число миниатюр и суммарные
+ * раны. Доминантные классы (Трутень, Королева) получают увеличенный бейдж
  * и пульсирующую ауру биоугрозы. Появился на карте — значит движок разместил
  * миниатюру в отсеке; скрытых данных бейдж не содержит (состав отсеков и
  * раны публичны, стр. 19).
@@ -23,6 +30,9 @@ export function IntruderBadge({ badge, x, y, scale = 1 }: IntruderBadgeProps) {
   const label = `${INTRUDER_NAMES_RU[badge.type]}: ${badge.count} шт., ран ${badge.wounds}`;
   const baseWidth = badge.wounds > 0 ? 40 : 26;
   const dominant = isDominantIntruder(badge.type);
+  const tokenSrc = intruderArtUrl(badge.type, 'token');
+  const art = useArtFallback(tokenSrc);
+  const clipId = `intruder-token-${useId().replace(/:/g, '')}`;
 
   return (
     <g transform={`translate(${x}, ${y}) scale(${scale})`} aria-label={label} className="pointer-events-none">
@@ -52,9 +62,28 @@ export function IntruderBadge({ badge, x, y, scale = 1 }: IntruderBadgeProps) {
         strokeWidth={1.2}
         strokeOpacity={0.9}
       />
-      <svg x={2} y={1.5} width={12} height={12} viewBox="0 0 96 96" role="img" aria-hidden="true">
-        <path d={INTRUDER_SHAPES[badge.type]} fill={color} />
-      </svg>
+      {art.failed ? (
+        <svg x={2} y={1.5} width={12} height={12} viewBox="0 0 96 96" role="img" aria-hidden="true">
+          <path d={INTRUDER_SHAPES[badge.type]} fill={color} />
+        </svg>
+      ) : (
+        <>
+          <clipPath id={clipId}>
+            <circle cx={TOKEN_CX} cy={TOKEN_CY} r={TOKEN_R} />
+          </clipPath>
+          <image
+            href={tokenSrc}
+            x={TOKEN_CX - TOKEN_R}
+            y={TOKEN_CY - TOKEN_R}
+            width={TOKEN_R * 2}
+            height={TOKEN_R * 2}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#${clipId})`}
+            onError={art.onError}
+          />
+          <circle cx={TOKEN_CX} cy={TOKEN_CY} r={TOKEN_R} fill="none" stroke={color} strokeWidth={0.8} />
+        </>
+      )}
       {badge.count > 1 && (
         <text x={17} y={11.5} className="fill-slate-200 font-mono text-[9px] font-bold">
           ×{badge.count}

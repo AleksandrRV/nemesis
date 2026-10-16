@@ -4,7 +4,8 @@ import { weaponModifiers } from '@nemesis/shared';
 import { useGameStore } from '../../store/gameStore';
 import { INTRUDER_NAMES } from '../contact/contactPresentationModel';
 import { intrudersInRoom } from '../board/intruderMapModel';
-import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
+import { INTRUDER_COLORS } from '../board/intruderShapes';
+import { IntruderPortraitArt } from '../art/IntruderArt';
 
 /**
  * Интерактивная панель выстрела (Этап 4, Шаг 4, визуальная часть): выбор
@@ -262,15 +263,13 @@ export function ShootModal() {
                         : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <svg
-                        viewBox="0 0 96 96"
-                        className="h-5 w-5"
-                        role="img"
-                        aria-label={INTRUDER_NAMES[intruder.type]}
+                    <span className="flex items-center gap-3">
+                      <span
+                        style={{ borderColor: INTRUDER_COLORS[intruder.type] }}
+                        className="h-14 w-[42px] shrink-0 overflow-hidden rounded-md border"
                       >
-                        <path d={INTRUDER_SHAPES[intruder.type]} fill={INTRUDER_COLORS[intruder.type]} />
-                      </svg>
+                        <IntruderPortraitArt type={intruder.type} label={INTRUDER_NAMES[intruder.type]} />
+                      </span>
                       <span className="font-semibold">{INTRUDER_NAMES[intruder.type]}</span>
                     </span>
                     <span className="font-mono text-xs">

@@ -14,9 +14,9 @@ import {
   SELF_DESTRUCT_IRREVERSIBLE_AT,
   TIME_TRACK_LENGTH,
 } from '@nemesis/shared';
-import type { EventCard, SanitizedGameLogEntry } from '@nemesis/shared';
+import type { EventCard, IntruderToken, SanitizedGameLogEntry } from '@nemesis/shared';
 
-import { INTRUDER_COLORS, INTRUDER_SHAPES } from '../board/intruderShapes';
+import { IntruderTokenArt } from '../art/IntruderArt';
 import { usePrefersReducedMotion } from '../board/useBoardAnimations';
 import { INTRUDER_TYPE_NAMES } from '../log/intruderLogModel';
 import { playerName } from '../log/gameLogModel';
@@ -36,12 +36,10 @@ function useDeparted(reducedMotion: boolean): boolean {
   return departed;
 }
 
-function IntruderSilhouette({ type, size }: { type: keyof typeof INTRUDER_SHAPES; size: number }) {
-  return (
-    <svg viewBox="0 0 96 96" width={size} height={size} aria-hidden="true">
-      <path d={INTRUDER_SHAPES[type]} fill={INTRUDER_COLORS[type]} stroke="#05070c" strokeWidth={2} />
-    </svg>
-  );
+const INTRUDER_TOKEN_SIZES = { sm: 'h-[30px] w-[30px]', md: 'h-11 w-11', lg: 'h-[46px] w-[46px]' } as const;
+
+function IntruderMark({ type, size }: { type: IntruderToken['type']; size: keyof typeof INTRUDER_TOKEN_SIZES }) {
+  return <IntruderTokenArt type={type} className={INTRUDER_TOKEN_SIZES[size]} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,7 +149,7 @@ export const AttackCardVisual: React.FC<{
   return (
     <div className="motion-safe:animate-card-reveal flex items-center gap-3 rounded-lg border border-red-900/70 bg-gradient-to-r from-red-950/40 to-slate-950/80 p-2.5">
       <div className="shrink-0">
-        <IntruderSilhouette type={event.intruderType} size={44} />
+        <IntruderMark type={event.intruderType} size="md" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-bold text-white">{INTRUDER_TYPE_NAMES[event.intruderType]} атакует</p>
@@ -199,7 +197,7 @@ export const EventCardVisual: React.FC<{ card: EventCard }> = ({ card }) => (
     <div className="mb-2 flex min-h-10 items-center justify-center gap-1 rounded border border-slate-800 bg-black/50 py-1">
       {card.intruderTypes.map((type, index) => (
         <span key={`${type}-${index}`} title={INTRUDER_TYPE_NAMES[type]}>
-          <IntruderSilhouette type={type} size={30} />
+          <IntruderMark type={type} size="sm" />
         </span>
       ))}
     </div>
@@ -279,7 +277,7 @@ export const HiveTokenVisual: React.FC<{
       <path d="M14 18c3 3 17 3 20 0" fill="none" stroke="#a855f7" strokeWidth={2} />
     </svg>
     <div className="motion-safe:animate-token-pop shrink-0">
-      <IntruderSilhouette type={event.tokenType} size={46} />
+      <IntruderMark type={event.tokenType} size="lg" />
     </div>
     <div className="min-w-0 flex-1 text-xs leading-5 text-purple-200">
       <p className="font-bold text-white">Вытянут жетон: {INTRUDER_TYPE_NAMES[event.tokenType]}</p>
